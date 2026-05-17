@@ -1,0 +1,16 @@
+time,currency,event,actual,forecast,previous,impact
+2026-03-30 01:30,GBP,M4 Money Supply m/m,0.6%,0.1%,-0.1%,Low
+2026-03-30 01:30,GBP,Mortgage Approvals,63K,61K,60K,Low
+2026-03-30 01:30,GBP,Net Lending to Individuals m/m,6.8B,5.6B,6.0B,Low
+2026-03-30 16:01,GBP,BRC Shop Price Index y/y,1.2%,1.2%,1.1%,Low
+2026-03-30 17:30,AUD,Private Sector Credit m/m,0.6%,0.6%,0.5%,Low
+2026-03-30 23:00,GBP,Current Account,-18.4B,-24.0B,-10.7B,Low
+2026-03-30 23:00,GBP,Final GDP q/q,0.1%,0.1%,0.1%,Low
+2026-03-30 23:00,GBP,Nationwide HPI m/m,0.9%,0.0%,0.3%,Low
+2026-03-30 23:00,GBP,Revised Business Investment q/q,-2.5%,-2.7%,-2.7%,Low
+2026-03-31 17:30,AUD,Building Approvals m/m,29.7%,5.8%,-7.2%,Medium
+2026-03-31 22:30,AUD,Commodity Prices y/y,12.8%,,4.9%,Low
+2026-04-01 01:30,GBP,Final Manufacturing PMI,51.0,51.4,51.4,Medium
+2026-04-01 02:30,GBP,FPC Meeting Minutes,,,Low
+2026-04-01 02:30,GBP,FPC Statement,,,Low
+2026-04-01 17:30,AUD,Goods Trade Balance,,2.81B,2.63B,Low
