@@ -204,12 +204,38 @@ class ForexCalendarScraper:
         if os.path.exists("calendar.csv"):
             try:
                 df = pd.read_csv("calendar.csv")
+                if df.empty:
+                    return df
+
+                # Check whether the CSV contains data for the current week.
+                # If all dates are older than 7 days the file is stale and will
+                # feed wrong events into the news-lockout gate — more dangerous
+                # than returning nothing.
+                today      = datetime.now()
+                cutoff     = today - timedelta(days=7)
+                time_col   = df.get("time", df.iloc[:, 0] if len(df.columns) else None)
+                if time_col is not None:
+                    try:
+                        dates = pd.to_datetime(time_col, errors="coerce")
+                        most_recent = dates.max()
+                        if pd.isna(most_recent) or most_recent < pd.Timestamp(cutoff):
+                            days_old = (today - most_recent.to_pydatetime()).days if not pd.isna(most_recent) else "?"
+                            print(
+                                f"\n  ⚠️  CALENDAR WARNING: calendar.csv is {days_old} days old "
+                                f"(most recent event: {most_recent.date() if not pd.isna(most_recent) else 'unknown'}). "
+                                f"News gate is DISABLED — stale events cannot safely guard entries.\n"
+                                f"  Fix: add this week's GBP/AUD events to calendar.csv or ensure "
+                                f"ForexFactory scraping is unblocked.\n"
+                            )
+                            return pd.DataFrame()   # return empty so news gate skips rather than uses bad data
+                    except Exception:
+                        pass  # if date parsing fails, proceed with what we have
+
                 return df
-            except Exception as exc:
+            except Exception:
                 pass  # silent
 
         print()
-
         print("time, currency, event, actual, forecast, previous, impact")
         print("Example: 2026-03-27 09:30,GBP,CPI YoY,,2.9%,3.0%,High")
         return pd.DataFrame()

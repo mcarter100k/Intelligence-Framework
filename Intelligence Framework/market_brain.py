@@ -1752,6 +1752,53 @@ def _build_invalidation(htf: Dict, liquidity: Dict, bias: str) -> Dict:
             "action_on_break": "Exit longs. Uptrend structure is breaking. Wait for confirmation.",
         }
 
+    elif context in ("ESTABLISHED_DOWNTREND", "COUNTER_TREND_BOUNCE") and bias == "BULLISH":
+        # Live vs structural conflict: structural is bearish but today's session is running bullish.
+        # Show the level that ends the intraday bullish case — not a trade thesis, just context.
+        inv_level = pwl
+        inv_note  = (
+            f"Today's move is bullish but the 5-month trend is DOWN. "
+            f"A daily close below this week's low ({pwl}) confirms the downtrend "
+            f"has resumed — the intraday rally was a counter-trend bounce."
+        )
+        warn_level = ma50
+        warn_note  = (
+            f"MA50 ({ma50}) is the key structural dividing line. "
+            f"Price holding above it keeps the intraday bullish case alive. "
+            f"A daily close below MA50 favours the bears."
+        )
+        return {
+            "thesis": "CONFLICTED — intraday BULLISH, structural BEARISH. No trade.",
+            "invalidation": inv_level,
+            "invalidation_note": inv_note,
+            "warning_level": warn_level,
+            "warning_note": warn_note,
+            "action_on_break": "Structural downtrend has reasserted. Do not chase longs.",
+        }
+
+    elif context in ("ESTABLISHED_UPTREND", "PULLBACK_IN_UPTREND") and bias == "BEARISH":
+        # Live vs structural conflict: structural is bullish but today's session is bearish.
+        inv_level = pwh
+        inv_note  = (
+            f"Today's move is bearish but the 5-month trend is UP. "
+            f"A daily close above this week's high ({pwh}) confirms the uptrend "
+            f"has resumed — the intraday sell-off was a counter-trend pullback."
+        )
+        warn_level = ma50
+        warn_note  = (
+            f"MA50 ({ma50}) is key support in an uptrend. "
+            f"Price holding above it keeps the intraday bearish case contained. "
+            f"A daily close below MA50 would be the first real structural warning."
+        )
+        return {
+            "thesis": "CONFLICTED — intraday BEARISH, structural BULLISH. No trade.",
+            "invalidation": inv_level,
+            "invalidation_note": inv_note,
+            "warning_level": warn_level,
+            "warning_note": warn_note,
+            "action_on_break": "Uptrend has resumed. Do not chase shorts.",
+        }
+
     else:
         return {
             "thesis": "No clear directional bias — no trade thesis active",
@@ -2819,7 +2866,9 @@ def print_report(report: Dict) -> None:
 
     _sweep = liq.get("sweep_note", "").strip()
     if _sweep and "no sweep" not in _sweep.lower():
-        print(f"  Sweep     : {_sweep[:W - 16]}")
+        _sw_lines = _tw.wrap(_sweep, width=W - 16)
+        for _si, _sl in enumerate(_sw_lines):
+            print(f"  {'Sweep     : ' if _si == 0 else ' ' * 12}{_sl}")
     else:
         _near = liq.get("nearest_pool", "")
         if _near:

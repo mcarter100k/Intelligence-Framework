@@ -814,7 +814,7 @@ def make_decision(report: Dict, trade_type: str = "auto") -> Dict:
             "bias":      leg_bias,
             "available": legs.get("driver", "UNKNOWN") != "UNKNOWN",
             "raw_score": _leg_raw,
-            "summary":   leg_note[:120] if leg_note else "GBP/USD vs AUD/USD decomposition",
+            "summary":   leg_note if leg_note else "GBP/USD vs AUD/USD decomposition",
             "timeframe": "LIVE",
         }]
 
