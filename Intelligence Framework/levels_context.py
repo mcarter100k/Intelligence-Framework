@@ -147,3 +147,109 @@ def nearest_support(levels: dict, entry: float) -> Optional[float]:
         and k not in ("session_name",)
     ]
     return max(candidates) if candidates else None
+
+
+def get_round_number_levels(price: float, range_pips: int = 400) -> list[float]:
+    """
+    Return psychological / round-number price levels within range_pips of price.
+
+    GBP/AUD traders watch three tiers of round numbers:
+      Full handle   : X.XX00  (e.g. 2.0000) — strongest magnet
+      Half handle   : X.XX50  (e.g. 2.0500) — significant
+      Quarter handle: X.XX25 / X.XX75        — weaker but respected
+
+    These levels are magnets — price gravitates toward them and often
+    reverses or stalls there even with no prior S/R context.
+    """
+    step   = 0.0025   # quarter-handle spacing (25 pips)
+    margin = range_pips * 0.0001
+
+    # Snap the centre to the nearest 25-pip level
+    centre = round(round(price / step) * step, 4)
+
+    levels = []
+    n = int(margin / step) + 2
+    for i in range(-n, n + 1):
+        lvl = round(centre + i * step, 4)
+        if abs(lvl - price) <= margin:
+            levels.append(lvl)
+
+    return sorted(set(levels))
+
+
+def find_confluence_zones(
+    levels: dict,
+    price: float,
+    threshold_pips: int = 10,
+) -> list[dict]:
+    """
+    Identify price zones where multiple key levels cluster together.
+
+    Plain English: when PDH, a weekly high, and a Fibonacci level all sit
+                   within 10 pips of each other, that is not three separate
+                   levels — it is one high-conviction zone. This function
+                   finds those clusters and ranks them by strength.
+
+    Args:
+        levels         : levels dict from get_key_levels() or last_run.json
+        price          : current price (used to label zone as support/resistance)
+        threshold_pips : levels within this many pips are grouped together
+
+    Returns list of dicts, sorted by confluence count descending:
+        zone_price   : centre price of the cluster
+        count        : number of levels in the cluster
+        names        : list of level names in the cluster
+        distance_pips: pips from current price to zone centre
+        side         : "RESISTANCE" | "SUPPORT" | "AT"
+    """
+    threshold = threshold_pips * 0.0001
+
+    # Flatten to (name, price) pairs — skip non-numeric and session_name
+    flat: list[tuple[str, float]] = []
+    for k, v in levels.items():
+        if isinstance(v, (int, float)) and v > 0 and k != "session_name":
+            flat.append((k, round(float(v), 5)))
+
+    if not flat:
+        return []
+
+    # Add round numbers to the pool so they can form confluences too
+    round_levels = get_round_number_levels(price)
+    for rl in round_levels:
+        flat.append((f"round_{rl:.4f}", rl))
+
+    # Greedy clustering: walk sorted list, group within threshold
+    flat.sort(key=lambda x: x[1])
+    clusters: list[list[tuple[str, float]]] = []
+    current_cluster: list[tuple[str, float]] = [flat[0]]
+
+    for name, lvl in flat[1:]:
+        if lvl - current_cluster[-1][1] <= threshold:
+            current_cluster.append((name, lvl))
+        else:
+            clusters.append(current_cluster)
+            current_cluster = [(name, lvl)]
+    clusters.append(current_cluster)
+
+    # Build output — only return clusters with 2+ levels
+    zones = []
+    for cluster in clusters:
+        if len(cluster) < 2:
+            continue
+        zone_price = round(sum(v for _, v in cluster) / len(cluster), 5)
+        dist_pips  = round((zone_price - price) * 10000, 1)
+        if dist_pips > 5:
+            side = "RESISTANCE"
+        elif dist_pips < -5:
+            side = "SUPPORT"
+        else:
+            side = "AT"
+        zones.append({
+            "zone_price":    zone_price,
+            "count":         len(cluster),
+            "names":         [n for n, _ in cluster],
+            "distance_pips": dist_pips,
+            "side":          side,
+        })
+
+    return sorted(zones, key=lambda z: z["count"], reverse=True)

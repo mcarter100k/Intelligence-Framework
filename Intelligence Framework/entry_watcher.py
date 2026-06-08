@@ -18,6 +18,7 @@ Run via:
 from __future__ import annotations
 
 import json
+import os
 import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -25,14 +26,18 @@ from typing import Optional
 
 from oanda_feed import get_m5_bars, get_m15_bars
 from levels_context import levels_as_list, nearest_resistance, nearest_support
+from risk_config import HARD_LIMITS, RISK_RULES
+from trade_management import get_management_plan
 
-_DIR          = Path(__file__).parent
-_LAST_RUN     = _DIR / "last_run.json"
-_PIP          = 0.0001   # GBP/AUD 4-decimal pair
-_PROXIMITY    = 20       # pips — how close to a key level the candle must be
-_STOP_BUFFER  = 5        # pips added beyond the candle wick for the stop
-_POLL_SECONDS = 60       # how often to check for new candles
-_PENDING_TTL  = 30 * 60  # 15-min signal expires after 30 minutes if no 5-min confirms
+_DIR             = Path(__file__).parent
+_LAST_RUN        = _DIR / "last_run.json"
+_JOURNAL_PATH    = _DIR / "run_journal.csv"
+_ACCOUNT_BALANCE = float(os.environ.get("ACCOUNT_BALANCE", "10000"))
+_PIP             = 0.0001   # GBP/AUD 4-decimal pair
+_PROXIMITY       = 20       # pips — how close to a key level the candle must be
+_STOP_BUFFER     = 5        # pips added beyond the candle wick for the stop
+_POLL_SECONDS    = 60       # how often to check for new candles
+_PENDING_TTL     = 30 * 60  # 15-min signal expires after 30 minutes if no 5-min confirms
 
 
 # ── Context ───────────────────────────────────────────────────────────────────
@@ -57,7 +62,10 @@ def _context_age_hours(ctx: dict) -> float:
         run_dt = datetime.strptime(f"{date_str} {time_str[:5]}", "%Y-%m-%d %H:%M")
         run_dt = run_dt.replace(tzinfo=timezone.utc)
         delta  = datetime.now(timezone.utc) - run_dt
-        return delta.total_seconds() / 3600
+        seconds = delta.total_seconds()
+        if seconds < 0:
+            return 999.0  # timestamp is in the future — treat as unknown/stale
+        return seconds / 3600
     except ValueError:
         return 999.0
 
@@ -295,7 +303,6 @@ def _print_alert(direction: str, level: float,
     icon  = "🟢" if direction == "LONG" else "🔴"
     stop_pips = _pips(entry, stop)
     tgt_pips  = _pips(entry, target)
-    rr_ok     = rr >= 1.5
 
     print(f"\n{'═'*56}")
     print(f"  {icon} ENTRY TRIGGER — GBP/AUD  [{now}]")
@@ -311,25 +318,170 @@ def _print_alert(direction: str, level: float,
     print(f"      if price goes here your trade idea is wrong)")
     print(f"  Target : {target:.5f}  ({tgt_pips:.1f} pips potential)")
     print(f"     (Next key level {'above' if direction == 'LONG' else 'below'} your entry)")
-    print(f"  R:R    : {rr}:1  {'✅ Good' if rr_ok else '⚠️  Below minimum 1.5 — consider skipping'}")
+    print(f"  R:R    : {rr}:1  ✅")
     print(f"  {'─'*52}")
     print(f"  Grade at signal : {grade}  (conviction {conv})")
     if grade in ("A+", "A"):
         print(f"  → Strong setup. Standard position size.")
     elif grade in ("B+", "B"):
         print(f"  → Valid but not perfect. Reduce size slightly, manage actively.")
-    elif grade == "C":
-        print(f"  ⚠️  Grade C — framework says conditions are not ideal.")
-        print(f"      Consider skipping or waiting for a better setup.")
+    print(f"  {'─'*52}")
+
+    # Trade management plan — exact price levels to follow after entry
+    mgmt = get_management_plan(entry, stop, target, direction, grade, key_level=level)
+    print(mgmt["plan_text"])
+
     print(f"  {'─'*52}")
     print(f"  Execute on Liquid Charts Pro")
-    print(f"  Invalidated if: price {'falls' if direction == 'LONG' else 'rises'} back through {level:.5f}")
     print(f"{'═'*56}\n")
 
 
 def _print_expired():
     print(f"\n  ⏱  15-min signal expired — no 5-min confirmation within 30 min.")
     print(f"  Returning to WAITING state.\n")
+
+
+# ── Trigger checklist ────────────────────────────────────────────────────────
+
+def check_trigger_conditions(
+    ctx: dict,
+    journal_path=None,
+    account_balance: float = 10_000.0,
+) -> dict:
+    """
+    Run every pre-entry gate check and return a structured result.
+
+    Plain English: before any alert fires, the machine runs this checklist.
+                   Every condition must be GREEN. One red light = no trade.
+                   This function has no OANDA calls — it only reads the
+                   context dict and journal file.
+
+    Conditions checked (in order):
+      context_not_stale  — framework ran within the last 4 hours
+      session_valid      — kill switch is ACTIVE (not HALTED or CLOSED)
+      news_clear         — no high-impact event within the lockout window
+      pattern_clean      — Asian range not in BOTH_SWEPT chaos state
+      grade_tradeable    — grade is B or better (not C)
+
+    Args:
+        ctx            : the framework context dict (last_run.json contents)
+        journal_path   : path to trade journal CSV (for session guard check)
+        account_balance: used by session guard to check loss % (default $10k)
+
+    Returns dict:
+        can_trigger  : True only if all conditions pass
+        conditions   : {name: {"passed": bool, "reason": str}}
+        first_failure: name of first failing condition, or "" if all pass
+    """
+    conditions: dict[str, dict] = {}
+
+    # 1. Context freshness — must have run within HARD_LIMITS["context_expiry_hours"]
+    age    = _context_age_hours(ctx)
+    expiry = HARD_LIMITS["context_expiry_hours"]
+    if age <= expiry:
+        conditions["context_not_stale"] = {
+            "passed": True,
+            "reason": f"Context is {age:.1f}h old — within the {expiry:.0f}h window",
+        }
+    else:
+        conditions["context_not_stale"] = {
+            "passed": False,
+            "reason": (
+                f"Context is {age:.1f}h old — expired (limit: {expiry:.0f}h). "
+                f"Run the framework again before watching for entries."
+            ),
+        }
+
+    # 2. Session guard — can_trade must be True
+    if journal_path is not None:
+        from session_guard import can_trade, get_session_status
+        sess_result = get_session_status(journal_path, account_balance)
+        tradeable   = sess_result["status"] == "ACTIVE"
+        conditions["session_valid"] = {
+            "passed": tradeable,
+            "reason": sess_result["reason"],
+        }
+    else:
+        conditions["session_valid"] = {
+            "passed": True,
+            "reason": "No journal provided — session guard skipped",
+        }
+
+    # 3. News block — use full lockout window from risk_config (2 hours)
+    lockout_mins = int(RISK_RULES["event_lockout_hours_before"] * 60)
+    upcoming     = ctx.get("upcoming_news", [])
+    news_blocked = False
+    news_reason  = "No high-impact news within the lockout window"
+    for ev in upcoming:
+        mins = ev.get("minutes", 999)
+        name = ev.get("event", "event")
+        curr = ev.get("currency", "")
+        # Block if event is within lockout window ahead, or just released (spreads wide)
+        if -15 <= mins <= lockout_mins:
+            news_blocked = True
+            if mins <= 0:
+                news_reason = (
+                    f"NEWS BLOCK: {curr} {name} released {abs(mins)}min ago "
+                    f"— spreads still elevated"
+                )
+            else:
+                news_reason = (
+                    f"NEWS BLOCK: {curr} {name} in {mins}min "
+                    f"— do not enter within {lockout_mins}min of high-impact news"
+                )
+            break
+
+    conditions["news_clear"] = {"passed": not news_blocked, "reason": news_reason}
+
+    # 4. Intraday pattern — BOTH_SWEPT means both Asian range extremes were hit,
+    #    no clean directional signal exists, do not trade
+    intraday     = ctx.get("intraday", {})
+    fakeout_type = intraday.get("fakeout_type", "")
+    both_swept   = fakeout_type == "BOTH_SWEPT"
+    conditions["pattern_clean"] = {
+        "passed": not both_swept,
+        "reason": (
+            "BOTH_SWEPT: Asian high AND low both swept — price is hunting liquidity "
+            "in both directions, no clean signal. Stand aside."
+            if both_swept
+            else "Intraday pattern is clean"
+        ),
+    }
+
+    # 5. Grade tradeable — C means conditions are too poor to trade
+    grade   = ctx.get("grade", "C")
+    allowed = grade not in ("C", "", None)
+    conditions["grade_tradeable"] = {
+        "passed": allowed,
+        "reason": (
+            f"Grade {grade} — framework says conditions are not ideal. Stand aside."
+            if not allowed
+            else f"Grade {grade} — conditions are tradeable"
+        ),
+    }
+
+    # Overall result
+    all_passed    = all(c["passed"] for c in conditions.values())
+    first_failure = next(
+        (name for name, c in conditions.items() if not c["passed"]),
+        "",
+    )
+    # first_blocking_failure: first failed gate that actually blocks the loop.
+    # pattern_clean is intentionally excluded — it is a candle-level decision,
+    # not a poll-level block. Without this field, a Grade C trade with
+    # BOTH_SWEPT would slip through because pattern_clean appears first.
+    first_blocking_failure = next(
+        (name for name, c in conditions.items()
+         if not c["passed"] and name != "pattern_clean"),
+        "",
+    )
+
+    return {
+        "can_trigger":            all_passed,
+        "conditions":             conditions,
+        "first_failure":          first_failure,
+        "first_blocking_failure": first_blocking_failure,
+    }
 
 
 # ── Main watcher loop ─────────────────────────────────────────────────────────
@@ -369,10 +521,21 @@ def watch(pair: str = "GBPAUD"):
 
             now_utc = datetime.now(timezone.utc)
 
-            # Warn if brain run is stale
-            if age > 8:
-                ts = now_utc.strftime("%H:%M")
-                print(f"  [{ts}] ⚠️  Last framework run was {age:.0f}h ago — run 'python3 main.py' to refresh")
+            # ── Unified gate check ────────────────────────────────────────────
+            # All pre-entry conditions must pass before we look at candles.
+            # pattern_clean is excluded here — that's checked at candle level.
+            gate = check_trigger_conditions(
+                ctx,
+                journal_path=_JOURNAL_PATH,
+                account_balance=_ACCOUNT_BALANCE,
+            )
+            if gate["first_blocking_failure"]:
+                ts         = now_utc.strftime("%H:%M")
+                fail       = gate["first_blocking_failure"]
+                fail_reason = gate["conditions"].get(fail, {}).get("reason", "")
+                print(f"\n  [{ts}] ⛔ {fail}: {fail_reason}\n")
+                time.sleep(_POLL_SECONDS)
+                continue
 
             # Expire pending 15-min signal after TTL
             if pending_15 and pending_at:
@@ -452,11 +615,24 @@ def watch(pair: str = "GBPAUD"):
 
                             rr = _calc_rr(entry, stop, target, direction)
 
-                            _print_alert(direction, level, entry, stop, target,
-                                         rr, ctx, pattern_15, pattern_5)
-
-                            pending_15 = None
-                            pending_at = None
+                            # Hard R:R gate — reject the alert if spread-adjusted R:R
+                            # is below the minimum. The 15m signal may have been valid
+                            # but price moved too far before the 5m confirmed.
+                            min_rr = HARD_LIMITS["min_rr_after_spread"]
+                            if rr < min_rr:
+                                ts = now_utc.strftime("%H:%M")
+                                print(
+                                    f"\n  [{ts}] ❌ ENTRY REJECTED — R:R {rr}:1 below "
+                                    f"minimum {min_rr}:1. Entry missed — price moved too far "
+                                    f"before 5m confirmed. Wait for next setup.\n"
+                                )
+                                pending_15 = None
+                                pending_at = None
+                            else:
+                                _print_alert(direction, level, entry, stop, target,
+                                             rr, ctx, pattern_15, pattern_5)
+                                pending_15 = None
+                                pending_at = None
 
             elif not direction:
                 ts = now_utc.strftime("%H:%M")

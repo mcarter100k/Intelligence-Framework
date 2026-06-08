@@ -48,7 +48,13 @@ _ASIAN_END_HOUR   = 7    # 07:00 UTC = London open
 
 # London "reaction" window: first 3 hours after open
 _LONDON_OPEN_HOUR  = 7
-_LONDON_WATCH_HOUR = 11  # 07:00-11:00 UTC is the fakeout window
+_LONDON_WATCH_HOUR = 11  # 07:00-11:00 UTC is the Asian fakeout window
+
+# London "range-setting" window: 07:00–10:00 UTC
+# NY sweeps this range in the first 3 hours after NY open
+_LONDON_RANGE_END  = 10  # London range is defined by 10:00 UTC
+_NY_OPEN_HOUR      = 13  # New York opens 13:00 UTC
+_NY_WATCH_HOUR     = 16  # NY fakeout window: 13:00–16:00 UTC
 
 
 def get_intraday_context() -> Dict:
@@ -77,7 +83,12 @@ def get_intraday_context() -> Dict:
     entry_note  = _build_entry_note(fakeout, position, asian_high, asian_low, bias)
     warning     = _build_warning(now_utc, fakeout)
 
+    # London range fakeout — NY sweeps the London range and reverses
+    london_high, london_low, london_bars_used = _get_london_range(df, now_utc)
+    london_fakeout = _detect_london_fakeout(df, now_utc, london_high, london_low)
+
     return {
+        # ── Asian session fakeout ──────────────────────────────────────────────
         "asian_high":       asian_high,
         "asian_low":        asian_low,
         "asian_range_pips": round((asian_high - asian_low) * 10000) if asian_high and asian_low else None,
@@ -85,6 +96,7 @@ def get_intraday_context() -> Dict:
         "fakeout_detected": fakeout["detected"],
         "fakeout_type":     fakeout["type"],       # BULLISH / BEARISH / BREAK_UP / BREAK_DOWN / INSIDE / NONE
         "fakeout_note":     fakeout["note"],
+        # ── Price position and bias ────────────────────────────────────────────
         "price_position":   position["label"],     # ABOVE_RANGE / INSIDE_RANGE / BELOW_RANGE
         "current_price":    position["price"],
         "pips_from_high":   position["pips_from_high"],
@@ -93,6 +105,14 @@ def get_intraday_context() -> Dict:
         "entry_note":       entry_note,
         "optimal_window":   optimal_win,
         "warning":          warning,
+        # ── London range fakeout (NY sweeps London range) ─────────────────────
+        "london_high":              london_high,
+        "london_low":               london_low,
+        "london_range_pips":        round((london_high - london_low) * 10000) if london_high and london_low else None,
+        "london_bars_used":         london_bars_used,
+        "london_fakeout_detected":  london_fakeout["detected"],
+        "london_fakeout_type":      london_fakeout["type"],
+        "london_fakeout_note":      london_fakeout["note"],
         "error":            None,
     }
 
@@ -354,6 +374,152 @@ def _build_warning(now_utc: datetime, fakeout: Dict) -> str:
     return " | ".join(warnings)
 
 
+# ── London range fakeout ──────────────────────────────────────────────────────
+# London builds its range in the first 3 hours (07:00–10:00 UTC).
+# New York opens at 13:00 UTC and frequently sweeps that range before reversing.
+# This is the same stop-hunt mechanism as the Asian fakeout — different session.
+
+def _get_london_range(
+    df: pd.DataFrame, now_utc: datetime
+) -> Tuple[Optional[float], Optional[float], int]:
+    """
+    Get the London session range (07:00–10:00 UTC today).
+    Returns (high, low, bars_used). Returns (None, None, 0) if London hasn't
+    completed its range window yet or data is unavailable.
+    """
+    today = now_utc.date()
+
+    # Only meaningful if we're in or past the NY session (13:00+ UTC)
+    if now_utc.hour < _NY_OPEN_HOUR:
+        return None, None, 0
+
+    london_start = datetime.combine(today, dtime(_LONDON_OPEN_HOUR, 0), tzinfo=timezone.utc)
+    london_end   = datetime.combine(today, dtime(_LONDON_RANGE_END, 0), tzinfo=timezone.utc)
+
+    bars = df[(df.index >= london_start) & (df.index < london_end)]
+
+    if bars.empty:
+        return None, None, 0
+
+    return (
+        round(float(bars["High"].max()), 5),
+        round(float(bars["Low"].min()),  5),
+        len(bars),
+    )
+
+
+def _detect_london_fakeout(
+    df: pd.DataFrame,
+    now_utc: datetime,
+    london_high: Optional[float],
+    london_low:  Optional[float],
+) -> Dict:
+    """
+    Scan the NY open window (13:00–16:00 UTC) for a sweep-and-reversal of
+    the London range. Same logic as the Asian fakeout detector.
+
+    Bullish London fakeout: NY wick broke below London low, close back inside.
+    Bearish London fakeout: NY wick broke above London high, close back inside.
+    """
+    if london_high is None or london_low is None:
+        return {
+            "detected": False,
+            "type":     "NONE",
+            "note":     "London range not available — must be past 13:00 UTC",
+        }
+
+    today = now_utc.date()
+
+    if now_utc.hour < _NY_OPEN_HOUR:
+        return {
+            "detected": False,
+            "type":     "WAITING",
+            "note":     f"NY session opens at {_NY_OPEN_HOUR:02d}:00 UTC — London range is set, watching for NY sweep",
+        }
+
+    ny_start = datetime.combine(today, dtime(_NY_OPEN_HOUR, 0), tzinfo=timezone.utc)
+    ny_end   = datetime.combine(today, dtime(_NY_WATCH_HOUR, 0), tzinfo=timezone.utc)
+    cutoff   = min(now_utc, ny_end)
+
+    ny_bars = df[(df.index >= ny_start) & (df.index <= cutoff)]
+
+    if ny_bars.empty:
+        return {
+            "detected": False,
+            "type":     "INSIDE",
+            "note":     "NY session bars not yet available",
+        }
+
+    last_close   = float(ny_bars.iloc[-1]["Close"])
+    session_low  = float(ny_bars["Low"].min())
+    session_high = float(ny_bars["High"].max())
+
+    swept_low  = session_low  < london_low
+    swept_high = session_high > london_high
+
+    if swept_low and swept_high:
+        return {
+            "detected": False,
+            "type":     "BOTH_SWEPT",
+            "note": (
+                f"NY swept BOTH London extremes ({london_low:.4f} and {london_high:.4f}) — "
+                f"choppy, no clean directional signal. Avoid."
+            ),
+        }
+
+    if swept_low and last_close > london_low:
+        depth = round((london_low - session_low) * 10000)
+        return {
+            "detected": True,
+            "type":     "BULLISH",
+            "note": (
+                f"LONDON FAKEOUT (BULLISH) — NY swept {depth} pips below London low "
+                f"({london_low:.4f}) then closed back inside. Stop hunt confirmed. "
+                f"Smart money filled longs below {london_low:.4f}. Real move is UP."
+            ),
+        }
+
+    if swept_high and last_close < london_high:
+        height = round((session_high - london_high) * 10000)
+        return {
+            "detected": True,
+            "type":     "BEARISH",
+            "note": (
+                f"LONDON FAKEOUT (BEARISH) — NY swept {height} pips above London high "
+                f"({london_high:.4f}) then closed back inside. Stop hunt confirmed. "
+                f"Smart money filled shorts above {london_high:.4f}. Real move is DOWN."
+            ),
+        }
+
+    if last_close > london_high:
+        pips_above = round((last_close - london_high) * 10000)
+        return {
+            "detected": False,
+            "type":     "BREAK_UP",
+            "note": (
+                f"NY broke above London high ({london_high:.4f}) and is holding "
+                f"{pips_above} pips above. Genuine continuation — watch for long entries."
+            ),
+        }
+
+    if last_close < london_low:
+        pips_below = round((london_low - last_close) * 10000)
+        return {
+            "detected": False,
+            "type":     "BREAK_DOWN",
+            "note": (
+                f"NY broke below London low ({london_low:.4f}) and is holding "
+                f"{pips_below} pips below. Genuine continuation — watch for short entries."
+            ),
+        }
+
+    return {
+        "detected": False,
+        "type":     "INSIDE",
+        "note":     f"NY still inside London range ({london_low:.4f}–{london_high:.4f}). No sweep yet.",
+    }
+
+
 def _unavailable(reason: str) -> Dict:
     return {
         "asian_high": None, "asian_low": None, "asian_range_pips": None,
@@ -363,5 +529,9 @@ def _unavailable(reason: str) -> Dict:
         "pips_from_high": None, "pips_from_low": None,
         "intraday_bias": "WAIT", "entry_note": "No intraday data available.",
         "optimal_window": "", "warning": "",
+        "london_high": None, "london_low": None, "london_range_pips": None,
+        "london_bars_used": 0,
+        "london_fakeout_detected": False, "london_fakeout_type": "NONE",
+        "london_fakeout_note": "",
         "error": reason,
     }

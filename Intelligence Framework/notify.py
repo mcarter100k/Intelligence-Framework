@@ -217,6 +217,90 @@ def _build_notification_text(result: dict, session_label: str) -> tuple:
     return title, subtitle, message
 
 
+def build_trade_card(result: dict, session_label: str = "") -> str:
+    """
+    Build a full plain-English trade card from the framework result.
+
+    Plain English: this is what you read before placing the trade.
+                   Every number is explained. Every decision is visible.
+                   No jargon without a plain-English label next to it.
+
+    Args:
+        result       : dict from _run_framework() — grade, bias, price, etc.
+        session_label: human-readable session name (e.g. "Pre-London")
+
+    Returns a multi-line string ready to print or log.
+    """
+    W = 56
+    grade    = result.get("grade",    "C")
+    bias     = result.get("bias",     "NEUTRAL")
+    price    = result.get("price")
+    risk_pct = result.get("risk_pct", 0.0)
+    session  = result.get("session",  session_label or "Unknown")
+    prox     = result.get("proximity_pips")
+    wait_for = result.get("wait_for", "")
+    quality  = result.get("quality",  "")
+    allowed  = result.get("allowed",  False)
+    alignment = result.get("alignment", 0)
+
+    icon = {"A+": "🔥", "A": "✅", "B+": "⚡", "B": "⚠️ ", "C": "🚫"}.get(grade, "❓")
+
+    # Direction in plain English
+    if bias == "BULLISH":
+        direction_plain = "LONG  — buy GBP/AUD, profit if price RISES"
+    elif bias == "BEARISH":
+        direction_plain = "SHORT — sell GBP/AUD, profit if price FALLS"
+    else:
+        direction_plain = f"NEUTRAL — no clear direction ({bias})"
+
+    lines = [
+        "═" * W,
+        f"  {icon} GBP/AUD FRAMEWORK ALERT — {session_label or session}",
+        "═" * W,
+    ]
+
+    # Grade block
+    grade_desc = {
+        "A+": "Everything aligned — rare, maximum conviction",
+        "A":  "Most signals aligned — standard size, let it run",
+        "B+": "Bias clear, one or two things off — manage actively",
+        "B":  "Conflicted signals — small size only",
+        "C":  "Too many factors against — stand aside",
+    }.get(grade, "Unknown grade")
+
+    lines += [
+        f"  Grade      : {grade}  ({grade_desc})",
+        f"  Direction  : {direction_plain}",
+        f"  Conviction : {alignment}  (quality: {quality})",
+        f"  {'─' * (W - 4)}",
+    ]
+
+    # Price and proximity
+    price_str = f"{price:.5f}" if price else "N/A"
+    lines.append(f"  Live price : {price_str}")
+    if prox is not None:
+        lines.append(
+            f"  To trigger : {prox} pips away"
+            f"  {'← CLOSE' if prox <= 30 else ''}"
+        )
+    if wait_for:
+        lines.append(f"  Watch for  : {wait_for}")
+
+    lines.append(f"  {'─' * (W - 4)}")
+
+    # Size
+    if allowed and risk_pct > 0:
+        lines.append(f"  Risk size  : {risk_pct}% of account per trade")
+        lines.append(
+            f"  Plain English: if you have $10,000, risk ${risk_pct * 100:.0f} on this trade"
+        )
+    else:
+        lines.append(f"  Risk size  : NO TRADE — grade {grade} does not meet threshold")
+
+    lines.append("═" * W)
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description="GBP/AUD Framework Notifier")
     parser.add_argument("--threshold", default="B+",

@@ -17,6 +17,21 @@ Size is automatic — never decide size manually.
 from __future__ import annotations
 from typing import Dict, Any, Tuple
 
+from session_guard import MAX_DAILY_LOSS_PCT, MAX_TRADES_PER_SESSION
+
+
+# ── Hard Limits ────────────────────────────────────────────────────────────────
+# These are enforced automatically — never override manually.
+# max_daily_loss_pct and max_trades_per_session are the single source of truth
+# imported from session_guard (the kill-switch module that reads the journal).
+HARD_LIMITS: Dict[str, Any] = {
+    "max_daily_loss_pct":     MAX_DAILY_LOSS_PCT,      # 2.0% — halt trading for the day
+    "max_trades_per_session": MAX_TRADES_PER_SESSION,  # 2 — session closed after this many
+    "min_rr_after_spread":    1.5,   # effective R:R after spread is deducted — below this, no trade
+    "spread_pips":            4.0,   # GBP/AUD typical broker spread in pips
+    "context_expiry_hours":   4.0,   # discard framework output older than this
+}
+
 
 # ── Risk Rules ─────────────────────────────────────────────────────────────────
 RISK_RULES: Dict[str, Any] = {
@@ -118,10 +133,11 @@ def get_grade(
         # Tokyo is a downgrade — B+ max, never A or A+
         alignment = min(alignment, 69)
 
+    reasons = []   # initialised here so swing cap block and grade block share the same list
+
     # Swing trades require structural conviction — cap at B+ if structural tier is weak
     if trade_type == "swing" and structural_score < 60 and alignment > 55:
         alignment = min(alignment, 55)
-        reasons = reasons if isinstance(reasons, list) else []
         reasons.append("swing grade capped — structural score below 60")
 
     # Build confluence bonus/penalty on top of alignment score
@@ -139,7 +155,6 @@ def get_grade(
     if htf_conflict:       adjusted -= 8   # HTF conflict is a red flag
 
     # Grade assignment — use adjusted score
-    reasons = []
     if fakeout_confirmed:  reasons.append("intraday fakeout confirmed ✓")
     if sweep_confirmed:    reasons.append("sweep confirmed ✓")
     if is_value_aligned:   reasons.append("value-aligned entry ✓")
@@ -230,6 +245,73 @@ def format_grade_block(grade_info: Dict) -> str:
     if risk > 0:
         lines.append(f"  Risk: {risk}% of account per trade")
     return "\n".join(lines)
+
+
+def calculate_lot_size(
+    account_balance: float,
+    risk_pct: float,
+    stop_pips: float,
+    spread_pips: float | None = None,
+    pip_value_per_lot: float = 10.0,
+    target_pips: float | None = None,
+) -> Dict[str, Any]:
+    """
+    Calculate position size in lots, factoring in broker spread.
+
+    Plain English: how many lots to trade so that if the stop-loss is hit,
+                   you lose exactly risk_pct% of your account — no more.
+                   Spread is added to the stop because the broker takes it
+                   immediately on entry, so your real risk is always larger
+                   than the raw stop distance.
+
+    Args:
+        account_balance   : total account value in $ (e.g. 10_000)
+        risk_pct          : % of account to risk (e.g. 1.0 → $100 on $10k)
+        stop_pips         : raw stop-loss distance in pips (structure only)
+        spread_pips       : broker spread in pips (default from HARD_LIMITS = 4.0)
+        pip_value_per_lot : $ value of one pip on one standard lot (default $10
+                            for most GBP/AUD brokers)
+        target_pips       : optional take-profit distance in pips — used only
+                            to compute effective R:R after spread
+
+    Returns dict:
+        lot_size          : position size in lots (2 decimal places)
+        dollar_risk       : $ amount risked on this trade
+        adjusted_stop     : total stop pips after adding spread
+        effective_rr      : R:R after spread on both sides (None if no target)
+        rr_below_minimum  : True if effective_rr < HARD_LIMITS min_rr_after_spread
+
+    Raises:
+        ValueError: if stop_pips <= 0 or account_balance <= 0
+    """
+    if account_balance <= 0:
+        raise ValueError(f"account_balance must be positive, got {account_balance}")
+    if stop_pips <= 0:
+        raise ValueError(f"stop_pips must be positive, got {stop_pips}")
+
+    if spread_pips is None:
+        spread_pips = HARD_LIMITS["spread_pips"]
+
+    dollar_risk   = account_balance * (risk_pct / 100.0)
+    adjusted_stop = stop_pips + spread_pips
+    lot_size      = round(dollar_risk / (adjusted_stop * pip_value_per_lot), 2)
+
+    effective_rr     = None
+    rr_below_minimum = False
+
+    if target_pips is not None:
+        net_target   = target_pips - spread_pips
+        effective_rr = round(net_target / adjusted_stop, 4)
+        rr_below_minimum = effective_rr < HARD_LIMITS["min_rr_after_spread"]
+
+    return {
+        "lot_size":         lot_size,
+        "dollar_risk":      round(dollar_risk, 2),
+        "adjusted_stop":    adjusted_stop,
+        "effective_rr":     effective_rr,
+        "rr_below_minimum": rr_below_minimum,
+        "min_lot_warning":  lot_size < 0.01,  # below broker minimum — order will be rejected
+    }
 
 
 def print_risk_rules() -> None:

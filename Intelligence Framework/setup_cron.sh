@@ -48,13 +48,24 @@ echo "  ✅ Log directory ready: $LOG_DIR"
 # caffeinate -u -t 120 keeps Mac awake for 2 minutes during each run
 # The -u flag asserts UserIsActive so display stays on
 
-CRON_PRE_LONDON="30 23 * * 1-5 caffeinate -u -t 120 && cd '$SCRIPT_DIR' && $PYTHON '$NOTIFY' --threshold B+ >> '$LOG_DIR/cron.log' 2>&1"
-CRON_PRE_NY="30 4 * * 2-6 caffeinate -u -t 120 && cd '$SCRIPT_DIR' && $PYTHON '$NOTIFY' --threshold B+ >> '$LOG_DIR/cron.log' 2>&1"
-CRON_NY_CLOSE="30 13 * * 1-5 caffeinate -u -t 120 && cd '$SCRIPT_DIR' && $PYTHON '$NOTIFY' --silent >> '$LOG_DIR/cron.log' 2>&1"
+# ── Cron command wrapper ──────────────────────────────────────────────────────
+# /bin/bash -l sources the login shell (~/.zshrc / ~/.bash_profile) so that
+# OANDA_API_KEY and OANDA_ACCOUNT_ID are available inside cron.
+# Without -l, cron runs with a minimal environment and OANDA calls return None,
+# which is why Price: N/A appeared in every cron.log entry.
+
+WRAP="/bin/bash -l -c"
+
+CRON_PRE_LONDON="30 23 * * 1-5 caffeinate -u -t 120 && $WRAP \"cd '$SCRIPT_DIR' && $PYTHON '$NOTIFY' --threshold B+ >> '$LOG_DIR/cron.log' 2>&1\""
+CRON_PRE_NY="30 4 * * 2-6 caffeinate -u -t 120 && $WRAP \"cd '$SCRIPT_DIR' && $PYTHON '$NOTIFY' --threshold B+ >> '$LOG_DIR/cron.log' 2>&1\""
+
+# NY-Close: label yesterday's runs first, then log the close context.
+# auto_label fills in WIN/LOSS/NEUTRAL so calibration can eventually retrain.
+CRON_NY_CLOSE="30 13 * * 1-5 caffeinate -u -t 120 && $WRAP \"cd '$SCRIPT_DIR' && $PYTHON -c 'from auto_label import label_journal; r=label_journal(\\\"run_journal.csv\\\"); print(\\\"auto_label:\\\", r)' >> '$LOG_DIR/cron.log' 2>&1 && $PYTHON '$NOTIFY' --silent >> '$LOG_DIR/cron.log' 2>&1\""
 
 # ── Install cron jobs (preserve existing, add new) ────────────────────────────
 # Remove old GBP/AUD entries if they exist, then add fresh ones
-(crontab -l 2>/dev/null | grep -v "notify.py" | grep -v "GBP/AUD Framework") | crontab -
+(crontab -l 2>/dev/null | grep -v "notify.py" | grep -v "auto_label" | grep -v "GBP/AUD Framework") | crontab -
 
 # Add new entries
 (crontab -l 2>/dev/null; echo "# GBP/AUD Framework — Pre-London (11:30 PM PT, Mon-Fri)"; echo "$CRON_PRE_LONDON") | crontab -
