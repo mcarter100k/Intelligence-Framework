@@ -21,6 +21,7 @@ class ForexCalendarScraper:
         self.target_currencies = ["GBP", "AUD"]
         self.base_url = "https://www.forexfactory.com/calendar"
         self.session  = self._build_session()
+        self.stale_info: dict | None = None   # set by _try_fallback when CSV is stale
 
     def _build_session(self) -> requests.Session:
         s = requests.Session()
@@ -220,13 +221,11 @@ class ForexCalendarScraper:
                         most_recent = dates.max()
                         if pd.isna(most_recent) or most_recent < pd.Timestamp(cutoff):
                             days_old = (today - most_recent.to_pydatetime()).days if not pd.isna(most_recent) else "?"
-                            print(
-                                f"\n  ⚠️  CALENDAR WARNING: calendar.csv is {days_old} days old "
-                                f"(most recent event: {most_recent.date() if not pd.isna(most_recent) else 'unknown'}). "
-                                f"News gate is DISABLED — stale events cannot safely guard entries.\n"
-                                f"  Fix: add this week's GBP/AUD events to calendar.csv or ensure "
-                                f"ForexFactory scraping is unblocked.\n"
-                            )
+                            recent_str = str(most_recent.date()) if not pd.isna(most_recent) else "unknown"
+                            self.stale_info = {
+                                "days_old":    days_old,
+                                "most_recent": recent_str,
+                            }
                             return pd.DataFrame()   # return empty so news gate skips rather than uses bad data
                     except Exception:
                         pass  # if date parsing fails, proceed with what we have

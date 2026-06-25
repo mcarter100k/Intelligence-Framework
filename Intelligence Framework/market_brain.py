@@ -196,11 +196,23 @@ def _build_events_summary() -> Dict:
         df       = scraper.get_weekly_calendar()
     except Exception as exc:
         return {"error": str(exc), "events": [], "net_score": 0,
-                "bias": "NEUTRAL", "data_available": False}
+                "bias": "NEUTRAL", "data_available": False,
+                "news_gate_disabled": True,
+                "disable_reason": "Calendar fetch failed — news gate is off"}
 
     if df.empty:
+        _stale = scraper.stale_info
+        if _stale:
+            _reason = (
+                f"Calendar CSV is {_stale['days_old']} days old "
+                f"(last event: {_stale['most_recent']}) — stale data cannot guard entries"
+            )
+        else:
+            _reason = "Calendar unavailable — news gate is off"
         return {"error": None, "events": [], "net_score": 0,
-                "bias": "NEUTRAL", "data_available": False}
+                "bias": "NEUTRAL", "data_available": False,
+                "news_gate_disabled": True,
+                "disable_reason": _reason}
 
     processed: List[Dict] = []
     net_score = 0
@@ -2153,6 +2165,13 @@ def print_report(report: Dict) -> None:
     dec_conv = _dec.get("conviction", conf)
     risk_pct = _dec.get("risk_pct", 0.0)
 
+    # ── Calendar gate disabled? Cap grade at B ───────────────────────────────
+    _news_gate_disabled = news.get("news_gate_disabled", False)
+    _original_grade     = grade
+    if _news_gate_disabled and grade not in ("C", "B"):
+        grade    = "B"
+        risk_pct = 0.25   # B-grade risk
+
     # ── News blockers (computed once, used in multiple sections) ─────────────
     _news_hard_blocks = []
     try:
@@ -2198,14 +2217,17 @@ def print_report(report: Dict) -> None:
     )
     _val_conflict_note = ""
     if _val_conflict:
+        _fv_dist = abs(val.get("fv_diff_pips", 0) or 0)
+        _fv_ref  = val.get("fair_value", "")
+        _fv_dist_str = f" ({int(_fv_dist)} pips from fair value {_fv_ref})" if _fv_dist and _fv_ref else ""
         if "STRONG DISCOUNT" in _val_verdict_str:
             _val_conflict_note = (
-                f"LOCATION CONFLICT: {_val_verdict_str} — "
+                f"LOCATION CONFLICT: {_val_verdict_str}{_fv_dist_str} — "
                 "shorting the cheap end of the range; buyers have structural advantage here"
             )
         else:
             _val_conflict_note = (
-                f"LOCATION CONFLICT: {_val_verdict_str} — "
+                f"LOCATION CONFLICT: {_val_verdict_str}{_fv_dist_str} — "
                 "buying the expensive end of the range; sellers have structural advantage here"
             )
 
@@ -2321,7 +2343,8 @@ def print_report(report: Dict) -> None:
     _sig_aligned = sum(1 for s in signals if s.get("bias", "") in (
         ("BEARISH",) if bias == "BEARISH" else ("BULLISH",)
     ))
-    _sig_total = len(signals) if signals else 7
+    _sig_nonneutral = sum(1 for s in signals if s.get("bias", "NEUTRAL") != "NEUTRAL")
+    _sig_total = _sig_nonneutral if _sig_nonneutral > 0 else (len(signals) if signals else 7)
 
     _sec("IMMEDIATE ACTION")
     print(f"  Status   : {_action}")
@@ -2330,6 +2353,20 @@ def print_report(report: Dict) -> None:
 
     for _blk in _news_hard_blocks:
         print(f"  ⛔ NEWS   : {_blk}")
+
+    if _news_gate_disabled:
+        import re as _re_cal
+        _cal_reason = news.get("disable_reason", "")
+        _days_m = _re_cal.search(r'(\d+) days old', _cal_reason)
+        _date_m = _re_cal.search(r'last event: ([^)]+)', _cal_reason)
+        _days_s = _days_m.group(1) if _days_m else ""
+        _date_s = (_date_m.group(1).strip() if _date_m else "").rstrip(")")
+        if _days_s and _date_s:
+            print(f"  ⛔ CALENDAR: CSV {_days_s}d old (last: {_date_s}) — news gate OFF")
+        else:
+            print(f"  ⛔ CALENDAR: Unavailable — manual check required")
+        if _original_grade != grade:
+            print(f"  ⚠️  Grade capped to {grade} (was {_original_grade}) — no news gate active")
 
     print()
 
@@ -2491,44 +2528,81 @@ def print_report(report: Dict) -> None:
         print()
         print(f"  Bias valid until: daily close {_inv_dir} {_inv_lvl} (MA50)")
 
-    # Plain English strategic summary
-    _strat_parts = []
-    if _trend_aligned:
-        _dir_word2 = "falling" if "DOWN" in str(_lt) else "rising"
-        _strat_parts.append(
-            f"GBP/AUD has been {_dir_word2} for months "
-            f"({_lt_pct:+.1f}% long-term, {_st_pct:+.1f}% short-term). "
-            f"Both the weekly and daily timeframes agree — this is an established "
-            f"trend, not a noise move."
-        )
-    else:
-        _strat_parts.append(
-            "The long and short-term trends disagree with each other. "
-            "This adds uncertainty and reduces confidence in any directional trade."
-        )
-    if _r_diff != 0:
-        _rate_side = "GBP" if _r_diff > 0 else "AUD"
-        _rate_other = "AUD" if _r_diff > 0 else "GBP"
-        _strat_parts.append(
-            f"On rates: {_rate_side} currently yields more than {_rate_other} "
-            f"(+{abs(_r_diff):.2f}% gap), which mechanically favours holding {_rate_side}. "
-            f"However, {_mom_note}."
-        )
-    if _macro_q:
-        if _conflict:
-            _strat_parts.append(
-                f"Key conflict: the macro environment ({_macro_q}) typically favours "
-                f"the opposite side of the trade. This is why conviction is capped "
-                f"even when the trend is clear."
-            )
-        else:
-            _strat_parts.append(
-                f"The macro backdrop ({_macro_q}) supports the directional bias — no conflict."
-            )
-    _strat_narr = " ".join(_strat_parts)
-    if _strat_narr:
+    # ── REVERSAL WATCH — intermediate trend state (Priority 4) ─────────────
+    _ctx_htf    = htf.get("context", "")
+    _struct_htf = htf.get("daily_structure_type", "")
+    _rev_watch  = False
+    _rev_note   = ""
+    _rev_zone   = ""
+    _rev_conf   = ""
+    try:
+        _p_f2      = float(str(price)) if price != "?" else 0.0
+        _atr_px    = (_atr or 0) * 0.0001
+        _pdl_f     = float(str(liq.get("pdl", 0) or 0))
+        _pdh_f     = float(str(liq.get("pdh", 0) or 0))
+
+        if _ctx_htf == "COUNTER_TREND_BOUNCE" and _struct_htf == "HH_HL" and _p_f2 and _atr_px:
+            _buf_req = _atr_px * 1.5
+            _dist    = _p_f2 - _pdl_f if _pdl_f else _atr_px * 2
+            _rev_watch = True
+            _rev_note  = "Downtrend bounce — daily HH/HL forming, ST trend flipped UP"
+            if _dist >= _buf_req:
+                _rev_zone = (
+                    f"Watching zone: {_pdl_f:.4f} – {_pdh_f:.4f}"
+                    if _pdh_f else f"Above {_pdl_f:.4f}"
+                )
+                _rev_conf = "Confirm reversal: close back below recent higher low"
+            else:
+                _req_pips = round(_buf_req * 10000)
+                _rev_zone = f"Too early — need {_req_pips} pip buffer from low ({_pdl_f:.4f})"
+                _rev_conf = "Wait for price to establish distance before treating as reversal"
+
+        elif _ctx_htf == "PULLBACK_IN_UPTREND" and _struct_htf == "LH_LL" and _p_f2 and _atr_px:
+            _buf_req   = _atr_px * 1.5
+            _dist      = _pdh_f - _p_f2 if _pdh_f else _atr_px * 2
+            _rev_watch = True
+            _rev_note  = "Uptrend pullback — daily LH/LL forming, ST trend flipped DOWN"
+            if _dist >= _buf_req:
+                _rev_zone = f"Watching zone: {_pdl_f:.4f} – {_pdh_f:.4f}" if _pdl_f else ""
+                _rev_conf = "Confirm reversal: close back above recent lower high"
+            else:
+                _req_pips = round(_buf_req * 10000)
+                _rev_zone = f"Too early — need {_req_pips} pip buffer from high ({_pdh_f:.4f})"
+                _rev_conf = "Wait for price to establish distance before treating as reversal"
+    except Exception:
+        pass
+
+    if _rev_watch:
         print()
-        _wrap(_strat_narr)
+        print(f"  ⚡ REVERSAL WATCH")
+        for _rl in _tw.wrap(f"  → {_rev_note}", width=W - 2):
+            print(_rl)
+        if _rev_zone:
+            for _rl in _tw.wrap(f"  → Zone: {_rev_zone}", width=W - 2):
+                print(_rl)
+        if _rev_conf:
+            for _rl in _tw.wrap(f"  → Confirm: {_rev_conf}", width=W - 2):
+                print(_rl)
+
+    # ── Conflict note — max 2 lines, only when conflict exists (Priority 5) ──
+    _macro_in_conflict = bool(_macro_q) and (
+        _dec.get("macro_direction", "") == "reduce" or
+        (bool(_dec.get("macro_bias")) and _dec.get("macro_bias") != bias)
+    )
+    _lt_st_conflict = not _trend_aligned and bool(_lt) and bool(_st)
+
+    if _lt_st_conflict or _macro_in_conflict:
+        print()
+        if _lt_st_conflict:
+            _lt_dir = "DOWN" if "DOWN" in str(_lt) else "UP"
+            _st_dir = "DOWN" if "DOWN" in str(_st) else "UP"
+            _c_line = f"⚡ Conflict: LT {_lt_dir} vs ST {_st_dir} — timeframes disagree"
+            _i_line = "Impact: grade capped — await ST realignment before entry"
+        else:
+            _c_line = f"⚡ Conflict: {_macro_q} macro opposes directional bias"
+            _i_line = "Impact: conviction capped — macro-driven moves likely to fade"
+        print(_tw.fill(_c_line, width=W, initial_indent="  ", subsequent_indent="    "))
+        print(_tw.fill(_i_line, width=W, initial_indent="     ", subsequent_indent="     "))
 
     # ═══════════════════════════════════════════════════════════════════════
     # SECTION 3 — SETUP STATE + NEXT TRADE
@@ -2578,68 +2652,6 @@ def print_report(report: Dict) -> None:
     }
     print(f"  Window   : {_sess_notes.get(sess_lbl, sess_lbl)}")
 
-    # Plain English setup narrative
-    _setup_parts = []
-    if _adx:
-        if _adx > 25:
-            _setup_parts.append(
-                f"Momentum is strong (ADX {_adx:.0f}) — price is trending with conviction, not drifting."
-            )
-        elif _adx > 20:
-            _setup_parts.append(
-                f"Momentum is building (ADX {_adx:.0f}) — a directional move is developing but not yet fully confirmed."
-            )
-        else:
-            _setup_parts.append(
-                f"The market is ranging or choppy right now (ADX {_adx:.0f}). "
-                f"Price is not trending — directional trades carry more risk in this environment."
-            )
-    if _id_high and _id_low:
-        if dec_conv >= 35:
-            # Directional interpretation only when conviction earns it
-            if _id_pos == "ABOVE_RANGE":
-                _setup_parts.append(
-                    f"Price has broken above the Asian range ({_id_high:.4f}). "
-                    f"In a downtrend, this is suspicious — watch for a failure to hold and a reversal back inside the range."
-                )
-            elif _id_pos == "BELOW_RANGE":
-                _setup_parts.append(
-                    f"Price has broken below the Asian range ({_id_low:.4f}). "
-                    f"In a downtrend, this is continuation — a potential short entry area."
-                )
-            else:
-                _setup_parts.append(
-                    f"Price is sitting inside the Asian range ({_id_low:.4f}–{_id_high:.4f}). "
-                    f"No directional breakout yet — wait for a clean break and hold of one extreme before committing."
-                )
-        else:
-            # Neutral description only — no directional coaching at low conviction
-            if _id_pos == "ABOVE_RANGE":
-                _setup_parts.append(f"Price is above the Asian range ({_id_high:.4f}).")
-            elif _id_pos == "BELOW_RANGE":
-                _setup_parts.append(f"Price is below the Asian range ({_id_low:.4f}).")
-            else:
-                _setup_parts.append(
-                    f"Price is inside the Asian range ({_id_low:.4f}–{_id_high:.4f})."
-                )
-    if _id_ft and _id_ftype not in ("NONE", "INSIDE", "") and dec_conv >= 35:
-        _setup_parts.append(
-            f"A fakeout ({_id_ftype.lower().replace('_', ' ')}) has been detected. "
-            f"Price swept a key level and failed to follow through — this is a potential reversal signal."
-        )
-    if _fuel_pct > 80:
-        _setup_parts.append(
-            f"The daily range is {_fuel_pct:.0f}% exhausted. Very little room left for a "
-            f"new directional move today — consider waiting for tomorrow's open."
-        )
-    elif _fuel_pct > 50:
-        _setup_parts.append(
-            f"The daily range is {_fuel_pct:.0f}% used — room for continuation exists but it is shrinking."
-        )
-    _setup_narr = " ".join(_setup_parts)
-    if _setup_narr:
-        print()
-        _wrap(_setup_narr)
 
     # ── NEXT VALID TRADE (or WHAT TO WAIT FOR when grade is C) ──────────────
     print()
@@ -2661,7 +2673,9 @@ def print_report(report: Dict) -> None:
         if _come_back_note:
             print(f"  Come back: {_come_back_note}")
         else:
-            print(f"  Come back: when conviction reaches 35 or session improves")
+            _sess_optimal = sess_lbl in ("London", "New York", "London/NY")
+            _cb_suffix = "" if _sess_optimal else " or session improves"
+            print(f"  Come back: when conviction reaches 35{_cb_suffix}")
     elif grade == "C":
         # Grade C but conviction is 35+ — show monitoring conditions
         print(f"  WHAT TO WAIT FOR  ({_d_lbl}):")
@@ -2698,14 +2712,116 @@ def print_report(report: Dict) -> None:
     _sec("INVALIDATION")
 
     _inv_dir       = "above" if bias == "BEARISH" else "below"
-    _inv_strategic = inv.get("invalidation", "")
+    _inv_strategic = inv.get("invalidation") or ""   # guard against explicit None
     _inv_action    = inv.get("action_on_break", "")
+    _warn_lvl      = inv.get("warning_level") or ""
+
+    # Safe price float — defined before any try blocks so both blocks can use it
+    try:
+        _p_float_inv = float(str(price)) if str(price) not in ("?", "None", "") else 0.0
+    except (ValueError, TypeError):
+        _p_float_inv = 0.0
+
+    # Nearest resistance above price — short-thesis invalidation level
+    # Priority: key levels above price → fib retracements above price → prior swing high label
+    _nearest_res       = None
+    _nearest_res_label = ""        # human-readable source label
+    _nearest_res_below = False     # True when the fallback level is already below price
+    if _p_float_inv:
+        try:
+            _res_cands = []
+            for _k_lv, _k_lb in (("pdh", "PDH"), ("pwh", "week high")):
+                _v = liq.get(_k_lv)
+                if _v:
+                    _fv = float(str(_v))
+                    if _fv > _p_float_inv:
+                        _res_cands.append((_fv, _k_lb))
+            for _eq in liq.get("equal_highs", []):
+                _fv = float(str(_eq))
+                if _fv > _p_float_inv:
+                    _res_cands.append((_fv, "equal highs"))
+            if _res_cands:
+                _res_cands.sort()
+                _nearest_res, _nearest_res_label = _res_cands[0]
+        except Exception:
+            pass
+
+        # Fallback 1: fib retracement level above current price (structural)
+        if not _nearest_res:
+            _fib_lvls_inv = htf.get("fib_levels", {})
+            _fib_above = []
+            for _pct in ("23.6", "38.2", "50.0", "61.8", "78.6"):
+                _fv2 = _fib_lvls_inv.get(_pct)
+                if _fv2:
+                    try:
+                        _fv2f = float(str(_fv2))
+                        if _fv2f > _p_float_inv:
+                            _fib_above.append((_fv2f, f"{_pct}% retracement"))
+                    except (ValueError, TypeError):
+                        pass
+            if _fib_above:
+                _fib_above.sort()
+                _nearest_res, _nearest_res_label = _fib_above[0]
+
+        # Fallback 2: prior week high — price has already broken above it, note that
+        if not _nearest_res:
+            _pwh_v = liq.get("pwh") or liq.get("pdh")
+            if _pwh_v:
+                _nearest_res       = float(str(_pwh_v))
+                _nearest_res_label = "prior week high"
+                _nearest_res_below = True   # level is below current price
+
+    # Nearest support below price — long-thesis invalidation level
+    _nearest_sup = None
+    if _p_float_inv:
+        try:
+            _sup_cands = []
+            for _k_lv in ("pdl", "pwl"):
+                _v = liq.get(_k_lv)
+                if _v:
+                    _fv = float(str(_v))
+                    if _fv < _p_float_inv:
+                        _sup_cands.append(_fv)
+            for _eq in liq.get("equal_lows", []):
+                _fv = float(str(_eq))
+                if _fv < _p_float_inv:
+                    _sup_cands.append(_fv)
+            if _sup_cands:
+                _nearest_sup = max(_sup_cands)
+        except Exception:
+            pass
+        # Fallback: nearest quarter-handle round number below price
+        if not _nearest_sup:
+            _step = 0.0025
+            _nearest_sup = round((round(_p_float_inv / _step) - 1) * _step, 4)
+
+    # Fallback: use pwl/pwh directly if level-search came up empty
+    if not _inv_strategic:
+        if bias == "BEARISH":
+            _inv_strategic = str(liq.get("pwh") or liq.get("pdh") or "")
+        else:
+            _inv_strategic = str(liq.get("pwl") or liq.get("pdl") or "")
 
     if grade == "C":
-        # No trade active — show only the strategic level that ends the thesis
+        # Line 1: current bias invalidation (structural level)
         if _inv_strategic:
             _dir_word = "Short" if bias == "BEARISH" else "Long"
             print(f"  {_dir_word} thesis invalidates on daily close {_inv_dir} {_inv_strategic}")
+        elif bias in ("BULLISH", "BEARISH"):
+            print(f"  No structural invalidation level available — check data feeds")
+
+        # Line 2: opposite-side thesis (always show when bias is directional)
+        if bias == "BULLISH" and _nearest_res and _p_float_inv:
+            if _nearest_res_below:
+                _lbl = f"  ({_nearest_res_label})" if _nearest_res_label else ""
+                print(f"  Short thesis: price above prior swing high {_nearest_res:.4f}{_lbl} — no structural resistance above")
+            else:
+                _res_pips = round((_nearest_res - _p_float_inv) * 10000)
+                _lbl = f"  ({_nearest_res_label})" if _nearest_res_label else ""
+                print(f"  Short thesis invalidates on daily close above {_nearest_res:.4f}{_lbl}  ({_res_pips} pips)")
+        elif bias == "BEARISH" and _nearest_sup and _p_float_inv:
+            _sup_pips = round((_p_float_inv - _nearest_sup) * 10000)
+            print(f"  Long thesis invalidates on daily close below {_nearest_sup:.4f}  ({_sup_pips} pips)")
     else:
         # Setup — kills this specific entry idea
         _trg_inv = (_trg.get("invalidates") or []) if _trg else []
@@ -2715,7 +2831,6 @@ def print_report(report: Dict) -> None:
                 print(f"             {_trg_inv[1]}")
 
         # Tactical — weakens weekly directional lean
-        _warn_lvl = inv.get("warning_level", "")
         if _warn_lvl:
             print(f"  Tactical : daily close {_inv_dir} {_warn_lvl}  —  lean weakens, reduce size")
 
@@ -2723,6 +2838,19 @@ def print_report(report: Dict) -> None:
         if _inv_strategic:
             _short_action = _inv_action.split(".")[0] if _inv_action else "reassess direction"
             print(f"  Strategic: daily close {_inv_dir} {_inv_strategic}  —  {_short_action}")
+
+        # Opposite-side thesis — always show when bias is directional
+        if bias == "BULLISH" and _nearest_res and _p_float_inv:
+            if _nearest_res_below:
+                _lbl = f"  ({_nearest_res_label})" if _nearest_res_label else ""
+                print(f"  Short thesis: price above prior swing high {_nearest_res:.4f}{_lbl} — no structural resistance above")
+            else:
+                _res_pips = round((_nearest_res - _p_float_inv) * 10000)
+                _lbl = f"  ({_nearest_res_label})" if _nearest_res_label else ""
+                print(f"  Short thesis invalidates on daily close above {_nearest_res:.4f}{_lbl}  ({_res_pips} pips)")
+        elif bias == "BEARISH" and _nearest_sup and _p_float_inv:
+            _sup_pips = round((_p_float_inv - _nearest_sup) * 10000)
+            print(f"  Long thesis invalidates on daily close below {_nearest_sup:.4f}  ({_sup_pips} pips)")
 
     # ═══════════════════════════════════════════════════════════════════════
     # SECTION 5 — CONVICTION MATRIX
@@ -2849,8 +2977,49 @@ def print_report(report: Dict) -> None:
 
     print(f"  Price now : {price}")
     print()
+
+    # Breakout flags — when price has cleared a key prior level
+    if _p_float:
+        try:
+            _pdh_f2 = float(str(_pdh)) if _pdh else 0.0
+            _pwh_f2 = float(str(_pwh)) if _pwh else 0.0
+            _pdl_f2 = float(str(_pdl)) if _pdl else 0.0
+            _pwl_f2 = float(str(_pwl)) if _pwl else 0.0
+            if _pdh_f2 and _p_float > _pdh_f2:
+                _bo_pips = round((_p_float - _pdh_f2) * 10000)
+                print(f"  ⚡ Price ABOVE PDH ({_pdh}) — {_bo_pips} pips above prior session range")
+            elif _pwh_f2 and _p_float > _pwh_f2:
+                _bo_pips = round((_p_float - _pwh_f2) * 10000)
+                print(f"  ⚡ Price ABOVE week high ({_pwh}) — {_bo_pips} pips above prior week range")
+            if _pdl_f2 and _p_float < _pdl_f2:
+                _bd_pips = round((_pdl_f2 - _p_float) * 10000)
+                print(f"  ⚡ Price BELOW PDL ({_pdl}) — {_bd_pips} pips below prior session range")
+            elif _pwl_f2 and _p_float < _pwl_f2:
+                _bd_pips = round((_pwl_f2 - _p_float) * 10000)
+                print(f"  ⚡ Price BELOW week low ({_pwl}) — {_bd_pips} pips below prior week range")
+        except (ValueError, TypeError):
+            pass
+
     if _resistance:
         print(f"  Resistance: {'  |  '.join(str(v) for v in _resistance)}")
+
+    # Fib resistance above current price — structural targets
+    _fib_res_display = []
+    if _p_float:
+        _fib_lvls_kl = htf.get("fib_levels", {})
+        for _fl in ("23.6", "38.2", "50.0", "61.8"):
+            _fv_lvl = _fib_lvls_kl.get(_fl)
+            if _fv_lvl:
+                try:
+                    _fv_f = float(str(_fv_lvl))
+                    if _fv_f > _p_float:
+                        _dist = round((_fv_f - _p_float) * 10000)
+                        _fib_res_display.append(f"{_fv_lvl} ({_fl}%  +{_dist}p)")
+                except (ValueError, TypeError):
+                    pass
+    if _fib_res_display:
+        print(f"  Fib resist: {'  |  '.join(_fib_res_display[:3])}")
+
     _hl = []
     if _pdh: _hl.append(f"PDH {_pdh}")
     if _pwh: _hl.append(f"Week high {_pwh}")
@@ -2965,69 +3134,6 @@ def print_report(report: Dict) -> None:
         _cot_str += f"  [{_cot_dt}]"
     print(f"  COT       : {_cot_str}")
 
-    # Plain English market-data narrative
-    _mkt_parts = []
-    if _vix and _vix > 0:
-        if _vix > 30:
-            _mkt_parts.append(
-                f"Risk conditions are stressed right now (VIX {_vix:.1f}). "
-                f"Fear is elevated — in risk-off environments, AUD typically gets sold harder than GBP, "
-                f"which can push GBP/AUD higher even without a fundamental catalyst."
-            )
-        elif _vix > 20:
-            _mkt_parts.append(
-                f"There is moderate risk concern in the market (VIX {_vix:.1f}). "
-                f"Not panic, but traders are cautious. This mildly favours GBP over AUD."
-            )
-        else:
-            _mkt_parts.append(
-                f"Risk appetite is calm (VIX {_vix:.1f}). "
-                f"Normal conditions — AUD is not being penalised by fear-driven selling."
-            )
-    if _dxy is not None:
-        if _dxy < -0.2:
-            _mkt_parts.append(
-                f"The US Dollar is weakening today ({_dxy:+.2f}%). "
-                f"A weaker USD typically lifts both GBP and AUD, but can act as a tailwind for GBP/AUD if AUD lags."
-            )
-        elif _dxy > 0.2:
-            _mkt_parts.append(
-                f"The US Dollar is strengthening today ({_dxy:+.2f}%). "
-                f"USD strength tends to suppress both currencies, but AUD often suffers more as a risk-sensitive commodity currency."
-            )
-        else:
-            _mkt_parts.append("The US Dollar is largely flat today — not a meaningful driver.")
-    if abs(_str_d) >= 10:
-        _stronger = "GBP" if _str_d > 0 else "AUD"
-        _weaker   = "AUD" if _str_d > 0 else "GBP"
-        if bias == "BEARISH" and _str_d < 0:
-            _mkt_parts.append(
-                f"Intraday strength confirms the bias: AUD is outperforming GBP by {abs(_str_d):.0f} pts today, "
-                f"adding short-term pressure to GBP/AUD."
-            )
-        elif bias == "BEARISH" and _str_d > 0:
-            _mkt_parts.append(
-                f"Strength conflicts with the bearish bias: GBP is actually outperforming intraday ({_str_d:+.0f} pts). "
-                f"Wait for this to reverse before entering a short."
-            )
-        elif bias == "BULLISH" and _str_d > 0:
-            _mkt_parts.append(
-                f"Intraday strength confirms the bias: GBP is outperforming AUD by {abs(_str_d):.0f} pts today."
-            )
-        else:
-            _mkt_parts.append(
-                f"Intraday strength conflicts with the {bias.lower()} bias: "
-                f"{_weaker} is underperforming when it should be leading."
-            )
-    if _aud_extr:
-        _mkt_parts.append(
-            f"COT positioning warning: AUD is at {_aud_pct:.0f}% long among large speculators — this is a crowded trade. "
-            f"When positioning is this extreme, the risk of a sharp reversal against AUD increases significantly."
-        )
-    _mkt_narr = " ".join(_mkt_parts)
-    if _mkt_narr:
-        print()
-        _wrap(_mkt_narr)
 
     # ═══════════════════════════════════════════════════════════════════════
     # SECTION 8 — ECONOMIC CALENDAR
@@ -3160,7 +3266,7 @@ def print_report(report: Dict) -> None:
         _cr_inv   = report["layers"].get("invalidation", {}) or {}
         _cur_run_data = {
             "primary_state":    (_cr_setup.get("primary_state") or report.get("primary_state", "")),
-            "conviction_score": dec_conv,   # Decision Engine conviction — same number shown in display
+            "conviction_score": dec_conv,
             "price":            float(liq.get("current_price", 0) or 0),
             "grade":            report.get("grade", ""),
             "trigger_price":    None,
@@ -3168,6 +3274,9 @@ def print_report(report: Dict) -> None:
             "session":          sess_lbl,
             "bias":             report.get("overall_bias", ""),
             "wait_for":         _cr_setup.get("wait_for", ""),
+            # extra context for synthesis line (Priority 6)
+            "sweep_confirmed":  bool(liq.get("sweep_note", "") and "no sweep" not in str(liq.get("sweep_note", "")).lower()),
+            "value_verdict":    val.get("verdict", ""),
         }
         import re as _re_lr
         _nums_lr = _re_lr.findall(r'1\.\d{3,4}', str(_cur_run_data["wait_for"]))

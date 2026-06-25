@@ -266,6 +266,43 @@ def get_cross_run_intelligence(current: Dict) -> Dict:
         summary.append("No significant pattern detected across recent runs")
 
     result["summary"] = summary
+
+    # ── Synthesis line — forward insight when conditions converge (Priority 6) ──
+    synthesis = ""
+    _val_verdict  = current.get("value_verdict", "")
+    _sweep_conf   = current.get("sweep_confirmed", False)
+    _cur_bias     = current.get("bias", "")
+
+    # Check prior run for sweep
+    _prior_sweep = history[-1].get("sweep_confirmed", False) if history else False
+
+    _premium = "PREMIUM" in str(_val_verdict)
+    _discount = "DISCOUNT" in str(_val_verdict)
+    _aligning = result["alignment_trend"] == "BUILDING"
+    _grade_ok = result["grade_trend"] in ("IMPROVING", "STABLE")
+
+    if _aligning and (_sweep_conf or _prior_sweep) and _premium and _cur_bias == "BEARISH":
+        synthesis = (
+            "Conviction rising, sweep confirmed, price in premium — "
+            "short setup maturing. Watch for rejection at current level."
+        )
+    elif _aligning and (_sweep_conf or _prior_sweep) and _discount and _cur_bias == "BULLISH":
+        synthesis = (
+            "Conviction rising, sweep confirmed, price at discount — "
+            "long setup maturing. Watch for bullish engulf at current level."
+        )
+    elif _aligning and _premium and _cur_bias == "BEARISH":
+        synthesis = (
+            "Conviction building and price extended into premium — "
+            "setup is approaching actionable. Await sweep confirmation."
+        )
+    elif _aligning and _discount and _cur_bias == "BULLISH":
+        synthesis = (
+            "Conviction building and price at discount — "
+            "long bias strengthening. Await sweep or fakeout confirmation."
+        )
+
+    result["synthesis"] = synthesis
     return result
 
 
@@ -318,8 +355,6 @@ def format_cross_run_block(intelligence: Dict, width: int = 66) -> str:
     if summary:
         lines.append("")
         for s in summary:
-            # Wrap long lines
-            # Word-wrap at width boundary
             if len(s) > width - 4:
                 words = s.split()
                 current_line = "  → "
@@ -335,6 +370,21 @@ def format_cross_run_block(intelligence: Dict, width: int = 66) -> str:
                     lines.append(current_line.rstrip())
             else:
                 lines.append(f"  → {s}")
+
+    # Synthesis line — forward insight when conditions converge (Priority 6)
+    synthesis = intelligence.get("synthesis", "")
+    if synthesis:
+        lines.append("")
+        words = synthesis.split()
+        current_line = "  ◆ "
+        for word in words:
+            if len(current_line) + len(word) + 1 > width:
+                lines.append(current_line.rstrip())
+                current_line = "    " + word + " "
+            else:
+                current_line += word + " "
+        if current_line.strip():
+            lines.append(current_line.rstrip())
 
     lines.append("")
     return "\n".join(lines)
