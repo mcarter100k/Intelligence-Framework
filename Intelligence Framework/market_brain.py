@@ -32,7 +32,6 @@ from risk_config       import get_size_note, get_grade, RISK_RULES, GRADE_CONFIG
 from run_history       import save_run, get_cross_run_intelligence, format_cross_run_block
 from decision_engine   import make_decision, format_decision_block
 from macro_regime      import get_macro_regime
-from template_match    import get_template_match
 from intraday_context  import get_intraday_context
 from forex_calendar    import ForexCalendarScraper
 from forex_analyzer    import ForexEventAnalyzer
@@ -246,10 +245,6 @@ def build_market_report(trade_type: str = "auto", instrument: str = "GBP_AUD") -
         except Exception:
             pass  # logger failure must never break the report
 
-    # Template match — after decision so fingerprint includes direction
-    tmpl = get_template_match(report)
-    report["template_match"] = tmpl
-    report["decision"]["template_match"] = tmpl  # also embed in decision for display
 
     # ── Decision brief (trader-facing output layer) ───────────────────────────
     try:

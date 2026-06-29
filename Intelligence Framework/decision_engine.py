@@ -24,12 +24,7 @@ from typing import Dict, List, Tuple
 from risk_config import get_grade
 from utils import pacific_offset, hours_until
 
-# Load calibrated weights at startup if available — falls back to defaults silently
-try:
-    from calibrate_weights import load_calibrated_weights as _load_cal
-    _calibrated = _load_cal()
-except Exception:
-    _calibrated = None
+_calibrated = None
 
 
 # ── Regime-aware weight tables ────────────────────────────────────────────────
