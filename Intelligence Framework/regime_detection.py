@@ -19,10 +19,15 @@ Data source: yfinance (free, no API key needed)
 from __future__ import annotations
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
-from oanda_feed import get_daily_bars as _oanda_daily_bars, is_configured as _oanda_ok
+from oanda_feed import (
+    get_daily_bars  as _oanda_daily_bars,
+    get_h4_bars     as _oanda_h4_bars,
+    get_weekly_bars as _oanda_weekly_bars,
+    is_configured   as _oanda_ok,
+)
 
 @dataclass
 class PairConfig:
@@ -76,6 +81,190 @@ _ADX_TRANSITION_LOW       = 18    # 18-25: no statistical edge, require structur
 _ADX_TRANSITION_HIGH      = 25    # 25-32: cautious trend, HTF confirmation required
 _ADX_EXHAUSTION_THRESHOLD = 32    # above this: late-trend warning, reduce size
 _ADX_JPY_EXHAUSTION       = 35    # GBP/JPY specific: mean reversion accelerates here
+
+# Weekly context constants — sourced from htf_structure 5yr analysis
+_WEEKLY_LT_LOOKBACK = 20  # 20W long-term trend lookback (~5 months)
+_WEEKLY_ST_LOOKBACK = 4   # 4W short-term trend lookback (~1 month)
+_MA_SHORT_PERIOD    = 50  # 50-day moving average — medium-term structural bias
+_MA_LONG_PERIOD     = 200 # 200-day moving average — long-term structural bias
+
+# Stand-down threshold — ATR ratio above this signals chaotic expansion, hard gate
+_ATR_STANDDOWN_THRESHOLD = 2.0
+
+# ── Composite regime resolution table ─────────────────────────────────────────
+# Maps every (D1_regime, H4_regime) pair to a deterministic trading instruction.
+# All 16 combinations are explicitly defined — no implicit fallbacks inside the
+# table itself. Unknown combinations handled by get_composite_regime() default.
+# VALIDATED: Table design locked 2025-06-28 based on Problems 1-5 findings.
+# Re-evaluate individual cells after 60+ logged outcomes per combination.
+RESOLUTION_TABLE: Dict[Tuple[str, str], Dict] = {
+
+    # ── Both timeframes agree — clean alignment ───────────────────────────────
+    ("TRENDING_UP",   "TRENDING_UP"): {
+        "composite":      "TRENDING_UP",
+        "execution_mode": "CONTINUATION",
+        "confidence":     "HIGH",
+        "size_mult":      1.0,
+        "signal_bias":    "MOMENTUM",
+        "note": "Both TFs aligned up — strongest trend entry condition",
+    },
+    ("TRENDING_DOWN", "TRENDING_DOWN"): {
+        "composite":      "TRENDING_DOWN",
+        "execution_mode": "CONTINUATION",
+        "confidence":     "HIGH",
+        "size_mult":      1.0,
+        "signal_bias":    "MOMENTUM",
+        "note": "Both TFs aligned down — strongest trend entry condition",
+    },
+    ("RANGING",       "RANGING"): {
+        "composite":      "RANGING",
+        "execution_mode": "FADE_EXTREMES",
+        "confidence":     "MEDIUM",
+        "size_mult":      0.75,
+        "signal_bias":    "MEAN_REVERSION",
+        "note": "Clean range on both TFs — trade from edges only",
+    },
+    ("VOLATILE",      "VOLATILE"): {
+        "composite":      "VOLATILE",
+        "execution_mode": "STAND_DOWN",
+        "confidence":     "NONE",
+        "size_mult":      0.0,
+        "signal_bias":    "NONE",
+        "note": "No edge on either TF — stand aside",
+    },
+
+    # ── D1 trending + H4 ranging — pullback structure ─────────────────────────
+    ("TRENDING_UP",   "RANGING"): {
+        "composite":      "TRENDING_UP",
+        "execution_mode": "PULLBACK_ENTRY",
+        "confidence":     "MEDIUM",
+        "size_mult":      0.75,
+        "signal_bias":    "MOMENTUM",
+        "note": "D1 trend intact, H4 ranging = pullback. Wait for H4 support hold, enter long in D1 direction",
+    },
+    ("TRENDING_DOWN", "RANGING"): {
+        "composite":      "TRENDING_DOWN",
+        "execution_mode": "PULLBACK_ENTRY",
+        "confidence":     "MEDIUM",
+        "size_mult":      0.75,
+        "signal_bias":    "MOMENTUM",
+        "note": "D1 trend intact, H4 ranging = pullback. Wait for H4 resistance hold, enter short in D1 direction",
+    },
+
+    # ── D1 ranging + H4 trending — suspect H4 trend ───────────────────────────
+    ("RANGING",       "TRENDING_UP"): {
+        "composite":      "RANGING",
+        "execution_mode": "REDUCED_MOMENTUM",
+        "confidence":     "LOW",
+        "size_mult":      0.5,
+        "signal_bias":    "MOMENTUM",
+        "note": "H4 trend inside D1 range — suspect. Size down. Treat as range trade with momentum bias",
+    },
+    ("RANGING",       "TRENDING_DOWN"): {
+        "composite":      "RANGING",
+        "execution_mode": "REDUCED_MOMENTUM",
+        "confidence":     "LOW",
+        "size_mult":      0.5,
+        "signal_bias":    "MOMENTUM",
+        "note": "H4 trend inside D1 range — suspect. Size down. Treat as range trade with momentum bias",
+    },
+
+    # ── Opposite trending — hard conflict ─────────────────────────────────────
+    ("TRENDING_UP",   "TRENDING_DOWN"): {
+        "composite":      "VOLATILE",
+        "execution_mode": "STAND_DOWN",
+        "confidence":     "NONE",
+        "size_mult":      0.0,
+        "signal_bias":    "NONE",
+        "note": "Structural disagreement — D1 and H4 trend in opposite directions. No edge.",
+    },
+    ("TRENDING_DOWN", "TRENDING_UP"): {
+        "composite":      "VOLATILE",
+        "execution_mode": "STAND_DOWN",
+        "confidence":     "NONE",
+        "size_mult":      0.0,
+        "signal_bias":    "NONE",
+        "note": "Structural disagreement — D1 and H4 trend in opposite directions. No edge.",
+    },
+
+    # ── Volatile D1 — stand-down regardless of H4 ─────────────────────────────
+    ("VOLATILE",      "TRENDING_UP"): {
+        "composite":      "VOLATILE",
+        "execution_mode": "STAND_DOWN",
+        "confidence":     "NONE",
+        "size_mult":      0.0,
+        "signal_bias":    "NONE",
+        "note": "D1 VOLATILE overrides H4 trend — transition zone, no D1 edge",
+    },
+    ("VOLATILE",      "TRENDING_DOWN"): {
+        "composite":      "VOLATILE",
+        "execution_mode": "STAND_DOWN",
+        "confidence":     "NONE",
+        "size_mult":      0.0,
+        "signal_bias":    "NONE",
+        "note": "D1 VOLATILE overrides H4 trend — transition zone, no D1 edge",
+    },
+    ("VOLATILE",      "RANGING"): {
+        "composite":      "VOLATILE",
+        "execution_mode": "STAND_DOWN",
+        "confidence":     "NONE",
+        "size_mult":      0.0,
+        "signal_bias":    "NONE",
+        "note": "D1 VOLATILE + H4 ranging — no edge on either TF",
+    },
+
+    # ── Ranging D1 + Volatile H4 — unstable range ─────────────────────────────
+    ("RANGING",       "VOLATILE"): {
+        "composite":      "VOLATILE",
+        "execution_mode": "STAND_DOWN",
+        "confidence":     "NONE",
+        "size_mult":      0.0,
+        "signal_bias":    "NONE",
+        "note": "Range breaking down — H4 volatile inside D1 range. Wait for resolution.",
+    },
+
+    # ── Trending D1 + Volatile H4 — noise in trend ────────────────────────────
+    ("TRENDING_UP",   "VOLATILE"): {
+        "composite":      "TRENDING_UP",
+        "execution_mode": "REDUCED_MOMENTUM",
+        "confidence":     "LOW",
+        "size_mult":      0.5,
+        "signal_bias":    "MOMENTUM",
+        "note": "D1 trend intact but H4 is noisy. Size down. Wait for H4 to resolve before entering.",
+    },
+    ("TRENDING_DOWN", "VOLATILE"): {
+        "composite":      "TRENDING_DOWN",
+        "execution_mode": "REDUCED_MOMENTUM",
+        "confidence":     "LOW",
+        "size_mult":      0.5,
+        "signal_bias":    "MOMENTUM",
+        "note": "D1 trend intact but H4 is noisy. Size down. Wait for H4 to resolve before entering.",
+    },
+}
+
+
+def get_composite_regime(d1_regime: str, h4_regime: str) -> Dict:
+    """
+    Look up the composite regime classification for a D1/H4 combination.
+
+    Returns the resolution dict with composite, execution_mode,
+    confidence, size_mult, signal_bias, and note.
+
+    All 16 possible combinations are explicitly handled.
+    Unknown combinations default to VOLATILE/STAND_DOWN.
+
+    VALIDATED: Table design locked 2025-06-28 based on Problems 1-5
+    findings. Re-evaluate cells after 60+ outcomes per combination.
+    """
+    key = (d1_regime, h4_regime)
+    return RESOLUTION_TABLE.get(key, {
+        "composite":      "VOLATILE",
+        "execution_mode": "STAND_DOWN",
+        "confidence":     "NONE",
+        "size_mult":      0.0,
+        "signal_bias":    "NONE",
+        "note":           f"Unknown combination {d1_regime}/{h4_regime} — defaulting to stand-down",
+    })
 
 
 def _detect_structure(
@@ -260,6 +449,252 @@ def compute_atr_series(
     return result
 
 
+def _compute_adx(
+    highs: List[float],
+    lows: List[float],
+    closes: List[float],
+    period: int = _ADX_PERIOD,
+) -> float:
+    """
+    Compute ADX using Wilder's smoothing — identical math for D1 and H4 so
+    there is zero duplication between timeframes.
+
+    Returns the final ADX value clamped to [0, 100].
+    Returns 0.0 if insufficient data (need at least period*2 bars).
+
+    Wilder TR/DM init: sum of first `period` values (not average).
+    DX init: simple average of first `period` DX values.
+    """
+    n = len(closes)
+    if n < period * 2:
+        return 0.0
+
+    tr_list = [
+        max(highs[i] - lows[i],
+            abs(highs[i] - closes[i - 1]),
+            abs(lows[i]  - closes[i - 1]))
+        for i in range(1, n)
+    ]
+    plus_dm = [
+        (highs[i] - highs[i - 1])
+        if (highs[i] - highs[i - 1]) > (lows[i - 1] - lows[i])
+           and (highs[i] - highs[i - 1]) > 0
+        else 0.0
+        for i in range(1, n)
+    ]
+    minus_dm = [
+        (lows[i - 1] - lows[i])
+        if (lows[i - 1] - lows[i]) > (highs[i] - highs[i - 1])
+           and (lows[i - 1] - lows[i]) > 0
+        else 0.0
+        for i in range(1, n)
+    ]
+
+    if len(tr_list) < period * 2:
+        return 0.0
+
+    def _wilder_smooth(values: List[float]) -> List[float]:
+        # Wilder init = sum of first `period` values (NOT average); subsequent = Wilder's formula
+        result = [sum(values[:period])]
+        for v in values[period:]:
+            result.append(result[-1] - result[-1] / period + v)
+        return result
+
+    s_tr    = _wilder_smooth(tr_list)
+    s_plus  = _wilder_smooth(plus_dm)
+    s_minus = _wilder_smooth(minus_dm)
+
+    di_plus  = [100 * p / t if t > 0 else 0.0 for p, t in zip(s_plus,  s_tr)]
+    di_minus = [100 * m / t if t > 0 else 0.0 for m, t in zip(s_minus, s_tr)]
+
+    dx = [
+        100 * abs(p - m) / (p + m) if (p + m) > 0 else 0.0
+        for p, m in zip(di_plus, di_minus)
+    ]
+
+    if len(dx) < period:
+        return 0.0
+
+    # ADX = Wilder-smoothed DX (average for init, Wilder for subsequent)
+    adx = sum(dx[:period]) / period
+    for d in dx[period:]:
+        adx = (adx * (period - 1) + d) / period
+
+    return max(0.0, min(100.0, round(adx, 1)))
+
+
+def _detect_conflict(d1_regime: str, h4_regime: str) -> Tuple[bool, str]:
+    """
+    Detect timeframe conflict between D1 and H4 regime classifications.
+
+    A conflict exists when the two timeframes give opposing directional signals.
+    Conflict alone does not trigger stand_down — it degrades conviction only.
+
+    Returns (conflict: bool, conflict_type: str).
+    """
+    if d1_regime == "TRENDING_UP"   and h4_regime == "TRENDING_DOWN":
+        return True, "D1_BULLISH_H4_BEARISH"
+    if d1_regime == "TRENDING_DOWN" and h4_regime == "TRENDING_UP":
+        return True, "D1_BEARISH_H4_BULLISH"
+    if d1_regime == "RANGING" and h4_regime == "VOLATILE":
+        return True, "RANGING_D1_VOLATILE_H4"
+    return False, ""
+
+
+_OPPOSITE_CONFLICT_TYPES = {"D1_BULLISH_H4_BEARISH", "D1_BEARISH_H4_BULLISH"}
+
+
+def _stand_down_check(
+    d1_regime:    str,
+    atr_ratio:    float,
+    conflict:     bool,
+    conflict_type: str,
+) -> Tuple[bool, str]:
+    """
+    Determine if market conditions warrant a full regime stand-down.
+
+    Stand-down is a hard gate — decision_engine returns NO TRADE immediately.
+    Three triggers (empirically validated):
+      1. D1 regime is VOLATILE — both momentum and mean-rev fail simultaneously.
+      2. Opposite-trend timeframe conflict — D1 and H4 point in opposite directions.
+         Fires on conflict_type in {"D1_BULLISH_H4_BEARISH","D1_BEARISH_H4_BULLISH"}
+         or when the opposing regime string appears in conflict_type (test format).
+      3. Extreme ATR spike >= _ATR_STANDDOWN_THRESHOLD (2.0x) — chaotic expansion.
+
+    Conflict alone (single-timeframe noise) is NOT a stand-down; it is a
+    conviction degrader in decision_engine (-20 pts). Stand-down fires only
+    on the three conditions above.
+
+    Returns (stand_down: bool, stand_down_reason: str).
+    """
+    # 1. D1 VOLATILE — no statistical edge on either momentum or mean-reversion
+    if d1_regime == "VOLATILE":
+        return True, "D1 regime VOLATILE — no statistical edge, stand down"
+
+    # 2. Extreme ATR spike — market in chaotic expansion
+    if atr_ratio >= _ATR_STANDDOWN_THRESHOLD:
+        return True, (
+            f"Extreme ATR spike ({atr_ratio:.1f}x >= {_ATR_STANDDOWN_THRESHOLD}x) "
+            "— market in chaotic expansion, stand down"
+        )
+
+    # 3. Opposite-trend conflict — D1 and H4 point in genuinely opposite directions
+    if conflict and d1_regime in ("TRENDING_UP", "TRENDING_DOWN"):
+        opposite = "TRENDING_DOWN" if d1_regime == "TRENDING_UP" else "TRENDING_UP"
+        is_opposite = (
+            conflict_type in _OPPOSITE_CONFLICT_TYPES or
+            opposite in conflict_type
+        )
+        if is_opposite:
+            return True, (
+                f"Opposite trend conflict ({conflict_type}) — "
+                "D1 and H4 trend in opposite directions, stand down"
+            )
+
+    return False, ""
+
+
+def _compute_weekly_context(
+    w_highs:  List[float],
+    w_lows:   List[float],
+    w_closes: List[float],
+) -> Dict:
+    """
+    Classify weekly multi-timeframe trend context from OANDA weekly bars.
+
+    Returns:
+      lt_trend      : "UPTREND" | "DOWNTREND" | "RANGING"
+                      20-week dominant trend (_WEEKLY_LT_LOOKBACK)
+      st_trend      : "UPTREND" | "DOWNTREND" | "RANGING"
+                      4-week short-term trend (_WEEKLY_ST_LOOKBACK)
+      weekly_context: "ESTABLISHED_UPTREND" | "ESTABLISHED_DOWNTREND" |
+                      "COUNTER_TREND_BOUNCE" | "PULLBACK_IN_UPTREND" | "RANGING"
+      context_note  : plain-English explanation of the current context
+
+    Trend direction uses 3-bar recent avg vs 3-bar lookback avg (0.5% threshold).
+    Absorbed from htf_structure._trend_direction + _classify_context.
+    """
+    def _trend_dir(closes: List[float], lookback: int) -> str:
+        if len(closes) < lookback + 3:
+            return "RANGING"
+        recent_avg = sum(closes[-3:]) / 3
+        past_avg   = sum(closes[-(lookback + 3) : -(lookback)]) / 3
+        if past_avg == 0:
+            return "RANGING"
+        pct = (recent_avg - past_avg) / past_avg * 100
+        if pct > 0.5:
+            return "UPTREND"
+        if pct < -0.5:
+            return "DOWNTREND"
+        return "RANGING"
+
+    lt = _trend_dir(w_closes, _WEEKLY_LT_LOOKBACK)
+    st = _trend_dir(w_closes, _WEEKLY_ST_LOOKBACK)
+
+    if lt == "UPTREND" and st == "UPTREND":
+        ctx  = "ESTABLISHED_UPTREND"
+        note = ("Both 5-month and 1-month trends point UP — "
+                "strongest environment for longs. Look for pullbacks to key support.")
+    elif lt == "DOWNTREND" and st == "DOWNTREND":
+        ctx  = "ESTABLISHED_DOWNTREND"
+        note = ("Both 5-month and 1-month trends point DOWN — "
+                "strongest environment for shorts. Look for rallies to key resistance.")
+    elif lt == "DOWNTREND" and st == "UPTREND":
+        ctx  = "COUNTER_TREND_BOUNCE"
+        note = ("5-month trend is DOWN but price bounced UP over 4 weeks — "
+                "counter-trend bounce. Dominant trend typically reasserts.")
+    elif lt == "UPTREND" and st == "DOWNTREND":
+        ctx  = "PULLBACK_IN_UPTREND"
+        note = ("5-month trend is UP, pulling back over 4 weeks — "
+                "healthy correction. Look for long entries at key support levels.")
+    elif lt == "UPTREND" and st == "RANGING":
+        ctx  = "PULLBACK_IN_UPTREND"
+        note = ("5-month trend UP, short-term stalling — "
+                "pause before continuation. Watch for breakout higher.")
+    elif lt == "DOWNTREND" and st == "RANGING":
+        ctx  = "ESTABLISHED_DOWNTREND"
+        note = ("5-month trend DOWN, short-term stalling — "
+                "consolidation before selling resumes. Watch for breakdown lower.")
+    else:
+        ctx  = "RANGING"
+        note = ("No clear trend on either the 5-month or 1-month timeframe — "
+                "range-trade only from the extremes of the range.")
+
+    return {"lt_trend": lt, "st_trend": st, "weekly_context": ctx, "context_note": note}
+
+
+def _compute_ma_context(
+    closes: List[float],
+    current_price: float,
+) -> Dict:
+    """
+    Compute 50-day and 200-day moving average context.
+
+    Returns:
+      ma50          : float or None (None if < _MA_SHORT_PERIOD bars available)
+      ma200         : float or None (None if < _MA_LONG_PERIOD bars available)
+      price_vs_ma50 : "above" | "below"
+      price_vs_ma200: "above" | "below"
+
+    _MA_SHORT_PERIOD = 50  — medium-term structural bias
+    _MA_LONG_PERIOD  = 200 — long-term structural bias (absorbed from htf_structure)
+    """
+    ma50 = (
+        round(sum(closes[-_MA_SHORT_PERIOD:]) / _MA_SHORT_PERIOD, 4)
+        if len(closes) >= _MA_SHORT_PERIOD else None
+    )
+    ma200 = (
+        round(sum(closes[-_MA_LONG_PERIOD:]) / _MA_LONG_PERIOD, 4)
+        if len(closes) >= _MA_LONG_PERIOD else None
+    )
+    return {
+        "ma50":           ma50,
+        "ma200":          ma200,
+        "price_vs_ma50":  "above" if ma50  and current_price > ma50  else "below",
+        "price_vs_ma200": "above" if ma200 and current_price > ma200 else "below",
+    }
+
+
 def _classify(adx: float, atr_ratio: float, slope: float,
               instrument: str = "GBP_AUD",
               pair: "PairConfig" = None) -> str:
@@ -309,18 +744,23 @@ def _classify(adx: float, atr_ratio: float, slope: float,
 
 
 def get_regime(ticker: str = "GBP_AUD") -> Dict:
-    pair = PAIRS.get(ticker, PAIRS["GBP_AUD"])
+    pair = PAIRS.get(ticker)
+    if pair is None:
+        return _error_result(
+            f"Unknown instrument '{ticker}'. "
+            f"Valid instruments: {list(PAIRS.keys())}"
+        )
 
     if not _oanda_ok():
         return _error_result("OANDA not configured — set OANDA_API_KEY and OANDA_ACCOUNT_ID")
 
     oanda_pair = pair.instrument.replace("_", "")
     try:
-        raw = _oanda_daily_bars(pair=oanda_pair, count=90)
+        raw = _oanda_daily_bars(pair=oanda_pair, count=220)
     except Exception as exc:
         try:
             from oanda_feed import get_daily_bars, is_configured
-            raw = get_daily_bars(pair=oanda_pair, count=100) if is_configured() else None
+            raw = get_daily_bars(pair=oanda_pair, count=220) if is_configured() else None
         except Exception:
             raw = None
         if raw is None:
@@ -352,60 +792,10 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     atr_pct     = round(current_atr / current_price * 100, 3)
     atr_ratio   = round(current_atr / avg_atr_20, 2) if avg_atr_20 > 0 else 1.0
 
-    # ── ADX (correct Wilder smoothing) ────────────────────────────────────────
-    tr_list = [
-        max(highs[i] - lows[i],
-            abs(highs[i] - closes[i - 1]),
-            abs(lows[i]  - closes[i - 1]))
-        for i in range(1, n)
-    ]
-
-    plus_dm_list  = []
-    minus_dm_list = []
-
-    for i in range(1, n):
-        up   = highs[i]  - highs[i - 1]
-        down = lows[i - 1] - lows[i]
-        plus_dm_list.append(up   if (up > down and up > 0)   else 0.0)
-        minus_dm_list.append(down if (down > up and down > 0) else 0.0)
-
-    if len(plus_dm_list) < _ADX_PERIOD * 2:
-        return _error_result("Insufficient DM data for ADX calculation")
-
-    # Wilder-smooth TR, +DM, -DM over ADX_PERIOD
-    def wilder_init_and_smooth(values: List[float], period: int) -> List[float]:
-        result = [sum(values[:period])]          # initial = sum (not average) per Wilder
-        for v in values[period:]:
-            result.append(result[-1] - result[-1] / period + v)
-        return result
-
-    smooth_tr    = wilder_init_and_smooth(tr_list,       _ADX_PERIOD)
-    smooth_plus  = wilder_init_and_smooth(plus_dm_list,  _ADX_PERIOD)
-    smooth_minus = wilder_init_and_smooth(minus_dm_list, _ADX_PERIOD)
-
-    # DI+ and DI-
-    di_plus  = [100 * p / t if t > 0 else 0.0 for p, t in zip(smooth_plus,  smooth_tr)]
-    di_minus = [100 * m / t if t > 0 else 0.0 for m, t in zip(smooth_minus, smooth_tr)]
-
-    # DX
-    dx_list = []
-    for p, m in zip(di_plus, di_minus):
-        denom = p + m
-        dx_list.append(100 * abs(p - m) / denom if denom > 0 else 0.0)
-
-    if len(dx_list) < _ADX_PERIOD:
-        return _error_result("Insufficient DX data for ADX calculation")
-
-    # ADX = Wilder-smoothed DX (average not sum for init here)
-    adx = sum(dx_list[:_ADX_PERIOD]) / _ADX_PERIOD
-    adx_series = [adx]
-    for dx in dx_list[_ADX_PERIOD:]:
-        adx = (adx * (_ADX_PERIOD - 1) + dx) / _ADX_PERIOD
-        adx_series.append(adx)
-
-    current_adx = round(adx_series[-1], 1)
-    # ADX must be 0-100 — clamp in case of any float drift
-    current_adx = max(0.0, min(100.0, current_adx))
+    # ── ADX ───────────────────────────────────────────────────────────────────
+    current_adx = _compute_adx(highs, lows, closes)
+    if current_adx == 0.0 and n < _ADX_PERIOD * 2:
+        return _error_result("Insufficient data for ADX calculation")
 
     # ── Volatility level ──────────────────────────────────────────────────────
     if atr_pct > 0.8:
@@ -434,9 +824,89 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         # TRANSITIONAL: use slope as tiebreaker, reduce confidence
         slope = closes[-1] - closes[-10] if len(closes) >= 10 else 0
 
-    # ── Regime classification ─────────────────────────────────────────────────
-    regime = _classify(current_adx, atr_ratio, slope, pair=pair,
-                       instrument=pair.instrument)
+    # ── D1 regime classification ──────────────────────────────────────────────
+    d1_regime = _classify(current_adx, atr_ratio, slope, pair=pair,
+                          instrument=pair.instrument)
+    regime = d1_regime  # backward compat alias
+
+    # ── H4 multi-timeframe classification ─────────────────────────────────────
+    h4_regime = d1_regime   # safe fallback: inherit D1 when H4 unavailable
+    adx_h4    = 0.0
+
+    try:
+        raw_h4 = _oanda_h4_bars(pair=oanda_pair, count=120)
+    except Exception:
+        raw_h4 = None
+
+    if raw_h4 is not None and not raw_h4.empty:
+        if hasattr(raw_h4.columns, "levels"):
+            raw_h4.columns = raw_h4.columns.get_level_values(0)
+        h4h = [float(v) for v in raw_h4["High"].dropna().values]
+        h4l = [float(v) for v in raw_h4["Low"].dropna().values]
+        h4c = [float(v) for v in raw_h4["Close"].dropna().values]
+        nh4 = min(len(h4h), len(h4l), len(h4c))
+        h4h, h4l, h4c = h4h[:nh4], h4l[:nh4], h4c[:nh4]
+
+        if nh4 >= _ADX_PERIOD * 3:
+            h4_atr_s       = compute_atr_series(h4h, h4l, h4c)
+            h4_avg_atr     = sum(h4_atr_s[-20:]) / min(20, len(h4_atr_s))
+            h4_atr_ratio   = round(h4_atr_s[-1] / h4_avg_atr, 2) if h4_avg_atr > 0 else 1.0
+            adx_h4         = _compute_adx(h4h, h4l, h4c)
+            h4_struct      = _detect_structure(h4h, h4l, h4c)
+            if h4_struct["structure"] == "UPTREND":
+                h4_slope = 1.0
+            elif h4_struct["structure"] == "DOWNTREND":
+                h4_slope = -1.0
+            else:
+                h4_slope = h4c[-1] - h4c[-10] if len(h4c) >= 10 else 0
+            h4_regime = _classify(adx_h4, h4_atr_ratio, h4_slope,
+                                  instrument=pair.instrument, pair=pair)
+
+    conflict, conflict_type = _detect_conflict(d1_regime, h4_regime)
+    stand_down, stand_down_reason = _stand_down_check(
+        d1_regime, atr_ratio, conflict, conflict_type
+    )
+
+    # ── Composite regime resolution ───────────────────────────────────────────
+    resolution      = get_composite_regime(d1_regime, h4_regime)
+    execution_mode  = resolution["execution_mode"]
+    confidence      = resolution["confidence"]
+    size_mult       = resolution["size_mult"]
+    signal_bias     = resolution["signal_bias"]
+    resolution_note = resolution["note"]
+    # Resolution table is authoritative on stand_down — if it says STAND_DOWN,
+    # enforce it even if _stand_down_check() didn't fire independently.
+    if execution_mode == "STAND_DOWN":
+        stand_down = True
+        if not stand_down_reason:
+            stand_down_reason = resolution_note
+
+    # ── Weekly context + MA (absorbs htf_structure weekly/MA logic) ────────────
+    lt_trend = st_trend = weekly_context = "RANGING"
+    context_note = ""
+
+    try:
+        raw_w = _oanda_weekly_bars(pair=oanda_pair, count=110)
+    except Exception:
+        raw_w = None
+
+    if raw_w is not None and not raw_w.empty and len(raw_w) >= _WEEKLY_LT_LOOKBACK:
+        if hasattr(raw_w.columns, "levels"):
+            raw_w.columns = raw_w.columns.get_level_values(0)
+        wh = [float(v) for v in raw_w["High"].dropna().values]
+        wl = [float(v) for v in raw_w["Low"].dropna().values]
+        wc = [float(v) for v in raw_w["Close"].dropna().values]
+        _wctx        = _compute_weekly_context(wh, wl, wc)
+        lt_trend     = _wctx["lt_trend"]
+        st_trend     = _wctx["st_trend"]
+        weekly_context = _wctx["weekly_context"]
+        context_note   = _wctx["context_note"]
+
+    _mac           = _compute_ma_context(closes, current_price)
+    ma50           = _mac["ma50"]
+    ma200          = _mac["ma200"]
+    price_vs_ma50  = _mac["price_vs_ma50"]
+    price_vs_ma200 = _mac["price_vs_ma200"]
 
     is_exhaustion = (
         current_adx >= _ADX_EXHAUSTION_THRESHOLD or
@@ -529,6 +999,39 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     else:
         fuel_label = "NEAR EMPTY  -  most of today's range already used"
 
+    # ── Pre-compute fields needed by no_trade_filter before return ───────────
+    _atr_compression = (
+        pair.atr_compression_min > 0 and
+        atr_ratio < pair.atr_compression_min
+    )
+    _atr_compression_note = (
+        f"ATR ratio {atr_ratio:.2f}x is below compression "
+        f"threshold {pair.atr_compression_min}x — "
+        f"pre-intervention coil detected. Both signals historically fail here."
+        if _atr_compression else ""
+    )
+    _d1_structure = structure_data["structure"]
+
+    from no_trade_filter import apply_filter as _apply_filter, get_filter_summary as _get_filter_summary
+    _fr = _apply_filter({
+        "regime_d1":            d1_regime,
+        "regime_h4":            h4_regime,
+        "adx_h4":               adx_h4,
+        "atr_vs_avg":           atr_ratio,
+        "atr_compression":      _atr_compression,
+        "atr_compression_note": _atr_compression_note,
+        "timeframe_conflict":   conflict,
+        "conflict_type":        conflict_type,
+        "structure":            _d1_structure,
+        "weekly_context":       weekly_context,
+        "lt_trend":             lt_trend,
+        "st_trend":             st_trend,
+        "execution_mode":       execution_mode,
+        "size_mult":            size_mult,
+        "resolution_note":      resolution_note,
+    })
+    _fr_summary = _get_filter_summary(_fr)
+
     return {
         "regime":          regime,
         "regime_label":    regime_label,
@@ -549,16 +1052,31 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "fuel_label":      fuel_label,
         "pair":            pair.display_name,
         "instrument":      pair.instrument,
-        # ── Problem 2 stubs (populated when multi-timeframe analysis is added) ──
-        "regime_d1":          regime,
-        "regime_h4":          "UNKNOWN",
-        "adx_h4":             0.0,
-        "timeframe_conflict": False,
-        "conflict_type":      "",
-        "stand_down":         False,
-        "stand_down_reason":  "",
+        # ── Multi-timeframe (D1 + H4) ─────────────────────────────────────────
+        "regime_d1":          d1_regime,
+        "regime_h4":          h4_regime,
+        "adx_h4":             adx_h4,
+        "timeframe_conflict": conflict,
+        "conflict_type":      conflict_type,
+        "stand_down":         stand_down,
+        "stand_down_reason":  stand_down_reason,
+        # ── Composite resolution (Problem 6) ──────────────────────────────────
+        "execution_mode":     execution_mode,
+        "confidence":         confidence,
+        "size_mult":          size_mult,
+        "signal_bias":        signal_bias,
+        "resolution_note":    resolution_note,
+        # ── Weekly context (absorbed from htf_structure) ───────────────────────
+        "lt_trend":           lt_trend,
+        "st_trend":           st_trend,
+        "weekly_context":     weekly_context,
+        "context_note":       context_note,
+        "ma50":               ma50,
+        "ma200":              ma200,
+        "price_vs_ma50":      price_vs_ma50,
+        "price_vs_ma200":     price_vs_ma200,
         # ── Structure (Problem 2) ─────────────────────────────────────────────
-        "structure":        structure_data["structure"],
+        "structure":        _d1_structure,
         "confirmed_highs":  structure_data["confirmed_highs"],
         "confirmed_lows":   structure_data["confirmed_lows"],
         "latest_sh":        structure_data["latest_sh"],
@@ -581,20 +1099,18 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
                 (pair.instrument == "GBP_JPY" and current_adx >= _ADX_JPY_EXHAUSTION))
             else ""
         ),
-        "atr_compression":      (
-            pair.atr_compression_min > 0 and
-            atr_ratio < pair.atr_compression_min
-        ),
-        "atr_compression_note": (
-            f"ATR ratio {atr_ratio:.2f}x is below compression "
-            f"threshold {pair.atr_compression_min}x — "
-            f"pre-intervention coil detected. Both signals historically fail here."
-            if (pair.atr_compression_min > 0 and
-                atr_ratio < pair.atr_compression_min)
-            else ""
-        ),
+        "atr_compression":      _atr_compression,
+        "atr_compression_note": _atr_compression_note,
         "atr_spike_multiplier": pair.atr_spike_multiplier,
         "atr_compression_min":  pair.atr_compression_min,
+        # ── No-trade filter (Problem 8) ───────────────────────────────────────
+        "filter_allowed":      _fr.allowed,
+        "filter_mode":         _fr.execution_mode,
+        "filter_size_mult":    _fr.size_mult,
+        "filter_reason":       _fr.reason,
+        "override_fired":      _fr.override_fired,
+        "override_conditions": _fr.override_conditions,
+        "filter_summary":      _fr_summary,
         "error":           None,
     }
 
@@ -628,12 +1144,24 @@ def _error_result(msg: str) -> Dict:
         "conflict_type":       "",
         "stand_down":          False,
         "stand_down_reason":   "",
+        "execution_mode":      "STAND_DOWN",
+        "confidence":          "NONE",
+        "size_mult":           0.0,
+        "signal_bias":         "NONE",
+        "resolution_note":     "",
         "adx_exhaustion":      False,
         "adx_exhaustion_note": "",
         "atr_compression":     False,
         "atr_compression_note": "",
         "atr_spike_multiplier": 1.5,
         "atr_compression_min": 0.0,
+        "filter_allowed":      False,
+        "filter_mode":         "STAND_DOWN",
+        "filter_size_mult":    0.0,
+        "filter_reason":       "",
+        "override_fired":      False,
+        "override_conditions": "",
+        "filter_summary":      "",
         "structure":           "TRANSITIONAL",
         "confirmed_highs":     [],
         "confirmed_lows":      [],
@@ -646,6 +1174,14 @@ def _error_result(msg: str) -> Dict:
         "slope_fallback":      False,
         "pivot_count_high":    0,
         "pivot_count_low":     0,
+        "lt_trend":            "RANGING",
+        "st_trend":            "RANGING",
+        "weekly_context":      "RANGING",
+        "context_note":        "",
+        "ma50":                None,
+        "ma200":               None,
+        "price_vs_ma50":       "unknown",
+        "price_vs_ma200":      "unknown",
     }
 
 

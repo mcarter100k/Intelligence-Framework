@@ -264,3 +264,425 @@ Mock is permanently banned from final problem validation.
 
 ---
 *Next entry: Problem 4 — Counter-trend conflict stand-down logic*
+
+---
+
+## 2025-06-28 — Four-Issue Implementation + Validation
+
+**Issues resolved:** H4 multi-timeframe, htf_structure absorption,
+decision_engine gates, market_brain pair routing
+
+**Test coverage:**
+| Layer | Result |
+|---|---|
+| P1 regression suite | 62/62 |
+| Four-issue unit tests | 46/46 |
+| Conflict boundary checks | 11/11 |
+| Five code verifications | 5/5 |
+| Live OANDA — GBP/AUD | 10/10 |
+| Live OANDA — GBP/JPY | 9/9 |
+
+### Issue 1 — H4 Multi-Timeframe (stubs replaced)
+- `get_h4_bars()` added to `oanda_feed.py`
+- `_compute_adx()` extracted as shared helper — zero duplication
+- Real H4 regime, ADX, and structure now computed in `get_regime()`
+- `_detect_conflict()` and `_stand_down_check()` wired to real values
+- `regime_h4`, `adx_h4`, `timeframe_conflict`, `stand_down` all real
+
+### Issue 2 — htf_structure.py absorbed
+- `_compute_weekly_context()` added to `regime_detection.py`
+- `_compute_ma_context()` added to `regime_detection.py`
+- `lt_trend`, `st_trend`, `weekly_context`, `context_note`,
+  `ma50`, `ma200`, `price_vs_ma50`, `price_vs_ma200` in return dict
+- `htf_structure.py` deleted — 618 lines of duplicate work removed
+- Bar count bumped to 220 so MA200 computes correctly
+
+### Issue 3 — decision_engine.py hard gates
+- `_no_trade_result()` helper added
+- `stand_down=True` → immediate NO TRADE before any scoring
+- `atr_compression=True` → immediate NO TRADE before any scoring
+- `timeframe_conflict=True` → conviction -20, surfaces in conflicts list
+- `adx_exhaustion=True` → grade capped at B
+
+### Issue 4 — market_brain.py pair routing
+- `build_market_report(instrument="GBP_AUD")` parameter added
+- `get_regime(instrument)` called with correct instrument
+- All hardcoded `"GBP_AUD"` references replaced with instrument param
+- `from htf_structure import get_htf_structure` removed
+
+### Critical architectural decision made during validation
+**VOLATILE D1 ≠ conflict with H4 trend.**
+`_detect_conflict()` was incorrectly flagging `VOLATILE_D1_TRENDING_H4`
+and `TRENDING_D1_VOLATILE_H4` as directional conflicts.
+
+Fix: conflict means opposite directional signals only:
+- `TRENDING_UP + TRENDING_DOWN` → conflict (opposite direction)
+- `TRENDING_DOWN + TRENDING_UP` → conflict (opposite direction)
+- `RANGING + VOLATILE` → conflict (unstable range)
+- `VOLATILE D1 + any H4` → NOT conflict → stand-down owned by `_stand_down_check`
+- `TRENDING D1 + VOLATILE H4` → NOT conflict → H4 noise in D1 trend
+
+**Why this matters:** D1 trending with H4 volatile is a legitimate
+setup — D1 direction is established, H4 is just noisy. Calling it a
+conflict would have reduced conviction on valid trades. Stand-down and
+conflict are now separate concerns with separate responses.
+
+### Bugs Caught on Live Data
+- `_detect_conflict`: RANGING + VOLATILE case missing — added
+- `_stand_down_check`: stub replaced with real three-trigger logic
+- `_no_trade_result`: missing `stand_down` and `reason` keys in return dict
+- `_detect_conflict`: VOLATILE_D1_TRENDING_H4 incorrectly classified as
+  conflict — removed, ownership moved to `_stand_down_check`
+
+### Live Market State at Validation (2025-06-28)
+| Field | GBP/AUD | GBP/JPY |
+|---|---|---|
+| D1 regime | VOLATILE | RANGING |
+| H4 regime | TRENDING_UP | VOLATILE |
+| ADX H4 | 42.2 | 22.1 |
+| Conflict | False (corrected) | False |
+| Stand down | True (D1 VOLATILE) | False |
+| Weekly context | COUNTER_TREND_BOUNCE | PULLBACK_IN_UPTREND |
+| MA50 | 1.8865 | 214.07 |
+| MA200 | 1.9566 | 209.63 |
+
+GBP/AUD stand_down=True confirmed on live data — framework correctly
+identified D1 VOLATILE + H4 strong trend + weekly counter-trend bounce
+as untradeable. This output was invisible before the rebuild.
+
+---
+*Next entry: Problem 5*
+
+---
+
+## 2025-06-28 — Problem 5: Confluence Scoring Rebuild
+
+**What was built:**
+- `trade_outcome_logger.py` — CSV-based signal logger with outcome tracking
+- `validate_confluence_weights.py` — weight recommendation script
+- `decision_engine.py` weight tables annotated and partially validated
+- `market_brain.py` logger integration
+
+**Test coverage:**
+| Layer | Result |
+|---|---|
+| P1 regression suite | 62/62 |
+| Weight table code verification | Confirmed in source |
+| Live logger test — GBP/AUD | NO TRADE (stand_down) — correct |
+| Live logger test — GBP/JPY | NO TRADE (conviction floor) — correct |
+| Weight annotation audit | 9 VALIDATED + 36 PRIOR = 45 total |
+
+### Weight Changes Made
+| Weight | Old | New | Status | Source |
+|---|---|---|---|---|
+| TRENDING `htf` | 0.30 | 0.22 | PRIOR | Trend degrades at ADX 25-28 |
+| TRENDING `regime` | 0.04 | 0.12 | VALIDATED P1 | ADX zones have known accuracy |
+| TRENDING `structure` | — | 0.10 | VALIDATED P2 | HH/HL is real signal |
+| RANGING `regime` | 0.03 | 0.15 | VALIDATED P1 | Ranging classification is real |
+| RANGING `structure` | — | 0.05 | VALIDATED P2 | Structure less reliable in ranges |
+| VOLATILE `regime` | 0.03 | 0.20 | VALIDATED P1 | Transition zone correctly identified |
+| VOLATILE `structure` | — | 0.00 | VALIDATED P2 | No structure signal in volatile |
+
+### Annotation Status
+- 9 weights marked VALIDATED with specific P1/P2/P3 source
+- 36 weights marked PRIOR — hypotheses pending outcome data
+- Re-validation trigger: run validate_confluence_weights.py
+  after 60 logged outcomes per regime per pair
+
+### What the Framework Still Cannot Do
+- Self-validate weights (no outcome data yet — starts accumulating today)
+- Derive currency strength, COT, cross-market weights from evidence
+- Confirm whether news impact scoring correlates with actual moves
+
+### Live Market State at Validation (2025-06-28)
+Both pairs NO TRADE:
+- GBP/AUD: stand_down=True (D1 VOLATILE hard gate)
+- GBP/JPY: conviction=10 below floor (RANGING, no setup)
+Logger correctly skipped both — fires only on tradeable signals.
+
+---
+*Next entry: Problem 6 — Composite regime resolution table*
+
+---
+
+## 2025-06-28 — Problem 6: Composite Regime Resolution Table
+
+**What was built:**
+- `RESOLUTION_TABLE` — 16-cell deterministic D1/H4 lookup table
+- `get_composite_regime()` — lookup function with unknown combination fallback
+- Resolution wired into `get_regime()` return dict
+- `decision_engine.py` applies `size_mult` to conviction
+- `stand_down` forced True when `execution_mode == STAND_DOWN`
+
+**Test coverage:**
+| Layer | Result |
+|---|---|
+| P1 regression suite | 62/62 |
+| Table completeness (16 × 3 keys) | 48/48 |
+| HIGH confidence cases | 9/9 |
+| PULLBACK cases | 7/7 |
+| STAND_DOWN cases | 21/21 |
+| LOW confidence cases | 8/8 |
+| Unknown combination default | 3/3 |
+| Live output contract | 14/14 |
+| Total | 110/110 |
+| Live consistency verification | PASS — both pairs |
+
+### Resolution Table Summary
+| D1 | H4 | Composite | Mode | Confidence | Size |
+|---|---|---|---|---|---|
+| TRENDING_UP | TRENDING_UP | TRENDING_UP | CONTINUATION | HIGH | 1.0 |
+| TRENDING_DOWN | TRENDING_DOWN | TRENDING_DOWN | CONTINUATION | HIGH | 1.0 |
+| RANGING | RANGING | RANGING | FADE_EXTREMES | MEDIUM | 0.75 |
+| VOLATILE | VOLATILE | VOLATILE | STAND_DOWN | NONE | 0.0 |
+| TRENDING_UP | RANGING | TRENDING_UP | PULLBACK_ENTRY | MEDIUM | 0.75 |
+| TRENDING_DOWN | RANGING | TRENDING_DOWN | PULLBACK_ENTRY | MEDIUM | 0.75 |
+| RANGING | TRENDING_UP | RANGING | REDUCED_MOMENTUM | LOW | 0.5 |
+| RANGING | TRENDING_DOWN | RANGING | REDUCED_MOMENTUM | LOW | 0.5 |
+| TRENDING_UP | TRENDING_DOWN | VOLATILE | STAND_DOWN | NONE | 0.0 |
+| TRENDING_DOWN | TRENDING_UP | VOLATILE | STAND_DOWN | NONE | 0.0 |
+| VOLATILE | TRENDING_UP | VOLATILE | STAND_DOWN | NONE | 0.0 |
+| VOLATILE | TRENDING_DOWN | VOLATILE | STAND_DOWN | NONE | 0.0 |
+| VOLATILE | RANGING | VOLATILE | STAND_DOWN | NONE | 0.0 |
+| RANGING | VOLATILE | VOLATILE | STAND_DOWN | NONE | 0.0 |
+| TRENDING_UP | VOLATILE | TRENDING_UP | REDUCED_MOMENTUM | LOW | 0.5 |
+| TRENDING_DOWN | VOLATILE | TRENDING_DOWN | REDUCED_MOMENTUM | LOW | 0.5 |
+
+### Live Market State at Validation (2025-06-28)
+| Field | GBP/AUD | GBP/JPY |
+|---|---|---|
+| D1 | VOLATILE | RANGING |
+| H4 | TRENDING_UP | VOLATILE |
+| Composite | VOLATILE | VOLATILE (via RANGING+VOLATILE) |
+| Mode | STAND_DOWN | STAND_DOWN |
+| Reason | D1 VOLATILE overrides H4 trend | Range breaking down — wait |
+| Consistency | ✓ | ✓ |
+
+### Key Design Decision
+Resolution table is the single source of truth for composite regime.
+`_composite_regime()` removed — `get_composite_regime()` replaces it.
+`stand_down` is forced True when `execution_mode == STAND_DOWN`,
+ensuring the hard gate and resolution table can never disagree.
+
+### Re-validation Trigger
+After 60+ outcomes per D1/H4 combination, run outcome analysis
+to confirm size_mult and confidence assignments match actual win rates.
+Combinations with < 15 historical outcomes should be treated as
+unvalidated — do not increase size_mult above 0.5 until validated.
+
+---
+*Next entry: Problem 7 — Validation infrastructure (regime logging)*
+
+---
+
+## 2025-06-28 — Problem 7: Validation Infrastructure
+
+**What was built:**
+- `regime_classifier_logger.py` — regime classification logger
+- `run_outcome_check.py` — daily outcome measurement script
+- `market_brain.py` — log_regime() integrated after get_regime()
+
+**Test coverage:**
+| Layer | Result |
+|---|---|
+| P1 regression suite | 62/62 |
+| Unit tests | 25/25 |
+| Live validation — GBP/AUD | 12/12 |
+| Live validation — GBP/JPY | 12/12 |
+
+### What This Builds
+Every framework run now writes one row per pair to
+`regime_classification_log.csv` with:
+- Full regime state at classification time
+- Testable prediction (MOMENTUM_WIN / MR_WIN / VOL_EXPANSION)
+- Outcome window (20 bars for TRENDING/RANGING, 8 for VOLATILE)
+
+`run_outcome_check.py` fills outcomes automatically when
+enough bars have elapsed. `get_regime_accuracy()` flags any
+regime with accuracy < 55% after 60+ samples as needing review.
+
+### Validation Contract Now Enforced
+| Regime | Prediction | Window |
+|---|---|---|
+| TRENDING_UP/DOWN | Momentum win rate > 50% | 20 bars |
+| RANGING | Mean reversion win rate > 50% | 20 bars |
+| VOLATILE | Realized vol > 1.3x ATR baseline | 8 bars |
+
+### Re-validation Trigger
+Run `validate_adx_threshold.py` when any regime shows
+`needs_review=True` with >= 60 samples. This closes the
+self-improvement loop — outcome data drives threshold revision.
+
+### Live Classifications at Validation (2026-06-28)
+| Instrument | Regime | Execution | Price | ATR |
+|---|---|---|---|---|
+| GBP/AUD | VOLATILE | STAND_DOWN | 1.9142 | 103.2 pips |
+| GBP/JPY | RANGING→VOLATILE | STAND_DOWN | 213.478 | 116.5 pips |
+
+Both classifications written to live log. Outcomes will be
+measured automatically in ~20 trading days.
+
+### Note on Accuracy Report
+TRENDING_DOWN: 0% in the report is synthetic test data
+injected during Test 7 to verify the needs_review flag.
+Not real market data. Log cleaned post-validation.
+
+---
+*Next entry: Problem 8 — No-trade filter and counter-trend override*
+
+---
+
+## 2025-06-28 — Problem 8: No-Trade Filter + Counter-Trend Override
+
+**What was built:**
+- `no_trade_filter.py` — standalone FilterResult module,
+  single source of truth for all stand-down decisions
+- Counter-trend override logic with 5 explicit conditions
+- `apply_filter()` integrated into `decision_engine.py`
+- `get_regime()` now surfaces all filter fields in output
+
+**Test coverage:**
+| Layer | Result |
+|---|---|
+| P1 regression suite | 62/62 |
+| Unit tests | 37/37 |
+| Stress tests | 32/32 |
+| Live validation — GBP/AUD | All 7 keys present, consistent |
+| Live validation — GBP/JPY | All 7 keys present, consistent |
+
+### Hard Block Conditions (no override possible)
+1. ATR compression (GBP/JPY pre-BoJ coil)
+2. Opposite-trend conflict (D1 up + H4 down or vice versa)
+3. Extreme ATR spike (ratio >= 2.0x)
+4. RANGING D1 + VOLATILE H4 (range breaking down)
+5. Both timeframes VOLATILE
+
+### Counter-Trend Override — ALL 5 conditions required
+1. Stand-down is D1 VOLATILE only (not conflict, not ATR)
+2. H4 regime is TRENDING with ADX >= 25.0
+3. Weekly context is directional (not RANGING)
+4. H4 direction aligns with weekly structure bias
+5. D1 structure confirmed (UPTREND or DOWNTREND, not TRANSITIONAL)
+
+When fires: `execution_mode=COUNTER_TREND_OVERRIDE`,
+`size_mult=0.35`, `confidence=LOW`
+Status: UNVALIDATED — requires outcome data before size increase
+
+### Key Design Decisions
+- Override is NOT a loophole — all 5 conditions are hard requirements
+- GBP/AUD current state (H4 up + weekly COUNTER_TREND_BOUNCE with
+  lt_trend=DOWNTREND) correctly blocked — H4 up misaligns with
+  bearish weekly structure
+- `float(None)` bug caught in stress test — fixed with or-guards
+  on all float coercions in `apply_filter()`
+
+### Live Market State at Validation (2025-06-28)
+| Field | GBP/AUD | GBP/JPY |
+|---|---|---|
+| Filter allowed | False | False |
+| Mode | STAND_DOWN | STAND_DOWN |
+| Reason | D1 VOLATILE — no override | RANGING+VOLATILE breakdown |
+| Override fired | False | False |
+| Consistency | OK | OK |
+
+### Bugs Caught
+- `float(None)` crash on empty/None dict input — fixed with
+  `or 0.0` guards on all three float coercions
+
+---
+*Problem 8 complete. All 8 problems closed.*
+*Next: Final framework audit before Phase 1 trading.*
+
+---
+
+## 2025-06-29 — Priority 1: Decision Brief + Entry Confirmation
+
+**What was built:**
+- `decision_brief.py` — 7-field trader-facing brief,
+  readable in under 10 seconds
+- `entry_confirmation.py` — H1 + 15min precision entry
+  module, activates only on LONG/SHORT decisions
+- `market_brain.py` — brief integrated into report output
+
+**Architecture decision:**
+Two-brief model. Regime brief (Weekly/D1/H4) renders always.
+Entry brief (H1/15min) renders only when decision is LONG/SHORT.
+30min skipped — no institutional basis in FX.
+5min deferred to Phase 2 (trade management only).
+
+**Team agreement:**
+H1 and 15min thresholds are unvalidated — using D1 conservative
+defaults. Every entry brief logged for Phase 1 review.
+H1-specific ADX/ATR validation runs in parallel with Phase 1
+using same methodology as Problem 1.
+
+**Live output — 2026-06-29 00:27 UTC:**
+| Pair | Decision | Reason |
+|---|---|---|
+| GBP/AUD | STAND DOWN | D1 VOLATILE ADX 21.2 |
+| GBP/JPY | STAND DOWN | RANGING+VOLATILE breakdown |
+
+Entry briefs suppressed — both pairs STAND DOWN.
+
+**Bug fixed post-output:**
+`_build_reason()` conflict branch imprecise for RANGING+VOLATILE —
+generated "trend in opposite directions" when no trending
+conflict existed. Fixed to check conflict_type before
+generating reason text.
+
+**Enhancement logged for future sprint:**
+ADX direction of travel (rising vs falling) in MARKET STATE
+line — ADX rising toward 25 is different from ADX falling
+toward 18. Surface in brief when regime is VOLATILE.
+
+---
+*Next: Failure mode taxonomy + behavioral testing*
+
+---
+
+## 2026-06-29 — FM-1 + FM-7 Behavioral Testing + Brief Fixes
+
+**Scripts:** fm1_corruption_tests.py, fm7_signal_acceptance.py
+**Results:** FM-1 16/16, FM-7 14/14, P1 regression 62/62
+
+### Bugs Found and Fixed
+
+**FM-1 Real Gap — Invalid instrument silent fallback**
+- Empty string, None, EUR_USD, garbage strings all fell
+  back silently to GBP_AUD analysis
+- Fix: get_regime() now returns _error_result() on unknown
+  instrument with list of valid instruments
+
+**FM-7 Real Gap — Output paralysis in brief pipeline**
+- get_decision_brief() was calling make_decision() with
+  regime-only report — direction was always NO TRADE,
+  conviction always 10
+- Fix: brief now derives direction from filter output
+  directly (filter_allowed, execution_mode, confidence)
+- Verified: synthetic clean uptrend → LONG, conviction 75,
+  grade A, size 100%
+
+**FM-7 Test Fix — Wrong patch targets**
+- Tests patched oanda_feed.* functions which are already
+  bound in regime_detection at import time
+- Fix: patch regime_detection._oanda_* directly
+
+### Failure Mode Status
+| FM | Status |
+|---|---|
+| FM-1 Silent Data Corruption | TESTED — 16/16 |
+| FM-2 Threshold Boundary | TESTED — unit suite |
+| FM-3 Regime Misclassification | FOUND + FIXED — replay |
+| FM-4 Compounding Layer Error | FOUND + FIXED — weekly gate |
+| FM-5 Brief Divergence | FOUND + FIXED — size/reason bugs |
+| FM-6 Statistical Regime Drift | MONITORED — outcome logger |
+| FM-7 Output Paralysis | TESTED — LONG confirmed at 75 conviction |
+
+### Live Brief Confirmed Working
+Both pairs render clean plain-English briefs in terminal.
+No technical jargon. No translation artifacts.
+Decision, reason, exit condition all actionable in < 10 seconds.
+
+---
+*Next session: remaining behavioral tests +
+Phase 1 readiness audit*

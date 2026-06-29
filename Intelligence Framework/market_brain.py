@@ -23,7 +23,6 @@ def _to_local_short(s):    return fmt_pst(s, style="short")
 from currency_strength import get_currency_strength
 from session_context   import get_session_context
 from liquidity_context import get_liquidity_context
-from htf_structure     import get_htf_structure
 from interest_rates    import get_rate_differential
 from cot_data          import get_cot_data
 from regime_detection  import get_regime
@@ -57,11 +56,12 @@ def _is_real_value(val: str) -> bool:
 
 # ── Main entry point ──────────────────────────────────────────────────────────
 
-def build_market_report(trade_type: str = "auto") -> Dict:
+def build_market_report(trade_type: str = "auto", instrument: str = "GBP_AUD") -> Dict:
+    _pair_display = instrument.replace("_", "/")
     report: Dict = {
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "generated_at_12h": (lambda d: d.strftime("%b %d  ") + d.strftime("%I:%M%p").lstrip("0").lower())(datetime.now()),
-        "pair": "GBP/AUD",
+        "pair": _pair_display,
         "layers": {},
     }
 
@@ -82,10 +82,65 @@ def build_market_report(trade_type: str = "auto") -> Dict:
     report["market_closed"]                = False
     report["layers"]["currency_strength"]  = get_currency_strength(["GBP", "AUD"])
     report["layers"]["liquidity"]          = get_liquidity_context()
-    report["layers"]["htf"]               = get_htf_structure()
     report["layers"]["rates"]             = get_rate_differential()
     report["layers"]["cot"]               = get_cot_data()
-    report["layers"]["regime"]            = get_regime()
+    report["layers"]["regime"]            = get_regime(instrument)
+    _reg_raw = report["layers"]["regime"]
+    if not _reg_raw.get("error"):
+        try:
+            from regime_classifier_logger import log_regime as _log_regime
+            _log_regime(_reg_raw, instrument)
+        except Exception:
+            pass  # logger never breaks the report
+    report["layers"]["htf"]               = {
+        "current_price":      _reg_raw.get("current_price"),
+        "lt_trend":           _reg_raw.get("lt_trend", "RANGING"),
+        "st_trend":           _reg_raw.get("st_trend", "RANGING"),
+        "weekly_trend":       _reg_raw.get("st_trend", "RANGING"),
+        "daily_trend":        _reg_raw.get("regime_d1", "UNKNOWN"),
+        "context":            _reg_raw.get("weekly_context", "RANGING"),
+        "context_note":       _reg_raw.get("context_note", ""),
+        "structure_bias":     "BULLISH" if _reg_raw.get("regime_d1") == "TRENDING_UP" else (
+                              "BEARISH" if _reg_raw.get("regime_d1") == "TRENDING_DOWN" else "NEUTRAL"),
+        "ma50":               _reg_raw.get("ma50"),
+        "ma200":              _reg_raw.get("ma200"),
+        "price_vs_ma50":      _reg_raw.get("price_vs_ma50", "below"),
+        "price_vs_ma200":     _reg_raw.get("price_vs_ma200", "below"),
+        "higher_low_formed":  _reg_raw.get("hl", False),
+        "higher_low_note":    "",
+        "near_major_support": False,
+        "major_support_note": "",
+        "trend_age_weeks":    0,
+        "lt_pct":             0.0,
+        "st_pct":             0.0,
+        "weekly_high":        None,
+        "weekly_low":         None,
+        "lt_high":            None,
+        "lt_low":             None,
+        "dist_from_lt_high":  None,
+        "dist_from_lt_low":   None,
+        "range_position":     None,
+        "range_label":        "",
+        "daily_structure_type": _reg_raw.get("structure", "TRANSITIONAL"),
+        "daily_structure_note": "",
+        "daily_swing_highs":  _reg_raw.get("confirmed_highs", []),
+        "daily_swing_lows":   _reg_raw.get("confirmed_lows", []),
+        "nearest_daily_swing_high": _reg_raw.get("latest_sh"),
+        "nearest_daily_swing_low":  _reg_raw.get("latest_sl"),
+        "dist_to_swing_high_pips":  None,
+        "dist_to_swing_low_pips":   None,
+        "fib_pct":            0,
+        "fib_label":          "",
+        "fib_levels":         {},
+        "key_levels":         {},
+        "recent_weekly_high": None,
+        "recent_weekly_low":  None,
+        "20wk_high":          None,
+        "20wk_low":           None,
+        "weekly_summary":     _reg_raw.get("context_note", ""),
+        "daily_summary":      "",
+        "error":              _reg_raw.get("error"),
+    }
     report["layers"]["cross_market"]      = get_cross_market()
     report["layers"]["news"]              = _build_events_summary()
 
@@ -142,7 +197,7 @@ def build_market_report(trade_type: str = "auto") -> Dict:
     _closes = []
     try:
         from oanda_feed import get_daily_bars as _oanda_daily
-        _raw = _oanda_daily(pair="GBP_AUD", count=65)
+        _raw = _oanda_daily(pair=instrument.replace("_", ""), count=65)
         if _raw is not None and not _raw.empty:
             _closes = [float(v) for v in _raw["Close"].dropna().values]
     except Exception:
@@ -179,10 +234,31 @@ def build_market_report(trade_type: str = "auto") -> Dict:
 
     report["decision"] = make_decision(report, trade_type=trade_type)
 
+    # Log signal for outcome tracking — skip NO TRADE (nothing to validate)
+    if report["decision"].get("direction") not in ("NO TRADE", ""):
+        try:
+            from trade_outcome_logger import log_signal as _log_signal
+            report["signal_id"] = _log_signal(
+                regime_data   = report["layers"]["regime"],
+                decision_data = report["decision"],
+                instrument    = instrument,
+            )
+        except Exception:
+            pass  # logger failure must never break the report
+
     # Template match — after decision so fingerprint includes direction
     tmpl = get_template_match(report)
     report["template_match"] = tmpl
     report["decision"]["template_match"] = tmpl  # also embed in decision for display
+
+    # ── Decision brief (trader-facing output layer) ───────────────────────────
+    try:
+        from decision_brief import get_decision_brief
+        report["decision_brief"]  = get_decision_brief(instrument)
+        report["brief_formatted"] = report["decision_brief"].format()
+    except Exception:
+        report["decision_brief"]  = None
+        report["brief_formatted"] = "Brief unavailable"
 
     return report
 
@@ -3325,7 +3401,7 @@ def print_report(report: Dict) -> None:
             "time_utc":         report.get("generated_at", "")[11:16],
             "time_pt":          _time_pt_save,
             "date":             report.get("generated_at", "")[:10],
-            "pair":             "GBP/AUD",
+            "pair":             report.get("pair", _pair_display),
             "price":            float(_sv_liq.get("current_price", 0) or 0),
             "bias":             report.get("overall_bias", ""),
             "conviction_score": report.get("decision", {}).get("conviction", _sv_conf),

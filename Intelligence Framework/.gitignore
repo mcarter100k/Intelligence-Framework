@@ -8,3 +8,5 @@ logs/
 cot_cache.json
 last_run.json
 debug_calendar.html
+regime_classification_log.csv
+trade_signal_log.csv

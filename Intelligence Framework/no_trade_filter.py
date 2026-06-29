@@ -1,0 +1,340 @@
+"""
+no_trade_filter.py
+──────────────────
+Single source of truth for all no-trade and stand-down decisions.
+
+This module sits upstream of signal scoring. It reads the full
+regime output and returns a FilterResult that either:
+  - Allows trading (with execution parameters)
+  - Blocks trading (with reason)
+  - Overrides a stand-down in specific high-conviction conditions
+
+STAND-DOWN CONDITIONS (any one triggers NO TRADE):
+  1. D1 VOLATILE (ADX 18-25 transition zone) with no override eligible
+  2. Opposite-trend conflict (D1 up + H4 down or vice versa)
+  3. ATR compression (GBP/JPY pre-BoJ coil)
+  4. Extreme ATR spike (ratio >= 2.0x)
+  5. RANGING D1 + VOLATILE H4 (range breaking down)
+  6. Both timeframes VOLATILE
+
+COUNTER-TREND OVERRIDE (lifts D1 VOLATILE stand-down only):
+  ALL of the following must be true:
+  1. Stand-down reason is D1 VOLATILE only (not conflict, not ATR)
+  2. H4 regime is TRENDING with ADX >= 25
+  3. Weekly context is defined (not RANGING)
+  4. H4 direction aligns with weekly structure bias
+  5. D1 structure is confirmed (UPTREND or DOWNTREND, not TRANSITIONAL)
+
+  When override fires:
+    execution_mode = COUNTER_TREND_OVERRIDE
+    size_mult      = 0.35  (reduced — unvalidated condition)
+    confidence     = LOW
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Optional
+
+
+@dataclass
+class FilterResult:
+    allowed:             bool
+    execution_mode:      str
+    size_mult:           float
+    confidence:          str
+    reason:              str
+    override_fired:      bool = False
+    override_conditions: str  = ""
+
+
+# Weekly contexts that have defined directional bias
+_DIRECTIONAL_CONTEXTS = {
+    "ESTABLISHED_UPTREND",
+    "ESTABLISHED_DOWNTREND",
+    "PULLBACK_IN_UPTREND",
+    "COUNTER_TREND_BOUNCE",
+}
+
+# Minimum H4 ADX for override to fire
+_OVERRIDE_MIN_H4_ADX = 25.0
+
+# Size multiplier when override fires (unvalidated — conservative)
+_OVERRIDE_SIZE_MULT = 0.35
+
+
+def _derive_direction(d1: str, exec_mode: str) -> str:
+    """
+    Derive the intended trade direction from regime and execution mode.
+    Returns "LONG", "SHORT", or "NONE" (no directional trade).
+
+    Direction is always derivable from D1 regime — no external
+    parameter needed.
+    """
+    if exec_mode in ("STAND_DOWN", "FADE_EXTREMES"):
+        return "NONE"
+    if d1 in ("TRENDING_UP",) or (
+        exec_mode == "PULLBACK_ENTRY" and "UP" in d1
+    ):
+        return "LONG"
+    if d1 in ("TRENDING_DOWN",) or (
+        exec_mode == "PULLBACK_ENTRY" and "DOWN" in d1
+    ):
+        return "SHORT"
+    if exec_mode == "CONTINUATION":
+        if "UP" in d1:   return "LONG"
+        if "DOWN" in d1: return "SHORT"
+    if exec_mode == "REDUCED_MOMENTUM":
+        if "UP" in d1:   return "LONG"
+        if "DOWN" in d1: return "SHORT"
+    return "NONE"
+
+
+def apply_filter(regime: dict) -> FilterResult:
+    """
+    Apply the no-trade filter to a regime output dict.
+
+    Args:
+        regime: full dict returned by get_regime(), or a partial dict
+                built inside get_regime() with the required keys.
+
+    Returns:
+        FilterResult with allowed, execution_mode, size_mult,
+        confidence, reason, and override details.
+    """
+    d1         = regime.get("regime_d1",       "UNKNOWN") or "UNKNOWN"
+    h4         = regime.get("regime_h4",       "UNKNOWN") or "UNKNOWN"
+    adx_h4     = float(regime.get("adx_h4",   0.0) or 0.0)
+    atr_ratio  = float(regime.get("atr_vs_avg", 1.0) or 1.0)
+    atr_comp   = regime.get("atr_compression", False)
+    conflict   = regime.get("timeframe_conflict", False)
+    conflict_t = regime.get("conflict_type",   "") or ""
+    structure  = regime.get("structure",       "TRANSITIONAL") or "TRANSITIONAL"
+    weekly_ctx = regime.get("weekly_context",  "RANGING") or "RANGING"
+    lt_trend   = regime.get("lt_trend",        "RANGING") or "RANGING"
+    st_trend   = regime.get("st_trend",        "RANGING") or "RANGING"
+    exec_mode  = regime.get("execution_mode",  "STAND_DOWN") or "STAND_DOWN"
+    size_mult  = float(regime.get("size_mult", 0.0) or 0.0)
+    confidence = regime.get("confidence",      "NONE") or "NONE"
+
+    # ── Hard blocks — no override possible ───────────────────────────────────
+
+    # ATR compression (GBP/JPY pre-BoJ coil)
+    if atr_comp:
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=regime.get("atr_compression_note",
+                              "ATR compression — pre-intervention coil"),
+        )
+
+    # Opposite-trend conflict — structural disagreement
+    if conflict and any(x in conflict_t for x in
+                        ("TRENDING_UP__TRENDING_DOWN",
+                         "TRENDING_DOWN__TRENDING_UP")):
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=f"Opposite trend conflict: {conflict_t} — no edge",
+        )
+
+    # Extreme ATR spike
+    if atr_ratio >= 2.0:
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=f"ATR ratio {atr_ratio:.1f}x — extreme spike, stand aside",
+        )
+
+    # RANGING + VOLATILE — range breaking down
+    if d1 == "RANGING" and h4 == "VOLATILE":
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason="RANGING D1 + VOLATILE H4 — range breaking down, wait",
+        )
+
+    # Both VOLATILE
+    if d1 == "VOLATILE" and h4 == "VOLATILE":
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason="Both timeframes VOLATILE — no edge on either TF",
+        )
+
+    # ── D1 VOLATILE — check for counter-trend override ────────────────────────
+
+    if d1 == "VOLATILE":
+        override_result = _check_override(
+            h4, adx_h4, weekly_ctx, lt_trend, st_trend, structure
+        )
+        if override_result:
+            return override_result
+        # Override not eligible — stand-down holds
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=(f"D1 VOLATILE (ADX transition zone) — "
+                    f"no override conditions met"),
+        )
+
+    # ── Weekly alignment gate ─────────────────────────────────────────────────
+    # Checks that the intended trade direction does not contradict
+    # the dominant 20-week trend (lt_trend).
+    #
+    # ALIGNMENT RULE:
+    #   SHORT against lt_trend=UPTREND is blocked
+    #     UNLESS weekly_context=COUNTER_TREND_BOUNCE
+    #     (dominant macro trend is actually DOWN)
+    #   LONG against lt_trend=DOWNTREND is blocked
+    #     UNLESS weekly_context=PULLBACK_IN_UPTREND
+    #     (dominant macro trend is actually UP)
+    #
+    # Uses lt_trend (20-week) not weekly_context label —
+    # lt_trend is the clean directional read.
+    # If lt_trend is RANGING — no weekly bias, no gate.
+
+    intended = _derive_direction(d1, exec_mode)
+
+    if intended == "SHORT" and lt_trend == "UPTREND":
+        if weekly_ctx != "COUNTER_TREND_BOUNCE":
+            return FilterResult(
+                allowed=False,
+                execution_mode="STAND_DOWN",
+                size_mult=0.0,
+                confidence="NONE",
+                reason=(
+                    f"Short blocked: dominant 20-week trend is UPTREND. "
+                    f"Counter-trend short requires COUNTER_TREND_BOUNCE "
+                    f"weekly context (current: {weekly_ctx})."
+                ),
+            )
+
+    if intended == "LONG" and lt_trend == "DOWNTREND":
+        if weekly_ctx != "PULLBACK_IN_UPTREND":
+            return FilterResult(
+                allowed=False,
+                execution_mode="STAND_DOWN",
+                size_mult=0.0,
+                confidence="NONE",
+                reason=(
+                    f"Long blocked: dominant 20-week trend is DOWNTREND. "
+                    f"Counter-trend long requires PULLBACK_IN_UPTREND "
+                    f"weekly context (current: {weekly_ctx})."
+                ),
+            )
+
+    # ── Resolution table allows trading ───────────────────────────────────────
+    if exec_mode == "STAND_DOWN":
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=regime.get("resolution_note", "Resolution table: STAND_DOWN"),
+        )
+
+    # Trading allowed — pass through resolution table parameters
+    return FilterResult(
+        allowed=True,
+        execution_mode=exec_mode,
+        size_mult=size_mult,
+        confidence=confidence,
+        reason="All filter conditions passed",
+    )
+
+
+def _check_override(
+    h4:         str,
+    adx_h4:     float,
+    weekly_ctx: str,
+    lt_trend:   str,
+    st_trend:   str,
+    structure:  str,
+) -> Optional[FilterResult]:
+    """
+    Check whether the counter-trend override conditions are met.
+    Returns FilterResult if override fires, None if stand-down holds.
+
+    ALL conditions must be true for override to fire:
+    1. H4 is TRENDING (up or down) with ADX >= 25
+    2. Weekly context is directional (not pure RANGING)
+    3. H4 direction aligns with weekly bias
+    4. D1 structure is confirmed (not TRANSITIONAL)
+    """
+    # Condition 1: H4 must be trending with real momentum
+    if h4 not in ("TRENDING_UP", "TRENDING_DOWN"):
+        return None
+    if adx_h4 < _OVERRIDE_MIN_H4_ADX:
+        return None
+
+    # Condition 2: Weekly context must be directional
+    if weekly_ctx not in _DIRECTIONAL_CONTEXTS:
+        return None
+
+    # Condition 3: H4 direction must align with weekly bias
+    weekly_bullish = lt_trend == "UPTREND" or weekly_ctx in (
+        "ESTABLISHED_UPTREND", "PULLBACK_IN_UPTREND"
+    )
+    weekly_bearish = lt_trend == "DOWNTREND" or weekly_ctx in (
+        "ESTABLISHED_DOWNTREND", "COUNTER_TREND_BOUNCE"
+    )
+
+    h4_bullish = (h4 == "TRENDING_UP")
+    h4_bearish = (h4 == "TRENDING_DOWN")
+
+    aligned = (h4_bullish and weekly_bullish) or \
+              (h4_bearish and weekly_bearish)
+
+    if not aligned:
+        return None
+
+    # Condition 4: D1 structure must be confirmed
+    if structure not in ("UPTREND", "DOWNTREND"):
+        return None
+
+    # All conditions met — override fires
+    direction  = "long" if h4_bullish else "short"
+    conditions = (
+        f"H4 {h4} (ADX {adx_h4:.1f} >= {_OVERRIDE_MIN_H4_ADX}), "
+        f"weekly={weekly_ctx}, "
+        f"D1 structure={structure}, "
+        f"direction aligned={direction}"
+    )
+
+    return FilterResult(
+        allowed=True,
+        execution_mode="COUNTER_TREND_OVERRIDE",
+        size_mult=_OVERRIDE_SIZE_MULT,
+        confidence="LOW",
+        reason=(f"Counter-trend override: D1 VOLATILE but H4 + weekly "
+                f"aligned {direction}. Reduced size={_OVERRIDE_SIZE_MULT}x. "
+                f"Unvalidated — requires HTF level confirmation before entry."),
+        override_fired=True,
+        override_conditions=conditions,
+    )
+
+
+def get_filter_summary(result: FilterResult) -> str:
+    """Plain-English summary of filter decision."""
+    if not result.allowed:
+        return f"NO TRADE — {result.reason}"
+    if result.override_fired:
+        return (f"OVERRIDE ACTIVE — {result.execution_mode} "
+                f"at {result.size_mult}x size. "
+                f"Conditions: {result.override_conditions}")
+    return (f"TRADE ALLOWED — {result.execution_mode} "
+            f"at {result.size_mult}x size, "
+            f"confidence={result.confidence}")

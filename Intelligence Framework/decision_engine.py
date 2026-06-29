@@ -64,32 +64,78 @@ _TIER_MAP: Dict[str, str] = {
     "legs":     "tactical",
     "value":    "tactical",
     "regime":   "tactical",
-    "liquidity":"execution",
-    "news":     "execution",
-    "session":  "execution",
-    "intraday": "execution",
+    "liquidity": "execution",
+    "news":      "execution",
+    "session":   "execution",
+    "intraday":  "execution",
+    "structure": "structural",  # VALIDATED P2 — HH/HL structure is directional signal
 }
+
+# WEIGHT TABLE STATUS — as of 2025-06-28
+# ───────────────────────────────────────
+# Weights marked VALIDATED have empirical support from backtest research.
+# Weights marked PRIOR are starting hypotheses — replace as outcome data accumulates.
+#
+# Validation source:
+#   P1 = validate_adx_threshold.py (5yr D1 backtest, 1295 bars)
+#   P2 = _detect_structure() stress testing + live validation
+#   P3 = validate_atr_threshold.py (5yr D1 backtest)
+#
+# Re-validation trigger: run validate_confluence_weights.py after
+# 60 logged outcomes per regime type per pair.
 
 _REGIME_WEIGHTS: Dict[str, Dict[str, float]] = {
     "TRENDING_UP": {
-        "htf": 0.30, "strength": 0.18, "liquidity": 0.12,
-        "cross": 0.08, "news": 0.07, "rates": 0.04, "cot": 0.03,
-        "legs": 0.10, "value": 0.04, "regime": 0.04,
+        "htf":       0.22,  # PRIOR — reduced from 0.30; trend degrades fast above ADX 25-28
+        "strength":  0.18,  # PRIOR — currency strength alignment
+        "liquidity": 0.12,  # PRIOR — price level entries
+        "cross":     0.08,  # PRIOR — cross-market confirmation
+        "news":      0.07,  # PRIOR — news impact
+        "rates":     0.04,  # PRIOR — interest rate carry
+        "cot":       0.03,  # PRIOR — institutional positioning
+        "legs":      0.10,  # PRIOR — GBP/USD vs AUD/USD decomposition
+        "value":     0.04,  # PRIOR — value context
+        "regime":    0.12,  # VALIDATED P1 — ADX state has known accuracy bounds per zone
+        "structure": 0.10,  # VALIDATED P2 — HH/HL confirmation is a real directional signal
     },
     "TRENDING_DOWN": {
-        "htf": 0.30, "strength": 0.18, "liquidity": 0.12,
-        "cross": 0.08, "news": 0.07, "rates": 0.04, "cot": 0.03,
-        "legs": 0.10, "value": 0.04, "regime": 0.04,
+        "htf":       0.22,  # PRIOR — same basis as TRENDING_UP; reduced from 0.30
+        "strength":  0.18,  # PRIOR
+        "liquidity": 0.12,  # PRIOR
+        "cross":     0.08,  # PRIOR
+        "news":      0.07,  # PRIOR
+        "rates":     0.04,  # PRIOR
+        "cot":       0.03,  # PRIOR
+        "legs":      0.10,  # PRIOR
+        "value":     0.04,  # PRIOR
+        "regime":    0.12,  # VALIDATED P1 — ADX state has known accuracy bounds per zone
+        "structure": 0.10,  # VALIDATED P2 — LH/LL confirmation is a real directional signal
     },
     "RANGING": {
-        "liquidity": 0.28, "strength": 0.16, "htf": 0.12,
-        "cross": 0.10, "news": 0.09, "rates": 0.04, "cot": 0.03,
-        "legs": 0.09, "value": 0.06, "regime": 0.03,
+        "liquidity": 0.25,  # PRIOR — price levels dominate when no trend, slight reduce from 0.28
+        "strength":  0.16,  # PRIOR
+        "htf":       0.12,  # PRIOR
+        "cross":     0.10,  # PRIOR
+        "news":      0.09,  # PRIOR
+        "rates":     0.04,  # PRIOR
+        "cot":       0.03,  # PRIOR
+        "legs":      0.09,  # PRIOR
+        "value":     0.06,  # PRIOR
+        "regime":    0.15,  # VALIDATED P1 — ranging classification is real (mean-rev dominant <18)
+        "structure": 0.05,  # VALIDATED P2 — structure less reliable in ranges; still informative
     },
     "VOLATILE": {
-        "news": 0.30, "cross": 0.20, "liquidity": 0.16,
-        "strength": 0.10, "htf": 0.05, "rates": 0.02, "cot": 0.01,
-        "legs": 0.10, "value": 0.03, "regime": 0.03,
+        "news":      0.30,  # PRIOR — news dominates when technicals have no edge
+        "regime":    0.20,  # VALIDATED P1 — regime correctly identifies the no-edge zone
+        "cross":     0.08,  # PRIOR — reduced from 0.20; cross-market less reliable in chaos
+        "liquidity": 0.08,  # PRIOR — reduced from 0.16; price levels less reliable in chaos
+        "strength":  0.08,  # PRIOR — reduced from 0.10
+        "legs":      0.08,  # PRIOR
+        "htf":       0.05,  # PRIOR
+        "value":     0.03,  # PRIOR
+        "rates":     0.02,  # PRIOR
+        "cot":       0.01,  # PRIOR
+        "structure": 0.00,  # VALIDATED P2 — structure unreliable in volatile regime
     },
 }
 _DEFAULT_WEIGHTS: Dict[str, float] = {
@@ -692,6 +738,49 @@ def _calc_setup_levels(
     }
 
 
+# ── Hard-gate helper ─────────────────────────────────────────────────────────
+
+def _no_trade_result(reason: str, grade: str, regime_data: Dict) -> Dict:
+    """
+    Return a minimal NO TRADE decision dict for hard-gate conditions.
+    Used when stand_down or atr_compression block all trading activity.
+    grade is always 'C' for hard gates.
+    """
+    regime_lbl = regime_data.get("regime", "DEFAULT")
+    return {
+        "direction":             "NO TRADE",
+        "grade":                 grade,
+        "risk_pct":              0.0,
+        "conviction":            0,
+        "regime":                regime_lbl,
+        "regime_weights":        _REGIME_WEIGHTS.get(regime_lbl, _DEFAULT_WEIGHTS),
+        "primary_reason":        reason,
+        "reason":                reason,
+        "supporting":            [],
+        "conflicts":             [],
+        "entry_condition":       "Hard gate active — do not enter",
+        "invalidation":          [],
+        "hard_blocks":           [reason],
+        "grade_label":           f"{grade} — NO TRADE",
+        "grade_reason":          reason,
+        "grade_cap_reason":      reason,
+        "come_back_at":          "Re-run framework when conditions normalise",
+        "is_counter":            False,
+        "intraday_fakeout_type": "",
+        "intraday_note":         "",
+        "asian_range_pips":      None,
+        "fakeout_aligns":        False,
+        "fakeout_opposes":       False,
+        "macro_quadrant":        "",
+        "macro_bias":            "NEUTRAL",
+        "macro_narrative":       "",
+        "macro_modifier":        0,
+        "macro_direction":       "neutral",
+        "stand_down":            regime_data.get("stand_down", False),
+        "atr_compression":       regime_data.get("atr_compression", False),
+    }
+
+
 # ── Core decision function ────────────────────────────────────────────────────
 
 def make_decision(report: Dict, trade_type: str = "auto") -> Dict:
@@ -712,6 +801,23 @@ def make_decision(report: Dict, trade_type: str = "auto") -> Dict:
     value     = layers.get("value", {})
     ses       = layers.get("session", {})
     signals   = report.get("signal_summary", [])
+
+    # ── No-trade filter — single source of truth for all stand-down decisions ──
+    from no_trade_filter import apply_filter as _apply_filter
+
+    filter_result = _apply_filter(regime)
+
+    if not filter_result.allowed:
+        return _no_trade_result(
+            reason      = filter_result.reason,
+            grade       = "C",
+            regime_data = regime,
+        )
+
+    # Use filter result parameters
+    exec_mode  = filter_result.execution_mode
+    size_mult  = filter_result.size_mult
+    confidence = filter_result.confidence
 
     overall_bias = report.get("overall_bias", "NEUTRAL")
     conflict     = report.get("live_vs_structural_conflict", False)
@@ -867,6 +973,18 @@ def make_decision(report: Dict, trade_type: str = "auto") -> Dict:
     if thin_range and direction not in ("NO TRADE", ""):
         conviction = max(10, conviction - 5)
 
+    # ── Timeframe conflict conviction reduction ───────────────────────────────
+    # D1 vs H4 disagreement degrades conviction — not a hard gate, just a penalty
+    _tf_conflict      = regime.get("timeframe_conflict", False)
+    _tf_conflict_type = regime.get("conflict_type", "")
+    if _tf_conflict and direction not in ("NO TRADE", ""):
+        conviction = max(10, conviction - 20)
+
+    # ── Resolution table size modifier ────────────────────────────────────────
+    # Applied after all additive adjustments; scales conviction by composite confidence.
+    if size_mult < 1.0 and direction not in ("NO TRADE", ""):
+        conviction = max(10, int(conviction * size_mult))
+
     # Conviction floor — no trade when signals are too weak
     if direction != "NO TRADE" and conviction < 28:
         direction = "NO TRADE"
@@ -922,6 +1040,14 @@ def make_decision(report: Dict, trade_type: str = "auto") -> Dict:
             trade_type        = _resolved_type,
             structural_score  = _tiers_raw["structural_score"],
         )
+        # ADX exhaustion caps grade at B — late trend, momentum fading
+        if regime.get("adx_exhaustion") and grade in ("A+", "A", "B+"):
+            grade       = "B"
+            grade_label = "B — capped by ADX exhaustion"
+            grade_reason = (
+                regime.get("adx_exhaustion_note") or
+                "ADX exhaustion detected — late-trend environment, grade capped at B"
+            )
 
     # ── Grade cap reason and come-back hint ───────────────────────────────────
     grade_cap_reason = ""
@@ -976,6 +1102,10 @@ def make_decision(report: Dict, trade_type: str = "auto") -> Dict:
         conflicts_list.insert(0,
             f"Intraday: {fakeout_type} {tag} signals {supporting_dir} — conflicts with this call"
         )
+
+    # Surface timeframe conflict (D1 vs H4) — conviction already reduced above
+    if _tf_conflict and _tf_conflict_type:
+        conflicts_list.append(f"Timeframe conflict: {_tf_conflict_type} — conviction reduced 20pts")
 
     # ── Three-tier conviction matrix ──────────────────────────────────────────
     # (_wrong_session, _sweep_conf, _range_pct, _tiers_raw, _resolved_type
@@ -1088,6 +1218,9 @@ def make_decision(report: Dict, trade_type: str = "auto") -> Dict:
         "legs":                  legs,
         "trade_type":            _resolved_type,
         "setup_levels":          setup_levels,
+        "execution_mode":        regime.get("execution_mode", ""),
+        "confidence":            confidence,
+        "size_mult":             size_mult,
     }
 
 
