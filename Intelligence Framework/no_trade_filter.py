@@ -33,6 +33,7 @@ COUNTER-TREND OVERRIDE (lifts D1 VOLATILE stand-down only):
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -105,7 +106,19 @@ def apply_filter(regime: dict) -> FilterResult:
     d1         = regime.get("regime_d1",       "UNKNOWN") or "UNKNOWN"
     h4         = regime.get("regime_h4",       "UNKNOWN") or "UNKNOWN"
     adx_h4     = float(regime.get("adx_h4",   0.0) or 0.0)
-    atr_ratio  = float(regime.get("atr_vs_avg", 1.0) or 1.0)
+
+    # ATR ratio — parse defensively. A MISSING value (None / key absent) is
+    # treated as neutral 1.0; a value that is PRESENT but corrupt (non-numeric,
+    # non-finite, or <= 0) is caught by the ATR-sanity hard block below. We must
+    # not use `... or 1.0` here, as that silently rewrites a real 0.0 to 1.0.
+    _atr_raw = regime.get("atr_vs_avg", 1.0)
+    if _atr_raw is None:
+        atr_ratio = 1.0
+    else:
+        try:
+            atr_ratio = float(_atr_raw)
+        except (TypeError, ValueError):
+            atr_ratio = float("nan")
     atr_comp   = regime.get("atr_compression", False)
     conflict   = regime.get("timeframe_conflict", False)
     conflict_t = regime.get("conflict_type",   "") or ""
@@ -118,6 +131,19 @@ def apply_filter(regime: dict) -> FilterResult:
     confidence = regime.get("confidence",      "NONE") or "NONE"
 
     # ── Hard blocks — no override possible ───────────────────────────────────
+
+    # ATR sanity — a present-but-corrupt volatility read (non-finite, or <= 0)
+    # invalidates every downstream size and edge decision. Stand aside; never
+    # trade on impossible volatility. (inf/nan/negative/zero all land here.)
+    if not math.isfinite(atr_ratio) or atr_ratio <= 0.0:
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=(f"Invalid ATR ratio ({_atr_raw!r}) — corrupt volatility "
+                    f"read, stand aside"),
+        )
 
     # ATR compression (GBP/JPY pre-BoJ coil)
     if atr_comp:

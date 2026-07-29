@@ -40,9 +40,14 @@ OUTCOME_WINDOWS = {
     "VOLATILE":      8,
 }
 
-# Minimum accuracy before flagging threshold for review
+# Minimum accuracy threshold — below this a regime is underperforming
 MIN_ACCURACY_THRESHOLD = 0.55
-MIN_SAMPLES_FOR_REVIEW = 60
+# Two-checkpoint sample gates
+MIN_SAMPLES_FLAG   = 60   # enough to notice a pattern — flag, watch closely
+MIN_SAMPLES_REVISE = 150  # enough to act on — triggers threshold re-validation
+
+# Legacy alias kept so run_outcome_check.py import doesn't break
+MIN_SAMPLES_FOR_REVIEW = MIN_SAMPLES_FLAG
 
 FIELDNAMES = [
     # Identity
@@ -82,6 +87,25 @@ FIELDNAMES = [
 ]
 
 
+def _price_plausible(instrument: str, price) -> bool:
+    """Reject impossible price scales (cross-contamination): a JPY cross below
+    10, or a non-JPY pair above 50, cannot be a real price for that instrument.
+    Prevents the kind of synthetic pollution (GBP_JPY logged at 1.91) that once
+    corrupted the outcome log."""
+    try:
+        p = float(price)
+    except (TypeError, ValueError):
+        return True   # non-numeric handled elsewhere — don't block here
+    if p <= 0:
+        return False
+    is_jpy = "JPY" in (instrument or "")
+    if is_jpy and p < 10:
+        return False
+    if not is_jpy and p > 50:
+        return False
+    return True
+
+
 def log_regime(regime_data: Dict, instrument: str) -> str:
     """
     Log a regime classification with its testable prediction.
@@ -95,6 +119,10 @@ def log_regime(regime_data: Dict, instrument: str) -> str:
     """
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     log_id    = f"{timestamp}_{instrument}"
+
+    # Refuse to pollute the log with an impossible price for this instrument.
+    if not _price_plausible(instrument, regime_data.get("current_price", 0.0)):
+        return log_id
 
     composite = regime_data.get("regime", "UNKNOWN")
     prediction_type, prediction_window = _get_prediction(composite)
@@ -136,6 +164,7 @@ def check_pending_outcomes(
     recent_closes: List[float],
     recent_highs:  List[float],
     recent_lows:   List[float],
+    recent_index=None,
 ) -> int:
     """
     Check all pending (outcome_filled=False) classifications for
@@ -146,6 +175,11 @@ def check_pending_outcomes(
         recent_closes:  list of recent D1 closes (newest last)
         recent_highs:   list of recent D1 highs (newest last)
         recent_lows:    list of recent D1 lows (newest last)
+        recent_index:   DatetimeIndex from the OANDA D1 frame (optional).
+                        When provided, bars_elapsed = number of timestamps
+                        strictly after the row's log time — exact, not
+                        calendar-approximated. Falls back to
+                        _estimate_bars_elapsed_calendar() when absent.
 
     Returns:
         number of outcomes filled in this call
@@ -168,28 +202,45 @@ def check_pending_outcomes(
         log_time = datetime.fromisoformat(
             row["timestamp"].replace("Z", "+00:00")
         )
-        bars_elapsed = _estimate_bars_elapsed(log_time)
+        bars_elapsed = _count_bars_after(log_time, recent_index)
         window       = int(row.get("prediction_window", 20))
 
         if bars_elapsed < window:
             updated.append(row)
             continue
 
-        # Enough bars elapsed — measure outcome
+        # Enough bars elapsed — measure the outcome at the bar EXACTLY `window`
+        # bars after the log time, NOT the latest bar. If the checker ran late
+        # (bars_elapsed >> window), grading on closes[-1] would score a fixed
+        # 20-bar prediction on price 30-60 bars out. Truncate the series to end
+        # at the window bar so _measure_outcome's tail-relative reads are correct.
         price_at_log = float(row["price_at_log"])
         atr_at_log   = float(row["atr_pips_at_log"])
         regime       = row["composite_regime"]
         pred_type    = row["prediction_type"]
 
+        c_meas, h_meas, l_meas = recent_closes, recent_highs, recent_lows
+        price_at_outcome = now_price
+        if (recent_index is not None and
+                len(recent_index) == len(recent_closes) ==
+                len(recent_highs) == len(recent_lows)):
+            slice_end = len(recent_index) - bars_elapsed + window
+            if window <= slice_end <= len(recent_closes):
+                c_meas = recent_closes[:slice_end]
+                h_meas = recent_highs[:slice_end]
+                l_meas = recent_lows[:slice_end]
+                price_at_outcome = c_meas[-1]
+
         correct, detail = _measure_outcome(
             pred_type, price_at_log, atr_at_log,
-            regime, recent_closes, recent_highs, recent_lows,
+            regime, c_meas, h_meas, l_meas,
             row.get("structure_d1", ""),
+            row["instrument"],
         )
 
         row["outcome_filled"]   = True
         row["bars_elapsed"]     = bars_elapsed
-        row["price_at_outcome"] = now_price or ""
+        row["price_at_outcome"] = price_at_outcome if price_at_outcome is not None else ""
         row["outcome_correct"]  = correct
         row["outcome_detail"]   = detail
         filled_count += 1
@@ -203,16 +254,19 @@ def check_pending_outcomes(
 
 def get_regime_accuracy(
     instrument:  str = None,
-    min_samples: int = MIN_SAMPLES_FOR_REVIEW,
+    min_samples: int = 1,
 ) -> Dict:
     """
     Compute regime classification accuracy from filled outcomes.
 
     Returns dict keyed by composite_regime:
-      {regime: {accuracy, n, needs_review, adx_range, detail}}
+      {regime: {accuracy, n, correct, flagged, actionable, adx_*}}
 
-    needs_review=True when accuracy < MIN_ACCURACY_THRESHOLD
-    and n >= min_samples — this is the signal to revise thresholds.
+    flagged    = n >= MIN_SAMPLES_FLAG   and accuracy < MIN_ACCURACY_THRESHOLD
+    actionable = n >= MIN_SAMPLES_REVISE and accuracy < MIN_ACCURACY_THRESHOLD
+
+    flagged-only  → watch closely, pattern emerging but not yet conclusive
+    actionable    → rerun threshold validation now
     """
     rows = _read_all()
     filled = [r for r in rows
@@ -226,23 +280,24 @@ def get_regime_accuracy(
 
     result = {}
     for regime, regime_rows in groups.items():
-        n       = len(regime_rows)
-        correct = sum(1 for r in regime_rows
-                      if str(r.get("outcome_correct")) == "True")
+        n        = len(regime_rows)
+        correct  = sum(1 for r in regime_rows
+                       if str(r.get("outcome_correct")) == "True")
         accuracy = correct / n if n > 0 else 0.0
         adx_vals = [float(r["adx_d1"]) for r in regime_rows
                     if r.get("adx_d1")]
+        below    = accuracy < MIN_ACCURACY_THRESHOLD
 
         result[regime] = {
-            "accuracy":     round(accuracy, 3),
-            "n":            n,
-            "correct":      correct,
-            "needs_review": (n >= min_samples and
-                             accuracy < MIN_ACCURACY_THRESHOLD),
-            "adx_min":      round(min(adx_vals), 1) if adx_vals else None,
-            "adx_max":      round(max(adx_vals), 1) if adx_vals else None,
-            "adx_avg":      round(sum(adx_vals)/len(adx_vals), 1)
-                            if adx_vals else None,
+            "accuracy":   round(accuracy, 3),
+            "n":          n,
+            "correct":    correct,
+            "flagged":    n >= MIN_SAMPLES_FLAG   and below,
+            "actionable": n >= MIN_SAMPLES_REVISE and below,
+            "adx_min":    round(min(adx_vals), 1) if adx_vals else None,
+            "adx_max":    round(max(adx_vals), 1) if adx_vals else None,
+            "adx_avg":    round(sum(adx_vals)/len(adx_vals), 1)
+                          if adx_vals else None,
         }
 
     return result
@@ -251,24 +306,31 @@ def get_regime_accuracy(
 def get_accuracy_report(instrument: str = None) -> str:
     """
     Return a plain-English accuracy report for all regimes.
-    Flags any regime where accuracy < 55% with >= 60 samples.
+    Two-tier flag system:
+      flagged only  (n >= 60)  → watch closely, not yet actionable
+      actionable    (n >= 150) → rerun threshold validation now
     """
-    acc = get_regime_accuracy(instrument=instrument, min_samples=1)
+    acc = get_regime_accuracy(instrument=instrument)
     if not acc:
         return "No completed outcomes yet. Keep running the framework."
 
     lines = ["Regime Classification Accuracy Report",
              "─" * 45]
     for regime, data in sorted(acc.items()):
-        flag = " ← REVIEW THRESHOLDS" if data["needs_review"] else ""
+        if data["actionable"]:
+            flag = " ← REVISE — rerun threshold validation"
+        elif data["flagged"]:
+            flag = " ← FLAG — watch closely, not yet actionable"
+        else:
+            flag = ""
         lines.append(
             f"  {regime:<16}: {data['accuracy']:.0%} "
             f"({data['correct']}/{data['n']} correct){flag}"
         )
     lines.append("─" * 45)
     lines.append(
-        f"Run validate_adx_threshold.py if any regime "
-        f"shows needs_review=True with >= {MIN_SAMPLES_FOR_REVIEW} samples."
+        f"Flags at {MIN_SAMPLES_FLAG} samples. "
+        f"Actionable at {MIN_SAMPLES_REVISE} samples."
     )
     return "\n".join(lines)
 
@@ -295,6 +357,7 @@ def _measure_outcome(
     highs:        List[float],
     lows:         List[float],
     structure:    str,
+    instrument:   str = "GBP_AUD",
 ) -> Tuple[bool, str]:
     """
     Measure whether the prediction was correct.
@@ -335,8 +398,12 @@ def _measure_outcome(
         if len(highs) >= 8 and len(lows) >= 8:
             recent_ranges = [highs[i] - lows[i] for i in range(-8, 0)]
             realized_vol  = sum(recent_ranges) / 8
-            ratio = realized_vol / (atr_at_log * 0.0001) \
-                    if atr_at_log > 0 else 1.0
+            from regime_detection import PAIRS
+            pair         = PAIRS.get(instrument)
+            pip_size     = pair.pip_size if pair else 0.0001
+            atr_in_price = atr_at_log * pip_size
+            ratio = realized_vol / atr_in_price \
+                    if atr_in_price > 0 else 1.0
             correct = ratio >= 1.3
             detail  = (f"Vol expansion: realized={realized_vol:.5f}, "
                        f"ratio vs ATR baseline={ratio:.2f}x "
@@ -350,13 +417,40 @@ def _measure_outcome(
     return False, f"Unknown prediction type: {pred_type}"
 
 
-def _estimate_bars_elapsed(log_time: datetime) -> int:
+def _count_bars_after(log_time: datetime, index=None) -> int:
     """
-    Estimate D1 bars elapsed since log_time.
-    Approximates trading days (excludes weekends).
+    Count D1 bar timestamps in index that are strictly after log_time.
+
+    When index is available (DatetimeIndex from the OANDA D1 frame)
+    this gives the exact number of completed bars since the
+    classification was logged — no calendar approximation needed.
+
+    Falls back to _estimate_bars_elapsed_calendar() when index is None.
     """
-    now   = datetime.now(timezone.utc)
-    delta = now - log_time
+    if index is None:
+        return _estimate_bars_elapsed_calendar(log_time)
+    try:
+        import pandas as pd
+        ts = pd.Timestamp(log_time)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize("UTC")
+        idx = index
+        if hasattr(idx, "tz") and idx.tz is None:
+            idx = idx.tz_localize("UTC")
+        elif hasattr(idx, "tz") and idx.tz is not None:
+            idx = idx.tz_convert("UTC")
+        return int((idx > ts).sum())
+    except Exception:
+        return _estimate_bars_elapsed_calendar(log_time)
+
+
+def _estimate_bars_elapsed_calendar(log_time: datetime) -> int:
+    """
+    Fallback: estimate D1 bars elapsed using 5/7 calendar approximation.
+    Used when no DatetimeIndex is available.
+    """
+    now        = datetime.now(timezone.utc)
+    delta      = now - log_time
     total_days = delta.days
     return max(0, int(total_days * 5 / 7))
 

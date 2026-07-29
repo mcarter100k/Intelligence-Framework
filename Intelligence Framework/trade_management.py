@@ -32,6 +32,15 @@ TRAIL_START_R  = 1.5   # begin trailing after this R
 TRAIL_GAP_R    = 0.5   # trailing stop stays this many R behind current price
 
 
+def _pip_factor(instrument: str) -> float:
+    """Pips per price unit: JPY crosses are 2-dp (×100), others 4-dp (×10000)."""
+    return 100.0 if instrument.replace("_", "").endswith("JPY") else 10_000.0
+
+
+def _price_decimals(instrument: str) -> int:
+    return 3 if instrument.replace("_", "").endswith("JPY") else 5
+
+
 def get_management_plan(
     entry: float,
     stop: float,
@@ -39,6 +48,7 @@ def get_management_plan(
     direction: str,
     grade: str = "B+",
     key_level: Optional[float] = None,
+    instrument: str = "GBP_AUD",
 ) -> dict:
     """
     Build the full trade management plan at the moment the entry alert fires.
@@ -49,7 +59,7 @@ def get_management_plan(
 
     Args:
         entry     : fill price (where you entered the trade)
-        stop      : initial stop-loss price (structure-based, from entry_watcher)
+        stop      : initial stop-loss price (structure-based, from entry_confirmation)
         target    : full take-profit price (next key level from the framework)
         direction : "LONG" or "SHORT"
         grade     : setup grade — affects the management note (A+ vs B+)
@@ -66,19 +76,68 @@ def get_management_plan(
         full_target_price   : original target (full exit)
         plan_text           : formatted block ready to print in the alert
     """
-    r_price = abs(entry - stop)
-    r_pips  = round(r_price * 10_000, 1)
+    # ── Validate geometry before building a plan ──────────────────────────────
+    # Never emit a clean-looking plan for an incoherent trade (stop on the wrong
+    # side, target closer than the stop, etc.).
+    errors = []
+    if direction not in ("LONG", "SHORT"):
+        errors.append(f"Unknown direction '{direction}' — expected LONG or SHORT")
+    risk   = abs(entry - stop)
+    reward = abs(target - entry)
+    if risk == 0:
+        errors.append("Stop equals entry — zero risk, cannot compute R")
+    if direction == "LONG":
+        if stop >= entry:
+            errors.append(f"LONG stop ({stop}) must be BELOW entry ({entry})")
+        if target <= entry:
+            errors.append(f"LONG target ({target}) must be ABOVE entry ({entry})")
+    elif direction == "SHORT":
+        if stop <= entry:
+            errors.append(f"SHORT stop ({stop}) must be ABOVE entry ({entry})")
+        if target >= entry:
+            errors.append(f"SHORT target ({target}) must be BELOW entry ({entry})")
+    rr = round(reward / risk, 2) if risk > 0 else 0.0
+
+    # Effective reward:risk AFTER spread — the framework's real tradeability
+    # floor (HARD_LIMITS.min_rr_after_spread). Spread widens the effective stop
+    # and eats into the reward. This is the only place the 1.5 floor is enforced.
+    from risk_config import HARD_LIMITS
+    _spread_price = HARD_LIMITS.get("spread_pips", 4.0) / _pip_factor(instrument)
+    _rr_floor     = HARD_LIMITS.get("min_rr_after_spread", 1.5)
+    eff_reward    = max(0.0, reward - _spread_price)
+    eff_risk      = risk + _spread_price
+    effective_rr  = round(eff_reward / eff_risk, 2) if eff_risk > 0 else 0.0
+    if not errors and effective_rr < _rr_floor:
+        errors.append(
+            f"Effective R:R after spread {effective_rr}:1 is below the "
+            f"{_rr_floor}:1 minimum — not worth the spread"
+        )
+
+    if errors:
+        return {
+            "valid":        False,
+            "errors":       errors,
+            "rr":           rr,
+            "effective_rr": effective_rr,
+            "r_pips":       round(risk * _pip_factor(instrument), 1),
+            "plan_text":    "⚠️  INVALID TRADE PLAN — not tradeable:\n  - " +
+                            "\n  - ".join(errors),
+        }
+
+    r_price = risk
+    r_pips  = round(r_price * _pip_factor(instrument), 1)
+    _dec    = _price_decimals(instrument)
 
     if direction == "LONG":
-        be_price         = round(entry + BREAKEVEN_R   * r_price, 5)
+        be_price         = round(entry + BREAKEVEN_R   * r_price, _dec)
         partial_price    = be_price
-        trail_start      = round(entry + TRAIL_START_R * r_price, 5)
-        trail_stop_init  = round(trail_start - TRAIL_GAP_R * r_price, 5)
+        trail_start      = round(entry + TRAIL_START_R * r_price, _dec)
+        trail_stop_init  = round(trail_start - TRAIL_GAP_R * r_price, _dec)
     else:  # SHORT
-        be_price         = round(entry - BREAKEVEN_R   * r_price, 5)
+        be_price         = round(entry - BREAKEVEN_R   * r_price, _dec)
         partial_price    = be_price
-        trail_start      = round(entry - TRAIL_START_R * r_price, 5)
-        trail_stop_init  = round(trail_start + TRAIL_GAP_R * r_price, 5)
+        trail_start      = round(entry - TRAIL_START_R * r_price, _dec)
+        trail_stop_init  = round(trail_start + TRAIL_GAP_R * r_price, _dec)
 
     # Invalidation: key level if provided, otherwise fall back to stop
     invalidation = key_level if key_level is not None else stop
@@ -86,10 +145,13 @@ def get_management_plan(
     plan_text = _format_plan(
         direction, entry, stop, target,
         be_price, partial_price, trail_start, trail_stop_init,
-        invalidation, r_pips, grade,
+        invalidation, r_pips, grade, _dec,
     )
 
     return {
+        "valid":               True,
+        "rr":                  rr,
+        "effective_rr":        effective_rr,
         "breakeven_price":     be_price,
         "partial_exit_price":  partial_price,
         "trail_start_price":   trail_start,
@@ -193,6 +255,7 @@ def _format_plan(
     invalidation: float,
     r_pips: float,
     grade: str,
+    dec: int = 5,
 ) -> str:
     close_dir = "below" if direction == "LONG" else "above"
     lines = [
@@ -200,18 +263,18 @@ def _format_plan(
         f"  {'─'*52}",
         f"  1R = {r_pips:.0f} pips",
         f"  {'─'*52}",
-        f"  Step 1  →  {partial_price:.5f}  (+1R)",
-        f"    Move stop to breakeven : {entry:.5f}",
+        f"  Step 1  →  {partial_price:.{dec}f}  (+1R)",
+        f"    Move stop to breakeven : {entry:.{dec}f}",
         f"    Close {PARTIAL_PCT}% of position    (profit locked in)",
         f"",
-        f"  Step 2  →  {trail_start:.5f}  (+1.5R)",
-        f"    Begin trailing — place stop at {trail_stop_init:.5f}",
+        f"  Step 2  →  {trail_start:.{dec}f}  (+1.5R)",
+        f"    Begin trailing — place stop at {trail_stop_init:.{dec}f}",
         f"    Keep moving stop {TRAIL_GAP_R}R behind price from here",
         f"",
-        f"  Step 3  →  {target:.5f}  (full target)",
+        f"  Step 3  →  {target:.{dec}f}  (full target)",
         f"    Close remaining position",
         f"  {'─'*52}",
-        f"  Setup dead if: 15m candle closes {close_dir} {invalidation:.5f}",
+        f"  Setup dead if: 15m candle closes {close_dir} {invalidation:.{dec}f}",
     ]
 
     if grade in ("A+", "A"):

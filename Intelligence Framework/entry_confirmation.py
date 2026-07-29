@@ -19,6 +19,45 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional
 
+_M15_LEVEL_PROXIMITY_PIPS = 25  # pips — M15 must be within this of a key level
+
+
+def _detect_engulfing(
+    highs:  List[float],
+    lows:   List[float],
+    opens:  List[float],
+    closes: List[float],
+) -> dict:
+    """
+    Detect engulfing candle on the most recent two candles (array-based API).
+    Returns {"detected": bool, "direction": "LONG"|"SHORT"|"", "pattern": str}.
+
+    # INFORMED PRIOR — engulfing trigger is a precise entry
+    # definition, not a validated edge. Outcome logger records
+    # trigger usage for future validation.
+    """
+    if min(len(highs), len(lows), len(opens), len(closes)) < 2:
+        return {"detected": False, "direction": "", "pattern": ""}
+
+    prev_body_high = max(opens[-2], closes[-2])
+    prev_body_low  = min(opens[-2], closes[-2])
+
+    # Bullish engulfing: current bullish body engulfs previous body entirely
+    if (closes[-1] > opens[-1]
+            and closes[-1] >= prev_body_high
+            and opens[-1]  <= prev_body_low):
+        return {"detected": True, "direction": "LONG",
+                "pattern": "Bullish engulfing"}
+
+    # Bearish engulfing: current bearish body engulfs previous body entirely
+    if (closes[-1] < opens[-1]
+            and opens[-1]  >= prev_body_high
+            and closes[-1] <= prev_body_low):
+        return {"detected": True, "direction": "SHORT",
+                "pattern": "Bearish engulfing"}
+
+    return {"detected": False, "direction": "", "pattern": ""}
+
 
 @dataclass
 class EntryBrief:
@@ -35,6 +74,12 @@ class EntryBrief:
     m15_trigger:  bool   # 15min entry trigger active
     m15_signal:   str    # plain English: what to look for
     m15_level:    float  # specific price level to enter at
+
+    # Engulfing + level proximity (ported from entry_watcher)
+    engulfing_detected: bool
+    near_key_level:     bool
+    key_level_price:    Optional[float]
+    trigger_basis:      str   # plain English: what fired and why
 
     # Combined
     entry_ready:  bool   # h1_confirmed AND m15_trigger
@@ -102,9 +147,14 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
 
         # ── Fetch M15 bars ────────────────────────────────────────────────────
         raw_m15 = get_m15_bars(pair=oanda_pair, count=10)
-        m15_trigger = False
-        m15_signal  = ""
-        m15_level   = 0.0
+        m15_trigger        = False
+        m15_signal         = ""
+        m15_level          = 0.0
+        engulfing_detected = False
+        near_key_level     = False
+        key_level_price    = None
+        trigger_basis      = ""
+        _eng = {"detected": False, "direction": "", "pattern": ""}
 
         if raw_m15 is not None and not raw_m15.empty:
             if hasattr(raw_m15.columns, "levels"):
@@ -112,35 +162,82 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
             m15h = [float(v) for v in raw_m15["High"].dropna().values]
             m15l = [float(v) for v in raw_m15["Low"].dropna().values]
             m15c = [float(v) for v in raw_m15["Close"].dropna().values]
-            nm   = min(len(m15h), len(m15l), len(m15c))
-            m15h, m15l, m15c = m15h[:nm], m15l[:nm], m15c[:nm]
+            m15o = ([float(v) for v in raw_m15["Open"].dropna().values]
+                    if "Open" in raw_m15.columns else list(m15c))
+            nm   = min(len(m15h), len(m15l), len(m15c), len(m15o))
+            m15h, m15l, m15c, m15o = (m15h[:nm], m15l[:nm],
+                                       m15c[:nm], m15o[:nm])
 
-            if nm >= 3:
-                m15_struct = _detect_structure(m15h, m15l, m15c)
-                m15_str    = m15_struct["structure"]
+            # Engulfing detection (ported from entry_watcher)
+            if nm >= 2:
+                _eng = _detect_engulfing(m15h, m15l, m15o, m15c)
+                engulfing_detected = _eng["detected"]
 
+            # Level proximity check via levels_context
+            _level_available = False
+            _levels: List[float] = []
+            try:
+                from pathlib import Path as _Path
+                import json as _json
+                _lr = _Path(__file__).parent / "last_run.json"
+                if _lr.exists():
+                    _ctx = _json.loads(_lr.read_text())
+                    from levels_context import levels_as_list
+                    _levels = levels_as_list(_ctx.get("levels", {}))
+                    _level_available = bool(_levels)
+            except Exception:
+                _level_available = False
+
+            prox = _M15_LEVEL_PROXIMITY_PIPS * pair_cfg.pip_size
+            if _level_available and _levels and nm >= 1:
+                for _lvl in _levels:
+                    if abs(m15c[-1] - _lvl) <= prox:
+                        near_key_level  = True
+                        key_level_price = _lvl
+                        break
+
+            # M15 trigger: engulfing in direction + near key level (or level unavailable)
+            if nm >= 2:
                 if direction == "LONG":
-                    m15_level = m15l[-1]    # current 15min low
-                    if m15_str == "UPTREND":
-                        m15_trigger = True
-                        m15_signal  = (f"M15 uptrend confirmed — "
-                                       f"enter on pullback to {m15_level:.4f} "
-                                       f"or break of prior M15 high")
-                    else:
-                        m15_signal  = (f"M15 structure not aligned ({m15_str}) — "
-                                       f"wait for M15 higher low at "
-                                       f"~{m15_level:.4f} before entering")
+                    m15_level = m15l[-1]
                 elif direction == "SHORT":
-                    m15_level = m15h[-1]    # current 15min high
-                    if m15_str == "DOWNTREND":
-                        m15_trigger = True
-                        m15_signal  = (f"M15 downtrend confirmed — "
-                                       f"enter on bounce to {m15_level:.4f} "
-                                       f"or break of prior M15 low")
+                    m15_level = m15h[-1]
+
+                _in_dir = (engulfing_detected and
+                           _eng["direction"] == direction)
+
+                if _in_dir:
+                    if near_key_level:
+                        m15_trigger   = True
+                        trigger_basis = (f"{_eng['pattern']} at key level "
+                                         f"{key_level_price:.4f}")
+                        m15_signal    = (f"{_eng['pattern']} at level "
+                                         f"{key_level_price:.4f} — enter on "
+                                         f"close above/below engulfing candle")
+                    elif not _level_available:
+                        m15_trigger   = True
+                        trigger_basis = (f"{_eng['pattern']} confirmed "
+                                         f"— level check unavailable "
+                                         f"(degraded trigger)")
+                        m15_signal    = (f"{_eng['pattern']} — level check "
+                                         f"unavailable, triggering on "
+                                         f"pattern alone")
                     else:
-                        m15_signal  = (f"M15 structure not aligned ({m15_str}) — "
-                                       f"wait for M15 lower high at "
-                                       f"~{m15_level:.4f} before entering")
+                        trigger_basis = (f"{_eng['pattern']} detected, "
+                                         f"not near a key level "
+                                         f"(threshold "
+                                         f"{_M15_LEVEL_PROXIMITY_PIPS}p)")
+                        m15_signal    = (f"{_eng['pattern']} at "
+                                         f"{m15c[-1]:.4f} — not near a key "
+                                         f"level, wait for price to reach "
+                                         f"structure ({m15_level:.4f})")
+                else:
+                    _patt = ("bullish engulfing" if direction == "LONG"
+                             else "bearish engulfing")
+                    trigger_basis = f"No {_patt} in trade direction"
+                    m15_signal    = (f"No {_patt} detected — watch M15 "
+                                     f"for {_patt} at key level near "
+                                     f"{m15_level:.4f}")
 
         # ── Combined judgment ─────────────────────────────────────────────────
         entry_ready = h1_confirmed and m15_trigger
@@ -162,6 +259,7 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
             instrument, direction,
             h1_confirmed, h1_structure, h1_entry_level, h1_adx,
             m15_trigger, m15_signal, m15_level,
+            engulfing_detected, near_key_level, key_level_price, trigger_basis,
             entry_ready, entry_note,
         )
 
@@ -175,6 +273,10 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
             m15_trigger=m15_trigger,
             m15_signal=m15_signal,
             m15_level=m15_level,
+            engulfing_detected=engulfing_detected,
+            near_key_level=near_key_level,
+            key_level_price=key_level_price,
+            trigger_basis=trigger_basis,
             entry_ready=entry_ready,
             entry_note=entry_note,
             precision_brief=precision_brief,
@@ -192,6 +294,10 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
             m15_trigger=False,
             m15_signal="",
             m15_level=0.0,
+            engulfing_detected=False,
+            near_key_level=False,
+            key_level_price=None,
+            trigger_basis="",
             entry_ready=False,
             entry_note=f"Entry confirmation error: {str(e)[:60]}",
             precision_brief=precision_brief,
@@ -200,17 +306,21 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
 
 
 def _format_entry(
-    instrument:      str,
-    direction:       str,
-    h1_confirmed:    bool,
-    h1_structure:    str,
-    h1_entry_level:  float,
-    h1_adx:          float,
-    m15_trigger:     bool,
-    m15_signal:      str,
-    m15_level:       float,
-    entry_ready:     bool,
-    entry_note:      str,
+    instrument:         str,
+    direction:          str,
+    h1_confirmed:       bool,
+    h1_structure:       str,
+    h1_entry_level:     float,
+    h1_adx:             float,
+    m15_trigger:        bool,
+    m15_signal:         str,
+    m15_level:          float,
+    engulfing_detected: bool,
+    near_key_level:     bool,
+    key_level_price:    Optional[float],
+    trigger_basis:      str,
+    entry_ready:        bool,
+    entry_note:         str,
 ) -> str:
     width  = 51
     border = "─" * width
@@ -250,7 +360,14 @@ def _format_entry(
         f"  H1 LEVEL      n/a",
         f"",
         f"  M15 TRIGGER   {tick(m15_trigger)}",
+        f"  ENGULFING     {tick(engulfing_detected)}",
+        (f"  NEAR LEVEL    {tick(near_key_level)}" +
+         (f"  {key_level_price:.4f}" if key_level_price else "")),
         f"  M15 SIGNAL    {wrap(m15_signal)}",
+    ]
+    if trigger_basis:
+        lines.append(f"  TRIGGER BASIS {wrap(trigger_basis)}")
+    lines += [
         f"",
         f"  STATUS        {ready_str}",
         f"  NOTE          {wrap(entry_note)}",

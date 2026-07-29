@@ -34,6 +34,12 @@ LOG_FILE     = SCRIPT_DIR / "logs" / "notify.log"
 GRADE_ORDER  = ["A+", "A", "B+", "B", "C"]
 NOTIFY_SOUND = "Ping"   # Mac system sounds: Ping, Glass, Hero, Basso, Funk
 
+# Circuit breaker — the trade journal it reads, and a nominal account balance.
+# pnl_r is already stored as a percentage, so the balance only guards the
+# balance<=0 case; set it to your real account size if you want it meaningful.
+JOURNAL_FILE    = SCRIPT_DIR / "run_journal.csv"
+ACCOUNT_BALANCE = 10_000
+
 # Session names matched to cron run times (PT)
 SESSION_LABELS = {
     "23":  "Pre-London",     # 11pm PT = midnight approaching
@@ -104,13 +110,11 @@ def _run_framework() -> dict:
     """Run market_brain and extract key fields for notification."""
     try:
         from market_brain import build_market_report
-        from risk_config  import get_size_note
 
         report = build_market_report()
 
         setup  = report.get("setup", {})
         layers = report.get("layers", {})
-        conf   = report.get("conviction_score", 0)
         _sess_dict = layers.get("session", {})
         sess   = (
             _sess_dict.get("session_label") or
@@ -125,34 +129,40 @@ def _run_framework() -> dict:
             except Exception:
                 price = None
 
-        quality   = setup.get("quality", "LOW")
+        # ── Decision surface — sourced ONLY from the official, filter-gated
+        # decision. notify no longer re-grades: report["decision"] already
+        # applies the no-trade filter (STAND_DOWN → NO TRADE), so a blocked
+        # setup can never surface as a tradeable alert, and the grade/direction
+        # shown always match report["decision"] (one source of truth).
+        decision   = report.get("decision", {})
+        direction  = decision.get("direction", "NO TRADE")
+        grade      = decision.get("grade", "C")
+        conviction = decision.get("conviction", 0)
+        size_mult  = float(decision.get("size_mult", 0.0) or 0.0)
+        reason     = decision.get("reason", "")
+        allowed    = direction in ("LONG", "SHORT")
+
+        quality   = setup.get("quality", "LOW")   # informational only now
         wait_for  = setup.get("wait_for", "")
         primary   = report.get("primary_state", "UNKNOWN")
         bias      = report.get("overall_bias", "NEUTRAL")
+        _ev_risk  = setup.get("event_risk", False)
 
-        # Get grade
-        _ev_risk      = setup.get("event_risk", False)
-        _sweep_dn     = layers.get("liquidity", {}).get("sweep_down", False)
-        _sweep_up     = layers.get("liquidity", {}).get("sweep_up", False)
-        _sweep_conf   = (_sweep_dn and bias == "BEARISH") or (_sweep_up and bias == "BULLISH")
-        _val_al       = layers.get("value", {}).get("value_aligned", False)
-        _htf_conflict = report.get("live_vs_structural_conflict", False)
-        _htf_bias     = report.get("layers", {}).get("htf", {}).get("lt_trend", "")
-        _is_counter   = (
-            (_htf_bias == "DOWNTREND" and bias == "BULLISH") or
-            (_htf_bias == "UPTREND"   and bias == "BEARISH")
-        )
+        # Event-risk safety overlay — a high-impact news lockout forces NO TRADE
+        # regardless of grade (the official path does not yet read the calendar).
+        if _ev_risk:
+            allowed   = False
+            direction = "NO TRADE"
+            reason    = reason or "Event risk — high-impact news lockout"
 
-        size_info = get_size_note(
-            quality          = quality,
-            alignment        = conf,
-            is_counter_trend = _is_counter,
-            event_risk       = _ev_risk,
-            session          = sess,
-            sweep_confirmed  = _sweep_conf,
-            is_value_aligned = _val_al,
-            htf_conflict     = _htf_conflict,
-        )
+        # Standard risk for the official grade, scaled by the filter's size
+        # multiplier (e.g. reduced-size counter-trend override). One grade,
+        # one source — no parallel re-grading.
+        from risk_config import GRADE_CONFIG
+        _base_risk = GRADE_CONFIG.get(grade, {}).get("risk_pct", 0.0)
+        risk_pct   = (round(_base_risk * (size_mult if size_mult > 0 else 1.0), 2)
+                      if allowed else 0.0)
+        label      = GRADE_CONFIG.get(grade, {}).get("label", "")
 
         # Proximity to trigger — extract price from wait_for text
         trigger_price = None
@@ -170,11 +180,13 @@ def _run_framework() -> dict:
 
         return {
             "ok":           True,
-            "grade":        size_info.get("grade", "C"),
-            "risk_pct":     size_info.get("risk_pct", 0),
-            "label":        size_info.get("label", ""),
+            "grade":        grade,
+            "direction":    direction,
+            "risk_pct":     risk_pct,
+            "label":        label,
+            "reason":       reason,
             "quality":      quality,
-            "alignment":    conf,
+            "alignment":    conviction,
             "session":      sess,
             "primary":      primary,
             "bias":         bias,
@@ -183,7 +195,7 @@ def _run_framework() -> dict:
             "trigger_price": trigger_price,
             "proximity_pips": proximity,
             "event_risk":   _ev_risk,
-            "allowed":      size_info.get("allowed", False),
+            "allowed":      allowed,
         }
 
     except Exception as e:
@@ -192,13 +204,14 @@ def _run_framework() -> dict:
 
 def _build_notification_text(result: dict, session_label: str) -> tuple:
     """Build notification title, subtitle, message."""
-    grade    = result.get("grade", "C")
-    price    = result.get("price")
-    primary  = result.get("primary", "")
-    prox     = result.get("proximity_pips")
-    risk_pct = result.get("risk_pct", 0)
-    session  = result.get("session", "")
-    bias     = result.get("bias", "")
+    grade     = result.get("grade", "C")
+    price     = result.get("price")
+    primary   = result.get("primary", "")
+    prox      = result.get("proximity_pips")
+    risk_pct  = result.get("risk_pct", 0)
+    session   = result.get("session", "")
+    direction = result.get("direction", "NO TRADE")
+    allowed   = result.get("allowed", False)
 
     # Title — grade and session
     title = f"GBP/AUD {grade} Setup — {session_label}"
@@ -206,13 +219,15 @@ def _build_notification_text(result: dict, session_label: str) -> tuple:
     # Subtitle — primary state truncated
     subtitle = primary[:50] if primary else "Framework Alert"
 
-    # Message — key numbers
+    # Message — key numbers. Directional word comes from the OFFICIAL decision
+    # (LONG/SHORT/NO TRADE), never the raw aggregate bias — so the alert can no
+    # longer read "BULLISH | NO TRADE".
     price_str = f"Price: {price:.4f}" if price else "Price: N/A"
     prox_str  = f" | {prox}p to trigger" if prox is not None else ""
-    bias_str  = f" | {bias}"
-    risk_str  = f" | {risk_pct}% risk" if risk_pct > 0 else " | NO TRADE"
+    dir_str   = f" | {direction}" if allowed else " | NO TRADE"
+    risk_str  = f" | {risk_pct}% risk" if (allowed and risk_pct > 0) else ""
 
-    message = f"{price_str}{prox_str}{bias_str}{risk_str}"
+    message = f"{price_str}{prox_str}{dir_str}{risk_str}"
 
     return title, subtitle, message
 
@@ -341,6 +356,22 @@ def main():
             )
         return
 
+    # ── Circuit breaker — stand aside if today's risk limits are hit ──────────
+    # Consulted BEFORE any setup alert. A HALTED/SESSION_CLOSED status suppresses
+    # setup notifications for the rest of the day (--force still bypasses, for
+    # testing). Reads the manually-journaled trade rows in run_journal.csv.
+    try:
+        from session_guard import get_session_status, STATUS_ACTIVE
+        sg = get_session_status(JOURNAL_FILE, account_balance=ACCOUNT_BALANCE)
+        if sg["status"] != STATUS_ACTIVE:
+            _log(f"Circuit breaker {sg['status']}: {sg['reason']}")
+            if not args.force:
+                _log("Circuit breaker active — suppressing setup alerts today")
+                return
+    except Exception as _sg_err:
+        # A failure in the guard itself must not silently permit trading; log it.
+        _log(f"Circuit breaker check failed (permitting run): {_sg_err}")
+
     grade    = result.get("grade", "C")
     price    = result.get("price")
     prox     = result.get("proximity_pips")
@@ -353,15 +384,17 @@ def main():
         f"Proximity: {str(prox)+'p' if prox is not None else 'N/A'} | Session: {result.get('session')}"
     )
 
-    # Decide whether to notify
+    # Decide whether to notify. A live alert requires the OFFICIAL decision to
+    # be tradeable (`allowed`) — a NO TRADE / event-risk-suppressed setup never
+    # fires, even if a stale grade remains attached.
     should_notify = (
         args.force or
-        (not args.silent and _grade_meets_threshold(grade, args.threshold))
+        (not args.silent and allowed and _grade_meets_threshold(grade, args.threshold))
     )
 
-    # Extra condition: proximity boost — always notify if within 30 pips of trigger
-    # regardless of grade (B or above)
-    if (not args.silent and prox is not None and prox <= 30 and
+    # Extra condition: proximity boost — notify if within 30 pips of trigger
+    # (still requires a tradeable official decision at grade B or above)
+    if (not args.silent and allowed and prox is not None and prox <= 30 and
             _grade_meets_threshold(grade, "B")):
         should_notify = True
         _log(f"Proximity alert: {prox} pips to trigger — overriding threshold")

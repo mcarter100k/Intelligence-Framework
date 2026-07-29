@@ -41,9 +41,16 @@ def get_liquidity_context(ticker: str = PAIR_TICKER) -> Dict:
     highs  = raw["High"]
     lows   = raw["Low"]
 
-    # Live price: try OANDA first, fall back to last yfinance close
+    # Pip scale for this instrument — JPY crosses use 0.01, others 0.0001.
+    # Equal-level clustering and sweep dedup must scale with the pip size, or
+    # a JPY pair (price ~217) would treat every level as "equal".
+    _pip    = 0.01 if ticker.replace("_", "").endswith("JPY") else 0.0001
+    _eq_tol = 9 * _pip   # ~9 pips — two touches within this count as "equal"
+    _dedup  = 1 * _pip   # ~1 pip — levels closer than this are the same level
+
+    # Live price: fetch for THIS instrument, fall back to last close
     try:
-        _oanda_price = get_live_price() if is_configured() else None
+        _oanda_price = get_live_price(pair=ticker) if is_configured() else None
     except Exception:
         _oanda_price = None
     current_price = _oanda_price if _oanda_price else float(closes.iloc[-1])
@@ -59,8 +66,8 @@ def get_liquidity_context(ticker: str = PAIR_TICKER) -> Dict:
 
     recent_highs = [float(h) for h in highs.iloc[-20:]]
     recent_lows  = [float(l) for l in lows.iloc[-20:]]
-    equal_highs  = _find_equal_levels(recent_highs)
-    equal_lows   = _find_equal_levels(recent_lows)
+    equal_highs  = _find_equal_levels(recent_highs, _eq_tol)
+    equal_lows   = _find_equal_levels(recent_lows, _eq_tol)
 
     # ── Sweep detection — deduplicate levels first ────────────────────────────
     # If PDH and PWH are the same price (within 1 pip), only report it once
@@ -71,7 +78,7 @@ def get_liquidity_context(ticker: str = PAIR_TICKER) -> Dict:
     checked_highs: List[float] = []
     for level, name in [(pdh, "Yesterday's High"), (pwh, "This Week's High")]:
         # Skip if we already reported a sweep at virtually the same level
-        if any(abs(level - seen) < 0.0001 for seen in checked_highs):
+        if any(abs(level - seen) < _dedup for seen in checked_highs):
             continue
         checked_highs.append(level)
         if today_high > level and today_close < level:
@@ -83,7 +90,7 @@ def get_liquidity_context(ticker: str = PAIR_TICKER) -> Dict:
 
     checked_lows: List[float] = []
     for level, name in [(pdl, "Yesterday's Low"), (pwl, "This Week's Low")]:
-        if any(abs(level - seen) < 0.0001 for seen in checked_lows):
+        if any(abs(level - seen) < _dedup for seen in checked_lows):
             continue
         checked_lows.append(level)
         if today_low < level and today_close > level:
@@ -150,7 +157,7 @@ def get_liquidity_context(ticker: str = PAIR_TICKER) -> Dict:
     }
 
 
-def _find_equal_levels(prices: List[float]) -> List[float]:
+def _find_equal_levels(prices: List[float], tol: float = _EQ_TOLERANCE) -> List[float]:
     clusters: List[float] = []
     visited = [False] * len(prices)
     for i, p in enumerate(prices):
@@ -158,7 +165,7 @@ def _find_equal_levels(prices: List[float]) -> List[float]:
             continue
         group = [p]
         for j in range(i + 1, len(prices)):
-            if not visited[j] and abs(prices[j] - p) <= _EQ_TOLERANCE:
+            if not visited[j] and abs(prices[j] - p) <= tol:
                 group.append(prices[j])
                 visited[j] = True
         if len(group) >= 2:

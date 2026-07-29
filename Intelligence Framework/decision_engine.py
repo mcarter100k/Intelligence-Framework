@@ -1,4 +1,9 @@
 """
+STATUS: SHADOW MODE (audit item 1, 2026-06-29)
+This module's output is logged for comparison but never traded.
+The official decision path is official_decision.py.
+Re-evaluation trigger: 60 logged outcomes with both paths recorded.
+
 decision_engine.py
 
 Capstone decision layer for the GBP/AUD intelligence framework.
@@ -63,13 +68,17 @@ _TIER_MAP: Dict[str, str] = {
     "news":      "execution",
     "session":   "execution",
     "intraday":  "execution",
-    "structure": "structural",  # VALIDATED P2 — HH/HL structure is directional signal
+    "structure": "structural",  # INFORMED PRIOR (P2) — HH/HL structure is directional signal
 }
 
 # WEIGHT TABLE STATUS — as of 2025-06-28
 # ───────────────────────────────────────
-# Weights marked VALIDATED have empirical support from backtest research.
-# Weights marked PRIOR are starting hypotheses — replace as outcome data accumulates.
+# NOTE (2026-06-29 honesty pass): the P1/P3 threshold findings these weights
+# once cited as VALIDATED were demoted to INFORMED PRIOR — serial correlation
+# from overlapping windows inflated N (validation_log 2026-06-29). No weight
+# here carries a non-overlapping-N backtest, so none is VALIDATED. All are
+# informed priors — replace as real outcome data accumulates. (Shadow mode:
+# this engine is logged for comparison, never traded.)
 #
 # Validation source:
 #   P1 = validate_adx_threshold.py (5yr D1 backtest, 1295 bars)
@@ -90,8 +99,8 @@ _REGIME_WEIGHTS: Dict[str, Dict[str, float]] = {
         "cot":       0.03,  # PRIOR — institutional positioning
         "legs":      0.10,  # PRIOR — GBP/USD vs AUD/USD decomposition
         "value":     0.04,  # PRIOR — value context
-        "regime":    0.12,  # VALIDATED P1 — ADX state has known accuracy bounds per zone
-        "structure": 0.10,  # VALIDATED P2 — HH/HL confirmation is a real directional signal
+        "regime":    0.12,  # INFORMED PRIOR — v1 validation invalidated by serial correlation (see validation_log 2026-06-29). Direction supported by v2; N insufficient for VALIDATED status.
+        "structure": 0.10,  # INFORMED PRIOR (P2) — HH/HL confirmation is a real directional signal
     },
     "TRENDING_DOWN": {
         "htf":       0.22,  # PRIOR — same basis as TRENDING_UP; reduced from 0.30
@@ -103,8 +112,8 @@ _REGIME_WEIGHTS: Dict[str, Dict[str, float]] = {
         "cot":       0.03,  # PRIOR
         "legs":      0.10,  # PRIOR
         "value":     0.04,  # PRIOR
-        "regime":    0.12,  # VALIDATED P1 — ADX state has known accuracy bounds per zone
-        "structure": 0.10,  # VALIDATED P2 — LH/LL confirmation is a real directional signal
+        "regime":    0.12,  # INFORMED PRIOR — v1 validation invalidated by serial correlation (see validation_log 2026-06-29). Direction supported by v2; N insufficient for VALIDATED status.
+        "structure": 0.10,  # INFORMED PRIOR (P2) — LH/LL confirmation is a real directional signal
     },
     "RANGING": {
         "liquidity": 0.25,  # PRIOR — price levels dominate when no trend, slight reduce from 0.28
@@ -116,12 +125,12 @@ _REGIME_WEIGHTS: Dict[str, Dict[str, float]] = {
         "cot":       0.03,  # PRIOR
         "legs":      0.09,  # PRIOR
         "value":     0.06,  # PRIOR
-        "regime":    0.15,  # VALIDATED P1 — ranging classification is real (mean-rev dominant <18)
-        "structure": 0.05,  # VALIDATED P2 — structure less reliable in ranges; still informative
+        "regime":    0.15,  # INFORMED PRIOR — v1 validation invalidated by serial correlation (see validation_log 2026-06-29). Direction supported by v2; N insufficient for VALIDATED status.
+        "structure": 0.05,  # INFORMED PRIOR (P2) — structure less reliable in ranges; still informative
     },
     "VOLATILE": {
         "news":      0.30,  # PRIOR — news dominates when technicals have no edge
-        "regime":    0.20,  # VALIDATED P1 — regime correctly identifies the no-edge zone
+        "regime":    0.20,  # INFORMED PRIOR — v1 validation invalidated by serial correlation (see validation_log 2026-06-29). Direction supported by v2; N insufficient for VALIDATED status.
         "cross":     0.08,  # PRIOR — reduced from 0.20; cross-market less reliable in chaos
         "liquidity": 0.08,  # PRIOR — reduced from 0.16; price levels less reliable in chaos
         "strength":  0.08,  # PRIOR — reduced from 0.10
@@ -130,7 +139,7 @@ _REGIME_WEIGHTS: Dict[str, Dict[str, float]] = {
         "value":     0.03,  # PRIOR
         "rates":     0.02,  # PRIOR
         "cot":       0.01,  # PRIOR
-        "structure": 0.00,  # VALIDATED P2 — structure unreliable in volatile regime
+        "structure": 0.00,  # INFORMED PRIOR (P2) — structure unreliable in volatile regime
     },
 }
 _DEFAULT_WEIGHTS: Dict[str, float] = {

@@ -37,10 +37,13 @@ _FIELDS = [
     "weekly_context",
     "lt_trend",
     "st_trend",
-    # Signal output (from decision_engine)
+    # Signal output (from official decision path)
     "direction",
     "grade",
     "conviction",
+    # Shadow path (signal-stack, logged for comparison only — never traded)
+    "shadow_direction",
+    "shadow_conviction",
     # Price context at signal time
     "price_at_signal",
     "atr_pips",
@@ -61,14 +64,16 @@ def _ensure_file() -> None:
 
 
 def log_signal(
-    regime_data:   Dict,
-    decision_data: Dict,
-    instrument:    str,
+    regime_data:    Dict,
+    decision_data:  Dict,
+    instrument:     str,
+    shadow_decision: Optional[Dict] = None,
 ) -> str:
     """
     Log a signal to trade_signal_log.csv.
     Returns the signal_id (ISO timestamp + instrument).
     outcome_filled defaults to False — call record_outcome() later.
+    shadow_decision: the signal-stack result (logged for comparison, never traded).
     """
     _ensure_file()
     ts        = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -95,6 +100,8 @@ def log_signal(
         "direction":           decision_data.get("direction", ""),
         "grade":               decision_data.get("grade", ""),
         "conviction":          decision_data.get("conviction", 0),
+        "shadow_direction":    shadow_decision.get("direction", "") if shadow_decision else "",
+        "shadow_conviction":   shadow_decision.get("conviction", "") if shadow_decision else "",
         "price_at_signal":     regime_data.get("current_price", 0.0),
         "atr_pips":            regime_data.get("atr_pips", 0.0),
         # Outcome defaults — populated by record_outcome()
@@ -111,15 +118,42 @@ def log_signal(
     return signal_id
 
 
+def _fill_outcome(row: Dict, price_outcome: float) -> None:
+    """Populate a row's outcome fields from the outcome price (mutates row)."""
+    price_entry = float(row["price_at_signal"]) if row["price_at_signal"] else 0.0
+    move        = price_outcome - price_entry
+    direction   = row["direction"]
+
+    # JPY pairs quote in 2dp; everything else 4dp
+    pip_size  = 0.01 if "JPY" in row["instrument"] else 0.0001
+    move_pips = round(move / pip_size, 1)
+
+    if move > 0:
+        outcome_direction = "UP"
+    elif move < 0:
+        outcome_direction = "DOWN"
+    else:
+        outcome_direction = "FLAT"
+
+    signal_correct = (
+        (direction == "LONG"  and move > 0) or
+        (direction == "SHORT" and move < 0)
+    )
+
+    row["outcome_filled"]      = True
+    row["outcome_direction"]   = outcome_direction
+    row["price_20_bars_later"] = price_outcome
+    row["move_pips"]           = move_pips
+    row["signal_correct"]      = signal_correct
+
+
 def record_outcome(
     signal_id:     str,
     price_outcome: float,
     bars_elapsed:  int = 20,
 ) -> bool:
     """
-    Fill in outcome fields for a logged signal.
-    Computes move_pips and signal_correct from price_at_signal
-    and price_outcome.
+    Fill in outcome fields for a single logged signal by id.
     Returns True if record found and updated.
     """
     if not os.path.exists(_LOG_FILE):
@@ -129,33 +163,9 @@ def record_outcome(
     found = False
     with open(_LOG_FILE, newline="") as f:
         for row in csv.DictReader(f):
-            if row["signal_id"] == signal_id:
+            if row["signal_id"] == signal_id and row.get("outcome_filled") != "True":
+                _fill_outcome(row, price_outcome)
                 found = True
-                price_entry = float(row["price_at_signal"]) if row["price_at_signal"] else 0.0
-                move        = price_outcome - price_entry
-                direction   = row["direction"]
-
-                # JPY pairs quote in 2dp; everything else 4dp
-                pip_size  = 0.01 if "JPY" in row["instrument"] else 0.0001
-                move_pips = round(move / pip_size, 1)
-
-                if move > 0:
-                    outcome_direction = "UP"
-                elif move < 0:
-                    outcome_direction = "DOWN"
-                else:
-                    outcome_direction = "FLAT"
-
-                signal_correct = (
-                    (direction == "LONG"  and move > 0) or
-                    (direction == "SHORT" and move < 0)
-                )
-
-                row["outcome_filled"]      = True
-                row["outcome_direction"]   = outcome_direction
-                row["price_20_bars_later"] = price_outcome
-                row["move_pips"]           = move_pips
-                row["signal_correct"]      = signal_correct
             rows.append(row)
 
     if not found:
@@ -167,6 +177,86 @@ def record_outcome(
         writer.writerows(rows)
 
     return True
+
+
+def _bars_after(log_time, index=None) -> int:
+    """Number of D1 bar timestamps in `index` strictly after log_time.
+    Returns 0 when no index is supplied (cannot locate the window bar)."""
+    if index is None:
+        return 0
+    try:
+        import pandas as pd
+        ts = pd.Timestamp(log_time)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize("UTC")
+        idx = index
+        if getattr(idx, "tz", None) is None:
+            idx = idx.tz_localize("UTC")
+        else:
+            idx = idx.tz_convert("UTC")
+        return int((idx > ts).sum())
+    except Exception:
+        return 0
+
+
+def check_pending_trade_outcomes(
+    instrument:    str,
+    recent_closes: list,
+    recent_index=None,
+    window:        int = 20,
+) -> int:
+    """
+    Close the trade-signal feedback loop: for every pending signal whose window
+    has elapsed, grade it against the price EXACTLY `window` bars after it was
+    logged (not the latest bar). Mirrors the regime-classifier checker.
+
+    Returns the number of outcomes filled in this call.
+    """
+    if not os.path.exists(_LOG_FILE):
+        return 0
+
+    with open(_LOG_FILE, newline="") as f:
+        rows = list(csv.DictReader(f))
+    if not rows:
+        return 0
+
+    filled = 0
+    for row in rows:
+        if row.get("instrument") != instrument or row.get("outcome_filled") == "True":
+            continue
+        if row.get("direction") not in ("LONG", "SHORT"):
+            continue  # nothing directional to grade
+
+        try:
+            log_time = datetime.fromisoformat(row["timestamp"].replace("Z", "+00:00"))
+        except Exception:
+            continue
+
+        bars_elapsed = _bars_after(log_time, recent_index)
+        if bars_elapsed < window:
+            continue
+
+        # Grade at the window bar, not the latest bar.
+        price_outcome = None
+        if recent_index is not None and len(recent_index) == len(recent_closes):
+            slice_end = len(recent_index) - bars_elapsed + window
+            if window <= slice_end <= len(recent_closes):
+                price_outcome = recent_closes[slice_end - 1]
+        if price_outcome is None:
+            price_outcome = recent_closes[-1] if recent_closes else None
+        if price_outcome is None:
+            continue
+
+        _fill_outcome(row, price_outcome)
+        filled += 1
+
+    if filled:
+        with open(_LOG_FILE, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=_FIELDS)
+            writer.writeheader()
+            writer.writerows(rows)
+
+    return filled
 
 
 def get_accuracy_by_regime(

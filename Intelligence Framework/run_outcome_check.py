@@ -40,17 +40,35 @@ def main() -> None:
         highs  = [float(v) for v in raw["High"].dropna().values]
         lows   = [float(v) for v in raw["Low"].dropna().values]
 
-        filled = check_pending_outcomes(instrument, closes, highs, lows)
-        print(f"\n{instrument}: {filled} outcomes filled")
+        filled = check_pending_outcomes(instrument, closes, highs, lows,
+                                        recent_index=raw.index)
+        print(f"\n{instrument}: {filled} regime outcomes filled")
         print(get_accuracy_report(instrument))
 
-        acc = get_regime_accuracy(instrument=instrument,
-                                  min_samples=MIN_SAMPLES_FOR_REVIEW)
+        # Close the trade-signal feedback loop too (was previously never run —
+        # every signal row stayed outcome_filled=False forever).
+        from trade_outcome_logger import (
+            check_pending_trade_outcomes, get_accuracy_by_regime,
+        )
+        t_filled = check_pending_trade_outcomes(instrument, closes,
+                                                recent_index=raw.index)
+        print(f"{instrument}: {t_filled} trade-signal outcomes filled")
+        _t_acc = get_accuracy_by_regime(instrument=instrument, min_samples=1)
+        for _reg, _d in _t_acc.items():
+            print(f"    {_reg}: {_d['accuracy']:.0%} correct "
+                  f"({_d['n']} graded, avg conviction {_d['avg_conviction']})")
+
+        acc = get_regime_accuracy(instrument=instrument)
         for regime, data in acc.items():
-            if data["needs_review"]:
+            if data["actionable"]:
                 review_needed.append(
                     f"  {instrument} {regime}: {data['accuracy']:.0%} "
-                    f"({data['n']} samples)"
+                    f"({data['n']} samples) — REVISE"
+                )
+            elif data["flagged"]:
+                review_needed.append(
+                    f"  {instrument} {regime}: {data['accuracy']:.0%} "
+                    f"({data['n']} samples) — FLAG"
                 )
 
     if review_needed:

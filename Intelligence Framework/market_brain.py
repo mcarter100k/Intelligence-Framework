@@ -72,15 +72,24 @@ def build_market_report(trade_type: str = "auto", instrument: str = "GBP_AUD") -
         report["overall_bias"]    = "NEUTRAL"
         report["conviction_score"]= 0
         report["signal_summary"]  = []
-        report["decision"]        = {
-            "direction": "NO TRADE", "grade": "C", "risk_pct": 0.0,
-            "conviction": 0, "primary_reason": ses.get("close_reason", "Market closed"),
-        }
+        from official_decision import get_official_decision
+        report["decision"]        = get_official_decision({
+            "filter_allowed": False,
+            "filter_reason":  ses.get("close_reason", "Market closed"),
+        })
+        report["shadow_decision"]  = None
+        report["path_divergence"]  = False
+        report["setup"]            = {"quality": "DO NOT TRADE",
+                                      "primary_state": "MARKET CLOSED",
+                                      "wait_for": "", "event_risk": False}
+        report["primary_state"]    = "MARKET CLOSED"
         return report
 
     report["market_closed"]                = False
-    report["layers"]["currency_strength"]  = get_currency_strength(["GBP", "AUD"])
-    report["layers"]["liquidity"]          = get_liquidity_context()
+    # Instrument-parametric: each signal is computed on the TRADED pair, not a
+    # hardcoded GBP/AUD. instrument.split("_") → ["GBP","JPY"] etc.
+    report["layers"]["currency_strength"]  = get_currency_strength(instrument.split("_"))
+    report["layers"]["liquidity"]          = get_liquidity_context(instrument)
     report["layers"]["rates"]             = get_rate_differential()
     report["layers"]["cot"]               = get_cot_data()
     report["layers"]["regime"]            = get_regime(instrument)
@@ -140,7 +149,7 @@ def build_market_report(trade_type: str = "auto", instrument: str = "GBP_AUD") -
         "daily_summary":      "",
         "error":              _reg_raw.get("error"),
     }
-    report["layers"]["cross_market"]      = get_cross_market()
+    report["layers"]["cross_market"]      = get_cross_market(instrument)
     report["layers"]["news"]              = _build_events_summary()
 
     # ── Degraded-data detection ───────────────────────────────────────────────
@@ -231,16 +240,51 @@ def build_market_report(trade_type: str = "auto", instrument: str = "GBP_AUD") -
     )
     report["layers"]["intraday"] = get_intraday_context()
 
-    report["decision"] = make_decision(report, trade_type=trade_type)
+    from official_decision import get_official_decision as _get_official
+    official = _get_official(report["layers"]["regime"])
+    report["decision"] = official          # the official decision
+
+    try:
+        shadow = make_decision(report, trade_type=trade_type)     # full signal stack
+    except Exception:
+        shadow = None
+    report["shadow_decision"] = shadow     # logged, never traded
+
+    if (shadow is not None and
+            shadow.get("direction") != official["direction"]):
+        report["path_divergence"] = True
+    else:
+        report["path_divergence"] = False
+
+    # ── Setup classification — trader-facing state, quality, triggers ─────────
+    # Build the same setup the display path builds, so every downstream consumer
+    # (notify, briefs) reads a REAL setup instead of a default. Previously this
+    # lived only inside the print functions, so report["setup"]/["primary_state"]
+    # were absent on the production path and any consumer's quality defaulted to
+    # LOW — which pinned the surfaced grade to C on every run.
+    _inv = _build_invalidation(
+        report["layers"]["htf"],
+        report["layers"]["liquidity"],
+        report["overall_bias"],
+    )
+    _setup = _classify_setup(
+        report,
+        report["overall_bias"],
+        report["conviction_score"],
+        _inv,
+    )
+    report["setup"]         = _setup
+    report["primary_state"] = _setup.get("primary_state", _setup.get("setup_type", ""))
 
     # Log signal for outcome tracking — skip NO TRADE (nothing to validate)
     if report["decision"].get("direction") not in ("NO TRADE", ""):
         try:
             from trade_outcome_logger import log_signal as _log_signal
             report["signal_id"] = _log_signal(
-                regime_data   = report["layers"]["regime"],
-                decision_data = report["decision"],
-                instrument    = instrument,
+                regime_data    = report["layers"]["regime"],
+                decision_data  = report["decision"],
+                instrument     = instrument,
+                shadow_decision= report.get("shadow_decision"),
             )
         except Exception:
             pass  # logger failure must never break the report
@@ -650,7 +694,13 @@ def _aggregate_bias(
     )
 
     # Confidence
-    active = [s for s in signals if s["available"] and s["bias"] not in ("NEUTRAL", "UNKNOWN")]
+    # A signal with zero magnitude (e.g. a stale rate signal whose raw_score was
+    # forced to 0) carries a directional label but is NOT a real vote — exclude
+    # it, or it drags agreement down and deflates conviction.
+    active = [s for s in signals
+              if s["available"]
+              and s["bias"] not in ("NEUTRAL", "UNKNOWN")
+              and abs(s.get("raw_score", 0)) > 0]
     if not active:
         confidence = 10
     else:

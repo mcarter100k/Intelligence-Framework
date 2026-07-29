@@ -22,7 +22,16 @@ _OANDA_INSTRUMENTS = {
 }
 
 
-def get_cross_market() -> Dict:
+def get_cross_market(instrument: str = "GBP_AUD") -> Dict:
+    # This model is GBP/AUD-specific: it reads AUD as a commodity currency
+    # (gold / iron-ore proxies) and maps risk-off → AUD-falls → BULLISH GBP/AUD.
+    # That polarity is WRONG for other pairs (e.g. JPY is a safe-haven, so
+    # risk-off strengthens JPY → GBP/JPY falls). Rather than contaminate a
+    # non-AUD decision with GBP/AUD macro reasoning, contribute nothing and say
+    # so. A pair-specific macro model is required before enabling such a pair.
+    if instrument != "GBP_AUD":
+        return _not_modelled(instrument)
+
     if not _oanda_ok():
         return _fallback("OANDA not configured")
 
@@ -118,27 +127,33 @@ def get_cross_market() -> Dict:
 # ── Signal analysers ──────────────────────────────────────────────────────────
 
 def _analyse_dxy(chg: Optional[float]) -> Tuple[str, str]:
+    # Relationship (consistent with the risk-off → BULLISH logic below): a
+    # strong USD hits AUD (commodity/risk) harder than GBP, so AUD/USD falls
+    # MORE than GBP/USD → GBP/AUD (= GBPUSD ÷ AUDUSD) RISES → BULLISH. A weak
+    # USD benefits AUD more → GBP/AUD falls → BEARISH. (The prior version had the
+    # label and its own note contradicting each other.)
     if chg is None:
         return "NEUTRAL", "DXY data unavailable."
     if chg > 0.3:
-        return "BEARISH", (
+        return "BULLISH", (
             f"USD strengthened sharply today (+{chg:.2f}%). "
-            f"A strong dollar typically hits AUD harder than GBP — mild bearish for GBP/AUD."
+            f"A strong dollar hits AUD harder than GBP — AUD weakens more, "
+            f"so GBP/AUD tends higher (bullish)."
         )
     elif chg > 0.1:
-        return "BEARISH", (
+        return "BULLISH", (
             f"USD is modestly stronger (+{chg:.2f}%). "
-            f"Slight headwind for GBP/AUD — AUD tends to weaken more than GBP vs USD."
+            f"Slight tailwind for GBP/AUD — AUD tends to weaken more than GBP vs USD."
         )
     elif chg < -0.3:
-        return "BULLISH", (
+        return "BEARISH", (
             f"USD weakened sharply today ({chg:.2f}%). "
-            f"Dollar weakness benefits AUD more — mildly bearish for GBP/AUD."
+            f"Dollar weakness benefits AUD more — GBP/AUD tends lower (bearish)."
         )
     elif chg < -0.1:
-        return "NEUTRAL", (
+        return "BEARISH", (
             f"USD is modestly weaker ({chg:.2f}%). "
-            f"Slight tailwind for commodity currencies — minimal GBP/AUD impact."
+            f"Slight headwind for GBP/AUD — commodity currencies firm up."
         )
     else:
         return "NEUTRAL", (
@@ -169,24 +184,16 @@ def _analyse_gold(chg: Optional[float]) -> Tuple[str, str]:
 
 
 def _analyse_bhp(chg: Optional[float]) -> Tuple[str, str]:
-    if chg is None:
-        return "NEUTRAL", "BHP/iron ore proxy data unavailable."
-    if chg > 1.0:
-        return "BEARISH", (
-            f"AUD/iron ore proxy up {chg:.2f}% today. "
-            f"Strong commodity demand supports AUD — bearish for GBP/AUD."
-        )
-    elif chg > 0.3:
-        return "BEARISH", f"Commodity proxy up {chg:.2f}% — mild AUD tailwind. Slight bearish for GBP/AUD."
-    elif chg < -1.0:
-        return "BULLISH", (
-            f"AUD/commodity proxy down {chg:.2f}% today. "
-            f"Weak commodity demand weighs on AUD — bullish for GBP/AUD."
-        )
-    elif chg < -0.3:
-        return "BULLISH", f"Commodity proxy down {chg:.2f}% — mild AUD headwind. Slight bullish for GBP/AUD."
-    else:
-        return "NEUTRAL", f"Commodity proxy roughly flat ({chg:+.2f}%). No meaningful AUD pressure."
+    # NOTE: there is no independent commodity/iron-ore feed here — the "BHP
+    # proxy" was just AUD/USD reused, which double-counts AUD strength that is
+    # already captured by currency_strength and the GBP/USD÷AUD/USD leg
+    # decomposition. Reporting a bias from it triple-counts the same AUD move,
+    # so this signal contributes NEUTRAL until a real commodity feed exists.
+    return "NEUTRAL", (
+        "No independent commodity feed available — AUD strength is already "
+        "captured by currency strength and leg decomposition, so no separate "
+        "commodity bias is added (avoids double-counting AUD)."
+    )
 
 
 def _analyse_risk(
@@ -430,6 +437,19 @@ def _leg_decomposition(gbpusd_chg: Optional[float], audusd_chg: Optional[float])
         "gbpusd_change": round(gbpusd_chg, 3),
         "audusd_change": round(audusd_chg, 3),
     }
+
+
+def _not_modelled(instrument: str) -> Dict:
+    """Honest neutral result for pairs this GBP/AUD-specific model doesn't cover.
+    Not an error — intentionally contributes no bias (error=None, NEUTRAL)."""
+    pair = instrument.replace("_", "/")
+    note = (f"Cross-market model is GBP/AUD-specific (commodity / AUD drivers); "
+            f"not applied to {pair}. No cross-market bias contributed.")
+    d = _fallback(note)
+    d["error"]        = None      # intentional — not a failure
+    d["overall_bias"] = "NEUTRAL"
+    d["not_modelled"] = True
+    return d
 
 
 def _fallback(reason: str) -> Dict:

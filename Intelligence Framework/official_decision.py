@@ -1,0 +1,154 @@
+"""
+official_decision.py
+────────────────────
+The single official decision path for the framework.
+
+Derives direction, conviction, and grade deterministically from
+regime + filter output. No unvalidated signal weights.
+
+Every component of this decision is traceable to a validated
+source: regime classification (P1), structure (P2), ATR state (P3),
+resolution table (P6), no-trade filter (P8).
+
+The legacy signal-stack scorer (decision_engine.make_decision)
+runs in SHADOW MODE — logged for comparison, never traded.
+"""
+
+from typing import Dict
+
+# Range trading: only the outer `_RANGE_EDGE` fraction of the range is tradeable
+# (0.25 = fade in the bottom/top 25%). Mid-range has no edge.
+_RANGE_EDGE = 0.25
+
+
+def get_official_decision(regime: Dict) -> Dict:
+    """
+    The single official decision. Input: full get_regime() dict.
+    Output dict:
+      direction   : "LONG" | "SHORT" | "NO TRADE"
+      conviction  : 0-100
+      grade       : "A+" | "A" | "B+" | "B" | "C"
+      size_mult   : float (from filter)
+      reason      : str
+      source      : "official_filter_path"
+    """
+    allowed    = regime.get("filter_allowed", False)
+    exec_mode  = regime.get("filter_mode",
+                 regime.get("execution_mode", "STAND_DOWN"))
+    size_mult  = float(regime.get("filter_size_mult", 0.0) or 0.0)
+    confidence = regime.get("confidence", "NONE")
+    d1         = regime.get("regime_d1", "UNKNOWN")
+    structure  = regime.get("structure", "TRANSITIONAL")
+    override   = regime.get("override_fired", False)
+
+    if not allowed:
+        return {
+            "direction": "NO TRADE", "conviction": 0, "grade": "C",
+            "size_mult": 0.0,
+            "reason": regime.get("filter_reason", "Filter stand-down"),
+            "source": "official_filter_path",
+        }
+
+    from no_trade_filter import _derive_direction
+
+    if exec_mode == "COUNTER_TREND_OVERRIDE":
+        # Override: D1 is VOLATILE, direction comes from H4
+        h4 = regime.get("regime_h4", "UNKNOWN")
+        if h4 == "TRENDING_UP":
+            direction = "LONG"
+        elif h4 == "TRENDING_DOWN":
+            direction = "SHORT"
+        else:
+            direction = "NONE"
+    else:
+        direction = _derive_direction(d1, exec_mode)
+
+    # Range / fade-from-edges: a RANGING regime (FADE_EXTREMES) issues no trend
+    # direction, so derive one from position in the range. Only the OUTER edges
+    # are tradeable — mid-range has no edge. Never fade directly against a
+    # strongly established weekly trend (support/resistance is likely to break).
+    range_trade = False
+    if direction == "NONE" and exec_mode == "FADE_EXTREMES":
+        rng_pos  = regime.get("range_position")
+        lt_trend = regime.get("lt_trend", "RANGING")
+        if rng_pos is not None:
+            if rng_pos <= _RANGE_EDGE and lt_trend != "DOWNTREND":
+                direction, range_trade = "LONG", True      # fade at support
+            elif rng_pos >= (1.0 - _RANGE_EDGE) and lt_trend != "UPTREND":
+                direction, range_trade = "SHORT", True     # fade at resistance
+
+    if direction == "NONE":
+        return {
+            "direction": "NO TRADE", "conviction": 0, "grade": "C",
+            "size_mult": 0.0,
+            "reason": ("Range mid-zone or edge blocked by the dominant weekly "
+                       "trend — wait for price to reach a tradeable range "
+                       "extreme before fading."),
+            "source": "official_filter_path",
+        }
+
+    # Conviction: deterministic from validated components
+    # Base by confidence tier (from resolution table, P6)
+    base     = {"HIGH": 70, "MEDIUM": 55, "LOW": 40}.get(confidence, 30)
+    jpy_note = ""
+
+    if range_trade:
+        # Mean-reversion fade at a range edge — a valid setup but lower grade
+        # than a trend continuation. No trend-structure bonus; a fade penalty;
+        # capped below the momentum tiers. Needs rejection confirmation at the
+        # level (entry_confirmation) before entry.
+        base = min(base, 55) - 10
+        range_note = (" | Range fade at support/resistance — reduced size, "
+                      "needs a rejection candle at the level before entry.")
+    else:
+        range_note = ""
+
+        # Structure agreement bonus (P2)
+        struct_aligned = (
+            (direction == "LONG" and structure == "UPTREND") or
+            (direction == "SHORT" and structure == "DOWNTREND")
+        )
+        if struct_aligned:
+            base += 10
+
+        # H4 momentum bonus: adx_h4 >= 25 (conservative +5)
+        if float(regime.get("adx_h4", 0) or 0) >= 25:
+            base += 5
+
+        # Exhaustion penalty
+        if regime.get("adx_exhaustion", False):
+            base -= 15
+
+        # v2 empirical finding (2026-06-29): GBP/JPY at ATR ratio 1.0-1.2x shows
+        # 75% mean reversion — penalize trend conviction in that zone.
+        instrument = regime.get("instrument", "")
+        atr_ratio  = float(regime.get("atr_vs_avg", 1.0) or 1.0)
+        if ("JPY" in instrument
+                and direction in ("LONG", "SHORT")
+                and exec_mode in ("CONTINUATION", "PULLBACK_ENTRY",
+                                  "REDUCED_MOMENTUM")
+                and 1.0 <= atr_ratio < 1.2):
+            base -= 20
+            jpy_note = (" | GBP/JPY caution: at this volatility level this pair "
+                        "historically snaps back rather than follows through "
+                        "(75% mean reversion, N=16)")
+
+        # Override caps conviction (P8 — unvalidated condition)
+        if override:
+            base = min(base, 45)
+
+    conviction = max(0, min(100, base))
+
+    # Grade from conviction
+    if conviction >= 80:   grade = "A+"
+    elif conviction >= 70: grade = "A"
+    elif conviction >= 60: grade = "B+"
+    elif conviction >= 45: grade = "B"
+    else:                  grade = "C"
+
+    return {
+        "direction": direction, "conviction": conviction,
+        "grade": grade, "size_mult": size_mult,
+        "reason": regime.get("resolution_note", exec_mode) + jpy_note + range_note,
+        "source": "official_filter_path",
+    }

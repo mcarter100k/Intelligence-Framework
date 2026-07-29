@@ -96,14 +96,22 @@ _DOW_CONTEXT = {
 def _market_status(now_utc: datetime) -> Tuple[bool, str, str]:
     """
     Returns (is_closed, reason, next_open_in_local_time).
-    Forex market closes Friday 21:00 UTC, reopens Sunday 21:00 UTC.
+
+    The forex week boundary is 5pm New York — close Friday, reopen Sunday. In
+    UTC that is 21:00 during US daylight time (EDT) and 22:00 during US standard
+    time (EST). It is NOT a fixed 21:00 year-round: hardcoding 21:00 made every
+    winter Sunday 21:00–22:00 UTC read as "open" an hour before real liquidity.
     All display times are shown in Pacific (PDT/PST).
     """
     from utils import pacific_offset
     weekday = now_utc.weekday()   # 0=Mon … 6=Sun
     hour    = now_utc.hour
 
-    offset, tz_label = pacific_offset()
+    offset, tz_label = pacific_offset()   # -7 PDT (summer) / -8 PST (winter)
+
+    # New York is 3h ahead of Los Angeles, so eastern_offset = offset + 3, and
+    # 5pm NY in UTC = 17 - eastern_offset → 21 (EDT) or 22 (EST).
+    boundary_utc = 17 - (offset + 3)
 
     def _utc_to_pt_str(utc_h: int) -> str:
         """Convert an integer UTC hour to a Pacific 12-hour display string."""
@@ -112,14 +120,14 @@ def _market_status(now_utc: datetime) -> Tuple[bool, str, str]:
         display = pt % 12 or 12
         return f"{display}{suffix} {tz_label}"
 
-    open_pt = _utc_to_pt_str(21)   # 21:00 UTC is always the reopen time
+    open_pt = _utc_to_pt_str(boundary_utc)
 
-    if weekday == 5:                         # Saturday — always closed
+    if weekday == 5:                              # Saturday — always closed
         return True, "Weekend — market closed (Saturday)", f"Sunday {open_pt}"
-    if weekday == 6 and hour < 21:           # Sunday before reopen
-        opens_in = 21 - hour
+    if weekday == 6 and hour < boundary_utc:      # Sunday before reopen
+        opens_in = boundary_utc - hour
         return True, "Weekend — market closed (Sunday)", f"Today at {open_pt} ({opens_in}h from now)"
-    if weekday == 4 and hour >= 21:          # Friday after close
+    if weekday == 4 and hour >= boundary_utc:     # Friday after close
         return True, "Weekend — market closed (Friday close)", f"Sunday {open_pt}"
 
     return False, "", ""

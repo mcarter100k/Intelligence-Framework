@@ -55,6 +55,11 @@ def get_currency_strength(currencies: List[str] = None) -> Dict:
     """
     if currencies is None:
         currencies = ["GBP", "AUD"]
+    # The differential is computed for the ACTUAL pair's two currencies — the
+    # base (first) and quote (second). Previously this was hardcoded GBP−AUD,
+    # so a GBP/JPY report measured AUD strength instead of JPY.
+    base_ccy  = currencies[0] if len(currencies) >= 1 else "GBP"
+    quote_ccy = currencies[1] if len(currencies) >= 2 else "AUD"
 
     from oanda_feed import get_daily_bars, is_configured
     if not is_configured():
@@ -92,16 +97,23 @@ def get_currency_strength(currencies: List[str] = None) -> Dict:
         raw_scores[base].append(ret)       # base gained ret%
         raw_scores[quote].append(-ret)     # quote lost ret% (inverse)
 
-    # Average across all legs for each currency
-    avg_scores: Dict[str, float] = {}
-    for ccy, scores in raw_scores.items():
-        if scores:
-            avg_scores[ccy] = sum(scores) / len(scores)
-        else:
-            avg_scores[ccy] = 0.0
+    # Average across all legs for each currency. A currency whose pairs did NOT
+    # fetch has no legs — exclude it entirely. Previously it was set to 0.0 and
+    # fed into the mean/std as if it were "exactly average", which compressed the
+    # distribution and distorted every other currency's z-score.
+    avg_scores: Dict[str, float] = {
+        ccy: sum(scores) / len(scores)
+        for ccy, scores in raw_scores.items() if scores
+    }
 
     if not avg_scores:
         return _fallback(currencies, "Could not compute any currency scores")
+
+    # If either currency of the requested pair has no data, the differential is
+    # not computable — fail honestly rather than report a fabricated 0.0 leg.
+    if base_ccy not in avg_scores or quote_ccy not in avg_scores:
+        missing = [c for c in (base_ccy, quote_ccy) if c not in avg_scores]
+        return _fallback(currencies, f"No data for {', '.join(missing)} — cannot score pair")
 
     # Normalise: rank within the 8 currencies, scale to -100 to +100
     # Method: z-score style — subtract mean, divide by std, scale
@@ -121,10 +133,10 @@ def get_currency_strength(currencies: List[str] = None) -> Dict:
         # All currencies moved identically — flat market
         normalised = {ccy: 0.0 for ccy in avg_scores}
 
-    # Build result
-    gbp_score = normalised.get("GBP", 0.0)
-    aud_score = normalised.get("AUD", 0.0)
-    diff      = round(gbp_score - aud_score, 1)
+    # Build result — differential is base − quote for the requested pair.
+    base_score  = normalised.get(base_ccy,  0.0)
+    quote_score = normalised.get(quote_ccy, 0.0)
+    diff        = round(base_score - quote_score, 1)
 
     if diff > 10:
         bias = "BULLISH"
@@ -139,15 +151,22 @@ def get_currency_strength(currencies: List[str] = None) -> Dict:
     ranked = sorted(normalised.items(), key=lambda x: x[1], reverse=True)
 
     result = {
-        "GBP":          gbp_score,
-        "AUD":          aud_score,
+        base_ccy:       base_score,
+        quote_ccy:      quote_score,
+        "base":         base_ccy,
+        "quote":        quote_ccy,
+        "base_score":   base_score,
+        "quote_score":  quote_score,
+        # Legacy keys retained for GBP/AUD display consumers:
+        "GBP":          normalised.get("GBP", 0.0),
+        "AUD":          normalised.get("AUD", 0.0),
         "all_scores":   dict(ranked),
         "ranking":      [c for c, _ in ranked],
         "differential": diff,
         "bias":         bias,
         "confidence":   confidence,
         "timestamp":    datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "source":       "OANDA (1-day vs USD basket, 7 majors)",
+        "source":       f"OANDA (1-day vs USD basket, 7 majors) — {base_ccy}/{quote_ccy}",
         "error":        None,
     }
 

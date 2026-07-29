@@ -45,7 +45,8 @@ class PairConfig:
     def from_pips(self, pips: float) -> float:
         return pips * self.pip_size
 
-# VALIDATED 2025-06-25 via validate_atr_threshold.py — 5yr D1 backtest
+# INFORMED PRIOR — v1 validation invalidated by serial correlation (see validation_log 2026-06-29).
+# Direction supported by v2; N insufficient for VALIDATED status.
 # GBP/AUD: signal degrades at 1.2x (was 1.5x, delta=-0.30)
 # GBP/JPY: compression stand-down at <0.8x, spike filter at 1.5x
 PAIRS: Dict[str, PairConfig] = {
@@ -54,7 +55,7 @@ PAIRS: Dict[str, PairConfig] = {
         ticker="GBPAUD=X",
         pip_size=0.0001,
         display_name="GBP/AUD",
-        atr_spike_multiplier=1.2,   # validated: signal gone at 1.2x
+        atr_spike_multiplier=1.2,   # informed prior — v1 N insufficient (see validation_log 2026-06-29)
         atr_compression_min=0.0,    # no compression filter for GBP/AUD
     ),
     "GBP_JPY": PairConfig(
@@ -72,7 +73,8 @@ _DEFAULT_PAIR = "GBP_AUD"
 _ATR_PERIOD  = 14
 _ADX_PERIOD  = 14
 
-# VALIDATED 2025-06-25 via validate_adx_threshold.py — 5yr D1 backtest, 1295 bars each
+# INFORMED PRIOR — v1 validation invalidated by serial correlation (see validation_log 2026-06-29).
+# Direction supported by v2; N insufficient for VALIDATED status.
 # ADX is a regime STATE indicator, not a trend ENTRY signal.
 # Momentum win rates collapse above 25-28 on both pairs.
 # GBP/JPY ADX 40+ = 82.7% mean reversion — exhaustion, not trend.
@@ -88,15 +90,16 @@ _WEEKLY_ST_LOOKBACK = 4   # 4W short-term trend lookback (~1 month)
 _MA_SHORT_PERIOD    = 50  # 50-day moving average — medium-term structural bias
 _MA_LONG_PERIOD     = 200 # 200-day moving average — long-term structural bias
 
-# Stand-down threshold — ATR ratio above this signals chaotic expansion, hard gate
-_ATR_STANDDOWN_THRESHOLD = 2.0
-
 # ── Composite regime resolution table ─────────────────────────────────────────
 # Maps every (D1_regime, H4_regime) pair to a deterministic trading instruction.
 # All 16 combinations are explicitly defined — no implicit fallbacks inside the
 # table itself. Unknown combinations handled by get_composite_regime() default.
-# VALIDATED: Table design locked 2025-06-28 based on Problems 1-5 findings.
-# Re-evaluate individual cells after 60+ logged outcomes per combination.
+# INFORMED PRIOR: Table design locked 2025-06-28 based on Problems 1-5. NOTE:
+# the P1/P3 ADX/ATR threshold findings it rests on were later DEMOTED from
+# VALIDATED to INFORMED PRIOR (serial correlation from overlapping windows
+# inflated N — see validation_log 2026-06-29). Treat cell assignments as
+# informed priors, not validated results. Re-evaluate after 60+ logged
+# outcomes per combination (the outcome loop now runs via run_outcome_check.py).
 RESOLUTION_TABLE: Dict[Tuple[str, str], Dict] = {
 
     # ── Both timeframes agree — clean alignment ───────────────────────────────
@@ -253,8 +256,10 @@ def get_composite_regime(d1_regime: str, h4_regime: str) -> Dict:
     All 16 possible combinations are explicitly handled.
     Unknown combinations default to VOLATILE/STAND_DOWN.
 
-    VALIDATED: Table design locked 2025-06-28 based on Problems 1-5
-    findings. Re-evaluate cells after 60+ outcomes per combination.
+    INFORMED PRIOR: Table design locked 2025-06-28 based on Problems 1-5,
+    whose P1/P3 threshold findings were later demoted VALIDATED → INFORMED
+    PRIOR (validation_log 2026-06-29). Re-evaluate cells after 60+ outcomes
+    per combination.
     """
     key = (d1_regime, h4_regime)
     return RESOLUTION_TABLE.get(key, {
@@ -541,57 +546,6 @@ def _detect_conflict(d1_regime: str, h4_regime: str) -> Tuple[bool, str]:
     return False, ""
 
 
-_OPPOSITE_CONFLICT_TYPES = {"D1_BULLISH_H4_BEARISH", "D1_BEARISH_H4_BULLISH"}
-
-
-def _stand_down_check(
-    d1_regime:    str,
-    atr_ratio:    float,
-    conflict:     bool,
-    conflict_type: str,
-) -> Tuple[bool, str]:
-    """
-    Determine if market conditions warrant a full regime stand-down.
-
-    Stand-down is a hard gate — decision_engine returns NO TRADE immediately.
-    Three triggers (empirically validated):
-      1. D1 regime is VOLATILE — both momentum and mean-rev fail simultaneously.
-      2. Opposite-trend timeframe conflict — D1 and H4 point in opposite directions.
-         Fires on conflict_type in {"D1_BULLISH_H4_BEARISH","D1_BEARISH_H4_BULLISH"}
-         or when the opposing regime string appears in conflict_type (test format).
-      3. Extreme ATR spike >= _ATR_STANDDOWN_THRESHOLD (2.0x) — chaotic expansion.
-
-    Conflict alone (single-timeframe noise) is NOT a stand-down; it is a
-    conviction degrader in decision_engine (-20 pts). Stand-down fires only
-    on the three conditions above.
-
-    Returns (stand_down: bool, stand_down_reason: str).
-    """
-    # 1. D1 VOLATILE — no statistical edge on either momentum or mean-reversion
-    if d1_regime == "VOLATILE":
-        return True, "D1 regime VOLATILE — no statistical edge, stand down"
-
-    # 2. Extreme ATR spike — market in chaotic expansion
-    if atr_ratio >= _ATR_STANDDOWN_THRESHOLD:
-        return True, (
-            f"Extreme ATR spike ({atr_ratio:.1f}x >= {_ATR_STANDDOWN_THRESHOLD}x) "
-            "— market in chaotic expansion, stand down"
-        )
-
-    # 3. Opposite-trend conflict — D1 and H4 point in genuinely opposite directions
-    if conflict and d1_regime in ("TRENDING_UP", "TRENDING_DOWN"):
-        opposite = "TRENDING_DOWN" if d1_regime == "TRENDING_UP" else "TRENDING_UP"
-        is_opposite = (
-            conflict_type in _OPPOSITE_CONFLICT_TYPES or
-            opposite in conflict_type
-        )
-        if is_opposite:
-            return True, (
-                f"Opposite trend conflict ({conflict_type}) — "
-                "D1 and H4 trend in opposite directions, stand down"
-            )
-
-    return False, ""
 
 
 def _compute_weekly_context(
@@ -697,11 +651,12 @@ def _compute_ma_context(
 
 def _classify(adx: float, atr_ratio: float, slope: float,
               instrument: str = "GBP_AUD",
-              pair: "PairConfig" = None) -> str:
+              pair: "PairConfig" = None,
+              structure: str = "TRANSITIONAL") -> str:
     """
-    Regime classification using empirically validated ADX zones.
+    Regime classification using ADX zones (informed priors).
 
-    VALIDATED FINDING (2025-06-25, 5yr D1 backtest):
+    INFORMED PRIOR (v1 invalidated by serial correlation, see validation_log 2026-06-29):
     - ADX < 18: mean reversion dominant on both pairs — RANGING
     - ADX 18-25: no consistent edge — TRANSITION (size down, require structure)
     - ADX 25-32: narrow momentum window, degrades fast — TRENDING (cautious)
@@ -739,8 +694,68 @@ def _classify(adx: float, atr_ratio: float, slope: float,
     if adx < _ADX_RANGING_THRESHOLD:
         return "RANGING"
 
-    # ADX 25-32: narrow momentum window — require HTF structure (Problem 2)
-    return "TRENDING_UP" if slope > 0 else "TRENDING_DOWN"
+    # ADX 25-32: narrow momentum window — require HTF structure confirmation
+    # (Problem 2). Slope alone is NOT a confirmed trend: the structure must
+    # agree with the slope direction. Transitional or conflicting structure →
+    # no confirmed edge → VOLATILE (stand aside), never a slope-only momentum
+    # entry. This closes the grade-A wrong-way trade the slope-only path allowed.
+    if structure == "UPTREND" and slope > 0:
+        return "TRENDING_UP"
+    if structure == "DOWNTREND" and slope < 0:
+        return "TRENDING_DOWN"
+    return "VOLATILE"
+
+
+def _market_status(*, _now=None) -> dict:
+    """
+    FX market: opens Sunday 21:00 UTC, closes Friday 21:00 UTC.
+    Returns {"open": bool, "next_open_utc": iso str or "",
+             "note": plain-English str}
+    _now: optional datetime for testing; defaults to datetime.now(UTC).
+    """
+    from datetime import datetime, timezone, timedelta
+    now = _now if _now is not None else datetime.now(timezone.utc)
+    wd, hr = now.weekday(), now.hour  # Mon=0..Sun=6
+    is_open = True
+    if wd == 5: is_open = False                      # Saturday
+    elif wd == 6 and hr < 21: is_open = False        # Sun pre-open
+    elif wd == 4 and hr >= 21: is_open = False       # Fri post-close
+    if is_open:
+        return {"open": True, "next_open_utc": "", "note": ""}
+    days_ahead = (6 - wd) % 7
+    next_open = (now + timedelta(days=days_ahead)).replace(
+        hour=21, minute=0, second=0, microsecond=0)
+    if wd == 6 and hr >= 21:  # shouldn't reach, safety
+        next_open += timedelta(days=7)
+    return {"open": False,
+            "next_open_utc": next_open.strftime("%a %d %b %H:%M UTC"),
+            "note": ("Market closed — analysis based on last "
+                     "close. Next open " +
+                     next_open.strftime("%a %H:%M UTC") + ".")}
+
+
+def _split_live_bar(df, threshold_hours: float = 24.0) -> tuple:
+    """
+    Split an OANDA dataframe into (closed_df, live_bar_row,
+    live_bar_age_hours).
+    OANDA returns the forming bar as the last row. A daily bar is
+    complete when its timestamp date is before today (UTC) —
+    OANDA D bars are stamped at bar OPEN.
+    Returns (df_without_live_bar, last_row_or_None, age_hours).
+    If the last bar is already complete (e.g. weekend — market
+    closed, last bar is Friday's close), returns (df, None, age).
+    """
+    from datetime import datetime, timezone
+    if df is None or df.empty:
+        return df, None, 0.0
+    last_ts = df.index[-1]
+    if last_ts.tzinfo is None:
+        last_ts = last_ts.tz_localize("UTC")
+    now = datetime.now(timezone.utc)
+    age_hours = (now - last_ts).total_seconds() / 3600.0
+    if age_hours < threshold_hours:
+        return df.iloc[:-1].copy(), df.iloc[-1], age_hours
+    return df, None, age_hours
 
 
 def get_regime(ticker: str = "GBP_AUD") -> Dict:
@@ -754,6 +769,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if not _oanda_ok():
         return _error_result("OANDA not configured — set OANDA_API_KEY and OANDA_ACCOUNT_ID")
 
+    _ms = _market_status()
     oanda_pair = pair.instrument.replace("_", "")
     try:
         raw = _oanda_daily_bars(pair=oanda_pair, count=220)
@@ -772,9 +788,12 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if hasattr(raw.columns, "levels"):
         raw.columns = raw.columns.get_level_values(0)
 
-    highs  = [float(v) for v in raw["High"].dropna().values]
-    lows   = [float(v) for v in raw["Low"].dropna().values]
-    closes = [float(v) for v in raw["Close"].dropna().values]
+    # Split forming bar — ADX/ATR/structure/MA calcs use closed bars only.
+    raw_closed, live_bar_d1, live_bar_age_d1 = _split_live_bar(raw)
+
+    highs  = [float(v) for v in raw_closed["High"].dropna().values]
+    lows   = [float(v) for v in raw_closed["Low"].dropna().values]
+    closes = [float(v) for v in raw_closed["Close"].dropna().values]
 
     n = min(len(highs), len(lows), len(closes))
     highs, lows, closes = highs[:n], lows[:n], closes[:n]
@@ -782,7 +801,8 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if n < _ADX_PERIOD * 3:
         return _error_result(f"Only {n} data points — need at least {_ADX_PERIOD * 3}")
 
-    current_price = closes[-1]
+    # Live bar close is the current market price; closed bar close on weekends.
+    current_price = float(live_bar_d1["Close"]) if live_bar_d1 is not None else closes[-1]
 
     # ── ATR ───────────────────────────────────────────────────────────────────
     atr_series  = compute_atr_series(highs, lows, closes)
@@ -826,12 +846,18 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
 
     # ── D1 regime classification ──────────────────────────────────────────────
     d1_regime = _classify(current_adx, atr_ratio, slope, pair=pair,
-                          instrument=pair.instrument)
+                          instrument=pair.instrument, structure=structure)
     regime = d1_regime  # backward compat alias
 
     # ── H4 multi-timeframe classification ─────────────────────────────────────
-    h4_regime = d1_regime   # safe fallback: inherit D1 when H4 unavailable
-    adx_h4    = 0.0
+    # If H4 data is unavailable we must NOT inherit D1 — that would fabricate
+    # full-size multi-timeframe confirmation out of a data outage (a blackout
+    # would otherwise yield CONTINUATION / HIGH / full size). Use an explicit
+    # sentinel so the composite resolves to STAND_DOWN, and surface an
+    # h4_available flag so the degradation is visible, never silent.
+    h4_regime    = "UNAVAILABLE"
+    h4_available = False
+    adx_h4       = 0.0
 
     try:
         raw_h4 = _oanda_h4_bars(pair=oanda_pair, count=120)
@@ -841,9 +867,10 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if raw_h4 is not None and not raw_h4.empty:
         if hasattr(raw_h4.columns, "levels"):
             raw_h4.columns = raw_h4.columns.get_level_values(0)
-        h4h = [float(v) for v in raw_h4["High"].dropna().values]
-        h4l = [float(v) for v in raw_h4["Low"].dropna().values]
-        h4c = [float(v) for v in raw_h4["Close"].dropna().values]
+        raw_h4_closed, _, _ = _split_live_bar(raw_h4, threshold_hours=4.0)
+        h4h = [float(v) for v in raw_h4_closed["High"].dropna().values]
+        h4l = [float(v) for v in raw_h4_closed["Low"].dropna().values]
+        h4c = [float(v) for v in raw_h4_closed["Close"].dropna().values]
         nh4 = min(len(h4h), len(h4l), len(h4c))
         h4h, h4l, h4c = h4h[:nh4], h4l[:nh4], h4c[:nh4]
 
@@ -860,13 +887,11 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
             else:
                 h4_slope = h4c[-1] - h4c[-10] if len(h4c) >= 10 else 0
             h4_regime = _classify(adx_h4, h4_atr_ratio, h4_slope,
-                                  instrument=pair.instrument, pair=pair)
+                                  instrument=pair.instrument, pair=pair,
+                                  structure=h4_struct["structure"])
+            h4_available = True
 
     conflict, conflict_type = _detect_conflict(d1_regime, h4_regime)
-    stand_down, stand_down_reason = _stand_down_check(
-        d1_regime, atr_ratio, conflict, conflict_type
-    )
-
     # ── Composite regime resolution ───────────────────────────────────────────
     resolution      = get_composite_regime(d1_regime, h4_regime)
     execution_mode  = resolution["execution_mode"]
@@ -874,12 +899,16 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     size_mult       = resolution["size_mult"]
     signal_bias     = resolution["signal_bias"]
     resolution_note = resolution["note"]
-    # Resolution table is authoritative on stand_down — if it says STAND_DOWN,
-    # enforce it even if _stand_down_check() didn't fire independently.
-    if execution_mode == "STAND_DOWN":
-        stand_down = True
-        if not stand_down_reason:
-            stand_down_reason = resolution_note
+
+    # H4 outage → stand down. Never trade on a single timeframe while pretending
+    # multi-TF confirmation exists.
+    if not h4_available:
+        execution_mode  = "STAND_DOWN"
+        confidence      = "NONE"
+        size_mult       = 0.0
+        signal_bias     = "NONE"
+        resolution_note = ("H4 data unavailable — standing down; multi-timeframe "
+                           "alignment cannot be confirmed.")
 
     # ── Weekly context + MA (absorbs htf_structure weekly/MA logic) ────────────
     lt_trend = st_trend = weekly_context = "RANGING"
@@ -893,9 +922,11 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if raw_w is not None and not raw_w.empty and len(raw_w) >= _WEEKLY_LT_LOOKBACK:
         if hasattr(raw_w.columns, "levels"):
             raw_w.columns = raw_w.columns.get_level_values(0)
-        wh = [float(v) for v in raw_w["High"].dropna().values]
-        wl = [float(v) for v in raw_w["Low"].dropna().values]
-        wc = [float(v) for v in raw_w["Close"].dropna().values]
+        raw_w_closed, _, _ = _split_live_bar(raw_w, threshold_hours=168.0)
+        raw_w_work = raw_w_closed if len(raw_w_closed) >= _WEEKLY_LT_LOOKBACK else raw_w
+        wh = [float(v) for v in raw_w_work["High"].dropna().values]
+        wl = [float(v) for v in raw_w_work["Low"].dropna().values]
+        wc = [float(v) for v in raw_w_work["Close"].dropna().values]
         _wctx        = _compute_weekly_context(wh, wl, wc)
         lt_trend     = _wctx["lt_trend"]
         st_trend     = _wctx["st_trend"]
@@ -983,9 +1014,13 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
             )
 
     # ── Daily fuel calculation ────────────────────────────────────────────────
-    # Today's intraday range vs ATR capacity
-    today_high   = highs[-1]
-    today_low    = lows[-1]
+    # Use live bar's H/L for fuel; fall back to last closed bar on weekends.
+    if live_bar_d1 is not None:
+        today_high = float(live_bar_d1["High"])
+        today_low  = float(live_bar_d1["Low"])
+    else:
+        today_high = highs[-1]
+        today_low  = lows[-1]
     range_used   = round((today_high - today_low) / pair.pip_size)
     range_remain = round(max(0, atr_pips - range_used))
     fuel_pct     = min(100, round(range_used / atr_pips * 100)) if atr_pips > 0 else 0
@@ -1030,10 +1065,27 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "size_mult":            size_mult,
         "resolution_note":      resolution_note,
     })
-    _fr_summary = _get_filter_summary(_fr)
+    _fr_summary       = _get_filter_summary(_fr)
+    stand_down        = not _fr.allowed
+    stand_down_reason = _fr.reason if not _fr.allowed else ""
+
+    # ── Range bounds (for range / fade-from-edge trading) ─────────────────────
+    # In a RANGING regime the decision layer needs the consolidation bounds to
+    # know whether price sits at an edge (tradeable) or mid-range (no edge).
+    # Defined over the last ~20 completed D1 bars. range_position: 0.0 = at the
+    # low (support), 1.0 = at the high (resistance).
+    _rng_n    = min(20, len(highs))
+    _rng_hi   = max(highs[-_rng_n:]) if _rng_n else current_price
+    _rng_lo   = min(lows[-_rng_n:])  if _rng_n else current_price
+    _rng_span = _rng_hi - _rng_lo
+    _rng_pos  = (current_price - _rng_lo) / _rng_span if _rng_span > 0 else 0.5
+    _rng_pos  = max(0.0, min(1.0, _rng_pos))
 
     return {
         "regime":          regime,
+        "range_high":      round(_rng_hi, 4),
+        "range_low":       round(_rng_lo, 4),
+        "range_position":  round(_rng_pos, 3),
         "regime_label":    regime_label,
         "adx":             current_adx,
         "atr":             round(current_atr, 5),
@@ -1056,6 +1108,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "regime_d1":          d1_regime,
         "regime_h4":          h4_regime,
         "adx_h4":             adx_h4,
+        "h4_available":       h4_available,
         "timeframe_conflict": conflict,
         "conflict_type":      conflict_type,
         "stand_down":         stand_down,
@@ -1111,6 +1164,12 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "override_fired":      _fr.override_fired,
         "override_conditions": _fr.override_conditions,
         "filter_summary":      _fr_summary,
+        # ── Bar freshness (audit item 4) ──────────────────────────────────────
+        "last_closed_bar_age_hours": round(live_bar_age_d1, 1),
+        "live_bar_in_progress":      live_bar_d1 is not None,
+        # ── Market hours (audit item 5) ───────────────────────────────────────
+        "market_open":   _ms["open"],
+        "market_note":   _ms["note"],
         "error":           None,
     }
 
@@ -1182,6 +1241,10 @@ def _error_result(msg: str) -> Dict:
         "ma200":               None,
         "price_vs_ma50":       "unknown",
         "price_vs_ma200":      "unknown",
+        "last_closed_bar_age_hours": None,
+        "live_bar_in_progress":      False,
+        "market_open":               True,
+        "market_note":               "",
     }
 
 

@@ -27,9 +27,9 @@ DESIGN RULES:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Dict
 
 from regime_detection import get_regime, PAIRS
 from regime_classifier_logger import get_regime_accuracy
@@ -60,7 +60,12 @@ class DecisionBrief:
     adx_d1:           float
     adx_h4:           float
     weekly_context:   str
-    error:            Optional[str]
+    error:                Optional[str]
+    session_delta:        Optional[Dict]  = None
+    live_bar_age:         Optional[float] = None
+    live_bar_in_progress: Optional[bool]  = None
+    market_open:          bool            = True
+    market_note:          str             = ""
 
     def format(self) -> str:
         """Render the brief as a formatted string."""
@@ -102,6 +107,31 @@ class DecisionBrief:
             f"",
             f"  MARKET STATE {self._wrap(ms, 37, 15)}",
             f"",
+        ]
+        # Market status / bar freshness — inserted between Price/ATR line and border
+        if not self.market_open and self.market_note:
+            lines.insert(3, f"  {self.market_note}")
+        elif self.market_open and self.live_bar_age is not None:
+            if self.live_bar_in_progress:
+                lines.insert(3, f"  Daily bar in progress — analysis "
+                                f"uses last closed bar")
+            elif self.live_bar_age > 30:
+                lines.insert(3, f"  ⚠ Last closed bar is "
+                                f"{self.live_bar_age:.0f}h old — "
+                                f"market may be closed")
+
+        # Session delta line — inserted between MARKET STATE and EXIT IF
+        if self.session_delta:
+            summary = self.session_delta.get("summary", "")
+            if summary:
+                if ("CONDITIONS IMPROVED" in summary or
+                        "CONDITIONS DETERIORATED" in summary or
+                        "Regime changed" in summary):
+                    lines.append(f"  ⚡ SESSION  {self._wrap(summary, 37, 13)}")
+                else:
+                    lines.append(f"  SESSION    {self._wrap(summary, 37, 13)}")
+                lines.append(f"")
+        lines += [
             f"  EXIT IF      {self._wrap(self.invalidation, 37, 15)}",
             f"",
             f"  DATA BASIS   {self._wrap(self.regime_log, 37, 15)}",
@@ -208,40 +238,21 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             return _error_brief(instrument, timestamp,
                                 regime.get("error", "Unknown error"))
 
-        # ── 2. Derive direction from regime filter output ─────────────────────
-        # make_decision() needs a full multi-layer report (htf, signal stack)
-        # to resolve direction and conviction. The brief uses regime-only data,
-        # so we derive direction from the filter's execution_mode directly.
-        from no_trade_filter import _derive_direction as _regime_dir
+        # ── 1b. Log session snapshot and get intraday delta ───────────────────
+        from session_memory import log_session_snapshot, get_session_delta
+        log_session_snapshot(regime, instrument,
+                             market_open=regime.get("market_open", True))
+        session_delta = get_session_delta(instrument)
 
-        filter_allowed = regime.get("filter_allowed", False)
-        exec_mode_raw  = regime.get("execution_mode", "STAND_DOWN")
-        d1_raw         = regime.get("regime_d1", "UNKNOWN")
-        h4_raw         = regime.get("regime_h4", "UNKNOWN")
-
-        if not filter_allowed:
-            direction = "NO TRADE"
-        elif exec_mode_raw == "COUNTER_TREND_OVERRIDE":
-            direction = "LONG" if "UP" in h4_raw else "SHORT" if "DOWN" in h4_raw else "NO TRADE"
-        else:
-            _d = _regime_dir(d1_raw, exec_mode_raw)
-            direction = _d if _d != "NONE" else "NO TRADE"
-
-        # Conviction maps regime confidence to a 0-100 score.
-        # Grade reflects filter conviction: HIGH→A (75), MEDIUM→B+ (55),
-        # LOW→B (35), NONE→C (0).
-        _conf_map   = {"HIGH": 75, "MEDIUM": 55, "LOW": 35, "NONE": 0}
-        filter_conf = regime.get("confidence", "NONE")
-        conviction  = _conf_map.get(filter_conf, 0)
-        grade       = (
-            "A"  if conviction >= 75 else
-            "B+" if conviction >= 55 else
-            "B"  if conviction >= 35 else
-            "C"
-        )
+        # ── 2. Derive direction, conviction, grade from official decision path ──
+        from official_decision import get_official_decision
+        _official  = get_official_decision(regime)
+        direction  = _official["direction"]
+        conviction = _official["conviction"]
+        grade      = _official["grade"]
 
         # decision dict used only for _build_reason() fallback
-        decision = {}
+        decision   = {}
         stand_down = regime.get("stand_down", True)
         exec_mode  = regime.get("execution_mode", "STAND_DOWN")
         override   = regime.get("override_fired", False)
@@ -265,9 +276,7 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
         if decision_str == "STAND DOWN":
             size_pct = 0
         else:
-            size_mult = float(regime.get("filter_size_mult",
-                              regime.get("size_mult", 0.0)))
-            size_pct  = int(round(size_mult * 100))
+            size_pct = int(round(_official["size_mult"] * 100))
 
         # ── 7. Build MARKET STATE ─────────────────────────────────────────────
         weekly_ctx = regime.get("weekly_context", "UNKNOWN")
@@ -313,6 +322,11 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             adx_h4=adx_h4,
             weekly_context=weekly_ctx,
             error=None,
+            session_delta=session_delta,
+            live_bar_age=regime.get("last_closed_bar_age_hours"),
+            live_bar_in_progress=regime.get("live_bar_in_progress"),
+            market_open=regime.get("market_open", True),
+            market_note=regime.get("market_note", ""),
         )
 
     except Exception as e:
@@ -525,21 +539,31 @@ def _build_regime_log(d1_regime: str, instrument: str) -> str:
     """
     Pull outcome count for current D1 regime from the logger.
     Returns a plain-English sample count with calibration note.
+
+    n < 20 : count only — no percentage (not yet meaningful)
+    n 20-59 : percentage shown, labelled 'developing'
+    n 60-149: 'flag threshold' — percentage shown, may have flag marker
+    n 150+  : 'validated sample' — percentage shown, may have revise marker
     """
     try:
-        acc = get_regime_accuracy(instrument=instrument, min_samples=1)
+        acc = get_regime_accuracy(instrument=instrument)
         if d1_regime in acc:
             data = acc[d1_regime]
             n    = data["n"]
-            pct  = f"{data['accuracy']:.0%}"
-            if n < 30:
-                note = "early data — treat with caution"
-            elif n < 60:
-                note = "developing — more data needed"
-            elif data.get("needs_review"):
-                note = "REVIEW FLAG — accuracy below threshold"
+            if n < 20:
+                return (f"D1 {d1_regime}: {n} outcomes logged "
+                        f"(early data — accuracy not yet meaningful)")
+            pct = f"{data['accuracy']:.0%}"
+            if n < 60:
+                note = "developing"
+            elif n < 150:
+                note = "flag threshold"
             else:
-                note = "validated"
+                note = "validated sample"
+            if data.get("actionable"):
+                note += " — REVISE thresholds"
+            elif data.get("flagged"):
+                note += " — FLAG, watch closely"
             return (f"D1 {d1_regime}: {n} outcomes logged, "
                     f"{pct} accuracy ({note})")
         return f"D1 {d1_regime}: no outcomes logged yet (new regime)"

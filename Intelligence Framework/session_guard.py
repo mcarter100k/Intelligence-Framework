@@ -13,8 +13,9 @@ Plain English: this is the circuit breaker. The most dangerous time to trade
                enforces the rule your emotions will try to override.
 
 Nothing in here talks to OANDA or the internet. It only reads the journal.
-It never raises — if the journal is missing or corrupt, it returns ACTIVE
-so the watcher can log the issue and decide what to do.
+It never raises. A genuinely ABSENT journal (start of day, no trades yet)
+returns ACTIVE; a journal that exists but is CORRUPT/unreadable returns HALTED
+(fail-closed) — a broken circuit breaker must stop trading, not permit it.
 
 Usage:
     from session_guard import get_session_status, can_trade
@@ -64,7 +65,17 @@ def get_session_status(
         return _result(STATUS_HALTED, "Account balance is zero or negative — cannot trade",
                        0, 0.0, 0.0)
 
-    trades_today, realized_loss_pct = _read_today_stats(journal_path)
+    trades_today, realized_loss_pct, ok = _read_today_stats(journal_path)
+
+    # Fail CLOSED: an unreadable/corrupt journal means we cannot verify the
+    # day's limits, so we must stand aside rather than assume all-clear.
+    if not ok:
+        return _result(
+            STATUS_HALTED,
+            ("Trade journal is unreadable/corrupt — cannot verify daily limits. "
+             "Standing down until it is fixed (fail-safe)."),
+            0, 0.0, 0.0,
+        )
 
     # Check 1: daily loss limit
     if realized_loss_pct >= MAX_DAILY_LOSS_PCT:
@@ -72,8 +83,8 @@ def get_session_status(
         return _result(
             STATUS_HALTED,
             (
-                f"Daily loss limit reached: -{realized_loss_pct:.2f}% "
-                f"(limit: {MAX_DAILY_LOSS_PCT}%). "
+                f"Daily drawdown limit reached: -{realized_loss_pct:.2f}% "
+                f"peak-to-trough (limit: {MAX_DAILY_LOSS_PCT}%). "
                 f"No more trades today. Come back tomorrow with a fresh slate."
             ),
             trades_today,
@@ -127,58 +138,68 @@ def can_trade(
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
-def _read_today_stats(journal_path: Union[str, Path]) -> tuple[int, float]:
+def _read_today_stats(journal_path: Union[str, Path]) -> tuple[int, float, bool]:
     """
-    Read the journal and return (trades_taken_today, total_loss_pct_today).
+    Read the journal and return (trades_today, realized_loss_pct, ok).
+
+    realized_loss_pct is the maximum peak-to-trough DRAWDOWN of today's realized
+    equity curve, in %. An intraday swing of +2% then −3% registers as a 3%
+    drawdown (not netted away to −1%), so the daily limit reflects the worst
+    the account was actually down today.
 
     Rules:
-      - Only rows where date == today are counted.
+      - Only rows where date == today (local, matching the journal) are counted.
       - Only rows where trade_taken == "YES" are counted.
-      - Only rows with a non-empty pnl_r are counted as closed trades.
-        (Open trades — pnl_r is blank — are excluded from the loss total.)
-      - pnl_r is stored as a signed percentage: -1.1 means lost 1.1% of account.
-        Positive pnl_r values (wins) reduce the net loss.
+      - pnl_r is a signed percentage: -1.1 means lost 1.1% of account.
+      - Open trades (blank pnl_r) count toward the trade count, not the curve.
 
-    Returns (0, 0.0) if journal is missing, empty, or unreadable.
+    `ok` is False ONLY when the journal exists but cannot be parsed (corrupt) →
+    the caller fails CLOSED. A genuinely absent journal is the normal
+    start-of-day state → (0, 0.0, True).
     """
     path = Path(journal_path)
     if not path.exists():
-        return 0, 0.0
+        return 0, 0.0, True            # no journal yet — nothing taken today
 
     today_str = date.today().isoformat()
     trades_today = 0
-    net_pnl = 0.0  # positive = net gain, negative = net loss
+    cum    = 0.0   # running realized P&L through the day (file order ≈ chrono)
+    peak   = 0.0   # highest running P&L so far
+    max_dd = 0.0   # largest peak-to-trough drawdown seen
 
     try:
         with open(path, newline="") as f:
             reader = csv.DictReader(f)
+            if reader.fieldnames is None:
+                return 0, 0.0, True        # empty file — no trades yet today
+            required = {"date", "trade_taken", "pnl_r"}
+            if not required.issubset(set(reader.fieldnames)):
+                # Header exists but lacks the columns we rely on — the journal
+                # format is wrong/corrupt. Cannot verify limits → fail closed.
+                return 0, 0.0, False
             for row in reader:
                 if row.get("date", "") != today_str:
                     continue
                 if row.get("trade_taken", "").upper() != "YES":
                     continue
 
+                trades_today += 1
                 pnl_str = row.get("pnl_r", "").strip()
                 if not pnl_str:
-                    # Open trade — count toward trade count but not P&L yet
-                    trades_today += 1
-                    continue
-
+                    continue           # open trade — no realized P&L yet
                 try:
                     pnl = float(pnl_str)
-                    trades_today += 1
-                    net_pnl += pnl
                 except ValueError:
-                    # Unreadable pnl_r value — count trade, skip P&L
-                    trades_today += 1
+                    continue           # unreadable single value — skip its P&L
+                cum   += pnl
+                peak   = max(peak, cum)
+                max_dd = max(max_dd, peak - cum)
 
     except Exception:
-        return 0, 0.0
+        # File exists but could not be parsed — corrupt. Fail CLOSED.
+        return 0, 0.0, False
 
-    # Realized loss is the absolute value of the negative portion.
-    # If net_pnl is positive (e.g., +2.1 from a big win), realized_loss_pct = 0.
-    realized_loss_pct = max(0.0, -net_pnl)
-    return trades_today, realized_loss_pct
+    return trades_today, round(max_dd, 4), True
 
 
 def _result(

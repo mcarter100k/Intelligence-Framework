@@ -3,7 +3,32 @@
 
 ---
 
+> ⚠️ **HONESTY CORRECTION (2026-07-29)** — two integrity issues affect the
+> early (2025) entries below, found in the 2026 code audit:
+>
+> 1. **Sample sizes (N) are unreliable.** Several tables (e.g. the 2025-06-25
+>    ADX tables) show win rates with the N column blanked to "—".
+>    `validate_adx_threshold.py` prints "—" for a band **only when N == 0** — and
+>    in that case prints **no** win rate. A row showing both a win% **and** N="—"
+>    therefore was **not** produced by the script as displayed; treat those
+>    sample counts as unknown, not as reported.
+> 2. **Overlapping forward windows inflated N ~20×** on the P1/P3 backtests, so
+>    every 2025 ADX/ATR "VALIDATED" finding was demoted **VALIDATED → INFORMED
+>    PRIOR** on 2026-06-29 (see *Audit Item 2* below). The constants are kept as
+>    informed priors; the win-rate **magnitudes** are not validated.
+>
+> The outcome loop (`run_outcome_check.py`) now records real, non-overlapping
+> outcomes for both the regime and trade-signal logs, to replace these priors
+> with measured accuracy over time.
+
+---
+
 ## 2025-06-25 — ADX Threshold Validation (Problem 1)
+<!-- ⚠️ N column below is hand-blanked ("—") and not script output — see the
+     Honesty Correction banner at the top of this file. Findings demoted to
+     INFORMED PRIOR (Audit Item 2, 2026-06-29). -->
+
+
 
 **Script:** `validate_adx_threshold.py`  
 **Data:** 5-year D1, 1,295 valid bars per pair  
@@ -174,9 +199,13 @@ All historical market conditions tested and verified.
 ---
 
 ## 2025-06-25 — ATR Spike Multiplier Validation (Problem 3)
+<!-- ⚠️ "observations per pair" below omits the actual count, and cells read
+     "—"/"N<15" that validate_atr_threshold.py skips (continue) rather than
+     prints — so this table is not faithful script output. Demoted to INFORMED
+     PRIOR (Audit Item 2, 2026-06-29). See top-of-file Honesty Correction. -->
 
 **Script:** validate_atr_threshold.py  
-**Data:** 5-year D1, observations per pair  
+**Data:** 5-year D1, observations per pair *(count not recorded — see correction banner)*  
 **Method:** ATR ratio bands vs momentum + MR win rate, 20-bar forward window  
 **Degraded definition:** both signals < 52% win rate simultaneously
 
@@ -686,3 +715,449 @@ Decision, reason, exit condition all actionable in < 10 seconds.
 ---
 *Next session: remaining behavioral tests +
 Phase 1 readiness audit*
+
+---
+
+## 2026-06-29 — Audit Item 1: Dual Decision Path Resolved
+
+**Problem:** decision_brief.py derived decisions from filter output
+(FM-7 fix) while market_brain.py still used make_decision() with the
+full signal stack. Two paths could disagree on identical data —
+FM-5 divergence built into the architecture by our own fix.
+
+**Team decision:** Filter-derived path becomes the SINGLE official
+decision path. Signal-stack scoring moved to SHADOW MODE — computed
+and logged alongside every official decision, influencing nothing.
+After 60+ outcomes with both paths recorded, accuracy comparison
+determines whether signal weights earn their way back in.
+
+**What was built:**
+- official_decision.py — single canonical decision function.
+  Every conviction component traceable to a validated source:
+  confidence tier (P6 resolution table), structure alignment (P2),
+  H4 momentum (pending H4 validation, conservative +5),
+  exhaustion penalty (P1), override cap at 45 (P8).
+- decision_brief.py and market_brain.py both call the same function.
+- trade_outcome_logger.py logs shadow_direction + shadow_conviction.
+- decision_engine.py marked SHADOW MODE — no logic removed.
+
+**Bug caught during verification (would have shipped):**
+Counter-trend override was unreachable through the official path.
+_derive_direction() reads D1 regime — but in an override D1 is
+VOLATILE by definition; direction comes from H4. The original test
+asserted only conviction <= 45, which 0 satisfied, so a NO TRADE
+on a filter-approved override passed the test.
+
+Fix: COUNTER_TREND_OVERRIDE derives direction from regime_h4.
+Verified: LONG at conviction 45 (40+10+5 capped), grade B, size 0.35.
+
+**Lesson recorded:** a passing test that asserts the wrong invariant
+is worse than no test — it certifies broken behavior. Assertions must
+pin the expected value, not just a bound.
+
+**Verification:** 62/62 regression, live briefs unchanged,
+override reachable in both directions, H4-not-trending fails safe.
+
+---
+*Next: Audit Item 2 — re-run threshold validation with corrected
+methodology*
+
+---
+
+## 2026-06-29 — Audit Item 2: Threshold Re-validation (v2)
+
+**Script:** validate_thresholds_v2.py
+**Corrections vs v1:** structure-based direction (not slope),
+OANDA data, NON-OVERLAPPING windows, spread-adjusted (3.0 pips RT)
+
+### Headline: v1 sample sizes were inflated ~20x
+Overlapping windows made ~60 independent observations look like
+1,295. All v1 ADX band findings are NOT SUPPORTED at honest N —
+not disproved, unvalidated. All ADX/ATR thresholds reclassified
+VALIDATED → INFORMED PRIOR. Constants unchanged (still best
+available estimates; direction consistent across v1 and v2).
+
+### v2 empirical findings (the only bands with N >= 15)
+| Pair | ATR band | N | Mom% | MR% | Avg net pips |
+|---|---|---|---|---|---|
+| GBP/AUD | 0.8-1.0x | 16 | 56.2% | 43.8% | -24.8 |
+| GBP/AUD | 1.0-1.2x | 18 | 72.2% | 27.8% | +166.1 |
+| GBP/JPY | 0.8-1.0x | 29 | 55.2% | 44.8% | +8.6 |
+| GBP/JPY | 1.0-1.2x | 16 | 25.0% | 75.0% | -263.9 |
+
+Finding 1: GBP/AUD trend-following at normal ATR is real
+(72%, +166 net pips, N=18).
+Finding 2: GBP/JPY at 1.0-1.2x ATR mean-reverts hard (75%,
+-264 net pips trend-following, N=16). Actioned: -20 conviction
+penalty on JPY trend trades in this zone (official_decision.py).
+
+### Methodology lesson (recorded permanently)
+Serial correlation from overlapping windows inflated v1
+confidence. The Researcher's own audit caught it — one problem
+too late. Standing rule: every backtest reports non-overlapping
+N alongside nominal N, or it does not get a VALIDATED label.
+
+### Path to real validation
+Daily bars cannot produce sufficient N in reasonable time
+(~12 non-overlapping obs/pair/year). Validation N comes from:
+(a) H4-based re-validation (audit item 2b, queued), and
+(b) the live outcome loggers measuring the actual traded horizon.
+
+---
+*Next: Audit Item 3 — JPY pip bug in regime_classifier_logger*
+
+---
+
+## 2026-06-29 — Audit Item 3: JPY Pip Bug in Outcome Measurement
+
+**Bug:** _measure_outcome() VOL_EXPANSION branch hardcoded
+* 0.0001 pip conversion — 100x wrong for GBP/JPY. Same bug class
+as Problem 4's live-data findings, surviving in the logger.
+
+**Fix:** instrument passed through to _measure_outcome();
+pip_size resolved from PAIRS. Dead pre-assignment removed.
+
+**Data integrity:** 0 GBP/JPY outcomes were filled pre-fix —
+fix landed before any corruption.
+
+**Verified:** JPY expansion at 1.37x scores True; JPY quiet
+market at 0.26x scores False (old code: 26x → always True);
+GBP/AUD behavior unchanged. 62/62 regression.
+
+---
+*Next: Audit Item 4 — incomplete daily bar handling*
+
+---
+
+## 2026-07-03 — Audit Item 4: Incomplete Daily Bar Handling
+
+**Bug:** get_regime() fed the forming daily bar into ADX, ATR,
+structure, and MA calculations. Intraday runs got biased readings
+— the last bar could be 2 hours old with 22 hours left to form.
+
+**Fix:** _split_live_bar(df, threshold_hours) splits any OANDA
+dataframe into (closed_df, live_row, age_hours). D1: 24h, H4:
+4h, weekly: 168h. Closed bars drive all regime calculations.
+Fuel gauge uses live bar H/L when present; falls back to last
+closed bar on weekends.
+
+**Brief shows freshness:** header now displays "⚠ Last closed
+bar is Xh old — market may be closed" (age > 30h) or "Daily
+bar in progress — analysis uses last closed bar" (live).
+
+**Test fixture update:** SECTION 3 mock DataFrame given a
+tz-aware DatetimeIndex (last bar 5 days ago) so _split_live_bar
+sees all bars as complete. Logic unchanged; fixture brought in
+line with production expectations. 1 test needed fixture update.
+
+**Verified:** _split_live_bar 3/3 cases; live pairs show
+last_closed_bar_age_hours=33.5h, live_bar_in_progress=False
+(weekend — expected); ⚠ warning appears in both briefs. 62/62
+regression.
+
+---
+*Next: Audit Item 5 — session-open staleness detection*
+
+---
+
+## 2026-07-03 — Audit Item 5: Market-Closed Behavior
+
+**Detection from Item 4:** last_closed_bar_age_hours + live_bar_in_progress
+already landed. This item adds correct closed-market behavior.
+
+**What was built:**
+- _market_status(_now=None): FX hours helper (Sun 21:00 – Fri 21:00 UTC).
+  Private _now= parameter allows deterministic testing without patching
+  the immutable datetime.datetime type (Python 3.14 constraint).
+- get_regime() returns market_open/market_note; _error_result() stubs added.
+- Brief header: market_note replaces the generic "⚠ Last closed bar"
+  warning when market_open=False. Market-open path unchanged.
+- log_session_snapshot(): skips write when market_open=False.
+  Caller passes regime.get("market_open", True).
+
+**Verified:** 6/6 _market_status cases (Sat, Sun pre/post-open, Wed,
+Fri pre/post-close); 62/62 regression; both briefs show definitive
+"Market closed — ... Next open Sun 21:00 UTC."; session log row count
+unchanged (11 before, 11 after — no writes while closed).
+
+---
+
+## 2026-07-03 — Audit Item 6: Entry System Consolidation
+
+**Change:** `entry_watcher.py` deleted; engulfing detection and level proximity
+ported into `entry_confirmation.py`.
+
+**What was ported:**
+- `_detect_engulfing(highs, lows, opens, closes)` — strict engulfing only
+  (bullish body engulfs previous body entirely; bearish body engulfs previous
+  body entirely). Port adapts from dict-based candle API to array-based API
+  using the last two candles. Other entry_watcher patterns (pin bar, rejection,
+  momentum close) not ported — insufficient N for any prior validation.
+- Level proximity: M15 trigger now requires engulfing in direction AND price
+  within `_M15_LEVEL_PROXIMITY_PIPS = 25` pips of a key level (loaded from
+  `last_run.json` via `levels_context.levels_as_list`). If `last_run.json`
+  absent or `levels_context` unavailable, degrades to engulfing-only trigger
+  with "level check unavailable" note in `m15_signal`.
+
+**Import sites:** No file imported `entry_watcher` via a Python `import` or
+`from` statement. The only reference was a docstring comment in
+`trade_management.py:52` — updated to reference `entry_confirmation`.
+
+**New EntryBrief fields:** `engulfing_detected`, `near_key_level`,
+`key_level_price`, `trigger_basis`.
+
+**Data integrity:** No historical data corrupted — `entry_watcher.py` was a
+standalone polling module, not a data-writing module.
+
+**Tests:** 4 `_detect_engulfing` unit tests pass (TE1–TE4); 62/62 P1 suite
+unchanged.
+
+**Status:** INFORMED PRIOR — engulfing trigger is a precise entry definition,
+not a validated edge. `trigger_basis` field logged for Phase 1 outcome review.
+
+---
+
+## 2026-07-06 — Audit Item 7: Stand-down Logic Consolidated to Single Source
+
+**Problem:** Three implementations of stand-down logic existed simultaneously:
+1. `no_trade_filter.apply_filter()` — declared source of truth
+2. `regime_detection._stand_down_check()` — legacy, pre-filter, could diverge
+3. `decision_engine.make_decision()` inline `stand_down`/`atr_compression` checks — shadow path
+
+**Changes:**
+
+`regime_detection.py`:
+- Deleted `_stand_down_check()` entirely (conditions: D1 VOLATILE, extreme ATR
+  spike ≥ 2.0x, opposite-trend conflict).
+- Deleted `_ATR_STANDDOWN_THRESHOLD = 2.0` constant (only used by deleted function).
+- Deleted `_OPPOSITE_CONFLICT_TYPES` constant (only used by deleted function).
+- Removed `_stand_down_check()` call from `get_regime()`.
+- Removed the resolution-table enforcement block
+  (`if execution_mode == "STAND_DOWN": stand_down = True`) — the filter already
+  blocks on exec_mode STAND_DOWN via the resolution_note path.
+- `stand_down` and `stand_down_reason` now derived directly from filter result:
+  `stand_down = not _fr.allowed; stand_down_reason = _fr.reason if not _fr.allowed else ""`.
+
+`decision_engine.py`: Already clean — `make_decision()` went directly to
+`apply_filter` with no inline checks. TASK 2 was already complete; confirmed
+with grep and AST inspection.
+
+**Tests retargeted from `_stand_down_check` to `apply_filter`:**
+The three `_stand_down_check` trigger conditions are now T35, T37, T38 in
+the consistency matrix (Section 5):
+- T35 — D1 VOLATILE no override (was condition 1)
+- T37 — Opposite trend conflict (was condition 3)
+- T38 — Extreme ATR spike 2.5x (was condition 2)
+
+**Section 5 consistency matrix (T34–T41):** 8 scenarios × 2 assertions = 16
+new tests. All pass. Full suite: **78/78**.
+
+**Anti-drift guarantee:** The `T{n}b` assertion in each matrix row reads
+`not filter_result.allowed == not expected_allowed`. If anyone re-introduces a
+second stand-down computation and it diverges, a new column asserting
+`second_path == (not _af(r).allowed)` will catch the drift immediately.
+
+**Behavioral check:** Both live briefs unchanged — stand aside reasons identical
+before and after consolidation.
+
+---
+
+## 2026-07-11 — Audit Items 8–11: Instrumentation Honesty Fixes
+
+### Item 8 — `session_memory.py` threshold deduplication
+
+Deleted local constants `_ADX_TREND_THRESHOLD`, `_ADX_RANGE_THRESHOLD`,
+`_ATR_SPIKE_AUD`, `_ATR_SPIKE_JPY`, `_ATR_COMPRESS_JPY`. Now imports
+`_ADX_TRANSITION_HIGH`, `_ADX_RANGING_THRESHOLD`, `PAIRS` directly from
+`regime_detection`. ATR spike/compression thresholds resolved from
+`PAIRS[instrument].atr_spike_multiplier` and `.atr_compression_min` at
+call time in `_atr_note()`. Compression check now pair-generic (only fires
+when `comp_min > 0`), so GBP/AUD is correctly skipped.
+
+### Item 9 — `regime_classifier_logger.py` two-checkpoint contract
+
+Replaced single `needs_review` gate with two checkpoints:
+- `MIN_SAMPLES_FLAG = 60` — pattern emerging, watch closely
+- `MIN_SAMPLES_REVISE = 150` — actionable, rerun threshold validation
+
+`get_regime_accuracy()` returns `flagged` and `actionable` instead of
+`needs_review`. `get_accuracy_report()` shows:
+- `flagged` only: `← FLAG — watch closely, not yet actionable`
+- `actionable`: `← REVISE — rerun threshold validation`
+
+`MIN_SAMPLES_FOR_REVIEW = MIN_SAMPLES_FLAG` kept as alias for
+`run_outcome_check.py` import compatibility.
+
+### Item 10 — `decision_brief.py` DATA BASIS honesty
+
+`_build_regime_log()` now suppresses percentage for `n < 20` (accuracy not
+yet meaningful). Calibration tiers: developing (20–59), flag threshold
+(60–149), validated sample (150+). Flag/revise markers appended when the
+two-checkpoint gates fire.
+
+### Item 11 — `regime_classifier_logger.py` real bar counting
+
+Renamed `_estimate_bars_elapsed` → `_estimate_bars_elapsed_calendar`
+(fallback only). New `_count_bars_after(log_time, index)` counts timestamps
+in the OANDA DatetimeIndex strictly after `log_time` — exact, no calendar
+approximation. `check_pending_outcomes()` accepts `recent_index=` kwarg;
+`run_outcome_check.py` passes `raw.index`. Falls back to calendar
+approximation when index unavailable.
+
+**Key difference:** 14 calendar days with holiday gaps yields 8 real bars
+but 10 via calendar approximation — the two methods disagree, confirming the
+fix is non-trivial.
+
+**Tests:** Item 9: 6/6 · Item 10: 11/11 · Item 11: 5/5.  
+Full suite: **78/78**. Both briefs unchanged.
+
+---
+
+## 2026-07-11 — Audit Item 13: Latency Baseline
+
+**Environment:** macOS, OANDA live API, warm Python process (modules already imported).
+
+### `get_decision_brief` (full path — OANDA → regime → official decision → brief)
+
+| Run | GBP/AUD | GBP/JPY |
+|-----|---------|---------|
+| 1   | 0.48s   | 0.53s   |
+| 2   | 0.49s   | 0.50s   |
+| 3   | 0.52s   | 0.55s   |
+| **min** | **0.48s** | **0.50s** |
+| **med** | **0.49s** | **0.53s** |
+| **max** | **0.52s** | **0.55s** |
+
+Cold start (first call including Python import overhead): **~1.1s** (0.5–0.6s
+import + first OANDA connection; subsequent calls reuse the HTTP session).
+
+### `build_market_report` with `instrument=` only
+
+> **⚠ MEASURED OFF-HOURS — market-closed guard (`market_brain.py:69`) returns
+> before any OANDA fetch. These numbers measure the closed path only.
+> `get_decision_brief` timings (0.49–0.53s) ARE valid — it does not use
+> `market_brain`. `build_market_report` latency for the full signal-stack path
+> is UNMEASURED. Re-run during live market hours.**
+
+Returns in **<0.01s** warm — `get_session_context()` fires first and returns
+`market_closed=True` (weekend). The guard at `market_brain.py:69` returns
+immediately with only `layers["session"]` populated; all OANDA calls are
+skipped. This timing tells us nothing about the full signal-stack execution.
+
+### Interpretation
+
+`get_decision_brief` runs consistently under **0.6s warm** — valid on any day.
+`build_market_report` full-path timing: **not yet measured**.
+
+No optimization needed for the brief path at this stage. Flag for review if
+warm median exceeds 2s.
+
+### TODO — Audit Item 13b
+
+Re-measure `build_market_report(instrument="GBP_AUD")` during live market hours
+(Sun 21:00 UTC onward). Run `scripts/verify_shadow_path.py` as first check of
+the next session — confirms regime layer is populated and shadow path executes.
+Compare full-path warm time against `get_decision_brief` baseline above.
+
+---
+
+## 2026-07-11 — Audit Item 14: Phase 0 Session Memory — Status Confirmed
+
+**Status: COMPLETE and integrated.**
+
+### What it logs (9 fields per run)
+
+| Field | Source |
+|-------|--------|
+| `timestamp` | `datetime.now(UTC)` at brief run time |
+| `instrument` | "GBP_AUD" or "GBP_JPY" |
+| `adx_d1` | `regime["adx"]` |
+| `adx_h4` | `regime["adx_h4"]` |
+| `atr_ratio` | `regime["atr_vs_avg"]` |
+| `regime_d1` | `regime["regime_d1"]` |
+| `regime_h4` | `regime["regime_h4"]` |
+| `structure_d1` | `regime["structure"]` |
+| `filter_allowed` | `regime["filter_allowed"]` |
+
+**Log file:** `session_context_log.csv` — 13 rows written since 2026-06-30,
+across both instruments and multiple sessions.
+
+### Delta logic
+
+`get_session_delta(instrument)` reads all rows for the current instrument
+today, compares `today_rows[-1]` (current) to `today_rows[-2]` (previous):
+- ADX D1 and H4 deltas (rising/falling/stable with ±0.5 dead-band)
+- ATR ratio trend (expanding/contracting/stable with ±0.05 dead-band)
+- Regime change detection (D1, H4, composite)
+- Filter change detection — surfaces as the highest-priority session event
+- Summary string: plain English, shown in brief as SESSION line
+
+### Market-closed guard (Audit Item 5)
+
+`log_session_snapshot()` checks `market_open` before writing:
+```python
+if not market_open:
+    return
+```
+Closed-market deltas (weekends, post-Friday-21:00 UTC) are noise — skipped.
+
+### Threshold import fix (Audit Item 8)
+
+`_adx_note()` and `_atr_note()` no longer use locally-duplicated constants.
+`_ADX_TRANSITION_HIGH`, `_ADX_RANGING_THRESHOLD` imported from
+`regime_detection`; ATR spike/compression thresholds resolved from
+`PAIRS[instrument].atr_spike_multiplier` / `.atr_compression_min` at call
+time, so session notes stay in sync with any future threshold change
+automatically.
+
+### Phase 0 unit tests
+
+78/78 — all pass (Sections 1–5 in `test_regime_detection_p1.py`).
+
+---
+
+## 2026-07-11 — Audit Item 13 Follow-up: FIX A + B + C
+
+### FIX A — Closed-market decision path regression (Audit Item 1 regression)
+
+**Bug:** `build_market_report` early-return branch (line 75–78) hand-built the
+decision dict instead of calling `get_official_decision`. This violated Audit
+Item 1's single-decision-path guarantee for the closed-market case.
+
+**Fix:** `market_brain.py:75–82` — replaced hand-built dict with:
+```python
+from official_decision import get_official_decision
+report["decision"]       = get_official_decision({
+    "filter_allowed": False,
+    "filter_reason":  ses.get("close_reason", "Market closed"),
+})
+report["shadow_decision"] = None
+report["path_divergence"] = False
+```
+
+`get_official_decision` at `filter_allowed=False` returns `direction="NO TRADE"`,
+`conviction=0`, `grade="C"`, `source="official_filter_path"` — canonical output
+identical to the open-market NO TRADE path. The hand-built dict used `primary_reason`
+(shadow path key); the canonical path uses `reason` — inconsistency resolved.
+
+**Verified:** direction=NO TRADE, conviction=0, grade=C, reason carries
+close_reason text, source="official_filter_path", shadow_decision=None,
+path_divergence=False. 78/78 regression. Both briefs unchanged.
+
+### FIX B — Item 13 latency annotation
+
+The Item 13 `build_market_report` benchmark (<0.01s) was measured off-hours.
+`get_session_context()` returned `market_closed=True`; the guard at line 69
+returned before any OANDA fetch. The numbers measure the closed path only.
+
+Annotation added to the Item 13 entry above. `get_decision_brief` timings
+(0.49–0.53s) remain valid — that path does not use `market_brain`.
+
+### FIX C — Shadow path verification script
+
+`scripts/verify_shadow_path.py` created. Runs `build_market_report`, checks
+that `layers["regime"]` is present and `shadow_decision is not None`. Exits
+cleanly with message if market is closed. Run at Sun 21:00 UTC (Audit Item 13b).
+
+---
+*Next: Audit Item 13b (first live session) + Audit Item 15 — [pending]*
