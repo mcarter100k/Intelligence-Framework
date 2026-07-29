@@ -53,6 +53,12 @@ def main() -> None:
         t_filled = check_pending_trade_outcomes(instrument, closes,
                                                 recent_index=raw.index)
         print(f"{instrument}: {t_filled} trade-signal outcomes filled")
+
+        # Shadow-signal harness — grade pending shadow candidates (H4 horizon).
+        from shadow_signals import grade_pending_shadow
+        sh_filled = grade_pending_shadow(instrument)
+        if sh_filled:
+            print(f"{instrument}: {sh_filled} shadow-signal outcomes filled")
         _t_acc = get_accuracy_by_regime(instrument=instrument, min_samples=1)
         for _reg, _d in _t_acc.items():
             print(f"    {_reg}: {_d['accuracy']:.0%} correct "

@@ -654,4 +654,13 @@ if __name__ == "__main__":
             entry = get_entry_brief(inst, brief.decision)
             print(entry.precision_brief)
 
+        # Shadow signals — logged, never traded. Prints a clearly-marked section
+        # ONLY if a candidate fired on the last complete H4 bar (zero noise
+        # otherwise). Evidence accumulates for the eventual honest validation.
+        try:
+            from shadow_signals import run_and_report
+            run_and_report(inst)
+        except Exception:
+            pass
+
         print()

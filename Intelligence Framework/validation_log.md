@@ -1210,3 +1210,35 @@ until N reaches the flag (60) / actionable (150) thresholds.
     python3 run_outcome_check.py
 Suggested: once per day, any time after ~22:00 UTC (post D1 close). Safe to
 run more often — it only fills rows whose window has elapsed, and is idempotent.
+
+---
+
+## 2026-07-29 — Pivot to shadow-signal harness (evidence is forward now)
+
+Three historical premises tested and REFUTED at honest N this session:
+- Compression does NOT distinctively precede large moves (box tightness effect
+  |d| ~0.3-0.4, and the trader's own moves had WIDE boxes — precursor_study.py).
+- Fakeout-then-go is BACKWARDS — real moves have FEWER prior failed breaks than
+  quiet periods (both pairs).
+- No structural precursor discriminates a coming 150-pip move (all |d| < 0.5,
+  N ~150/pair, matched controls).
+
+The four circled moves are momentum-EXPANSION events (ADX 34-47 and accelerating,
+volatility expanding), not base breakouts. Conclusion: you don't predict these,
+you JOIN them. Every road through the PAST is exhausted for these candidates —
+the only remaining evidence is FORWARD.
+
+`shadow_signals.py` logs three FROZEN "join momentum" candidates every time they
+fire, with a measured 30-H4-bar outcome, WITHOUT trading:
+- EARLY_MOMENTUM (GBP/JPY): H4 ADX 18-25 + confirmed H4 structure.
+- THRUST_PULLBACK (both): RANGE_ONLY N=18 X=3.0 box, break body>=1.0 ATR, then
+  pullback within 0.25 ATR of the edge + close back within 10 bars.
+- MOMENTUM_JOIN (both): ADX>=30 + ADX slope(12)>=+8 + structure + new 12-bar
+  extreme. INFORMED PRIOR — derived from an outlier profile of 3 moves; expected
+  weakest; logged to test honestly.
+
+**SPEC FROZEN 2026-07-29.** Parameters may not change once logging begins; any
+change starts a new candidate id (e.g. EARLY_MOMENTUM_v2) with a fresh log — no
+mid-stream tuning. **Review per candidate: FLAG at N=30 graded outcomes;
+DECISION REVIEW at N=60.** Signals are logged, never traded, and are NOT wired
+into official_decision's tradeable path. Grade daily via run_outcome_check.py.
