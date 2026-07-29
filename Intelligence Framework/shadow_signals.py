@@ -259,6 +259,40 @@ def get_shadow_tally(candidate_id: str, instrument: Optional[str] = None) -> Dic
             "avg_net": round(sum(nets) / len(nets), 1) if nets else 0.0}
 
 
+def episode_count(candidate_id: str, instrument: Optional[str] = None) -> int:
+    """Collapse fires whose 30-bar (HORIZON) outcome horizons OVERLAP into one
+    episode. The 30/60 review gates count independent EPISODES, not raw rows —
+    a candidate that fires on 8 consecutive H4 bars of the same move is one
+    piece of evidence, not eight. Counting methodology only; trigger/grading
+    specs are unchanged and remain frozen."""
+    if not os.path.exists(LOG_FILE):
+        return 0
+    from collections import defaultdict
+    by_inst = defaultdict(list)
+    with open(LOG_FILE, newline="") as f:
+        for r in csv.DictReader(f):
+            if r["candidate_id"] != candidate_id:
+                continue
+            if instrument and r["instrument"] != instrument:
+                continue
+            try:
+                by_inst[r["instrument"]].append(
+                    datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00")))
+            except Exception:
+                continue
+    span = HORIZON * 4 * 3600          # 30 H4 bars, in seconds
+    total = 0
+    for times in by_inst.values():
+        times.sort()
+        eps, start = 1, times[0]
+        for t in times[1:]:
+            if (t - start).total_seconds() >= span:
+                eps += 1
+                start = t
+        total += eps
+    return total
+
+
 # ── Grading (called by run_outcome_check) ───────────────────────────────────────
 def grade_pending_shadow(instrument: str) -> int:
     if not os.path.exists(LOG_FILE):
@@ -329,9 +363,10 @@ def run_and_report(instrument: str) -> None:
     print("  " + "─" * 51)
     for s in signals:
         t = get_shadow_tally(s["candidate_id"], instrument)
-        tally = (f"{t['logged']} logged, {t['graded']} graded, {t['wins']} wins, "
-                 f"{t['avg_net']:+.0f} avg pips" if t["graded"] else
-                 f"{t['logged']} logged, 0 graded yet")
+        eps = episode_count(s["candidate_id"], instrument)
+        tally = (f"{t['logged']} rows / {eps} episodes, {t['graded']} graded, "
+                 f"{t['wins']} wins, {t['avg_net']:+.0f} avg pips" if t["graded"] else
+                 f"{t['logged']} rows / {eps} episodes, 0 graded yet")
         print(f"    {s['candidate_id']:<16} {s['direction']:<5} @ {s['entry']}  "
               f"stop {s['stop']}")
         print(f"      tally: {tally}   (flag N={FLAG_N}, review N={REVIEW_N})")

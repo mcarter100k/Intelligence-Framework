@@ -114,3 +114,38 @@ def test_thrust_pullback_silent_no_break():
     ctx = _ctx(O=[1.9000] * 32, H=[1.9010] * 32, L=[1.8990] * 32,
                C=[1.9000] * 32, atr=[0.0010] * 32)
     assert ss.check_thrust_pullback("GBP_AUD", ctx) is None
+
+
+# ── Idempotency + episode counting (automation guardrails) ─────────────────────
+
+def test_idempotent_double_eval_no_duplicate_rows(tmp_path, monkeypatch):
+    monkeypatch.setattr(ss, "LOG_FILE", str(tmp_path / "shadow.csv"))
+    ctx = _ctx(adx=20.0, struct="UPTREND", C=[217.0] * 40, atr=[0.5] * 40,
+               sd={"latest_sl": 216.0, "latest_sh": 218.0})
+    # Evaluate + log the SAME bar twice — dedup by candidate+instrument+timestamp.
+    for _ in range(2):
+        ss.log_shadow_signals(ss.check_shadow_signals("GBP_JPY", ctx))
+    import csv as _csv
+    with open(ss.LOG_FILE) as f:
+        rows = list(_csv.DictReader(f))
+    assert len(rows) == 1
+    assert rows[0]["candidate_id"] == "EARLY_MOMENTUM"
+
+
+def test_episode_count_collapses_overlapping_horizons(tmp_path, monkeypatch):
+    from datetime import datetime, timezone, timedelta
+    monkeypatch.setattr(ss, "LOG_FILE", str(tmp_path / "shadow.csv"))
+    t0 = datetime(2026, 1, 5, 1, 0, 0, tzinfo=timezone.utc)
+
+    def sig(ts):
+        return {"candidate_id": "EARLY_MOMENTUM",
+                "timestamp": ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "instrument": "GBP_JPY", "direction": "LONG",
+                "entry": 217.0, "stop": 216.0, "atr": 0.5,
+                "adx": 20.0, "adx_slope": 0.0, "structure": "UPTREND", "extra": ""}
+
+    # 3 fires within the 30-bar (120h) horizon of t0 → ONE episode; +200h → new
+    ss.log_shadow_signals([sig(t0), sig(t0 + timedelta(hours=4)),
+                           sig(t0 + timedelta(hours=8)), sig(t0 + timedelta(hours=200))])
+    assert ss.get_shadow_tally("EARLY_MOMENTUM", "GBP_JPY")["logged"] == 4   # rows
+    assert ss.episode_count("EARLY_MOMENTUM", "GBP_JPY") == 2                # episodes

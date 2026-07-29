@@ -1242,3 +1242,19 @@ change starts a new candidate id (e.g. EARLY_MOMENTUM_v2) with a fresh log — n
 mid-stream tuning. **Review per candidate: FLAG at N=30 graded outcomes;
 DECISION REVIEW at N=60.** Signals are logged, never traded, and are NOT wired
 into official_decision's tradeable path. Grade daily via run_outcome_check.py.
+
+---
+
+## 2026-07-29 — Automation layer (scheduling only) + episode-counting guardrail
+
+Added launchd scheduling + notification wrappers (scripts/scheduled_brief.sh,
+scripts/scheduled_outcome_check.sh, scripts/launchd/). NO changes to decision or
+shadow logic — wrappers run the existing entry points, log output, and notify
+only on a signal / graded shadow outcome.
+
+**Episode counting:** Review N at the 30/60 gates counts independent EPISODES
+(non-overlapping 30-H4-bar horizons), not raw rows — a candidate that fires on
+consecutive bars of the same move is one piece of evidence, not many.
+`shadow_signals.episode_count()` implements this; the brief tally shows both
+("12 rows / 4 episodes"). Trigger specs remain FROZEN — this is counting
+methodology, not a spec change.
