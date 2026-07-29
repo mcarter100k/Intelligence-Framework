@@ -66,6 +66,7 @@ class DecisionBrief:
     live_bar_in_progress: Optional[bool]  = None
     market_open:          bool            = True
     market_note:          str             = ""
+    narrative:            str             = ""   # THE FULL PICTURE section
 
     def format(self) -> str:
         """Render the brief as a formatted string."""
@@ -135,7 +136,7 @@ class DecisionBrief:
 
         # Session delta line — inserted between MARKET STATE and EXIT IF
         if self.session_delta:
-            summary = self.session_delta.get("summary", "")
+            summary = _plain(self.session_delta.get("summary", ""))
             if summary:
                 if ("CONDITIONS IMPROVED" in summary or
                         "CONDITIONS DETERIORATED" in summary or
@@ -149,8 +150,18 @@ class DecisionBrief:
             f"",
             f"  DATA BASIS   {self._wrap(self.regime_log, 37, 15)}",
             f"",
-            border,
         ]
+        # THE FULL PICTURE — plain-English narrative (the 10-second layer above
+        # is unchanged; this is the read-it-if-you-want layer).
+        if self.narrative:
+            lines += [
+                border,
+                f"  THE FULL PICTURE",
+                f"",
+                f"  {self._wrap(self.narrative, 49, 2)}",
+                f"",
+            ]
+        lines.append(border)
         return "\n".join(lines)
 
     def _wrap(self, text: str, width: int, indent: int) -> str:
@@ -202,11 +213,21 @@ def _plain(text: str) -> str:
         ("LH_LL",                  "lower highs and lower lows"),
         ("TRANSITIONAL",           "mixed structure"),
         ("CONTINUATION",           "trend continuation"),
+        # ── Jargon sweep (display layer only) — banned tokens → plain English ──
+        ("pivot structure",        "price structure"),
+        ("HH/HL",                  "stair-step pattern of higher highs and higher lows"),
+        ("LH/LL",                  "stair-step pattern of lower highs and lower lows"),
     ]
 
     result = text
     for technical, plain in multi_word:
         result = result.replace(technical, plain)
+
+    # Numbered jargon: "ADX 26.8" → "trend strength 26.8/100";
+    # "ATR ratio 1.2x" → "volatility at 1.2 times its normal level".
+    result = re.sub(r'\bADX\s+(\d+(?:\.\d+)?)', r'trend strength \1/100', result)
+    result = re.sub(r'\bATR ratio\s+(\d+(?:\.\d+)?)\s*x?',
+                    r'volatility at \1 times its normal level', result)
 
     # Single-word replacements — word-boundary matching only.
     # \b ensures we match whole tokens, not substrings inside words.
@@ -222,6 +243,10 @@ def _plain(text: str) -> str:
         (r'\bH4\b',        "4-hour chart"),
         (r'\bH1\b',        "1-hour chart"),
         (r'\bM15\b',       "15-minute chart"),
+        # residual jargon-sweep tokens (standalone forms)
+        (r'\bADX\b',       "trend strength"),
+        (r'\bATR ratio\b', "volatility level"),
+        (r'\bpivot\b',     "price structure"),
     ]
 
     for pattern, replacement in word_replacements:
@@ -315,6 +340,17 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
         # ── 9. Build REGIME LOG ───────────────────────────────────────────────
         regime_log = _plain(_build_regime_log(d1_regime, instrument))
 
+        # ── 10. Build THE FULL PICTURE narrative ──────────────────────────────
+        try:
+            from shadow_signals import latest_pending_signal
+            from regime_detection import PAIRS as _PAIRS
+            _pip = _PAIRS[instrument].pip_size if instrument in _PAIRS else 0.0001
+            narrative = _build_narrative(
+                regime, decision_str, session_delta, invalidation,
+                latest_pending_signal(instrument), _pip)
+        except Exception:
+            narrative = ""
+
         return DecisionBrief(
             instrument=instrument,
             timestamp=timestamp,
@@ -340,6 +376,7 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             live_bar_in_progress=regime.get("live_bar_in_progress"),
             market_open=regime.get("market_open", True),
             market_note=regime.get("market_note", ""),
+            narrative=narrative,
         )
 
     except Exception as e:
@@ -442,9 +479,11 @@ def _build_reason(regime: dict, decision: dict,
         if (float(adx_d1 or 0) >= _ADX_TRANSITION_HIGH
                 and structure not in ("UPTREND", "DOWNTREND")):
             return (
-                f"D1 ADX {adx_d1} is in the trending band but pivot structure "
-                f"has not confirmed (no clean HH/HL or LH/LL) — trend "
-                f"unconfirmed, standing aside. H4 {h4}."
+                f"Daily chart trend strength is {float(adx_d1):.0f}/100 — in the "
+                f"trending band — but price structure has not confirmed a "
+                f"direction yet (no clean stair-step pattern of higher highs and "
+                f"higher lows, or lower highs and lower lows). 4-hour chart {h4}. "
+                f"Standing aside until structure confirms."
             )
 
         # Cause 3b: ADX 18-25 — genuine no-edge transition zone
@@ -536,6 +575,14 @@ def _build_invalidation(regime: dict, decision_str: str) -> str:
 
     if decision_str == "STAND DOWN":
         if d1 == "VOLATILE":
+            # When trend strength is ALREADY above the trending threshold, the
+            # watch condition is price STRUCTURE confirming — not an ADX cross
+            # that is already behind us (the sibling of the REASON-label bug).
+            if float(adx_d1 or 0) >= _ADX_TRANSITION_HIGH:
+                return ("Daily price structure confirms a direction — a clean "
+                        "stair-step pattern of higher highs and higher lows, or "
+                        "lower highs and lower lows — with the 4-hour chart "
+                        "aligned. Revisit then.")
             return (f"D1 ADX crosses {_ADX_TRANSITION_HIGH} with confirmed "
                     f"H4 structure holding — revisit then.")
         if d1 == "RANGING":
@@ -611,6 +658,103 @@ def _build_regime_log(d1_regime: str, instrument: str) -> str:
         return f"D1 {d1_regime}: no outcomes logged yet (new regime)"
     except Exception:
         return "Regime log unavailable"
+
+
+_DIR_WORDS = {
+    "TRENDING_UP":   "trending up",
+    "TRENDING_DOWN": "trending down",
+    "RANGING":       "moving sideways",
+    "VOLATILE":      "choppy with no clear direction",
+}
+_STRUCT_WORDS = {
+    "UPTREND":   "a confirmed stair-step pattern of higher highs and higher lows",
+    "DOWNTREND": "a confirmed stair-step pattern of lower highs and lower lows",
+}
+
+
+def _dir_sign(regime_label: str) -> int:
+    if "UP" in regime_label:   return 1
+    if "DOWN" in regime_label: return -1
+    return 0
+
+
+def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None,
+                     invalidation: str = "", shadow_pending: dict = None,
+                     pip: float = 0.0001) -> str:
+    """THE FULL PICTURE — a plain-English paragraph built entirely from framework
+    data (template + live values, never hardcoded scenario prose)."""
+    d1     = regime.get("regime_d1", "UNKNOWN")
+    h4     = regime.get("regime_h4", "UNKNOWN")
+    adx_d1 = float(regime.get("adx", 0) or 0)
+    adx_h4 = float(regime.get("adx_h4", 0) or 0)
+    struct = regime.get("structure", "TRANSITIONAL")
+    weekly = regime.get("weekly_context", "UNKNOWN")
+    lt     = regime.get("lt_trend", "RANGING")
+    price  = float(regime.get("current_price", 0) or 0)
+    atr_r  = float(regime.get("atr_vs_avg", 1.0) or 1.0)
+    comp   = regime.get("atr_compression", False)
+
+    d1_word = _DIR_WORDS.get(d1, "unclear")
+    h4_word = _DIR_WORDS.get(h4, "unclear")
+    struct_word = _STRUCT_WORDS.get(struct, "no confirmed pattern yet")
+
+    # rising / falling from the session delta, when available
+    d1_rf = ""
+    if session_delta and session_delta.get("adx_d1_delta") is not None:
+        dlt = session_delta["adx_d1_delta"]
+        d1_rf = " and rising" if dlt > 1 else " and falling" if dlt < -1 else " and steady"
+
+    parts = []
+    # 1. weekly  2. daily  3. 4-hour
+    parts.append(f"The weekly chart shows {_plain(weekly)}.")
+    parts.append(f"The daily chart is {d1_word}, trend strength "
+                 f"{adx_d1:.0f}/100{d1_rf}, with {struct_word}.")
+    parts.append(f"The 4-hour chart is {h4_word} (trend strength {adx_h4:.0f}/100).")
+
+    # 4/5/7. why the decision follows + what to watch (trade case handled here)
+    if decision_str in ("LONG", "SHORT"):
+        side = "buying" if decision_str == "LONG" else "selling"
+        parts.append(f"All three timeframes line up, which is what produced this "
+                     f"{decision_str} signal — {side} in the direction the weekly, "
+                     f"daily and 4-hour agree on.")
+        parts.append(f"The stop marks where that idea would be proven wrong; a "
+                     f"close through it means the setup has failed and the trade "
+                     f"is over.")
+    else:
+        w_sign = (1 if ("UPTREND" in weekly or lt == "UPTREND") else
+                  -1 if ("DOWNTREND" in weekly or "BOUNCE" in weekly or lt == "DOWNTREND")
+                  else 0)
+        signs = {s for s in (w_sign, _dir_sign(d1), _dir_sign(h4)) if s != 0}
+        if comp:
+            parts.append("Volatility is compressed below its normal level, which "
+                         "historically precedes a fake move, so the framework waits.")
+        elif atr_r >= 2.0:
+            parts.append("Volatility has spiked far above its normal level — too "
+                         "high for a reliable read, so the framework stands aside.")
+        elif len(signs) > 1:
+            parts.append("These timeframes disagree, so any direction you pick "
+                         "fights one of them — the framework stands aside rather "
+                         "than force a trade the whole picture doesn't support.")
+        else:
+            parts.append("The pieces don't line up clearly enough to justify risk, "
+                         "so the framework stands aside.")
+        if invalidation:
+            parts.append("This changes when " + invalidation[0].lower() + invalidation[1:])
+
+    # 6. a live/pending shadow signal, if any (logged, not traded)
+    if shadow_pending:
+        d = shadow_pending["direction"]; entry = shadow_pending["entry"]
+        if price:
+            diff = ((price - entry) / pip) if d == "LONG" else ((entry - price) / pip)
+            standing = (f"about {abs(diff):.0f} pips "
+                        f"{'in its favour' if diff >= 0 else 'underwater'}")
+        else:
+            standing = "being tracked"
+        parts.append(f"Separately, the framework is watching a "
+                     f"{shadow_pending['candidate_id']} {d} idea entered at {entry} — "
+                     f"currently {standing} — logged for evidence, NOT traded.")
+
+    return " ".join(p for p in parts if p)
 
 
 def _error_brief(instrument: str, timestamp: str,

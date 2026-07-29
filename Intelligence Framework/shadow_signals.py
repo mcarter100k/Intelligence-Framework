@@ -259,6 +259,26 @@ def get_shadow_tally(candidate_id: str, instrument: Optional[str] = None) -> Dic
             "avg_net": round(sum(nets) / len(nets), 1) if nets else 0.0}
 
 
+def latest_pending_signal(instrument: str) -> Optional[Dict]:
+    """Most recent ungraded shadow signal for the pair (for the brief narrative).
+    Returns candidate_id / direction / entry / timestamp, or None."""
+    if not os.path.exists(LOG_FILE):
+        return None
+    latest = None
+    with open(LOG_FILE, newline="") as f:
+        for r in csv.DictReader(f):
+            if r["instrument"] != instrument or str(r.get("outcome_filled")) == "True":
+                continue
+            latest = r                      # append order → last ungraded = newest
+    if not latest:
+        return None
+    try:
+        return {"candidate_id": latest["candidate_id"], "direction": latest["direction"],
+                "entry": float(latest["entry"]), "timestamp": latest["timestamp"]}
+    except (ValueError, KeyError):
+        return None
+
+
 def episode_count(candidate_id: str, instrument: Optional[str] = None) -> int:
     """Collapse fires whose 30-bar (HORIZON) outcome horizons OVERLAP into one
     episode. The 30/60 review gates count independent EPISODES, not raw rows —
