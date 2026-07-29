@@ -1161,3 +1161,52 @@ cleanly with message if market is closed. Run at Sun 21:00 UTC (Audit Item 13b).
 
 ---
 *Next: Audit Item 13b (first live session) + Audit Item 15 — [pending]*
+
+---
+
+## 2026-07-29 — Brief-honesty fixes + cleanup backlog
+
+**Fixed (brief must not lie):**
+- `filter_reason` / brief REASON now distinguish two D1-VOLATILE causes:
+  ADX 18-25 = "transition zone, no statistical edge"; ADX 25-32 with
+  unconfirmed pivot structure = "trending band, structure not confirmed".
+  The old single "transition zone" label mislabeled 25-32 structure-gate
+  stand-downs and sent the team chasing a phantom threshold bug.
+- D1 staleness warning now measured from bar CLOSE (open + 24h), weekend-aware,
+  and only fires when the newest complete bar is genuinely behind the expected
+  close AND the market is open. The old "bar open > 30h" test false-alarmed
+  every weekday morning (a completed D1 bar's open is always > 24h old).
+
+**Cleanup backlog (do NOT refactor mid-pivot — logged for later):**
+- `_split_live_bar` (regime_detection) is largely VESTIGIAL for the daily path:
+  `oanda_feed._get_bars` already filters incomplete candles at fetch time
+  (`if not c.get("complete", True): continue`), so `_split_live_bar` never has
+  a live bar to split — it only recomputes an age from the last COMPLETE bar's
+  open. Two mechanisms guard one concern. Reconcile when the price-structure
+  engine work settles the data-fetch layer.
+
+**Range trading:** GATED OFF (`official_decision.RANGE_TRADING_ENABLED = False`)
+pending team review + non-overlapping validation. Unreviewed unvalidated
+heuristic at 0.75x size; precedent = counter-trend override (reviewed, 0.35x)
+lost on the 2026-05-15 280-pip rally. Logic retained, output gated to NO TRADE.
+
+---
+
+## 2026-07-29 — Evidence loop is LIVE (first run)
+
+`run_outcome_check.py` executed against the logged classifications for the
+first time. It grades each classification/signal against the price exactly
+`prediction_window` bars after it was logged (non-overlapping; window-bar, not
+latest-bar) and fills both `regime_classification_log.csv` and
+`trade_signal_log.csv`.
+
+First-run result (2026-07-29): 3 regime outcomes filled (most rows too recent —
+20-bar window not yet elapsed). GBP_AUD VOLATILE 0/2, GBP_JPY RANGING 1/1,
+GBP_AUD trade-signal TRENDING_UP 1/1. All N trivially small — noise, not signal.
+The loop now accumulates real evidence over time; nothing here is actionable
+until N reaches the flag (60) / actionable (150) thresholds.
+
+**Cadence — run daily as part of the morning routine, after the D1 close:**
+    python3 run_outcome_check.py
+Suggested: once per day, any time after ~22:00 UTC (post D1 close). Safe to
+run more often — it only fills rows whose window has elapsed, and is idempotent.

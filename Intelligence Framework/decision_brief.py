@@ -115,10 +115,23 @@ class DecisionBrief:
             if self.live_bar_in_progress:
                 lines.insert(3, f"  Daily bar in progress — analysis "
                                 f"uses last closed bar")
-            elif self.live_bar_age > 30:
-                lines.insert(3, f"  ⚠ Last closed bar is "
-                                f"{self.live_bar_age:.0f}h old — "
-                                f"market may be closed")
+            else:
+                # Staleness measured from bar CLOSE (open + 24h for D1), not
+                # open. A completed daily bar's OPEN is always >24h old once the
+                # next session begins, so the old "age > 30h" test false-alarmed
+                # every weekday morning. We warn only when the newest complete
+                # bar is genuinely behind the most recent expected close (a real
+                # feed problem), accounting for weekends.
+                from datetime import datetime, timezone, timedelta
+                _now       = datetime.now(timezone.utc)
+                _last_open = _now - timedelta(hours=self.live_bar_age)
+                _last_close = _last_open + timedelta(hours=24)
+                _expected  = _last_expected_d1_close(_now, _last_open.hour)
+                if _last_close < _expected - timedelta(hours=6):
+                    _lag = (_expected - _last_close).total_seconds() / 3600.0
+                    lines.insert(3, f"  ⚠ D1 feed looks stale — newest complete "
+                                    f"bar is ~{_lag:.0f}h behind the expected "
+                                    f"close. Check the data feed.")
 
         # Session delta line — inserted between MARKET STATE and EXIT IF
         if self.session_delta:
@@ -333,6 +346,23 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
         return _error_brief(instrument, timestamp, str(e))
 
 
+def _last_expected_d1_close(now, close_hour: int):
+    """Most recent UTC time a complete D1 bar should have closed.
+
+    OANDA D1 bars close at `close_hour` UTC (21:00 in summer / 22:00 in winter,
+    derived from the last bar's own open hour) on weekday sessions. After
+    Friday's close the next is Monday's, so Sat/Sun have no D1 close — we step
+    back over the weekend so a fresh Monday-morning brief is not flagged stale.
+    """
+    from datetime import timedelta
+    c = now.replace(hour=close_hour, minute=0, second=0, microsecond=0)
+    if c > now:
+        c -= timedelta(days=1)
+    while c.weekday() >= 5:      # 5 = Saturday, 6 = Sunday
+        c -= timedelta(days=1)
+    return c
+
+
 def _build_reason(regime: dict, decision: dict,
                   decision_str: str, override: bool) -> str:
     """
@@ -405,7 +435,19 @@ def _build_reason(regime: dict, decision: dict,
                 f"elevated. Do not chase."
             )
 
-        # Cause 3: ADX transition zone (18-25) — no directional edge
+        # Cause 3a: ADX 25-32 — in the trending band, but pivot structure has
+        # not confirmed a direction (Problem 2 gate). This is NOT the 18-25
+        # transition zone; say so precisely or the brief lies about the cause.
+        from regime_detection import _ADX_TRANSITION_HIGH  # 25
+        if (float(adx_d1 or 0) >= _ADX_TRANSITION_HIGH
+                and structure not in ("UPTREND", "DOWNTREND")):
+            return (
+                f"D1 ADX {adx_d1} is in the trending band but pivot structure "
+                f"has not confirmed (no clean HH/HL or LH/LL) — trend "
+                f"unconfirmed, standing aside. H4 {h4}."
+            )
+
+        # Cause 3b: ADX 18-25 — genuine no-edge transition zone
         return (
             f"D1 in transition zone (ADX {adx_d1}) — "
             f"no statistical edge. "

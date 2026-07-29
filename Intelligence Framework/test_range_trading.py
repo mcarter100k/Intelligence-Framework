@@ -1,14 +1,19 @@
 """
 test_range_trading.py
 
-Locks Phase 6.3: RANGING regimes now issue a fade-from-edge direction instead of
-always NO TRADE. Only the outer edges trade; mid-range = no edge; never fade
-against a strongly established weekly trend; range fades are reduced-grade.
+Range trading is GATED OFF (RANGE_TRADING_ENABLED=False) pending team review +
+validation. These tests lock two things:
+  * With the gate OFF (default/production), a detected range candidate returns
+    NO TRADE with the "disabled pending review" reason.
+  * With the gate patched ON, the underlying fade-from-edge logic still behaves
+    (outer edges only, mid-range = no edge, no fading against the weekly trend,
+    reduced grade) — so the logic is preserved for when it passes review.
 
 Run: pytest test_range_trading.py
 """
 import pytest
 
+import official_decision as od
 from official_decision import get_official_decision, _RANGE_EDGE
 
 
@@ -31,54 +36,59 @@ def _ranging_regime(range_position, lt_trend="RANGING", confidence="MEDIUM"):
     }
 
 
-def test_fade_long_at_support():
+# ── Gate OFF (default / production) ────────────────────────────────────────────
+
+def test_gate_is_off_by_default():
+    assert od.RANGE_TRADING_ENABLED is False
+
+
+@pytest.mark.parametrize("pos", [0.10, 0.90])
+def test_range_candidate_is_disabled_no_trade(pos):
+    d = get_official_decision(_ranging_regime(pos))
+    assert d["direction"] == "NO TRADE"
+    assert "disabled pending" in d["reason"].lower()
+
+
+# ── Gate ON (logic preserved for post-review) ──────────────────────────────────
+
+@pytest.fixture
+def gate_on(monkeypatch):
+    monkeypatch.setattr(od, "RANGE_TRADING_ENABLED", True)
+
+
+def test_fade_long_at_support(gate_on):
     d = get_official_decision(_ranging_regime(0.10))
     assert d["direction"] == "LONG"
-    assert d["size_mult"] == pytest.approx(0.75)   # reduced size
+    assert d["size_mult"] == pytest.approx(0.75)
     assert "Range fade" in d["reason"]
 
 
-def test_fade_short_at_resistance():
+def test_fade_short_at_resistance(gate_on):
     d = get_official_decision(_ranging_regime(0.90))
     assert d["direction"] == "SHORT"
-    assert "Range fade" in d["reason"]
 
 
-def test_mid_range_is_no_trade():
-    d = get_official_decision(_ranging_regime(0.50))
-    assert d["direction"] == "NO TRADE"
+def test_mid_range_is_no_trade(gate_on):
+    assert get_official_decision(_ranging_regime(0.50))["direction"] == "NO TRADE"
 
 
-@pytest.mark.parametrize("pos", [0.0, _RANGE_EDGE, 1.0 - _RANGE_EDGE, 1.0])
-def test_only_outer_edges_trade(pos):
-    # Just inside the edge band trades; just outside it does not.
-    d = get_official_decision(_ranging_regime(pos))
-    assert d["direction"] in ("LONG", "SHORT")
-    mid = get_official_decision(_ranging_regime(0.5))
-    assert mid["direction"] == "NO TRADE"
-
-
-def test_no_falling_knife_long_in_downtrend():
-    # At support but the dominant weekly trend is DOWN — do not fade long.
+def test_no_falling_knife_long_in_downtrend(gate_on):
     d = get_official_decision(_ranging_regime(0.10, lt_trend="DOWNTREND"))
     assert d["direction"] == "NO TRADE"
 
 
-def test_no_fade_short_against_uptrend():
+def test_no_fade_short_against_uptrend(gate_on):
     d = get_official_decision(_ranging_regime(0.90, lt_trend="UPTREND"))
     assert d["direction"] == "NO TRADE"
 
 
-def test_range_fade_is_reduced_grade():
-    # Mean-reversion fade must not outrank a trend continuation (capped low).
+def test_range_fade_is_reduced_grade(gate_on):
     d = get_official_decision(_ranging_regime(0.10, confidence="MEDIUM"))
     assert d["conviction"] <= 55
     assert d["grade"] in ("B", "B+", "C")
 
 
-def test_range_trade_needs_bounds():
-    # No range_position available → cannot locate an edge → NO TRADE.
+def test_range_trade_needs_bounds(gate_on):
     regime = _ranging_regime(0.10)
     del regime["range_position"]
-    d = get_official_decision(regime)
-    assert d["direction"] == "NO TRADE"
+    assert get_official_decision(regime)["direction"] == "NO TRADE"

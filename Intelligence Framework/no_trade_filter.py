@@ -206,14 +206,28 @@ def apply_filter(regime: dict) -> FilterResult:
         )
         if override_result:
             return override_result
-        # Override not eligible — stand-down holds
+        # Override not eligible — stand-down holds. Distinguish WHY D1 is
+        # VOLATILE so the reason does not lie: ADX 25-32 with unconfirmed pivot
+        # structure is the "trending band, structure not confirmed" gate
+        # (Problem 2); ADX 18-25 is the genuine no-edge transition zone. (Zone
+        # boundaries mirror regime_detection; kept local to avoid a circular
+        # import, since regime_detection imports this module.)
+        d1_adx = float(regime.get("adx", 0.0) or 0.0)
+        if 25.0 <= d1_adx < 32.0 and structure not in ("UPTREND", "DOWNTREND"):
+            _reason = (f"D1 ADX {d1_adx:.1f} is in the trending band but pivot "
+                       f"structure has not confirmed (no clean HH/HL or LH/LL) "
+                       f"— trend unconfirmed, standing aside.")
+        elif 18.0 <= d1_adx < 25.0:
+            _reason = (f"D1 in transition zone (ADX {d1_adx:.1f}) — "
+                       f"no statistical edge.")
+        else:
+            _reason = "D1 VOLATILE — no confirmed edge, standing aside."
         return FilterResult(
             allowed=False,
             execution_mode="STAND_DOWN",
             size_mult=0.0,
             confidence="NONE",
-            reason=(f"D1 VOLATILE (ADX transition zone) — "
-                    f"no override conditions met"),
+            reason=_reason,
         )
 
     # ── Weekly alignment gate ─────────────────────────────────────────────────

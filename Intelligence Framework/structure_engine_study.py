@@ -81,11 +81,14 @@ _W = 80
 # ── Date helper ───────────────────────────────────────────────────────────────
 
 def _last_trading_day() -> str:
-    now = datetime.now(timezone.utc)
-    days_back = 0
-    if now.weekday() == 5:   days_back = 1
-    elif now.weekday() == 6: days_back = 2
-    return (now - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    # Use the last COMPLETED FX session. Today's session does not close until
+    # ~21:00 UTC, so `to = today T22:00Z` would be a FUTURE timestamp and OANDA
+    # rejects the request (400 Bad Request). Step back to the most recent
+    # completed weekday session (yesterday, or Friday over a weekend).
+    d = datetime.now(timezone.utc) - timedelta(days=1)
+    while d.weekday() >= 5:          # skip Saturday (5) / Sunday (6)
+        d -= timedelta(days=1)
+    return d.strftime("%Y-%m-%d")
 
 
 # ── D1 info helper ────────────────────────────────────────────────────────────

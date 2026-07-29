@@ -20,6 +20,15 @@ from typing import Dict
 # (0.25 = fade in the bottom/top 25%). Mid-range has no edge.
 _RANGE_EDGE = 0.25
 
+# INFORMED PRIOR — UNREVIEWED, gated off 2026-07-29.
+# Range trading (below) is an unreviewed, unvalidated heuristic that can issue
+# live grade-B trades at 0.75x size. Precedent: the counter-trend override
+# (team-reviewed, 5 conditions, 0.35x size) still fired 2026-05-15 and lost on a
+# 280-pip rally. An UNREVIEWED heuristic at HIGHER size does not trade until it
+# survives team review + non-overlapping validation. The logic is retained but
+# gated off — flip to True only after that review passes.
+RANGE_TRADING_ENABLED = False
+
 
 def get_official_decision(regime: Dict) -> Dict:
     """
@@ -76,6 +85,17 @@ def get_official_decision(regime: Dict) -> Dict:
                 direction, range_trade = "LONG", True      # fade at support
             elif rng_pos >= (1.0 - _RANGE_EDGE) and lt_trend != "UPTREND":
                 direction, range_trade = "SHORT", True     # fade at resistance
+
+        # Gate: an unreviewed heuristic does not trade. A detected range
+        # candidate stands aside until range trading is reviewed + validated.
+        if range_trade and not RANGE_TRADING_ENABLED:
+            return {
+                "direction": "NO TRADE", "conviction": 0, "grade": "C",
+                "size_mult": 0.0,
+                "reason": ("Range trading candidate detected — disabled pending "
+                           "team review and validation."),
+                "source": "official_filter_path",
+            }
 
     if direction == "NONE":
         return {

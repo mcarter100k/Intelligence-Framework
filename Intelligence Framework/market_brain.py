@@ -1,8 +1,23 @@
 """
 market_brain.py
 
-Aggregates all signals into one plain-English GBP/AUD market report.
-Now includes HTF structure layer (weekly + daily trend).
+Full market-report assembler (used by notify.py). Aggregates all signal layers
+into one report and attaches the official decision + trader-facing brief.
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║ CANONICAL DECISION PATH (declared 2026-07-29)                              ║
+║                                                                            ║
+║     get_regime()  →  official_decision.get_official_decision()             ║
+║                                                                            ║
+║ is THE authority for direction / grade / conviction. This module is a      ║
+║ CONSUMER of that decision, not a second source: build_market_report()      ║
+║ stores the official result verbatim in report["decision"], and notify.py   ║
+║ surfaces report["decision"] unchanged. Do NOT re-derive a decision here or ║
+║ in any consumer. The legacy signal-stack scorer (decision_engine.          ║
+║ make_decision) runs in SHADOW MODE only — logged for comparison, never     ║
+║ traded. The daily human path (decision_brief.py) calls the same            ║
+║ get_regime() → official_decision() pair directly.                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
 """
 
 from __future__ import annotations
