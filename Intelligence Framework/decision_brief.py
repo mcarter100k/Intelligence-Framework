@@ -750,9 +750,10 @@ def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None
                         f"{'in its favour' if diff >= 0 else 'underwater'}")
         else:
             standing = "being tracked"
-        parts.append(f"Separately, the framework is watching a "
-                     f"{shadow_pending['candidate_id']} {d} idea entered at {entry} — "
-                     f"currently {standing} — logged for evidence, NOT traded.")
+        parts.append(f"Separately, the framework is watching the "
+                     f"{shadow_pending['candidate_id']} candidate: {d} entered at "
+                     f"{entry}, currently {standing} — logged for evidence, "
+                     f"NOT traded.")
 
     return " ".join(p for p in parts if p)
 

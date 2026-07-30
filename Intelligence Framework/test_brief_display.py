@@ -109,9 +109,9 @@ def test_mock_active_shadow_full_brief_pinned_and_clean():
     out = brief.format()
     assert "THE FULL PICTURE" in out
     # price 217.767 vs SHORT entry 217.667 → 10 pips underwater
-    assert ("Separately, the framework is watching a EARLY_MOMENTUM SHORT idea "
-            "entered at 217.667 — currently about 10 pips underwater — logged "
-            "for evidence, NOT traded.") in brief.narrative
+    assert ("Separately, the framework is watching the EARLY_MOMENTUM candidate: "
+            "SHORT entered at 217.667, currently about 10 pips underwater — "
+            "logged for evidence, NOT traded.") in brief.narrative
     _assert_clean(out)
 
 
