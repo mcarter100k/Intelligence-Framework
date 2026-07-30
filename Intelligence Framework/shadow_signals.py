@@ -274,7 +274,8 @@ def latest_pending_signal(instrument: str) -> Optional[Dict]:
         return None
     try:
         return {"candidate_id": latest["candidate_id"], "direction": latest["direction"],
-                "entry": float(latest["entry"]), "timestamp": latest["timestamp"]}
+                "entry": float(latest["entry"]), "stop": float(latest["stop"]),
+                "timestamp": latest["timestamp"]}
     except (ValueError, KeyError):
         return None
 

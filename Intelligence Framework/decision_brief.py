@@ -741,19 +741,29 @@ def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None
         if invalidation:
             parts.append("This changes when " + invalidation[0].lower() + invalidation[1:])
 
-    # 6. a live/pending shadow signal, if any (logged, not traded)
+    # 6. a live/pending shadow signal, if any (logged, not traded). Honest about
+    #    a stopped-out idea: past the stop = "stopped in live terms", NOT pips
+    #    "underwater" (which would narrate a dead loss as an open position). The
+    #    grader still computes the real outcome from bar data at the horizon.
     if shadow_pending:
-        d = shadow_pending["direction"]; entry = shadow_pending["entry"]
-        if price:
+        d, entry = shadow_pending["direction"], shadow_pending["entry"]
+        stop = shadow_pending.get("stop")
+        base = (f"Separately, the framework is watching the "
+                f"{shadow_pending['candidate_id']} candidate: {d} entered at {entry}")
+        stopped = (price and stop is not None and
+                   ((price <= stop) if d == "LONG" else (price >= stop)))
+        if stopped:
+            stop_pips = abs(entry - stop) / pip
+            parts.append(f"{base}, stopped in live terms at {stop} "
+                         f"(-{stop_pips:.0f} pips, -1.0R) — final grading at the "
+                         f"30-bar horizon. Logged for evidence, NOT traded.")
+        elif price:
             diff = ((price - entry) / pip) if d == "LONG" else ((entry - price) / pip)
-            standing = (f"about {abs(diff):.0f} pips "
-                        f"{'in its favour' if diff >= 0 else 'underwater'}")
+            standing = (f"currently about {diff:.0f} pips onside" if diff >= 0
+                        else f"currently about {abs(diff):.0f} pips underwater")
+            parts.append(f"{base}, {standing} — logged for evidence, NOT traded.")
         else:
-            standing = "being tracked"
-        parts.append(f"Separately, the framework is watching the "
-                     f"{shadow_pending['candidate_id']} candidate: {d} entered at "
-                     f"{entry}, currently {standing} — logged for evidence, "
-                     f"NOT traded.")
+            parts.append(f"{base}, being tracked — logged for evidence, NOT traded.")
 
     return " ".join(p for p in parts if p)
 

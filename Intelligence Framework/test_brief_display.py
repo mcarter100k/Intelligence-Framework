@@ -103,16 +103,45 @@ def test_mock_long_full_brief_pinned_and_clean():
     _assert_clean(out)
 
 
-def test_mock_active_shadow_full_brief_pinned_and_clean():
-    pending = {"candidate_id": "EARLY_MOMENTUM", "direction": "SHORT", "entry": 217.667}
-    brief = _brief_from_regime(_STANDASIDE_JPY, shadow_pending=pending, pip=0.01)
+_PENDING = {"candidate_id": "EARLY_MOMENTUM", "direction": "SHORT",
+            "entry": 217.667, "stop": 217.996}
+
+
+def _shadow_regime(price):
+    r = dict(_STANDASIDE_JPY)
+    r["current_price"] = price
+    return r
+
+
+def test_shadow_stopped_in_live_terms_pinned_and_clean():
+    # SHORT entry 217.667, stop 217.996; price 218.48 is 48 pips PAST the stop.
+    brief = _brief_from_regime(_shadow_regime(218.48), shadow_pending=_PENDING, pip=0.01)
     out = brief.format()
     assert "THE FULL PICTURE" in out
-    # price 217.767 vs SHORT entry 217.667 → 10 pips underwater
     assert ("Separately, the framework is watching the EARLY_MOMENTUM candidate: "
-            "SHORT entered at 217.667, currently about 10 pips underwater — "
-            "logged for evidence, NOT traded.") in brief.narrative
+            "SHORT entered at 217.667, stopped in live terms at 217.996 "
+            "(-33 pips, -1.0R) — final grading at the 30-bar horizon. Logged for "
+            "evidence, NOT traded.") in brief.narrative
+    assert "underwater" not in brief.narrative      # a dead loss is not "underwater"
     _assert_clean(out)
+
+
+def test_shadow_underwater_but_alive_pinned():
+    # price 217.80 is between entry (217.667) and stop (217.996) → still alive
+    brief = _brief_from_regime(_shadow_regime(217.80), shadow_pending=_PENDING, pip=0.01)
+    assert ("Separately, the framework is watching the EARLY_MOMENTUM candidate: "
+            "SHORT entered at 217.667, currently about 13 pips underwater — logged "
+            "for evidence, NOT traded.") in brief.narrative
+    _assert_clean(brief.format())
+
+
+def test_shadow_onside_pinned():
+    # price 217.50 is below the SHORT entry → in profit
+    brief = _brief_from_regime(_shadow_regime(217.50), shadow_pending=_PENDING, pip=0.01)
+    assert ("Separately, the framework is watching the EARLY_MOMENTUM candidate: "
+            "SHORT entered at 217.667, currently about 17 pips onside — logged "
+            "for evidence, NOT traded.") in brief.narrative
+    _assert_clean(brief.format())
 
 
 @pytest.mark.integration
