@@ -73,6 +73,18 @@ requires team review; their priors are not evidence.
    staging, verify nothing outside `Intelligence Framework/` and no
    gitignored ledgers are staged.
 
+1b. **Branch workflow (adopted 2026-07-30). Never build directly on `main`.**
+   - Each task starts a feature branch off up-to-date `main`:
+     `git checkout -b feat/<short-name>` — including doc-only changes.
+   - All commits happen on the branch (spec artifact first for protected-path
+     work, then build commits). The branch is where testing AND team review
+     happen.
+   - Merge to `main` only when: full suite green on the branch, live
+     verification done (brief/wrapper runs where relevant), and — for
+     PROTECTED files — team review given.
+   - Then push `main`; delete the merged branch locally. Branches stay local
+     unless review needs them remote. `main` is never the testing ground.
+
 2. **Suite green before any commit.** Full run: `python -m pytest -q`
    (currently 1018 passed; shadow-stack tests run from `shadow/` via its
    conftest). Two floors that must never be weakened to make something pass:
