@@ -22,13 +22,18 @@ Do NOT change regime_detection.py constants from this run.
 """
 from __future__ import annotations
 
+import os as _os, sys as _sys  # studies path bootstrap (root + shadow)
+_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+for _p in (_ROOT, _os.path.join(_ROOT, 'shadow')):
+    if _p not in _sys.path:
+        _sys.path.insert(0, _p)
+
 import sys
 import os
 import time
 import warnings
 warnings.filterwarnings("ignore")
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import pandas as pd
 import numpy as np

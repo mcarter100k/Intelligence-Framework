@@ -1258,3 +1258,36 @@ consecutive bars of the same move is one piece of evidence, not many.
 `shadow_signals.episode_count()` implements this; the brief tally shows both
 ("12 rows / 4 episodes"). Trigger specs remain FROZEN — this is counting
 methodology, not a spec change.
+
+---
+
+## 2026-07-29 — Codebase reorganization (cleanup audit #2)
+
+Reachability audit from the four live entry points (daily brief, nightly grader,
+scheduled wrappers, test suite) reclassified the tree. No decision or shadow
+logic changed; files moved with `git mv` (history preserved).
+
+**studies/** — 10 research scripts moved (7 root + 3 from scripts/). Methodology
+record cited above; never deleted. sys.path bootstraps updated to add the
+project root (+ shadow/) so they still import core modules from studies/.
+
+**shadow/** — the 18-module legacy signal stack (market_brain, decision_engine +
+16 signal/support modules only they import, 8,692 lines) + notify.py + their 6
+dependent tests, QUARANTINED. Finding: build_market_report was never scheduled;
+the official-vs-shadow comparison logged **0 rows** — structurally incapable of
+accumulating (it triggered only on official tradeable signals, via an
+unscheduled caller). Superseded by shadow_signals.py, which triggers on its own
+frozen conditions and is collecting. REACTIVATION CONDITION: promote back only
+with a concrete evidence path — wire build_market_report into a scheduled run
+FIRST and show the comparison accumulates. Do not cite these modules' priors as
+evidence. NOTE: session_guard (circuit breaker) + risk_config live here, so the
+parked circuit-breaker item (2.2) now depends on promotion.
+
+**Hygiene:** trade_log.csv and calendar.csv gitignored (untracked, kept on disk —
+evidence/data never deleted). calendar.csv was 118-day-old fallback feeding a
+now-quarantined module.
+
+**Live tree after:** 13 core modules + 3 manual tools (trade_management,
+trade_logger, update_calendar) + config. Live core imports nothing from shadow/
+(verified). Shadow tests pass from shadow/ via shadow/conftest.py; 1018 tests
+green overall.

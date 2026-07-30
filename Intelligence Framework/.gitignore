@@ -12,3 +12,5 @@ regime_classification_log.csv
 trade_signal_log.csv
 session_context_log.csv
 shadow_signal_log.csv
+trade_log.csv
+calendar.csv
