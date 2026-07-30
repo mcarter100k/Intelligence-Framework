@@ -14,6 +14,18 @@ mkdir -p logs
 DATE="$(date +%F)"
 LOG="logs/brief_${DATE}.log"
 
+# News-calendar refresh (docs/specs/news_gate_spec.md item 3): when
+# calendar.csv is missing or older than 24h, run the update helper before the
+# brief. NOTE: update_calendar.py is a status/instruction tool (manual-entry
+# workflow) — this logs the staleness state and the how-to-refresh steps; it
+# does not auto-fetch. Failures are logged and never fatal (exit 0 discipline).
+if [ ! -f calendar.csv ] || [ -n "$(find calendar.csv -mmin +1440 2>/dev/null)" ]; then
+    {
+        echo "----- calendar refresh check $(date '+%Y-%m-%d %H:%M:%S %Z') -----"
+        python3 update_calendar.py 2>&1 || echo "calendar refresh helper failed (non-fatal)"
+    } >> "$LOG"
+fi
+
 OUT="$(python3 decision_brief.py GBP_AUD GBP_JPY 2>&1)"
 { echo "===== $(date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
 

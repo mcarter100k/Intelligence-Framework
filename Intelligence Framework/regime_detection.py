@@ -1047,6 +1047,12 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     )
     _d1_structure = structure_data["structure"]
 
+    # Pre-news stand-down gate (docs/specs/news_gate_spec.md) — computed once
+    # here so the filter decision is deterministic from its input dict (tests
+    # inject it; the CSV is only read on the live path).
+    from news_gate import check_news_gate as _check_news_gate
+    _news_gate = _check_news_gate(pair.instrument)
+
     from no_trade_filter import apply_filter as _apply_filter, get_filter_summary as _get_filter_summary
     _fr = _apply_filter({
         "regime_d1":            d1_regime,
@@ -1064,6 +1070,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "execution_mode":       execution_mode,
         "size_mult":            size_mult,
         "resolution_note":      resolution_note,
+        "news_gate":            _news_gate,
     })
     _fr_summary       = _get_filter_summary(_fr)
     stand_down        = not _fr.allowed
@@ -1158,6 +1165,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "atr_compression_min":  pair.atr_compression_min,
         # ── No-trade filter (Problem 8) ───────────────────────────────────────
         "filter_allowed":      _fr.allowed,
+        "news_gate":           _news_gate,
         "filter_mode":         _fr.execution_mode,
         "filter_size_mult":    _fr.size_mult,
         "filter_reason":       _fr.reason,

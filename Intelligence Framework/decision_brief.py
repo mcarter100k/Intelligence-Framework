@@ -67,6 +67,7 @@ class DecisionBrief:
     market_open:          bool            = True
     market_note:          str             = ""
     narrative:            str             = ""   # THE FULL PICTURE section
+    news_note:            str             = ""   # stale/missing-calendar honesty line
 
     def format(self) -> str:
         """Render the brief as a formatted string."""
@@ -133,6 +134,11 @@ class DecisionBrief:
                     lines.insert(3, f"  ⚠ D1 feed looks stale — newest complete "
                                     f"bar is ~{_lag:.0f}h behind the expected "
                                     f"close. Check the data feed.")
+
+        # News-calendar honesty line — the gate never pretends coverage it
+        # doesn't have: stale/missing calendar = event risk UNCHECKED, no gating.
+        if self.news_note:
+            lines.insert(3, f"  ⚠ {self.news_note}")
 
         # Session delta line — inserted between MARKET STATE and EXIT IF
         if self.session_delta:
@@ -377,6 +383,9 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             market_open=regime.get("market_open", True),
             market_note=regime.get("market_note", ""),
             narrative=narrative,
+            news_note=((regime.get("news_gate") or {}).get("note", "")
+                       if not (regime.get("news_gate") or {}).get("active", True)
+                       else ""),
         )
 
     except Exception as e:
@@ -417,6 +426,19 @@ def _build_reason(regime: dict, decision: dict,
     weekly    = regime.get("weekly_context", "")
     exec_mode = regime.get("execution_mode", "STAND_DOWN")
     stand_rsn = regime.get("stand_down_reason", "")
+
+    # Pre-news gate wins first: when it fired, the filter reason IS the story
+    # (regime branches below would otherwise mis-narrate the cause).
+    _ng = regime.get("news_gate") or {}
+    if decision_str == "STAND DOWN" and _ng.get("gating"):
+        if stand_rsn:
+            return stand_rsn
+        _mins = _ng.get("minutes_until")
+        _when = f"{int(_mins)} minutes" if _mins is not None else "under 2 hours"
+        return (f"Major economic event ahead — "
+                f"{_ng.get('event') or 'high-impact release'} in {_when}. "
+                f"Markets reprice violently around releases; standing aside "
+                f"until after.")
 
     if atr_comp:
         return (f"GBP/JPY ATR compression ({regime.get('atr_vs_avg', 0):.2f}x) "
@@ -725,7 +747,15 @@ def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None
                   -1 if ("DOWNTREND" in weekly or "BOUNCE" in weekly or lt == "DOWNTREND")
                   else 0)
         signs = {s for s in (w_sign, _dir_sign(d1), _dir_sign(h4)) if s != 0}
-        if comp:
+        ng = regime.get("news_gate") or {}
+        if ng.get("gating"):
+            _mins = ng.get("minutes_until")
+            _when = f"about {int(_mins)} minutes" if _mins is not None else "under two hours"
+            parts.append(f"A major economic release — "
+                         f"{ng.get('event') or 'a high-impact event'} — is due in "
+                         f"{_when}, and prices move violently around releases, so "
+                         f"the framework stands aside until it has passed.")
+        elif comp:
             parts.append("Volatility is compressed below its normal level, which "
                          "historically precedes a fake move, so the framework waits.")
         elif atr_r >= 2.0:

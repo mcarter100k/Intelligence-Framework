@@ -200,6 +200,20 @@ def check_shadow_signals(instrument: str, ctx: Optional[Dict] = None) -> List[Di
             s = None
         if s:
             out.append(s)
+
+    # Shadow signals are NOT gated by the news gate — candidates must be graded
+    # through real news conditions (docs/specs/news_gate_spec.md item 4). We
+    # only stamp context so the review can slice by news window later.
+    # Candidate specs and triggers untouched — spec-freeze rules apply.
+    if out:
+        try:
+            from news_gate import check_news_gate
+            if check_news_gate(instrument).get("gating"):
+                for s in out:
+                    s["extra"] = (f"{s['extra']}|" if s.get("extra") else "") + \
+                                 "news_window=true"
+        except Exception:
+            pass
     return out
 
 

@@ -1291,3 +1291,41 @@ now-quarantined module.
 trade_logger, update_calendar) + config. Live core imports nothing from shadow/
 (verified). Shadow tests pass from shadow/ via shadow/conftest.py; 1018 tests
 green overall.
+
+---
+
+## 2026-07-30 — Pre-news stand-down gate built (per repo spec)
+
+Built exactly to `docs/specs/news_gate_spec.md` (team approved 2026-07-29;
+saved as a repo artifact and committed BEFORE building — new standing process
+for protected-path changes).
+
+- `news_gate.py` (new live core, lean, zero shadow/ imports): HIGH-impact
+  events for the pair's OWN currencies within 2 hours → gate. USD events out
+  of scope — **known v1 boundary**. calendar.csv missing or >7 days old →
+  gate INACTIVE with an honesty note ("news calendar stale — event risk
+  unchecked"); stale data never gates and never pretends coverage.
+- `no_trade_filter.apply_filter`: gate fires → hard stand-down with pinned
+  reason ("Major economic event ahead — <event> in <time>. Markets reprice
+  violently around releases; standing aside until after."). Gate state is
+  computed upstream in `get_regime` so the filter stays deterministic from its
+  input dict (stand-down consistency floor untouched).
+- `decision_brief`: news reason wins first in REASON; FULL PICTURE narrates
+  the release in plain English; stale/missing calendar renders one honest
+  line without gating.
+- `scripts/scheduled_brief.sh`: runs `update_calendar.py` before the brief
+  when calendar.csv is >24h old — logged, never fatal. NOTE (honest boundary):
+  `update_calendar.py` is a status/instruction tool for the MANUAL-entry
+  workflow, not an auto-fetcher; the refresh step logs staleness + refresh
+  steps, it does not fetch data.
+- Shadow signals NOT gated (candidates must be graded through real news
+  conditions); fires inside a news window get `news_window=true` stamped in
+  the ledger's extra field — context only, candidate specs untouched.
+
+Tests: +11 pinned (fires at 90 min / silent at 3 h / own-currencies only /
+USD gates neither pair / low-impact ignored / stale→note-not-gate / missing→
+safe-inactive / filter reason pinned / inactive gate ignored / brief line
+pinned / shadow-not-gated with stamp). Suite 1018 → **1029 green**; banned-token
+and stand-down floors untouched. Live brief on both pairs shows the stale-
+calendar honesty line (calendar last row 2026-04-01) and no behavior change
+elsewhere.

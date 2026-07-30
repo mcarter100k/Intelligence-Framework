@@ -145,6 +145,27 @@ def apply_filter(regime: dict) -> FilterResult:
                     f"read, stand aside"),
         )
 
+    # Pre-news stand-down gate (docs/specs/news_gate_spec.md) — a HIGH-impact
+    # event for the pair's own currencies inside the 2-hour window. Safety
+    # infrastructure, same class as the market-closed gate: the framework
+    # declines to present its reading as valid when its inputs are guaranteed
+    # to be repriced. Gate state is computed upstream (news_gate.check_news_gate
+    # via get_regime) so this decision is deterministic from the input dict.
+    _ng = regime.get("news_gate") or {}
+    if _ng.get("gating"):
+        _mins = _ng.get("minutes_until")
+        _when = f"{int(_mins)} minutes" if _mins is not None else "under 2 hours"
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=(f"Major economic event ahead — "
+                    f"{_ng.get('event') or 'high-impact release'} in {_when}. "
+                    f"Markets reprice violently around releases; standing "
+                    f"aside until after."),
+        )
+
     # ATR compression (GBP/JPY pre-BoJ coil)
     if atr_comp:
         return FilterResult(
