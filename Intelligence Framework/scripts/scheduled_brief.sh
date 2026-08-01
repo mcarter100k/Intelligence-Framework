@@ -14,15 +14,16 @@ mkdir -p logs
 DATE="$(date +%F)"
 LOG="logs/brief_${DATE}.log"
 
-# News-calendar refresh (docs/specs/news_gate_spec.md item 3): when
-# calendar.csv is missing or older than 24h, run the update helper before the
-# brief. NOTE: update_calendar.py is a status/instruction tool (manual-entry
-# workflow) — this logs the staleness state and the how-to-refresh steps; it
-# does not auto-fetch. Failures are logged and never fatal (exit 0 discipline).
+# News-calendar refresh: when calendar.csv is missing or older than 24h, run
+# the AUTO-FETCHER before the brief (docs/specs/calendar_autofetch_spec.md —
+# this is the mid-week retry path; the weekly primary is the Sunday launchd
+# job). calendar_fetch.py keeps the existing file on any failure; the brief's
+# stale-calendar note is the backstop. Manual fallback: update_calendar.py.
+# Failures are logged and never fatal (exit 0 discipline).
 if [ ! -f calendar.csv ] || [ -n "$(find calendar.csv -mmin +1440 2>/dev/null)" ]; then
     {
-        echo "----- calendar refresh check $(date '+%Y-%m-%d %H:%M:%S %Z') -----"
-        python3 update_calendar.py 2>&1 || echo "calendar refresh helper failed (non-fatal)"
+        echo "----- calendar auto-fetch $(date '+%Y-%m-%d %H:%M:%S %Z') -----"
+        python3 calendar_fetch.py 2>&1 || echo "calendar fetch wrapper error (non-fatal)"
     } >> "$LOG"
 fi
 
