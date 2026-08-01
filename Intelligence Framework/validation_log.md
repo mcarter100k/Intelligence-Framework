@@ -1329,3 +1329,23 @@ pinned / shadow-not-gated with stamp). Suite 1018 → **1029 green**; banned-tok
 and stand-down floors untouched. Live brief on both pairs shows the stale-
 calendar honesty line (calendar last row 2026-04-01) and no behavior change
 elsewhere.
+
+---
+
+## 2026-07-31 — Calendar auto-fetch built (per repo spec)
+
+Built to `docs/specs/calendar_autofetch_spec.md`. Source selected + live-probed:
+ForexFactory weekly JSON (`nfs.faireconomy.media/ff_calendar_thisweek.json`);
+format assumptions documented in `calendar_fetch.py`'s docstring. Filters to
+HIGH-impact GBP/AUD/JPY, writes the exact news_gate schema, validates before
+commit-to-disk (>=1 event, all inside now-24h..now+8d, currencies sane), keeps
+the existing file untouched on ANY failure (atomic replace; loud log; the
+brief's stale-calendar note is the backstop). Weekly launchd job
+`com.quis.intelligence.calendar` Sun 12:00 LA via `scheduled_calendar.sh`;
+`scheduled_brief.sh`'s >24h check is the mid-week retry, now calling the
+fetcher (manual `update_calendar.py` remains as fallback). +5 pinned tests
+(happy path/schema, malformed preserved, bad shape preserved, empty rejected,
+network fail exit-0). Suite 1029 → 1034 green. Live fetch replaced the
+118-day-stale manual file; the brief's stale note cleared. Known boundary: a
+week with zero high-impact GBP/AUD/JPY events fails validation by design and
+keeps the old file (conservative; stale note reappears after 7 days).
