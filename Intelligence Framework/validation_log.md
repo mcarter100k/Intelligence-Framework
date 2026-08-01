@@ -1375,3 +1375,23 @@ KNOWN BOUNDARY (pre-existing, surfaced during build): `trade_logger.py`
 imports `trade_receiver`, which was deleted in the old workspace audit
 (0e4af6e) — the tool cannot run until repaired or retired. stack_id addition
 is inert until then. Team decision needed: repair or retire.
+
+---
+
+## 2026-07-31 — Alert expansion built (per repo spec)
+
+Built to `docs/specs/alert_expansion_spec.md`. Watched-condition flips now
+route to phone notifications via the scheduled wrapper. Implementation is
+confined to the wrapper layer + a pure read of the brief's session delta
+(`decision_brief._machine_flags` / `_emit_alerts`) — NO decision-logic
+changes; alerts go to STDERR (##ALERT## prefix) so the human brief on stdout
+stays byte-identical. Classes: (a) regime change / filter flip / conditions
+improved-deteriorated; (b) EXIT-IF newly satisfied vs prior run — v1 covers
+the two stand-down watches (structure newly confirmed; daily trend strength
+crossing 25 with the 4-hour >= 25 as the "holding" proxy). KNOWN v1 BOUNDARY:
+trade-side swing-break watches are not evaluated (no prior price in the
+session snapshot). (c) shadow fires — verified already wired, kept.
+Zero-noise rule pinned: no flip → silent; unchanged stand-aside days →
+silent. +11 pinned tests; suite 1047 → 1058 green. Live check: unchanged
+weekend read produced zero alert lines and a byte-identical brief; wrapper
+exit 0.

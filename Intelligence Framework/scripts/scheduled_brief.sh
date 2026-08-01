@@ -27,18 +27,32 @@ if [ ! -f calendar.csv ] || [ -n "$(find calendar.csv -mmin +1440 2>/dev/null)" 
     } >> "$LOG"
 fi
 
-OUT="$(python3 decision_brief.py GBP_AUD GBP_JPY 2>&1)"
+# stdout = the human brief (logged verbatim); stderr = warnings + the machine
+# ##ALERT## channel (docs/specs/alert_expansion_spec.md). Both go to the log.
+ERRTMP="$(mktemp)"
+OUT="$(python3 decision_brief.py GBP_AUD GBP_JPY 2>"$ERRTMP")"
 { echo "===== $(date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
+grep '^##ALERT##' "$ERRTMP" >> "$LOG" 2>/dev/null
 
-# Notify if a real decision (anything other than STAND ASIDE) OR a shadow signal.
+# Watched-condition flips (regime change / filter flip / exit-watch fired)
+ALERTS="$(grep '^##ALERT## ' "$ERRTMP" | sed 's/^##ALERT## //')"
+rm -f "$ERRTMP"
+
+# Notify if: a real decision (non STAND ASIDE), a shadow signal, OR a flip.
 NOTIFY=0
 if printf '%s\n' "$OUT" | grep 'DECISION' | grep -qv 'STAND ASIDE'; then NOTIFY=1; fi
 if printf '%s\n' "$OUT" | grep -q 'SHADOW SIGNALS'; then NOTIFY=1; fi
+if [ -n "$ALERTS" ]; then NOTIFY=1; fi
 
 if [ "$NOTIFY" -eq 1 ]; then
-    SUMMARY="$(printf '%s\n' "$OUT" \
-        | grep -E 'DECISION +(LONG|SHORT)|EARLY_MOMENTUM|THRUST_PULLBACK|MOMENTUM_JOIN' \
-        | sed -E 's/^ *//; s/  +/ /g' | paste -sd '|' - | cut -c1-180)"
+    # Flip alerts are already one-line, plain-English, actionable — prefer them.
+    if [ -n "$ALERTS" ]; then
+        SUMMARY="$(printf '%s\n' "$ALERTS" | paste -sd '|' - | cut -c1-180)"
+    else
+        SUMMARY="$(printf '%s\n' "$OUT" \
+            | grep -E 'DECISION +(LONG|SHORT)|EARLY_MOMENTUM|THRUST_PULLBACK|MOMENTUM_JOIN' \
+            | sed -E 's/^ *//; s/  +/ /g' | paste -sd '|' - | cut -c1-180)"
+    fi
     [ -z "$SUMMARY" ] && SUMMARY="Signal — see $LOG"
     SAFE="$(printf '%s' "$SUMMARY" | sed 's/"/\\"/g')"
     osascript -e "display notification \"$SAFE\" with title \"Intelligence Framework — Brief\"" >/dev/null 2>&1
