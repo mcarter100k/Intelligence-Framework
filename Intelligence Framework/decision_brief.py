@@ -798,6 +798,75 @@ def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None
     return " ".join(p for p in parts if p)
 
 
+def _machine_flags(brief: "DecisionBrief") -> list:
+    """
+    Machine-readable watched-condition flips for the alert layer
+    (docs/specs/alert_expansion_spec.md). Pure read of the brief's
+    session-delta — NO decision logic here. Returns plain-English one-line
+    alerts; empty list on a no-change run (zero-noise rule).
+
+    Class (a): regime change / filter flip / conditions improved-deteriorated
+               (session_memory already detects these).
+    Class (b): EXIT-IF condition newly satisfied vs the prior run — v1 covers
+               the two stand-down watch conditions, with documented
+               approximations from available delta fields:
+                 * structure-confirm: prior structure was unconfirmed
+                   (TRANSITIONAL) and it changed this run → newly confirmed.
+                 * trend-strength cross: daily crossed 25 vs prior run, with
+                   the 4-hour reading >= 25 as the "holding" proxy.
+               Trade-side swing-break watches are NOT evaluated (no prior
+               price in the session snapshot) — known v1 boundary.
+    """
+    d = brief.session_delta or {}
+    if not d:
+        return []
+    pair = brief.instrument.replace("_", "/")
+    flags = []
+
+    # (a) filter flip / regime change / improved-deteriorated
+    summary = d.get("summary", "") or ""
+    if d.get("filter_changed"):
+        if d.get("filter_now"):
+            flags.append(f"{pair}: conditions improved — the framework now "
+                         f"allows a trade. Check the brief.")
+        else:
+            flags.append(f"{pair}: conditions deteriorated — the framework "
+                         f"has stood down since the last run.")
+    elif "CONDITIONS IMPROVED" in summary:
+        flags.append(f"{pair}: conditions improved since the last run. "
+                     f"Check the brief.")
+    elif "CONDITIONS DETERIORATED" in summary:
+        flags.append(f"{pair}: conditions deteriorated since the last run.")
+    if d.get("regime_changed"):
+        flags.append(f"{pair}: the market regime changed since the last run. "
+                     f"Check the brief.")
+
+    # (b) EXIT-IF newly satisfied (v1: stand-down watch conditions)
+    if d.get("structure_changed") and d.get("structure_prior") == "TRANSITIONAL":
+        flags.append(f"{pair}: exit-watch fired — daily price structure just "
+                     f"confirmed a direction. Check the brief.")
+    try:
+        prior_adx = float(d.get("adx_d1_prior"))
+        now_adx   = float(d.get("adx_d1_now"))
+    except (TypeError, ValueError):
+        prior_adx = now_adx = None
+    if (prior_adx is not None and prior_adx < 25.0 <= now_adx
+            and float(brief.adx_h4 or 0) >= 25.0):
+        flags.append(f"{pair}: exit-watch fired — daily trend strength "
+                     f"crossed 25 with the 4-hour holding. Check the brief.")
+
+    return flags
+
+
+def _emit_alerts(flags: list, stream=None) -> None:
+    """Emit ##ALERT## lines on STDERR — the human brief on stdout stays
+    byte-identical; the wrapper reads this channel."""
+    import sys as _sys
+    stream = stream or _sys.stderr
+    for f in flags:
+        print(f"##ALERT## {f}", file=stream)
+
+
 def _error_brief(instrument: str, timestamp: str,
                  error: str) -> DecisionBrief:
     """Return a safe STAND DOWN brief when any error occurs."""
@@ -834,6 +903,13 @@ if __name__ == "__main__":
     for inst in instruments:
         brief = get_decision_brief(inst)
         print(brief.format())
+
+        # Watched-condition flips → machine channel (stderr only; stdout brief
+        # is byte-identical). Wrapper routes ##ALERT## lines to notifications.
+        try:
+            _emit_alerts(_machine_flags(brief))
+        except Exception:
+            pass
 
         if brief.decision in ("LONG", "SHORT"):
             entry = get_entry_brief(inst, brief.decision)
