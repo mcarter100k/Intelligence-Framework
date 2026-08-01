@@ -1395,3 +1395,21 @@ Zero-noise rule pinned: no flip → silent; unchanged stand-aside days →
 silent. +11 pinned tests; suite 1047 → 1058 green. Live check: unchanged
 weekend read produced zero alert lines and a byte-identical brief; wrapper
 exit 0.
+
+---
+
+## PENDING LIVE CONFIRMATION (Gate 3 — cleared only by reality, with date + evidence)
+
+Seeded 2026-07-31 per the Two-Gate Verification Standard (AGENTS.md rule 7).
+An entry leaves this list only when the real event has occurred and its
+evidence (log line / ledger row / notification) is cited here.
+
+- [ ] **First real alert fire** — a watched-condition flip (##ALERT## line)
+      produced by a scheduled run on real data, routed to a notification.
+- [ ] **First Sunday calendar auto-fetch** — com.quis.intelligence.calendar
+      fires on schedule and calendar.csv updates (logs/calendar_*.log).
+- [ ] **First real setup_check use** — a pre-trade stack run before an actual
+      trading decision, logged to pre_trade_journal.csv.
+- [ ] **First shadow grading** — run_outcome_check grades the first shadow
+      ledger rows when their 30-bar horizons elapse (~2026-08-05 for the
+      2026-07-29 EARLY_MOMENTUM fires).

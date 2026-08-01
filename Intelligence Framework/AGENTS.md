@@ -115,6 +115,20 @@ requires team review; their priors are not evidence.
    is a success; an unreviewed change to the tradeable path is the only
    failure mode that matters.
 
+7. **Two-Gate Verification Standard (adopted 2026-07-31).**
+   - **Gate 1 — controlled-input tests:** failure paths, rare conditions,
+     pinned values. Required, NEVER sufficient. No merge on Gate 1 alone.
+   - **Gate 2 — pre-merge reality verification (mandatory):** real OANDA,
+     real files, real scheduled paths. Every run report carries a
+     **REALITY GATE** section showing actual output. Mock results may never
+     appear in it.
+   - **Gate 3 — PENDING LIVE CONFIRMATION:** anything only time can prove
+     (a scheduled job firing, an alert on a real flip, a ledger graded by
+     the market) gets an entry in `validation_log.md`'s PENDING LIVE
+     CONFIRMATION section; entries are cleared with date + evidence when
+     reality performs them. Never claim a time-dependent behavior works
+     until reality has performed it.
+
 ---
 
 ## Live entry points (what "reachable" means)
