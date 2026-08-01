@@ -1413,3 +1413,24 @@ evidence (log line / ledger row / notification) is cited here.
 - [ ] **First shadow grading** — run_outcome_check grades the first shadow
       ledger rows when their 30-bar horizons elapse (~2026-08-05 for the
       2026-07-29 EARLY_MOMENTUM fires).
+
+---
+
+## 2026-07-31 — trade_logger repaired (per amended repo spec)
+
+Built to `docs/specs/trade_logger_repair_spec.md` (amended: premise inspection
+showed trade_log.csv is an orphaned framework-snapshot file, not a trade
+ledger — it stays untouched as evidence). New `trades.csv` ledger (gitignored,
+append-only), TWO-ROW convention: OPEN row at entry, CLOSE row at exit, linked
+by position_id — closing never edits the open row; open positions are derived,
+no pending-state file. stack_id links to pre_trade_journal.csv with the most
+recent matching stack offered as default. Instrument-correct pip math. All
+bridge-module/MT5 remnants stripped (enforced by test). Gate 1: +5 pinned
+tests (schema, full flow, stack default, id increment, remnant scan); suite
+1058 → 1063 green. Gate 2 (REALITY): real end-to-end use on the live brief —
+PAPER SHORT GBP_JPY at the real Friday close 212.264 (post-crash: GBP/JPY fell
+~600 pips 07-31; ATR 161.6p), stop/target from real ATR, closed against the
+same real price minutes later (BE, market closed) — both ledger rows verbatim
+in the run report. Bug found by tests: def-time default-arg binding (same
+class as calendar_fetch) — fixed; a test artifact briefly written to the real
+trades.csv was removed before first real use.
