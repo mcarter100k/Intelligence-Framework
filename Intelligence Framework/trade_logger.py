@@ -78,6 +78,8 @@ def log_open():
     entry_price   = _ask_float("Entry price  (e.g. 2.0456)")
     volume        = _ask_float("Volume / lot size  (e.g. 0.10)")
     balance_open  = _ask_float("Account balance before this trade  (e.g. 1250.00)")
+    # Optional link to the pre-trade evidence stack (setup_check.py prints it).
+    stack_id      = input("  Pre-trade stack_id (from setup_check, Enter to skip): ").strip()
 
     now     = datetime.utcnow()
     now_str = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -99,6 +101,7 @@ def log_open():
         "conviction":   conviction,
         "regime":       regime,
         "balance_open": balance_open,
+        "stack_id":     stack_id,   # optional link to pre_trade_journal.csv
     }
     _save_pending(pending)
 

@@ -25,6 +25,11 @@ from typing import Optional
 
 
 # ── Management parameters ──────────────────────────────────────────────────────
+# Wired live-core via setup_check.py (docs/specs/setup_check_spec.md).
+MAX_STOP_ATR_MULTIPLE = 1.5  # INFORMED PRIOR — a structural stop wider than
+                             # this many daily ATRs is flagged as oversized
+SPREAD_PIPS           = 4.0  # typical broker round-trip (from quarantined
+MIN_RR_AFTER_SPREAD   = 1.5  # HARD_LIMITS — informed priors, self-contained)
 BREAKEVEN_R    = 1.0   # move stop to entry when trade reaches this R
 PARTIAL_R      = 1.0   # first partial exit at this R (same trigger as breakeven)
 PARTIAL_PCT    = 50    # % of position to close at Step 1
@@ -99,11 +104,13 @@ def get_management_plan(
     rr = round(reward / risk, 2) if risk > 0 else 0.0
 
     # Effective reward:risk AFTER spread — the framework's real tradeability
-    # floor (HARD_LIMITS.min_rr_after_spread). Spread widens the effective stop
-    # and eats into the reward. This is the only place the 1.5 floor is enforced.
-    from risk_config import HARD_LIMITS
-    _spread_price = HARD_LIMITS.get("spread_pips", 4.0) / _pip_factor(instrument)
-    _rr_floor     = HARD_LIMITS.get("min_rr_after_spread", 1.5)
+    # floor. Spread widens the effective stop and eats into the reward. This is
+    # the only place the 1.5 floor is enforced. Constants are LOCAL (lifted from
+    # the quarantined risk_config's HARD_LIMITS — informed priors): this module
+    # is live-core via setup_check and must not import from shadow/, nor depend
+    # on shadow/'s conftest happening to be on sys.path.
+    _spread_price = SPREAD_PIPS / _pip_factor(instrument)
+    _rr_floor     = MIN_RR_AFTER_SPREAD
     eff_reward    = max(0.0, reward - _spread_price)
     eff_risk      = risk + _spread_price
     effective_rr  = round(eff_reward / eff_risk, 2) if eff_risk > 0 else 0.0
