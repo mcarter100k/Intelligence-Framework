@@ -1349,3 +1349,29 @@ network fail exit-0). Suite 1029 → 1034 green. Live fetch replaced the
 118-day-stale manual file; the brief's stale note cleared. Known boundary: a
 week with zero high-impact GBP/AUD/JPY events fails validation by design and
 keeps the old file (conservative; stale note reappears after 7 days).
+
+---
+
+## 2026-07-31 — setup_check pre-trade evidence stack built (per repo spec)
+
+Built to `docs/specs/setup_check_spec.md`. `setup_check.py` READS the decision
+path (get_regime / official decision / entry_confirmation / news_gate /
+session delta — all read-only, no snapshots written), renders the six-line
+stack in plain English, soft-gates (always logs to `pre_trade_journal.csv`,
+gitignored append-only; blanks/overrides/conflicts flagged, never blocked).
+Trading against the framework's read is FLAGGED information, not a block.
+`storylines.md` created (dated-header staleness convention, >8 days = stale;
+JPY INTERVENTION-WATCH marker). PLAY pattern mapping is deterministic and
+documented (coil-break / base-break / first-pullback / retest-fade /
+none-named) — suggested only, human confirms. `trade_management` wired
+live-core: MAX_STOP_ATR_MULTIPLE=1.5 breach flag + R-to-target math; made
+self-contained (local SPREAD_PIPS / MIN_RR_AFTER_SPREAD constants — its old
+`risk_config` import pointed into quarantined shadow/ and only worked by
+sys.path luck; fixed). `trade_logger.log_open` gains optional stack_id link.
++13 pinned tests; suite 1034 → 1047 green. Live run: 1.1s, all six lines,
+against-framework flag correct on a real NO-TRADE read.
+
+KNOWN BOUNDARY (pre-existing, surfaced during build): `trade_logger.py`
+imports `trade_receiver`, which was deleted in the old workspace audit
+(0e4af6e) — the tool cannot run until repaired or retired. stack_id addition
+is inert until then. Team decision needed: repair or retire.
