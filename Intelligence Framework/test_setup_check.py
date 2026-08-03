@@ -166,10 +166,39 @@ def test_soft_gate_logs_blanks(tmp_path):
     assert rows[0]["stack_id"].endswith("_GBP_JPY_LONG")
 
 
-# ── storylines.md template parses under its own convention ─────────────────────
+# ── storylines parser contract (inline fixture — the repo's storylines.md is
+#    LIVING USER DATA and must never be asserted against by tests) ─────────────
 
-def test_shipped_template_parses():
-    st = sc.parse_storylines()          # the real storylines.md in the repo
+_TEMPLATE = """# Storylines — updated: {date}
+
+GBP: bullish — rates story
+AUD: bearish — CPI crater
+JPY: neutral — managed market
+
+JPY INTERVENTION-WATCH: price in historical MoF response zone
+"""
+
+
+def test_template_convention_parses(tmp_path):
+    from datetime import datetime, timezone
+    p = tmp_path / "storylines.md"
+    p.write_text(_TEMPLATE.format(
+        date=datetime.now(timezone.utc).strftime("%Y-%m-%d")))
+    st = sc.parse_storylines(path=str(p))
     assert st["available"] is True
-    assert set(st["views"]) == {"GBP", "AUD", "JPY"}
-    assert st["intervention_watch"] is False     # marker is commented out
+    assert st["stale"] is False
+    assert st["views"] == {"GBP": "bullish", "AUD": "bearish", "JPY": "neutral"}
+    assert st["intervention_watch"] is True      # uncommented marker detected
+
+
+def test_undated_or_freeform_file_is_treated_stale(tmp_path):
+    # A file without the 'updated: YYYY-MM-DD' header (e.g. a free-form weekly
+    # narrative) is available but STALE-by-convention: FUEL will warn rather
+    # than silently claim fundamental support.
+    p = tmp_path / "storylines.md"
+    p.write_text("# storylines.md — week of 2026-08-03 (approved 2026-08-03)\n"
+                 "## GBP — narrative only\n")
+    st = sc.parse_storylines(path=str(p))
+    assert st["available"] is True
+    assert st["stale"] is True
+    assert st["views"] == {}
