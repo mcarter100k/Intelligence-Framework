@@ -91,4 +91,21 @@ if [ -n "$CATEGORY" ]; then
     notify "$CATEGORY" "$SUMMARY" "$LOG"
 fi
 
+# Daily DIGEST (docs/specs/daily_digest_spec.md): ONLY when launchd passed
+# the "digest" argument (the 07:30 job's plist does; nothing else does).
+# One line, both pairs' decisions + the concrete watch condition, clicking
+# through to the regenerated latest-view. View/digest failure falls back
+# to the day log — never breaks the run.
+if [ "${1:-}" = "digest" ]; then
+    python3 scripts/latest_view.py "$LOG" "logs/latest_brief.log" || true
+    DIGEST="$(printf '%s
+' "$OUT" | python3 scripts/daily_digest.py)"
+    [ -z "$DIGEST" ] && DIGEST="digest unavailable — see the log"
+    if [ -f "logs/latest_brief.log" ]; then
+        notify "DIGEST" "$DIGEST" "logs/latest_brief.log"
+    else
+        notify "DIGEST" "$DIGEST" "$LOG"
+    fi
+fi
+
 exit 0

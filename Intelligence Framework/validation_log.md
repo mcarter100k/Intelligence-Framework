@@ -1924,3 +1924,20 @@ shadow 868. Gate 2 (REALITY): live briefs on BOTH pairs — GBP/AUD "falling
 — down 290 pips …", GBP/JPY daily "falling — down 878 pips …" beside the
 H4 exhaustion sentence; DATA BASIS shows the new bucket label with the
 same 3-outcome record; live ledger migrated 25 → 26 columns.
+
+**Addendum (final before freeze, 2026-09-09):** daily DIGEST notification
+folded into this branch per docs/specs/daily_digest_spec.md — the 07:30
+job's plist passes the `digest` argument (deterministic, not
+clock-guessed; reinstalled and verified in launchctl), the wrapper posts
+ONE category-DIGEST notification with both pairs' decisions + the concrete
+watch condition, clicking through to logs/latest_brief.log (generated on
+the digest run by scripts/latest_view.py — the ONLY slice of the held
+latest-view spec that is built; the full every-run version stays held).
+Gate 1: 8 pins (digest line incl. concrete-watch preference and failed-run
+wording; view layout incl. error runs and alert lines; digest strictly
+arg-gated; only brief-ny's plist passes the arg); suite 1212 → 1220 green.
+Gate 2 (REALITY): real `scheduled_brief.sh digest` run — real DIGEST
+notification, real view (latest block + all five earlier runs digested +
+both ##ALERT## lines + pointer), click URL opens it; a real non-digest run
+posted no digest and left the view byte-identical. Gate 3 pending: first
+scheduled 07:30 digest via launchd.
