@@ -1887,3 +1887,57 @@ transition-zone + H4 wording unchanged, official decision identical);
 suite 1184 → 1200 green, shadow 868. Gate 2 (REALITY): live GBP/AUD brief
 rendered the new daily sentence and the concrete EXIT IF naming the real
 pending low 1.8732 with its true 2-sessions-plus-close condition.
+
+---
+
+## 2026-09-09 — Unresolved-direction polish (per docs/specs/unresolved_direction_polish_spec.md)
+
+**On the record, as directed: the structure rule cannot confirm a trend
+mid-leg; it confirms on the first bounce — by design, and the cost is
+first-leg participation. The subtype is now logged so the unresolved
+bucket can be split in future accuracy analysis.**
+
+Built on `feat/unresolved-direction-polish` (after merging the
+unconfirmed-trend branch to main): TRANSITION_ZONE subtype named at the
+classifier's 18–25 branch (routing unchanged); transition-zone VOLATILE
+renders "no clear direction yet (trend strength X/100, transition zone)"
+on both timeframes; "choppy" removed from the VOLATILE vocabulary (ban:
+everywhere except quiet RANGING); H4 UNCONFIRMED_TREND renders the
+falling/rising template with its own fact (`h4_change_pips_10`), phrased
+"over the last 40 hours" — a session-count phrase on H4 would be a unit
+lie; DATA BASIS label → "daily unresolved-direction bucket (transition
+zone + unconfirmed trends)" with the VOLATILE evidence key untouched;
+regime_classification_log.csv gained the additive `subtype` column (26th,
+loss_species migration pattern, schema pinned) populated by log_regime as
+`d1=<sub>;h4=<sub>`. The live ledger was migrated via the logger: 26
+headers, all 25 old rows verbatim with blank subtype.
+
+**FINDING, flagged for team decision (not fixed here — behavioral):
+nothing on the live path calls `log_regime` any more.** Only the module's
+own docstring references it; the evidence loop grades old rows but has
+accrued no new classification since 2026-07-29. "Populated on every new
+classification" is built at the logger; a caller must be re-wired (own
+spec) before new rows — and their subtypes — accumulate.
+
+Gate 1: 12 new pins + 2 superseded pins updated; suite 1200 → 1212 green,
+shadow 868. Gate 2 (REALITY): live briefs on BOTH pairs — GBP/AUD "falling
+— down 290 pips …", GBP/JPY daily "falling — down 878 pips …" beside the
+H4 exhaustion sentence; DATA BASIS shows the new bucket label with the
+same 3-outcome record; live ledger migrated 25 → 26 columns.
+
+**Addendum (final before freeze, 2026-09-09):** daily DIGEST notification
+folded into this branch per docs/specs/daily_digest_spec.md — the 07:30
+job's plist passes the `digest` argument (deterministic, not
+clock-guessed; reinstalled and verified in launchctl), the wrapper posts
+ONE category-DIGEST notification with both pairs' decisions + the concrete
+watch condition, clicking through to logs/latest_brief.log (generated on
+the digest run by scripts/latest_view.py — the ONLY slice of the held
+latest-view spec that is built; the full every-run version stays held).
+Gate 1: 8 pins (digest line incl. concrete-watch preference and failed-run
+wording; view layout incl. error runs and alert lines; digest strictly
+arg-gated; only brief-ny's plist passes the arg); suite 1212 → 1220 green.
+Gate 2 (REALITY): real `scheduled_brief.sh digest` run — real DIGEST
+notification, real view (latest block + all five earlier runs digested +
+both ##ALERT## lines + pointer), click URL opens it; a real non-digest run
+posted no digest and left the view byte-identical. Gate 3 pending: first
+scheduled 07:30 digest via launchd.

@@ -83,7 +83,12 @@ FIELDNAMES = [
     "bars_elapsed",
     "price_at_outcome",
     "outcome_correct",   # True/False
-    "outcome_detail",    # plain-English explanation of what happened
+    "outcome_detail",    # plain-English explanation of what happened,
+    # additive 2026-09-09 (unresolved_direction_polish_spec):
+    # d1/h4 display subtypes at classification time, so the
+    # unresolved bucket can be split in future accuracy analysis.
+    # Old rows blank; loss_species-style migration on append.
+    "subtype",
 ]
 
 
@@ -104,6 +109,17 @@ def _price_plausible(instrument: str, price) -> bool:
     if not is_jpy and p > 50:
         return False
     return True
+
+
+def _subtype_tag(regime_data: Dict) -> str:
+    """Compact d1/h4 subtype record for the ledger — blank when both empty,
+    else 'd1=<sub>;h4=<sub>' with empty parts omitted."""
+    parts = []
+    for tf, key in (("d1", "regime_d1_subtype"), ("h4", "regime_h4_subtype")):
+        v = (regime_data.get(key) or "").strip()
+        if v:
+            parts.append(f"{tf}={v}")
+    return ";".join(parts)
 
 
 def log_regime(regime_data: Dict, instrument: str) -> str:
@@ -141,6 +157,7 @@ def log_regime(regime_data: Dict, instrument: str) -> str:
         "adx_h4":             regime_data.get("adx_h4", 0.0),
         "atr_ratio":          regime_data.get("atr_vs_avg", 0.0),
         "structure_d1":       regime_data.get("structure", ""),
+        "subtype":            _subtype_tag(regime_data),
         "weekly_context":     regime_data.get("weekly_context", ""),
         "timeframe_conflict": regime_data.get("timeframe_conflict", False),
         "stand_down":         regime_data.get("stand_down", False),
@@ -514,9 +531,33 @@ def _estimate_bars_elapsed_calendar(log_time: datetime) -> int:
     return max(0, int(total_days * 5 / 7))
 
 
+def _migrate_header() -> None:
+    """Additive header migration (subtype column, 2026-09-09): when the
+    ledger's header predates FIELDNAMES, rewrite with the current header —
+    every existing row verbatim in its old columns, blank in the new one.
+    The logger maintaining its own schema; values never edited. Must run
+    before any append."""
+    try:
+        with open(LOG_FILE, newline="") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames is None or \
+                    list(reader.fieldnames) == FIELDNAMES:
+                return
+            rows = list(reader)
+    except OSError:
+        return
+    with open(LOG_FILE, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: (r.get(k) or "") for k in FIELDNAMES})
+
+
 def _write_row(row: Dict) -> None:
     """Append a single row to the log file."""
     file_exists = os.path.exists(LOG_FILE)
+    if file_exists:
+        _migrate_header()
     with open(LOG_FILE, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         if not file_exists:
