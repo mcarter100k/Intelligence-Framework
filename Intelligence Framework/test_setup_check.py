@@ -77,7 +77,7 @@ def test_full_stack_renders_six_lines_clean():
 def test_stand_aside_flag_fires():
     stack = _stack(decision=_decision(direction="NO TRADE", grade="C"))
     assert stack["against_framework"] is True
-    assert "AGAINST THE FRAMEWORK" in stack["regime"]
+    assert "against its read" in stack["regime"]
 
 
 def test_direction_mismatch_flags_too():
@@ -96,7 +96,7 @@ def test_aligned_direction_no_flag():
 def test_stale_storylines_warns():
     stack = _stack(storylines=_storylines(stale=True))
     assert stack["fuel_marker"] == "stale"
-    assert "STALE" in stack["fuel"]
+    assert "out of date" in stack["fuel"]
 
 
 def test_fuel_agrees_and_conflicts():
@@ -133,7 +133,7 @@ def test_risk_math_pinned():
     assert stack["stop_atr_multiple"] == pytest.approx(0.5)
     assert stack["breach_max_stop"] is False
     assert stack["r_to_target"] == pytest.approx(3.0)
-    assert "3.0R" in stack["risk"]
+    assert "3.0 times what you risk" in stack["risk"]
 
 
 def test_risk_breach_flag_pinned():
@@ -141,7 +141,7 @@ def test_risk_breach_flag_pinned():
     stack = _stack(entry=_Entry(h1_confirmed=True, h1_entry_level=215.00))
     assert stack["stop_atr_multiple"] == pytest.approx(2.0)
     assert stack["breach_max_stop"] is True
-    assert "size down" in stack["risk"]
+    assert "Size down" in stack["risk"]
 
 
 def test_risk_no_structure_asks_for_manual_stop():
