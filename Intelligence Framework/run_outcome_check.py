@@ -22,7 +22,14 @@ def main() -> None:
     )
 
     if not is_configured():
-        print("OANDA not configured — set OANDA_API_KEY and OANDA_ACCOUNT_ID")
+        # Loud, machine-detectable early exit (docs/specs/heartbeat_spec.md
+        # item 2). The 39-day outage hid behind the old quiet one-liner: the
+        # wrapper detects this marker, counts consecutive failures, and
+        # alerts — this function must NEVER exit silently having graded
+        # nothing. The wrapper owns the "Nth consecutive" counter.
+        print("GRADER EARLY EXIT — OANDA not configured "
+              "(set OANDA_API_KEY and OANDA_ACCOUNT_ID) — "
+              "nothing graded this run")
         return
 
     review_needed = []

@@ -10,11 +10,31 @@ cd "$PROJ" || exit 0
 [ -f "venv/bin/activate" ] && source "venv/bin/activate"
 mkdir -p logs
 
+# Credential delivery for launchd context (docs/specs/heartbeat_spec.md item 0).
+if [ -z "${INTEL_NO_ENV_FILE:-}" ] && [ -f "$PROJ/.env" ]; then
+    set -a; . "$PROJ/.env"; set +a
+fi
+
 DATE="$(date +%F)"
 LOG="logs/outcomes_${DATE}.log"
 
 OUT="$(python3 run_outcome_check.py 2>&1)"
 { echo "===== $(date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
+
+# Health tracking (docs/specs/heartbeat_spec.md item 1). Failure signature:
+# grader early-exit marker, unconfigured feed, no data, or empty output.
+if [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -qE 'GRADER EARLY EXIT|not configured|no data from OANDA'; then
+    HREASON="$(printf '%s\n' "$OUT" | grep -oE 'GRADER EARLY EXIT[^(]*|[A-Z_]+: no data from OANDA' | head -1)"
+    [ -z "$HREASON" ] && HREASON="outcome check produced no output"
+    HEALTH="$(python3 scripts/health_state.py record-failure "$HREASON")"
+else
+    HEALTH="$(python3 scripts/health_state.py record-success)"
+fi
+if [ -n "$HEALTH" ]; then
+    echo "$HEALTH" >> "$LOG"
+    HSAFE="$(printf '%s' "$HEALTH" | sed 's/^ALERT://; s/"/\\"/g' | cut -c1-200)"
+    osascript -e "display notification \"$HSAFE\" with title \"Intelligence Framework — Health\"" >/dev/null 2>&1
+fi
 
 # Notify only if a shadow-signal outcome was graded this run.
 if printf '%s\n' "$OUT" | grep -q 'shadow-signal outcomes filled'; then
