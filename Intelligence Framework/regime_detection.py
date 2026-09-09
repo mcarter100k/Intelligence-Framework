@@ -653,8 +653,24 @@ def _classify(adx: float, atr_ratio: float, slope: float,
               instrument: str = "GBP_AUD",
               pair: "PairConfig" = None,
               structure: str = "TRANSITIONAL") -> str:
+    """Thin wrapper over _classify_ex — the public regime label only.
+    Kept so every existing call site and test is untouched
+    (docs/specs/exhaustion_subtype_display_spec.md)."""
+    return _classify_ex(adx, atr_ratio, slope, instrument, pair, structure)[0]
+
+
+def _classify_ex(adx: float, atr_ratio: float, slope: float,
+                 instrument: str = "GBP_AUD",
+                 pair: "PairConfig" = None,
+                 structure: str = "TRANSITIONAL") -> Tuple[str, str]:
     """
     Regime classification using ADX zones (informed priors).
+    Returns (regime, subtype). subtype is "EXHAUSTION" when the GBP/JPY
+    exhaustion branch fires (RANGING here means "violent trend, fade don't
+    follow" — NOT a quiet market), else "". The subtype exists so the
+    display layer can render the two meanings of RANGING honestly without
+    re-deriving any threshold (docs/specs/exhaustion_subtype_display_spec.md).
+    Routing is unchanged — the subtype is metadata, never a decision input.
 
     INFORMED PRIOR (v1 invalidated by serial correlation, see validation_log 2026-06-29):
     - ADX < 18: mean reversion dominant on both pairs — RANGING
@@ -669,30 +685,33 @@ def _classify(adx: float, atr_ratio: float, slope: float,
     # GBP/JPY compression stand-down (pre-BoJ coil)
     if pair and pair.atr_compression_min > 0:
         if atr_ratio < pair.atr_compression_min:
-            return "VOLATILE"  # compression zone — both signals fail
+            return "VOLATILE", ""  # compression zone — both signals fail
 
     spike_mult = pair.atr_spike_multiplier if pair else 1.5
 
     # ATR spike override — fires regardless of ADX zone
     if atr_ratio >= spike_mult:
-        return "VOLATILE"
+        return "VOLATILE", ""
 
-    # GBP/JPY exhaustion regime — high ADX means mean reversion, not trend
+    # GBP/JPY exhaustion regime — high ADX means mean reversion, not trend.
+    # THE single source of the EXHAUSTION subtype: this RANGING is a violent
+    # extended move to fade, not a quiet market — the display renders it as
+    # overextension, never "moving sideways".
     if instrument == "GBP_JPY" and adx >= _ADX_JPY_EXHAUSTION:
-        return "RANGING"  # exhaustion: fade, don't follow
+        return "RANGING", "EXHAUSTION"  # exhaustion: fade, don't follow
 
     # Late-trend warning for both pairs
     if adx >= _ADX_EXHAUSTION_THRESHOLD:
         # Still classify as trending but caller gets exhaustion flag
-        return "TRENDING_UP" if slope > 0 else "TRENDING_DOWN"
+        return ("TRENDING_UP" if slope > 0 else "TRENDING_DOWN"), ""
 
     # Validated transition zone — no statistical edge
     if _ADX_RANGING_THRESHOLD <= adx < _ADX_TRANSITION_HIGH:
-        return "VOLATILE"  # no edge = treat as untradeable until structure confirms
+        return "VOLATILE", ""  # no edge = untradeable until structure confirms
 
     # Mean reversion dominant — spike already handled above
     if adx < _ADX_RANGING_THRESHOLD:
-        return "RANGING"
+        return "RANGING", ""
 
     # ADX 25-32: narrow momentum window — require HTF structure confirmation
     # (Problem 2). Slope alone is NOT a confirmed trend: the structure must
@@ -700,10 +719,10 @@ def _classify(adx: float, atr_ratio: float, slope: float,
     # no confirmed edge → VOLATILE (stand aside), never a slope-only momentum
     # entry. This closes the grade-A wrong-way trade the slope-only path allowed.
     if structure == "UPTREND" and slope > 0:
-        return "TRENDING_UP"
+        return "TRENDING_UP", ""
     if structure == "DOWNTREND" and slope < 0:
-        return "TRENDING_DOWN"
-    return "VOLATILE"
+        return "TRENDING_DOWN", ""
+    return "VOLATILE", ""
 
 
 def _market_status(*, _now=None) -> dict:
@@ -845,8 +864,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         slope = closes[-1] - closes[-10] if len(closes) >= 10 else 0
 
     # ── D1 regime classification ──────────────────────────────────────────────
-    d1_regime = _classify(current_adx, atr_ratio, slope, pair=pair,
-                          instrument=pair.instrument, structure=structure)
+    d1_regime, d1_subtype = _classify_ex(current_adx, atr_ratio, slope,
+                                         pair=pair, instrument=pair.instrument,
+                                         structure=structure)
     regime = d1_regime  # backward compat alias
 
     # ── H4 multi-timeframe classification ─────────────────────────────────────
@@ -856,6 +876,8 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     # sentinel so the composite resolves to STAND_DOWN, and surface an
     # h4_available flag so the degradation is visible, never silent.
     h4_regime    = "UNAVAILABLE"
+    h4_subtype   = ""
+    h4_structure = "TRANSITIONAL"
     h4_available = False
     adx_h4       = 0.0
 
@@ -886,9 +908,11 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
                 h4_slope = -1.0
             else:
                 h4_slope = h4c[-1] - h4c[-10] if len(h4c) >= 10 else 0
-            h4_regime = _classify(adx_h4, h4_atr_ratio, h4_slope,
-                                  instrument=pair.instrument, pair=pair,
-                                  structure=h4_struct["structure"])
+            h4_regime, h4_subtype = _classify_ex(
+                adx_h4, h4_atr_ratio, h4_slope,
+                instrument=pair.instrument, pair=pair,
+                structure=h4_struct["structure"])
+            h4_structure = h4_struct["structure"]
             h4_available = True
 
     conflict, conflict_type = _detect_conflict(d1_regime, h4_regime)
@@ -1114,6 +1138,11 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         # ── Multi-timeframe (D1 + H4) ─────────────────────────────────────────
         "regime_d1":          d1_regime,
         "regime_h4":          h4_regime,
+        # display-honesty subtypes (docs/specs/exhaustion_subtype_display_spec.md)
+        # — metadata for wording only, never a decision input
+        "regime_d1_subtype":  d1_subtype,
+        "regime_h4_subtype":  h4_subtype,
+        "structure_h4":       h4_structure,
         "adx_h4":             adx_h4,
         "h4_available":       h4_available,
         "timeframe_conflict": conflict,

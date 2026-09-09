@@ -1736,3 +1736,36 @@ all six; StartCalendarInterval dumped per plist. Consequence, stated for
 the record: the scheduled UTC instants shift by the Pacific/Eastern
 offset from their August values; the first post-reinstall scheduled runs
 are the live confirmation (Gate-3 entry already open).
+
+---
+
+## 2026-09-09 — Exhaustion subtype display (per docs/specs/exhaustion_subtype_display_spec.md)
+
+Diagnostic (same day, read-only): the GBP/JPY brief rendered "4-hour chart:
+moving sideways (trend strength 64/100)". Trace: `_classify`'s deliberate
+GBP/JPY exhaustion branch (adx ≥ 35 → RANGING, "fade don't follow" — the
+82.7% mean-reversion prior) flattened by a display layer with one phrase for
+two meanings of RANGING. Classification routing correct; wording dishonest.
+
+Built: `_classify_ex` returns (regime, subtype) at the ONE place that knows
+the threshold — `_classify` is now a thin wrapper, every call site and
+routing decision byte-identical (pinned across the branch matrix).
+`get_regime` exposes `regime_d1_subtype` / `regime_h4_subtype` /
+`structure_h4`; the display derives nothing. REASON / MARKET STATE / FULL
+PICTURE render exhaustion states as "in a strong <direction from confirmed
+structure>, flagged as overextended — the framework does not chase this
+(trend strength N/100)"; quiet RANGING keeps "moving sideways"; filter
+reasons get a subtype-aware token pre-pass so "RANGING D1" can never render
+as sideways during D1 exhaustion.
+
+**Recorded as directed, mirrored in AGENTS.md:** RANGING is overloaded
+(quiet vs JPY exhaustion). PRECONDITION: promoting EXHAUSTION to a
+first-class regime — classifier, composite table, conflict logic, tests —
+is REQUIRED before RANGE_TRADING_ENABLED may ever be set True. Not built
+now.
+
+Gate 1: 15 pins (subtype source, routing matrix unchanged, all three
+sections' wording both ways, D1 equivalent, structure fallback,
+banned-token check, official decision identical with/without the new
+fields); suite 1133 → 1148 green, shadow 868 green. Gate 2 (REALITY):
+below, live GBP/JPY 64/100 exhaustion state.
