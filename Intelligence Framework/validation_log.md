@@ -1425,6 +1425,13 @@ evidence (log line / ledger row / notification) is cited here.
       com.quis.intelligence.heartbeat fires Sunday 12:30 local, notification
       received, logs/heartbeat_<date>.log written. First eligible Sunday:
       2026-09-13.
+- [ ] **First loss autopsied at scheduled grading time** (added 2026-09-09)
+      — a future graded loss gets its loss_species stamped by the scheduled
+      run_outcome_check path (the backfill proved the classifier on the
+      founding exhibit; only time provides a fresh loss).
+- [ ] **First real session walked by the promoted circuit breaker** (added
+      2026-09-09) — a day with live CLOSE rows in trades.csv exercises the
+      R-curve and limits on real trading, not fixtures.
 - [x] **First shadow grading** — run_outcome_check grades the first shadow
       ledger rows when their 30-bar horizons elapse (~2026-08-05 for the
       2026-07-29 EARLY_MOMENTUM fires).
@@ -1669,3 +1676,30 @@ trade_log.csv (wrong schema) it still fails CLOSED. NOT wired into the
 live decision path — where the breaker gates is a separate protected-path
 spec for team decision (out of scope here by design). Gate 3 pending:
 first real session with live CLOSE rows walking the R curve.
+
+---
+
+## 2026-09-09 — Loss autopsy built (Spec C, per docs/specs/loss_autopsy_spec.md); the founding exhibit speaks
+
+Built on `feat/loss-autopsy`: species taxonomy frozen (event_window >
+stopped_then_reversed > exhaustion_entry > never_onside > bled_out, first
+match wins; classified only for R-losing rows passing the invalid_spec
+guard), hooked at the grading seam inside `grade_pending_shadow` — after
+the outcome fields, before the file rewrite; triggers untouched. One
+column appended to the ledger schema (`loss_species`) with an additive
+header migration by the logger (old values preserved verbatim; recorded
+here). `backfill_loss_species()` classifies already-graded valid rows.
+
+Gate 1: 11 pinned tests — one per species, priority pins, wins
+unclassified, invalid rows never autopsied, migration losslessness; suite
+1119 → 1130 green. Gate 2 (REALITY): real backfill on the live ledger
+against real H4 history — **the founding exhibit (2026-07-29T05:00Z, valid
+row 1) classified `stopped_then_reversed`**: stopped at 32.9 pips, then an
+~800-pip run in the signal's direction after the stop-hit bar (≥2R
+threshold passed by ~24R). Rows 2–3 left blank (invalid_spec — never
+autopsied). All pre-existing column values byte-identical after migration.
+Gate 3 pending: first loss classified at scheduled grading time.
+
+N discipline, stated before anyone asks: one classified loss is an
+anecdote with a good filing system. Species tallies inform nothing until
+a candidate reaches its FLAG gate (N=30 graded episodes).
