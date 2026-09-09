@@ -334,11 +334,22 @@ def get_shadow_tally(candidate_id: str, instrument: Optional[str] = None) -> Dic
             logged += 1
             if str(r.get("outcome_filled")) == "True":
                 graded += 1
+                # The definitive outcome is R-multiple — it respects the
+                # stop. hit_stop=True => LOSS, always: a stopped trade lost
+                # 1R no matter where price sat 30 bars later; counting its
+                # net-at-horizon as a win is clairvoyance, not performance
+                # (validation_log 2026-09-09, tally correction). The
+                # founding exhibit is exactly this shape: -1.0R with net
+                # +529. net_30bars_pips stays in the ledger as a DIAGNOSTIC
+                # (the loss autopsy needs it to spot noise-stops) but never
+                # determines win/loss.
                 try:
-                    net = float(r["net_30bars_pips"])
-                    nets.append(net)
-                    if net > 0:
+                    if float(r["r_multiple"]) > 0:
                         wins += 1
+                except (ValueError, TypeError):
+                    pass
+                try:
+                    nets.append(float(r["net_30bars_pips"]))
                 except (ValueError, TypeError):
                     pass
     return {"logged": logged, "graded": graded, "wins": wins,
