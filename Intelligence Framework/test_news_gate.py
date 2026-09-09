@@ -143,5 +143,5 @@ def test_shadow_signals_fire_through_news_window(monkeypatch):
     }
     signals = ss.check_shadow_signals("GBP_JPY", ctx)
     assert len(signals) == 1                      # NOT suppressed by the gate
-    assert signals[0]["candidate_id"] == "EARLY_MOMENTUM"
+    assert signals[0]["candidate_id"] == "EARLY_MOMENTUM_v2"   # v1 retired 2026-09-09
     assert "news_window=true" in signals[0]["extra"]   # context stamp only

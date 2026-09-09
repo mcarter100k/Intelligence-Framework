@@ -1410,6 +1410,10 @@ evidence (log line / ledger row / notification) is cited here.
       fires on schedule and calendar.csv updates (logs/calendar_*.log).
 - [ ] **First real setup_check use** — a pre-trade stack run before an actual
       trading decision, logged to pre_trade_journal.csv.
+- [ ] **First EARLY_MOMENTUM_v2 fire** (added 2026-09-09) — a real scheduled
+      run logs a v2 row whose stop passes the validity guard (adverse side,
+      by construction). Proves the guard passes valid states through, not
+      just that it blocks invalid ones (Gate-1 pins cover blocking).
 - [x] **First shadow grading** — run_outcome_check grades the first shadow
       ledger rows when their 30-bar horizons elapse (~2026-08-05 for the
       2026-07-29 EARLY_MOMENTUM fires).
@@ -1567,3 +1571,21 @@ ledger is a designed **rolling 30-day window**, not an append-only archive —
 the only ledger with retention. The synthetic row's origin (how a fixture
 reached the live file, 2026-07-29) remains unexplained; the row itself is
 now gone by retention, not by edit.
+
+---
+
+## 2026-09-09 — EARLY_MOMENTUM_v2 built (per docs/specs/early_momentum_v2_spec.md)
+
+Built on `feat/early-momentum-v2`: v1 removed from the candidate roster
+(retired — entry above), `check_early_momentum_v2` = byte-identical trigger
+and parameters + the stop-validity guard (stale swing on the non-adverse
+side = NO FIRE; the no-swing 1.5×ATR fallback unchanged). Fresh ledger id;
+v1 rows untouched. Frozen 2026-09-09.
+
+Gate 1: trigger pins carried over verbatim + 7 guard pins (both directions,
+at-entry boundary, fallback preserved, guarded state writes no ledger row);
+suite 1081 → 1088 green. Gate 2 (REALITY): live evaluation on real OANDA H4
+ctx — GBP_JPY close 208.060, ADX 64.0, DOWNTREND, latest_sh 211.823 → no
+fire (ADX far above band, correct); GBP_AUD ADX 17.9 → no fire; real brief
+rendered with live price 208.51 and no shadow section (nothing fired —
+coherent). Gate 3 pending: first real v2 fire through the guard.
