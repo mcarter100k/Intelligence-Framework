@@ -1410,9 +1410,15 @@ evidence (log line / ledger row / notification) is cited here.
       fires on schedule and calendar.csv updates (logs/calendar_*.log).
 - [ ] **First real setup_check use** — a pre-trade stack run before an actual
       trading decision, logged to pre_trade_journal.csv.
-- [ ] **First shadow grading** — run_outcome_check grades the first shadow
+- [x] **First shadow grading** — run_outcome_check grades the first shadow
       ledger rows when their 30-bar horizons elapse (~2026-08-05 for the
       2026-07-29 EARLY_MOMENTUM fires).
+      **CLEARED 2026-09-08** — 34 days late (see the outage post-mortem
+      entry, 2026-09-09): a manual `run_outcome_check.py` from a
+      credentialed shell graded all 3 EARLY_MOMENTUM rows
+      (shadow_signal_log.csv, outcome_filled=True, mtime 2026-09-09
+      00:07:55). Evidence + honest reading: entry "First shadow grading",
+      2026-09-09.
 
 ---
 
@@ -1434,3 +1440,130 @@ same real price minutes later (BE, market closed) — both ledger rows verbatim
 in the run report. Bug found by tests: def-time default-arg binding (same
 class as calendar_fetch) — fixed; a test artifact briefly written to the real
 trades.csv was removed before first real use.
+
+---
+
+## 2026-09-09 — First shadow grading (2026-09-08): Episode 1 = −1.0R, and a spec defect
+
+The first shadow rows were graded 2026-09-08 by a manual `run_outcome_check.py`
+from a credentialed shell (ledger mtime 2026-09-09 00:07:55Z-4). All three
+EARLY_MOMENTUM GBP_JPY SHORT rows filled. Honest reading:
+
+**Episode 1 = −1.0R** from the ONE valid row:
+  row 1 · 2026-07-29T05:00Z · entry 217.667, stop 217.996 (32.9 pips adverse)
+  → hit_stop=True, r_multiple=−1.0, MAE 102.1, **MFE 809.2**, net +529.1.
+  Stopped at 33 pips; the move then ran ~800 pips in the signal's direction.
+  This row is the founding noise-stop exhibit for the loss-autopsy program.
+
+**Rows 2–3 are invalid_spec — excluded from all evidence:**
+  row 2 · entry 218.352, stop 217.996 · row 3 · entry 218.572, stop 217.996 —
+  the stale swing-high stop sits BELOW the SHORT entries. For such rows the
+  grader's hit test (`max(fut_h) >= stop`) is trivially true at entry:
+  guaranteed −1.0R whatever the market does — **unscoreable by construction**,
+  not merely mislabeled. Both "lost" −1.0R while price moved 877.7 / 899.7
+  pips in the signal's favor. Their ledger rows stay verbatim (append-only);
+  the exclusion lives in the grading/reporting layer
+  (`shadow_signals.is_invalid_spec`, per docs/specs/honesty_repairs_spec.md).
+
+Defect source (read in code): `check_early_momentum` uses `latest_sh` as the
+SHORT stop; when price rallies above that stale swing while structure still
+reads DOWNTREND, the stop lands on the wrong side. **EARLY_MOMENTUM v1 is
+RETIRED** for this defect; v2 (identical trigger + stop-validity guard, no
+valid adverse-side swing = no fire) is specified in
+docs/specs/early_momentum_v2_spec.md with a fresh ledger id, per SPEC FREEZE.
+
+THRUST_PULLBACK and MOMENTUM_JOIN stops verified valid by construction in
+code: opposite box edge (entry is beyond the near edge by definition of the
+break) and entry ∓ 1.5×ATR respectively — always adverse side.
+
+Tally after exclusion: EARLY_MOMENTUM = 1 row / 1 episode / 1 graded / −1.0R.
+Gates: FLAG N=30, DECISION N=60 — nothing here is evidence of edge or its
+absence; N=1.
+
+---
+
+## 2026-09-09 — 39-day outage post-mortem (2026-07-31 → 2026-09-08)
+
+**Root cause:** launchd starts the scheduled wrappers in a bare environment.
+OANDA credentials lived only in the interactive shell (`~/.zshrc`-style
+export); `.env` held only ALPHA_VANTAGE_API_KEY, and `oanda_feed` reads
+`os.environ` exclusively (it never loads `.env`). So `is_configured()` was
+False for **every scheduled run from the first one** (outcomes 2026-07-29
+15:16 PDT) — the audit found 250 of 256 brief renders were the error page and
+42/42 scheduled grader runs exited before grading.
+
+**Why it was silent:** the error path resolves to STAND ASIDE (no notify),
+emits no ##ALERT##, and the wrappers exit 0 by design — indistinguishable
+from a healthy quiet market. The heartbeat spec (Branch 3,
+docs/specs/heartbeat_spec.md) exists so this failure class can never be
+silent again.
+
+**Lost, unrecoverable:** ~5 weeks of shadow-candidate evaluation
+(2026-07-31 → 2026-09-07). Fires that were never observed cannot be
+reconstructed — reconstructing them from historical data would be in-sample
+selection, exactly what the forward ledger exists to avoid. Notably the
+GBP/AUD 1.9035 break (week of 2026-08-24) passed unobserved.
+
+**Recovered:** the July EARLY_MOMENTUM episode, graded 2026-09-08 (entry
+above). The regime ledger's 22 pending rows remain fillable when within
+their windows' data reach.
+
+**Honest current status (2026-09-09):** the root cause PERSISTS for
+scheduled runs — the 2026-09-08 18:15 scheduled grader still failed with
+"OANDA not configured". Manual runs from the credentialed shell work.
+Credential delivery to launchd context is sequenced into the heartbeat
+build (Branch 3), where the wrappers are already under edit. Until that
+merges, only manual runs produce evidence.
+
+---
+
+## 2026-09-09 — Level-fade study: FOURTH refutation (entry edge), location confirmed descriptively
+
+`studies/level_fade_study.py` (committed with this entry; approved for the
+record 2026-08-01, entry written from a fresh run's actual output —
+2026-09-09, H4 2023-07-13 → 2026-09-08, 3.2y per pair, spread 3.0p,
+frozen params in the file header).
+
+**REFUTED — rejection-at-level entries carry no edge at honest N:**
+- GBP_AUD: N=1682 rejections — win 50%, median R −1.0, fake rate 76%.
+- GBP_JPY: N=1627 rejections — win 50%, median R −1.0, fake rate 77%.
+- The rejection trigger adds NOTHING over raw touches (both 50% win).
+- D1 alignment adds nothing on GBP_AUD (50% vs 49%) and is INVERTED on
+  GBP_JPY (aligned 39% vs against 55%, medMAE 178 vs 119) — alignment with
+  D1 structure made level fades WORSE on the pair where it mattered.
+- Touch number: no monotone effect (48–54% band).
+This is the fourth refuted entry premise (after compression-precedes-moves,
+fakeout-then-go, structural-precursor). The spread-adjusted median trade
+stops out (medR −1.0 across every slice at MIN_N-honest sample sizes).
+
+**CONFIRMED (descriptive, NOT tradeable):** significant turns (≥100-pip
+legs) occur at pre-existing levels far above base rate — GBP_AUD 93%
+(702/758) vs 59% base (1.56x lift); GBP_JPY 90% (768/851) vs 58% (1.54x).
+Turns are knowable in LOCATION while remaining unpredictable in TIMING —
+the tested trigger fails to convert location knowledge into entry edge.
+Levels stay useful for stop/target placement and context, not for fading.
+
+Full output: run of 2026-09-09 (also preserved with the Branch-1 run
+report). Study is report-only; framework unchanged by the run.
+
+---
+
+## 2026-09-09 — session_context_log.csv: directed removal made moot by designed pruning
+
+Post-audit directive item (f) ordered removal of the synthetic row at line 17
+(`2026-07-29T04:23:31Z,GBP_AUD,100.0,100.0,1.0,TRENDING_UP,TRENDING_UP,
+UPTREND,True` — ADX pinned at 100.0 on both timeframes with
+filter_allowed=True: a test-fixture signature, preserved verbatim here and
+in the 2026-09-08 audit artifact). **No removal was performed.** Before the
+branch touched the file, the 2026-09-09 00:07 manual run wrote fresh rows
+and `session_memory._prune_old_entries()` (PRUNE_DAYS=30, pruning on every
+write — designed behavior documented in the module docstring since build)
+dropped all rows older than 30 days, the synthetic row among them. The file
+now holds the header + 2 rows of 2026-09-09. An agent script targeting the
+exact row content asserted zero matches and aborted without writing.
+
+Correction to the 2026-09-08 audit's framing, same-care-as-positives: this
+ledger is a designed **rolling 30-day window**, not an append-only archive —
+the only ledger with retention. The synthetic row's origin (how a fixture
+reached the live file, 2026-07-29) remains unexplained; the row itself is
+now gone by retention, not by edit.

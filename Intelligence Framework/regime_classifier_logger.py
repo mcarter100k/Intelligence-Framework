@@ -274,6 +274,15 @@ def get_regime_accuracy(
               and (instrument is None or r["instrument"] == instrument)]
 
     from collections import defaultdict
+    raw_counts = defaultdict(int)
+    for r in filled:
+        raw_counts[r["composite_regime"]] += 1
+
+    # Anti-inflation: back-to-back reruns of an unchanged market state count
+    # as ONE observation (same rule as shadow episode counting). The ledger
+    # keeps every row; only the accuracy N dedupes. See _independent_states.
+    filled = _independent_states(filled)
+
     groups = defaultdict(list)
     for r in filled:
         groups[r["composite_regime"]].append(r)
@@ -291,6 +300,7 @@ def get_regime_accuracy(
         result[regime] = {
             "accuracy":   round(accuracy, 3),
             "n":          n,
+            "n_raw":      raw_counts[regime],
             "correct":    correct,
             "flagged":    n >= MIN_SAMPLES_FLAG   and below,
             "actionable": n >= MIN_SAMPLES_REVISE and below,
@@ -323,9 +333,11 @@ def get_accuracy_report(instrument: str = None) -> str:
             flag = " ← FLAG — watch closely, not yet actionable"
         else:
             flag = ""
+        dedupe = (f" [{data['n_raw']} rows -> {data['n']} independent]"
+                  if data.get("n_raw", data["n"]) != data["n"] else "")
         lines.append(
             f"  {regime:<16}: {data['accuracy']:.0%} "
-            f"({data['correct']}/{data['n']} correct){flag}"
+            f"({data['correct']}/{data['n']} correct){dedupe}{flag}"
         )
     lines.append("─" * 45)
     lines.append(
@@ -336,6 +348,53 @@ def get_accuracy_report(instrument: str = None) -> str:
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
+
+def _independent_states(rows: List[Dict]) -> List[Dict]:
+    """Collapse identical back-to-back classifications into one observation.
+
+    WHY: repeated manual/scheduled runs against an unchanged market write
+    near-duplicate rows minutes apart (2026-07-29: 22 rows = 5 states).
+    Counting each row inflates N — the same anti-inflation rule shadow
+    episode counting applies (episodes, not raw fires, are evidence).
+
+    A row joins an open state when it shares
+      (instrument, prediction_type, price_at_log, adx_d1, adx_h4)
+    with it AND lands within that state's outcome window
+    (prediction_window daily bars) of the state's FIRST row. The first row
+    of each state is the observation kept — later identical rows are echoes
+    of it, so the state's outcome is the first row's outcome. Distinct
+    snapshots (any field differs, or outside the window) stay separate.
+    The ledger itself is never touched; this collapses counting only.
+    """
+    def _key(r):
+        return (r.get("instrument"), r.get("prediction_type"),
+                r.get("price_at_log"), r.get("adx_d1"), r.get("adx_h4"))
+
+    def _ts(r):
+        try:
+            return datetime.fromisoformat(
+                r["timestamp"].replace("Z", "+00:00"))
+        except Exception:
+            return None
+
+    reps, open_states = [], {}             # key -> first-row timestamp
+    for r in sorted(rows, key=lambda r: r.get("timestamp", "")):
+        t = _ts(r)
+        if t is None:                      # unparseable time: count it, once
+            reps.append(r)
+            continue
+        try:
+            window = timedelta(days=int(float(r.get("prediction_window") or 0)))
+        except (TypeError, ValueError):
+            window = timedelta(0)
+        k = _key(r)
+        first = open_states.get(k)
+        if first is not None and window > timedelta(0) and (t - first) < window:
+            continue                       # echo of an open state — not counted
+        open_states[k] = t
+        reps.append(r)
+    return reps
+
 
 def _get_prediction(composite: str) -> Tuple[str, int]:
     """Map regime to its testable prediction type and window."""

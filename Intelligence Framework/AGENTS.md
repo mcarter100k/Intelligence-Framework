@@ -14,19 +14,24 @@ Idle agents are correct behavior when the queue is empty.
 
 ## PROTECTED — team review required before any merge
 
-**The 14 live core modules** (the tradeable path and its evidence loop):
+**The 16 live core modules** (the tradeable path and its evidence loop):
 
 ```
 decision_brief.py        run_outcome_check.py     regime_detection.py
 official_decision.py     no_trade_filter.py       regime_classifier_logger.py
 trade_outcome_logger.py  shadow_signals.py        session_memory.py
 entry_confirmation.py    levels_context.py        intraday_context.py
-oanda_feed.py            news_gate.py
+oanda_feed.py            news_gate.py             calendar_fetch.py
+setup_check.py
 ```
 
 (`news_gate.py` added 2026-07-30 per the team-approved spec in
 `docs/specs/news_gate_spec.md` — protected-path specs become repo artifacts
-before building.)
+before building. `calendar_fetch.py` and `setup_check.py` added 2026-09-09
+per the post-audit directive: both were built 2026-07-31 to repo specs but
+never listed — `calendar_fetch.py` runs inside the scheduled wrapper and
+`setup_check.py` writes the pre-trade journal, so the review boundary must
+match the execution boundary.)
 
 **Frozen candidate specs** — `shadow_signals.py` candidates (EARLY_MOMENTUM,
 THRUST_PULLBACK, MOMENTUM_JOIN) are FROZEN. Parameter changes are NEVER edited
