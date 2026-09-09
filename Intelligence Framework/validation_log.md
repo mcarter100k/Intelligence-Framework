@@ -1414,6 +1414,17 @@ evidence (log line / ledger row / notification) is cited here.
       run logs a v2 row whose stop passes the validity guard (adverse side,
       by construction). Proves the guard passes valid states through, not
       just that it blocks invalid ones (Gate-1 pins cover blocking).
+- [ ] **First healthy SCHEDULED runs post-outage** (added 2026-09-09) —
+      launchd fires the brief and outcome wrappers, `.env` sourcing delivers
+      credentials, logs show real prices / real grading with no error
+      markers, health counter stays 0. Expected at the first scheduled
+      slots after the heartbeat branch is live. (Manual bare-env runs
+      already proved the mechanism — Gate 2, 2026-09-09 — but only launchd
+      itself can prove launchd.)
+- [ ] **First Sunday heartbeat via launchd** (added 2026-09-09) —
+      com.quis.intelligence.heartbeat fires Sunday 12:30 local, notification
+      received, logs/heartbeat_<date>.log written. First eligible Sunday:
+      2026-09-13.
 - [x] **First shadow grading** — run_outcome_check grades the first shadow
       ledger rows when their 30-bar horizons elapse (~2026-08-05 for the
       2026-07-29 EARLY_MOMENTUM fires).
@@ -1589,3 +1600,42 @@ ctx — GBP_JPY close 208.060, ADX 64.0, DOWNTREND, latest_sh 211.823 → no
 fire (ADX far above band, correct); GBP_AUD ADX 17.9 → no fire; real brief
 rendered with live price 208.51 and no shadow section (nothing fired —
 coherent). Gate 3 pending: first real v2 fire through the guard.
+
+---
+
+## 2026-09-09 — Heartbeat built (Spec A, per docs/specs/heartbeat_spec.md): the outage class is closed
+
+Built on `feat/heartbeat`:
+
+- **Item 0 (builder addition, flagged in the spec):** wrappers source the
+  gitignored `.env` (`set -a`) before Python; OANDA credentials added to
+  `.env` from the working shell env. This closes the 39-day root cause —
+  launchd's bare env — without touching `oanda_feed`. `INTEL_NO_ENV_FILE=1`
+  is the documented knob to force a failure deliberately.
+- **Item 1:** `scripts/health_state.py` + `logs/health_state.json` —
+  2 consecutive failed runs notify "FRAMEWORK UNHEALTHY — <reason> — Nth
+  consecutive failed run", repeating daily (not per-run) until healthy;
+  recovery notifies once ("RECOVERED after N failed runs"). Both wrappers
+  wired (brief: `Framework error`/empty output; outcomes: `GRADER EARLY
+  EXIT`/`not configured`/`no data`/empty).
+- **Item 2:** `run_outcome_check.py` early exit is now loud and
+  machine-detectable ("GRADER EARLY EXIT — … — nothing graded this run").
+- **Item 3:** `scripts/weekly_heartbeat.sh` +
+  `com.quis.intelligence.heartbeat` (Sun 12:30 local, installed and loaded)
+  — ALWAYS notifies: health state, yesterday's run/error status, shadow
+  graded tallies (valid rows only), calendar age/newest event, storylines
+  age. Silence on a Sunday is itself the alarm.
+
+Gate 1: 10 pinned tests (failure #1 silent / #2 alerts / same-day quiet /
+next-day repeat / recovery once / corrupt state = zero / loud grader exit);
+suite 1088 → 1098 green. Gate 2 (REALITY): forced failure ×2 through the
+REAL brief wrapper (`INTEL_NO_ENV_FILE=1`, OANDA vars unset) — run 1 silent
+(counter 1), run 2 fired the real notification, line 99 of
+logs/brief_2026-09-09.log; then a REAL healthy run in a launchd-identical
+bare env (OANDA vars unset, `.env` sourcing only) rendered live prices
+1.8762 / 208.51, printed "RECOVERED after 2 failed runs" once, counter
+reset to 0; outcomes wrapper healthy bare-env run graded against real OANDA
+(counter stayed 0); real heartbeat run produced the report + notification
+(and honestly flagged yesterday's ERRORS PRESENT and storylines 37d STALE);
+`launchctl list` shows all six jobs. Gate 3 pending: first scheduled
+healthy runs via launchd; first Sunday heartbeat (2026-09-13).
