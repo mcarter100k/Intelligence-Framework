@@ -29,8 +29,12 @@ none.
 
 ## Notes
 
-- `session_guard.py` (the circuit breaker) and `risk_config.py` live here. The
-  parked circuit-breaker item (2.2) therefore depends on promotion — the breaker
-  currently protects nothing in the live path.
-- Tests for these modules live here too; they are not part of the live green bar.
+- `session_guard.py` and `risk_config.py` were PROMOTED to the live tree
+  2026-09-09 (git mv, history preserved) per
+  `docs/specs/circuit_breaker_promotion_spec.md`, with the breaker taught
+  the live trades.csv two-row ledger. The remaining quarantined consumers
+  (`decision_engine`, `market_brain`, `notify`) resolve them from the
+  project root via this directory's conftest and stay quarantined.
+- Tests for the modules still here are not part of the live green bar;
+  `test_session_guard.py` moved to the live suite with the promotion.
 - Nothing in `shadow/` is imported by any live-core module (verified).
