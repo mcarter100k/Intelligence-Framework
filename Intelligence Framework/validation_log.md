@@ -1703,3 +1703,36 @@ Gate 3 pending: first loss classified at scheduled grading time.
 N discipline, stated before anyone asks: one classified loss is an
 anecdote with a good filing system. Species tallies inform nothing until
 a candidate reaches its FLAG gate (N=30 graded episodes).
+
+---
+
+## 2026-09-09 — Tally correction: net-at-horizon is clairvoyance, not performance; R respects the stop
+
+Review ruling (2026-09-09): the definitive win/loss outcome is R-multiple.
+`hit_stop=True` ⇒ LOSS, always, regardless of where price sat 30 bars
+later — the framework was stopped out and did not hold the position.
+`get_shadow_tally` previously counted `net_30bars_pips > 0` as a win, so
+the founding exhibit (stopped for −1.0R at 32.9 pips, net +529.1 at
+horizon) showed as "1 win". Corrected: wins come from `r_multiple > 0`;
+`net_30bars_pips` REMAINS in the ledger as a diagnostic field — the loss
+autopsy needs it to identify noise-stops — but determines win/loss
+nowhere. Founding exhibit's honest line: **LOSS, −1.0R, species
+stopped_then_reversed, net +529.1 (diagnostic only).**
+
+Gate 1: 3 pins (stopped-with-positive-net is never a win; unstopped
+positive R is; unstopped negative R isn't); suite 1130 → 1133 green.
+Gate 2 (REALITY): corrected live tally — EARLY_MOMENTUM
+{logged: 1, graded: 1, wins: 0, avg_net: +529.1}, 1 episode.
+
+**Housekeeping (same branch): launchd fleet re-based onto one clock.**
+All 6 jobs unloaded and reloaded via scripts/launchd/install.sh under the
+current system timezone (America/New_York): the four original jobs had
+kept their July (Pacific-loaded) firing instants through the machine's
+PDT→MDT→EDT moves while the two jobs added 2026-09-09 registered on
+Eastern — two clocks in one fleet. Fixed local instants now, all Eastern:
+brief-london 02:30, brief-ny 07:30, outcomes 15:15, brief-asia 18:00,
+calendar Sun 12:00, heartbeat Sun 12:30. Verified: `launchctl list` shows
+all six; StartCalendarInterval dumped per plist. Consequence, stated for
+the record: the scheduled UTC instants shift by the Pacific/Eastern
+offset from their August values; the first post-reinstall scheduled runs
+are the live confirmation (Gate-3 entry already open).

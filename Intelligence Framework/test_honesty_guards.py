@@ -140,6 +140,48 @@ def test_grader_skips_invalid_rows_and_scores_valid(tmp_path, monkeypatch, capsy
     assert rows[1]["r_multiple"] == "" and rows[2]["r_multiple"] == ""
 
 
+# ── 3b. R is the authoritative outcome — a stopped row is never a win ──────────
+# (2026-09-09 review ruling: net-at-horizon is clairvoyance, not performance.)
+
+def _graded_row(ts, r_mult, hit, net, entry=217.667, stop=217.996):
+    return {"candidate_id": "EARLY_MOMENTUM", "timestamp": ts,
+            "instrument": "GBP_JPY", "direction": "SHORT",
+            "entry": entry, "stop": stop, "atr": 0.34, "adx": 20.0,
+            "adx_slope": 5.0, "structure": "DOWNTREND", "extra": "",
+            "outcome_filled": True, "bars_elapsed": 30, "mfe_pips": 800.0,
+            "mae_pips": 100.0, "net_30bars_pips": net, "hit_stop": hit,
+            "r_multiple": r_mult, "loss_species": ""}
+
+def _write_graded(tmp_path, monkeypatch, rows):
+    import csv
+    monkeypatch.setattr(ss, "LOG_FILE", str(tmp_path / "shadow.csv"))
+    with open(ss.LOG_FILE, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=ss._FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+
+def test_stopped_row_is_never_a_win_even_with_positive_net(tmp_path, monkeypatch):
+    # the founding exhibit's exact shape: hit_stop, -1.0R, net +529.1
+    _write_graded(tmp_path, monkeypatch,
+                  [_graded_row("2026-07-29T05:00:00Z", -1.0, True, 529.1)])
+    t = ss.get_shadow_tally("EARLY_MOMENTUM", "GBP_JPY")
+    assert t["graded"] == 1
+    assert t["wins"] == 0                       # LOSS, always
+    assert t["avg_net"] == 529.1                # diagnostic field retained
+
+def test_unstopped_positive_r_counts_as_win(tmp_path, monkeypatch):
+    _write_graded(tmp_path, monkeypatch,
+                  [_graded_row("2026-07-29T05:00:00Z", 2.4, False, 80.0)])
+    t = ss.get_shadow_tally("EARLY_MOMENTUM", "GBP_JPY")
+    assert t["wins"] == 1
+
+def test_unstopped_negative_r_is_a_loss(tmp_path, monkeypatch):
+    _write_graded(tmp_path, monkeypatch,
+                  [_graded_row("2026-07-29T05:00:00Z", -0.4, False, -13.0)])
+    t = ss.get_shadow_tally("EARLY_MOMENTUM", "GBP_JPY")
+    assert t["graded"] == 1 and t["wins"] == 0
+
+
 # ── 4. regime independent-state counting ───────────────────────────────────────
 
 def _reg_row(ts, price="1.9056", adx_d1="26.8", adx_h4="27.9",
