@@ -71,6 +71,10 @@ _FIELDS = [
     # outcome (filled later by grade_pending_shadow)
     "outcome_filled", "bars_elapsed", "mfe_pips", "mae_pips",
     "net_30bars_pips", "hit_stop", "r_multiple",
+    # loss autopsy (docs/specs/loss_autopsy_spec.md) — which KIND of loss
+    # this was; empty for wins and unclassifiable rows. Added 2026-09-09;
+    # the logger migrates the header additively on its next write.
+    "loss_species",
 ]
 
 
@@ -238,6 +242,31 @@ def _ensure_file():
     if not os.path.exists(LOG_FILE):
         with open(LOG_FILE, "w", newline="") as f:
             csv.DictWriter(f, fieldnames=_FIELDS).writeheader()
+        return
+    _migrate_header()
+
+
+def _migrate_header():
+    """One-time additive migration: when the ledger's header predates a
+    column appended to _FIELDS (loss_species, 2026-09-09), rewrite the file
+    with the current header, every existing row preserved byte-for-byte in
+    its old columns and blank in the new ones. Purely additive — this is
+    the logger maintaining its own schema, never an edit of recorded
+    values. MUST run before any append, or a 19-field row lands under an
+    18-column header."""
+    try:
+        with open(LOG_FILE, newline="") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames is None or list(reader.fieldnames) == _FIELDS:
+                return
+            rows = list(reader)
+    except Exception:
+        return                              # unreadable: leave it alone
+    with open(LOG_FILE, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=_FIELDS)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: r.get(k, "") for k in _FIELDS})
 
 
 def log_shadow_signals(signals: List[Dict]) -> int:
@@ -375,6 +404,124 @@ def episode_count(candidate_id: str, instrument: Optional[str] = None) -> int:
     return total
 
 
+# ── Loss autopsy (docs/specs/loss_autopsy_spec.md) ──────────────────────────────
+# Species, frozen 2026-09-09, first match wins. Classified only for R-losing
+# rows that pass the invalid_spec guard. Triggers untouched.
+LOSS_SPECIES = ("event_window", "stopped_then_reversed", "exhaustion_entry",
+                "never_onside", "bled_out")
+_STR_REVERSAL_R  = 2.0    # post-stop run beyond entry, in R
+_EXHAUST_ATR     = 2.0    # entry this many fire-time ATR beyond the 20-bar mean
+_EXHAUST_MEAN_N  = 20
+_NEVER_ONSIDE_R  = 0.25   # MFE below this = wrong from the first bar
+
+
+def _classify_loss(direction: str, entry: float, stop: float, risk: float,
+                   extra: str, hit: bool, mfe_price: float,
+                   fut_h: List[float], fut_l: List[float],
+                   ei: int, C: List[float], atr_at_fire: float) -> str:
+    """Species of one graded LOSING row. Inputs are all in price units
+    (mfe_price = favorable excursion in price, not pips). Returns '' when
+    nothing matches cleanly enough to say."""
+    try:
+        # 1. event_window — the fire-time news stamp owns the tape.
+        if "news_window=true" in (extra or ""):
+            return "event_window"
+
+        # 2. stopped_then_reversed — right trade, stop inside the noise:
+        #    after the stop-hit bar, price ran >= 2R beyond entry our way.
+        if hit:
+            hit_idx = None
+            for i in range(len(fut_h)):
+                adverse = fut_h[i] if direction == "SHORT" else fut_l[i]
+                if (direction == "SHORT" and adverse >= stop) or \
+                   (direction == "LONG" and adverse <= stop):
+                    hit_idx = i
+                    break
+            if hit_idx is not None and hit_idx + 1 < len(fut_h):
+                if direction == "SHORT":
+                    post_run = entry - min(fut_l[hit_idx + 1:])
+                else:
+                    post_run = max(fut_h[hit_idx + 1:]) - entry
+                if post_run >= _STR_REVERSAL_R * risk:
+                    return "stopped_then_reversed"
+
+        # 3. exhaustion_entry — chased an extended move: entry sits >= 2
+        #    fire-time ATR beyond the 20-bar mean, in the trade direction.
+        if ei >= _EXHAUST_MEAN_N and atr_at_fire > 0:
+            mean = sum(C[ei - _EXHAUST_MEAN_N + 1:ei + 1]) / _EXHAUST_MEAN_N
+            stretched = (entry - mean) if direction == "LONG" else (mean - entry)
+            if stretched >= _EXHAUST_ATR * atr_at_fire:
+                return "exhaustion_entry"
+
+        # 4. never_onside — wrong from the first bar.
+        if mfe_price < _NEVER_ONSIDE_R * risk:
+            return "never_onside"
+
+        # 5. bled_out — the rest: ground into the loss without a story above.
+        return "bled_out"
+    except Exception:
+        return ""                          # never let autopsy break grading
+
+
+def backfill_loss_species(instrument: str) -> int:
+    """Classify already-graded VALID losing rows whose loss_species is
+    empty, via the same definitions (fresh H4 fetch; count=500 reaches ~83
+    days). Manual/one-time path — scheduled runs classify at grading time.
+    Returns rows classified."""
+    if not os.path.exists(LOG_FILE):
+        return 0
+    from oanda_feed import get_h4_bars, is_configured
+    if not is_configured():
+        return 0
+    df = get_h4_bars(pair=instrument.replace("_", ""), count=500)
+    if df is None or df.empty:
+        return 0
+    if hasattr(df.columns, "levels"):
+        df.columns = df.columns.get_level_values(0)
+    H = [float(v) for v in df["High"].values]
+    L = [float(v) for v in df["Low"].values]
+    C = [float(v) for v in df["Close"].values]
+    T = [t.strftime("%Y-%m-%dT%H:%M:%SZ") for t in df.index]
+    pip = PAIRS[instrument].pip_size if instrument in PAIRS else 0.0001
+    ts_to_idx = {t: i for i, t in enumerate(T)}
+
+    _migrate_header()
+    with open(LOG_FILE, newline="") as f:
+        rows = list(csv.DictReader(f))
+    changed = 0
+    for r in rows:
+        if r["instrument"] != instrument or str(r.get("outcome_filled")) != "True":
+            continue
+        if r.get("loss_species") or is_invalid_spec(r):
+            continue
+        try:
+            r_mult = float(r["r_multiple"])
+        except (TypeError, ValueError):
+            continue
+        if r_mult >= 0:
+            continue                       # wins are not autopsied
+        ei = ts_to_idx.get(r["timestamp"])
+        if ei is None or ei + HORIZON >= len(C):
+            continue
+        entry = float(r["entry"]); stop = float(r["stop"])
+        risk = abs(entry - stop) or 1e-9
+        fut_h = H[ei + 1:ei + 1 + HORIZON]; fut_l = L[ei + 1:ei + 1 + HORIZON]
+        mfe_price = float(r["mfe_pips"]) * pip
+        species = _classify_loss(
+            r["direction"], entry, stop, risk, r.get("extra", ""),
+            str(r.get("hit_stop")) == "True", mfe_price, fut_h, fut_l,
+            ei, C, float(r.get("atr") or 0.0))
+        if species:
+            r["loss_species"] = species
+            changed += 1
+    if changed:
+        with open(LOG_FILE, "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=_FIELDS)
+            w.writeheader()
+            w.writerows([{k: r.get(k, "") for k in _FIELDS} for r in rows])
+    return changed
+
+
 # ── Grading (called by run_outcome_check) ───────────────────────────────────────
 def grade_pending_shadow(instrument: str) -> int:
     if not os.path.exists(LOG_FILE):
@@ -426,6 +573,12 @@ def grade_pending_shadow(instrument: str) -> int:
             "mfe_pips": round(mfe, 1), "mae_pips": round(mae, 1),
             "net_30bars_pips": round(net, 1), "hit_stop": hit, "r_multiple": r_mult,
         })
+        # Loss autopsy at the grading seam (docs/specs/loss_autopsy_spec.md):
+        # everything needed is in scope; wins stay unclassified.
+        if r_mult < 0:
+            r["loss_species"] = _classify_loss(
+                direction, entry, stop, risk, r.get("extra", ""), hit,
+                mfe * pip, fut_h, fut_l, ei, C, float(r.get("atr") or 0.0))
         filled += 1
     if skipped_invalid:
         print(f"{instrument}: {skipped_invalid} invalid_spec shadow row(s) "
