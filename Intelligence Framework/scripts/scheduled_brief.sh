@@ -19,6 +19,10 @@ if [ -z "${INTEL_NO_ENV_FILE:-}" ] && [ -f "$PROJ/.env" ]; then
     set -a; . "$PROJ/.env"; set +a
 fi
 
+# Shared notification helper (docs/specs/notify_click_through_spec.md):
+# click-to-open via terminal-notifier when installed, osascript fallback.
+. "$PROJ/scripts/notify.sh"
+
 DATE="$(date +%F)"
 LOG="logs/brief_${DATE}.log"
 
@@ -59,17 +63,22 @@ else
 fi
 if [ -n "$HEALTH" ]; then
     echo "$HEALTH" >> "$LOG"
-    HSAFE="$(printf '%s' "$HEALTH" | sed 's/^ALERT://; s/"/\\"/g' | cut -c1-200)"
-    osascript -e "display notification \"$HSAFE\" with title \"Intelligence Framework — Health\"" >/dev/null 2>&1
+    case "$HEALTH" in
+        ALERT:*) HCAT="ALERT" ;;
+        *)       HCAT="RECOVERED" ;;
+    esac
+    notify "$HCAT" "$(printf '%s' "$HEALTH" | sed 's/^ALERT://')" "$LOG"
 fi
 
 # Notify if: a real decision (non STAND ASIDE), a shadow signal, OR a flip.
-NOTIFY=0
-if printf '%s\n' "$OUT" | grep 'DECISION' | grep -qv 'STAND ASIDE'; then NOTIFY=1; fi
-if printf '%s\n' "$OUT" | grep -q 'SHADOW SIGNALS'; then NOTIFY=1; fi
-if [ -n "$ALERTS" ]; then NOTIFY=1; fi
+# Category priority mirrors the old summary preference: flips first, then the
+# decision, then shadow (docs/specs/notify_click_through_spec.md).
+CATEGORY=""
+if printf '%s\n' "$OUT" | grep -q 'SHADOW SIGNALS'; then CATEGORY="SHADOW"; fi
+if printf '%s\n' "$OUT" | grep 'DECISION' | grep -qv 'STAND ASIDE'; then CATEGORY="DECISION"; fi
+if [ -n "$ALERTS" ]; then CATEGORY="ALERT"; fi
 
-if [ "$NOTIFY" -eq 1 ]; then
+if [ -n "$CATEGORY" ]; then
     # Flip alerts are already one-line, plain-English, actionable — prefer them.
     if [ -n "$ALERTS" ]; then
         SUMMARY="$(printf '%s\n' "$ALERTS" | paste -sd '|' - | cut -c1-180)"
@@ -79,8 +88,7 @@ if [ "$NOTIFY" -eq 1 ]; then
             | sed -E 's/^ *//; s/  +/ /g' | paste -sd '|' - | cut -c1-180)"
     fi
     [ -z "$SUMMARY" ] && SUMMARY="Signal — see $LOG"
-    SAFE="$(printf '%s' "$SUMMARY" | sed 's/"/\\"/g')"
-    osascript -e "display notification \"$SAFE\" with title \"Intelligence Framework — Brief\"" >/dev/null 2>&1
+    notify "$CATEGORY" "$SUMMARY" "$LOG"
 fi
 
 exit 0

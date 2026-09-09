@@ -23,12 +23,17 @@ Verified against the GitHub API at build time (2026-09-09), repo
 **One-time approvals, observed at build:** the curl download carried no
 quarantine attribute, so the Gatekeeper "Open Anyway" step was never
 triggered — the binary ran directly. What DID trigger is macOS 13's
-notification authorization: the first post blocks until the user answers
-the "terminal-notifier would like to send notifications" dialog (or enables
-it under System Settings → Notifications → terminal-notifier). Until that
-approval is given, the helper's watchdog (below) kills the hung attempt and
-falls back to osascript — **no scheduled run can hang on a permission
-dialog**.
+notification authorization: the first post blocked ~60s on the
+"terminal-notifier would like to send notifications" dialog, which was
+answered **Don't Allow** — subsequent posts exit 3 ("Notifications are
+turned off for this application"). `tccutil reset UserNotification
+fr.julienxx.oss.terminal-notifier` (the binary's own suggested reset)
+fails on macOS 13 (exit 70), so the only path is manual: **System
+Settings → Notifications → terminal-notifier → Allow Notifications.**
+Until that is flipped, the helper detects the failure and every
+notification goes out via the osascript fallback — same text, pointer
+included, no click-through, nothing lost, and **no scheduled run can hang
+on a permission dialog** (the watchdog bounds the attempt).
 
 ## 2. One notify function, sourced by every wrapper
 
