@@ -247,6 +247,31 @@ def log_shadow_signals(signals: List[Dict]) -> int:
     return written
 
 
+# ── Validity guard (grading/reporting layer ONLY — ledger rows never edited) ────
+def is_invalid_spec(row: Dict) -> bool:
+    """True when the row's stop sits on the NON-adverse side of entry
+    (SHORT: stop <= entry; LONG: stop >= entry).
+
+    WHY this exists: for such a row the grader's hit test is trivially true at
+    entry (SHORT: max(fut_h) >= stop holds the moment stop <= entry), so the
+    row is UNSCOREABLE BY CONSTRUCTION — guaranteed -1.0R whatever the market
+    does — not merely mislabeled. First graded exhibit: the 2026-07-29/30
+    EARLY_MOMENTUM stale-swing rows (validation_log 2026-09-09; v1 retired,
+    docs/specs/early_momentum_v2_spec.md). Invalid rows are excluded from all
+    tallies, episode counts, and brief displays, and are never scored as R.
+    The flag lives here, at read time; the ledger is append-only evidence and
+    keeps its rows verbatim."""
+    try:
+        entry, stop = float(row["entry"]), float(row["stop"])
+    except (KeyError, TypeError, ValueError):
+        return True                        # unreadable geometry = not scoreable
+    if row.get("direction") == "SHORT":
+        return stop <= entry
+    if row.get("direction") == "LONG":
+        return stop >= entry
+    return True                            # unknown direction = not scoreable
+
+
 # ── Tally for the brief ─────────────────────────────────────────────────────────
 def get_shadow_tally(candidate_id: str, instrument: Optional[str] = None) -> Dict:
     if not os.path.exists(LOG_FILE):
@@ -259,6 +284,8 @@ def get_shadow_tally(candidate_id: str, instrument: Optional[str] = None) -> Dic
                 continue
             if instrument and r["instrument"] != instrument:
                 continue
+            if is_invalid_spec(r):
+                continue                   # unscoreable by construction
             logged += 1
             if str(r.get("outcome_filled")) == "True":
                 graded += 1
@@ -283,6 +310,8 @@ def latest_pending_signal(instrument: str) -> Optional[Dict]:
         for r in csv.DictReader(f):
             if r["instrument"] != instrument or str(r.get("outcome_filled")) == "True":
                 continue
+            if is_invalid_spec(r):
+                continue                   # never surfaced to the brief
             latest = r                      # append order → last ungraded = newest
     if not latest:
         return None
@@ -310,6 +339,8 @@ def episode_count(candidate_id: str, instrument: Optional[str] = None) -> int:
                 continue
             if instrument and r["instrument"] != instrument:
                 continue
+            if is_invalid_spec(r):
+                continue                   # not evidence — excluded before collapse
             try:
                 by_inst[r["instrument"]].append(
                     datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00")))
@@ -349,9 +380,12 @@ def grade_pending_shadow(instrument: str) -> int:
 
     with open(LOG_FILE, newline="") as f:
         rows = list(csv.DictReader(f))
-    filled = 0
+    filled = skipped_invalid = 0
     for r in rows:
         if r["instrument"] != instrument or str(r.get("outcome_filled")) == "True":
+            continue
+        if is_invalid_spec(r):
+            skipped_invalid += 1           # never scored as R (see is_invalid_spec)
             continue
         ei = ts_to_idx.get(r["timestamp"])
         if ei is None or ei + HORIZON >= len(C):
@@ -377,6 +411,9 @@ def grade_pending_shadow(instrument: str) -> int:
             "net_30bars_pips": round(net, 1), "hit_stop": hit, "r_multiple": r_mult,
         })
         filled += 1
+    if skipped_invalid:
+        print(f"{instrument}: {skipped_invalid} invalid_spec shadow row(s) "
+              f"skipped — unscoreable by construction, never scored as R")
     if filled:
         with open(LOG_FILE, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=_FIELDS)
