@@ -15,6 +15,9 @@ if [ -z "${INTEL_NO_ENV_FILE:-}" ] && [ -f "$PROJ/.env" ]; then
     set -a; . "$PROJ/.env"; set +a
 fi
 
+# Shared notification helper (docs/specs/notify_click_through_spec.md).
+. "$PROJ/scripts/notify.sh"
+
 DATE="$(date +%F)"
 LOG="logs/outcomes_${DATE}.log"
 
@@ -32,8 +35,11 @@ else
 fi
 if [ -n "$HEALTH" ]; then
     echo "$HEALTH" >> "$LOG"
-    HSAFE="$(printf '%s' "$HEALTH" | sed 's/^ALERT://; s/"/\\"/g' | cut -c1-200)"
-    osascript -e "display notification \"$HSAFE\" with title \"Intelligence Framework — Health\"" >/dev/null 2>&1
+    case "$HEALTH" in
+        ALERT:*) HCAT="ALERT" ;;
+        *)       HCAT="RECOVERED" ;;
+    esac
+    notify "$HCAT" "$(printf '%s' "$HEALTH" | sed 's/^ALERT://')" "$LOG"
 fi
 
 # Notify only if a shadow-signal outcome was graded this run.
@@ -48,8 +54,7 @@ for c in ("EARLY_MOMENTUM", "EARLY_MOMENTUM_v2", "THRUST_PULLBACK", "MOMENTUM_JO
 print(" | ".join(parts) if parts else "shadow outcomes graded")
 PY
 )"
-    SAFE="$(printf '%s' "$TALLY" | sed 's/"/\\"/g' | cut -c1-200)"
-    osascript -e "display notification \"$SAFE\" with title \"Intelligence Framework — Outcomes\"" >/dev/null 2>&1
+    notify "SHADOW" "$(printf '%s' "$TALLY" | cut -c1-200)" "$LOG"
 fi
 
 exit 0

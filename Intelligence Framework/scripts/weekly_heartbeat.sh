@@ -13,6 +13,9 @@ if [ -z "${INTEL_NO_ENV_FILE:-}" ] && [ -f "$PROJ/.env" ]; then
     set -a; . "$PROJ/.env"; set +a
 fi
 
+# Shared notification helper (docs/specs/notify_click_through_spec.md).
+. "$PROJ/scripts/notify.sh"
+
 DATE="$(date +%F)"
 LOG="logs/heartbeat_${DATE}.log"
 YDAY="$(date -v-1d +%F 2>/dev/null || date -d yesterday +%F)"
@@ -91,7 +94,6 @@ if printf '%s\n' "$REPORT" | grep -qE 'UNHEALTHY|NO LOG|ERRORS PRESENT|MISSING';
 else
     SUMMARY="healthy | $(printf '%s\n' "$REPORT" | grep '^shadow:' | head -1)"
 fi
-SAFE="$(printf '%s' "$SUMMARY" | sed 's/"/\\"/g' | cut -c1-200)"
-osascript -e "display notification \"$SAFE\" with title \"Intelligence Framework — Weekly Heartbeat\"" >/dev/null 2>&1
+notify "HEARTBEAT" "$(printf '%s' "$SUMMARY" | cut -c1-200)" "$LOG"
 
 exit 0

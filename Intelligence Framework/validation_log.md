@@ -1425,6 +1425,11 @@ evidence (log line / ledger row / notification) is cited here.
       com.quis.intelligence.heartbeat fires Sunday 12:30 local, notification
       received, logs/heartbeat_<date>.log written. First eligible Sunday:
       2026-09-13.
+- [ ] **Click-through notification confirmed by a human** (added 2026-09-09)
+      — user enables Allow for terminal-notifier (System Settings →
+      Notifications), then clicks a real notification and the day's log
+      opens. Until enabled, all notifications arrive via the osascript
+      fallback (pointer text included) — nothing is lost meanwhile.
 - [ ] **First loss autopsied at scheduled grading time** (added 2026-09-09)
       — a future graded loss gets its loss_species stamped by the scheduled
       run_outcome_check path (the backfill proved the classifier on the
@@ -1769,3 +1774,31 @@ sections' wording both ways, D1 equivalent, structure fallback,
 banned-token check, official decision identical with/without the new
 fields); suite 1133 → 1148 green, shadow 868 green. Gate 2 (REALITY):
 below, live GBP/JPY 64/100 exhaustion state.
+
+---
+
+## 2026-09-09 — Notification click-through built (per docs/specs/notify_click_through_spec.md)
+
+Built on `feat/notify-click-through`: terminal-notifier **3.1.0** installed
+from the official prebuilt release (repo julienXX/terminal-notifier,
+verified via the GitHub API; URL + SHA-256 recorded in the spec; no brew,
+no Xcode) to ~/Applications/terminal-notifier.app. One shared
+`scripts/notify.sh` `notify <CATEGORY> <msg> <log>` now serves all three
+wrappers (ALERT / RECOVERED / SHADOW / DECISION / HEARTBEAT), with click
+opening the day's log via a %20-encoded file URL and every message ending
+in a "→ logs/…" pointer so the fallback still says where to look. A
+bounded watchdog (15s) guarantees a hung or failing post falls back to
+osascript — a notification is never lost and a scheduled run can never
+hang on a permission dialog. Wrapper firing conditions and texts unchanged.
+
+Gate 1: 7 helper pins (invocation args + URL encoding, pointer, missing/
+hung/nonzero-exit fallbacks, no double-notify) + wrapper routing pin;
+suite 1150 → 1157 green. Gate 2 (REALITY): real posts through the
+installed binary; the exact -open URL opened the log via the system
+handler (`open` exit 0); fallback exercised with the binary renamed and
+restored. **One-time approval flagged, per the spec's instruction:** the
+first real post surfaced macOS 13's authorization dialog, which was
+answered Don't Allow — posts now exit 3, the helper's fallback carried
+every message (observed live), and tccutil cannot reset this service class
+(exit 70). Click-through stays dormant until System Settings →
+Notifications → terminal-notifier is set to Allow.
