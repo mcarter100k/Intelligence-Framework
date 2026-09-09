@@ -1639,3 +1639,33 @@ reset to 0; outcomes wrapper healthy bare-env run graded against real OANDA
 (and honestly flagged yesterday's ERRORS PRESENT and storylines 37d STALE);
 `launchctl list` shows all six jobs. Gate 3 pending: first scheduled
 healthy runs via launchd; first Sunday heartbeat (2026-09-13).
+
+---
+
+## 2026-09-09 — Circuit breaker promoted (Spec B, per docs/specs/circuit_breaker_promotion_spec.md)
+
+`session_guard.py`, `risk_config.py` and `test_session_guard.py` moved out
+of `shadow/` via git mv (history preserved) and into the PROTECTED list
+(16 → 18). Per the directive's DECISION, the adapter lives IN THE BREAKER:
+it reads the live trades.csv two-row ledger (OPEN/CLOSE by position_id, UTC
+day boundary), derives per-day realized R from prices
+(direction-signed (close−open)/|open−stop|), and enforces
+MAX_DAILY_LOSS_R=2.0 (new), MAX_DAILY_LOSS_PCT=2.0 (kept — via return_pct
+whenever the ledger carries it), MAX_TRADES_PER_SESSION=2 (unchanged).
+Append-only ledgers were NOT modified to fit the consumer. Fail-closed
+preserved: wrong columns / unparseable file → HALTED; absent/empty →
+ACTIVE. Standing rule adopted (doc + risk_config): combined open risk
+sharing a currency leg counts as ONE position against limits
+(`count_leg_grouped_positions`, connected components over legs).
+
+Gate 1: the 8 original behavioral pins preserved one-for-one on the new
+schema + 8 new breaker pins + 13 first-ever risk_config pins (grade
+ladder, lot-size arithmetic, limit wiring, standing rule); live suite
+1098 → 1119 green (the moved file's 8 old tests left the shadow count:
+868 there, also green). Gate 2 (REALITY): against the real trades.csv the
+breaker returns ACTIVE, 0 positions today, 0.0R (only rows are the
+2026-08-01 PAPER pair — correctly not today); against the real
+trade_log.csv (wrong schema) it still fails CLOSED. NOT wired into the
+live decision path — where the breaker gates is a separate protected-path
+spec for team decision (out of scope here by design). Gate 3 pending:
+first real session with live CLOSE rows walking the R curve.

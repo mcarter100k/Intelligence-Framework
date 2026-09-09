@@ -17,7 +17,10 @@ Size is automatic — never decide size manually.
 from __future__ import annotations
 from typing import Dict, Any, Tuple
 
-from session_guard import MAX_DAILY_LOSS_PCT, MAX_TRADES_PER_SESSION
+from session_guard import (
+    MAX_DAILY_LOSS_PCT, MAX_DAILY_LOSS_R, MAX_TRADES_PER_SESSION,
+    count_leg_grouped_positions,   # standing rule helper — re-exported here
+)
 
 
 # ── Hard Limits ────────────────────────────────────────────────────────────────
@@ -26,6 +29,7 @@ from session_guard import MAX_DAILY_LOSS_PCT, MAX_TRADES_PER_SESSION
 # imported from session_guard (the kill-switch module that reads the journal).
 HARD_LIMITS: Dict[str, Any] = {
     "max_daily_loss_pct":     MAX_DAILY_LOSS_PCT,      # 2.0% — halt trading for the day
+    "max_daily_loss_r":       MAX_DAILY_LOSS_R,        # 2.0R — same limit in R units
     "max_trades_per_session": MAX_TRADES_PER_SESSION,  # 2 — session closed after this many
     "min_rr_after_spread":    1.5,   # effective R:R after spread is deducted — below this, no trade
     "spread_pips":            4.0,   # GBP/AUD typical broker spread in pips
@@ -44,6 +48,12 @@ RISK_RULES: Dict[str, Any] = {
     "event_lockout_hours_after":     0.5,
     "no_swing_in_tokyo":             True,
     "stop_atr_multiplier":           1.5,
+    # STANDING RULE (adopted 2026-09-09, docs/specs/
+    # circuit_breaker_promotion_spec.md): combined open risk sharing a
+    # currency leg counts as ONE position against limits — long GBP/AUD +
+    # short GBP/JPY is one pound bet wearing two hats. Counting helper:
+    # count_leg_grouped_positions (session_guard; re-exported above).
+    "shared_leg_counts_as_one":      True,
 }
 
 # ── Grade thresholds ────────────────────────────────────────────────────────────
