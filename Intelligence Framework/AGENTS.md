@@ -55,6 +55,14 @@ never rewrites of old ones (see the Honesty Correction banner for the format).
 **`RANGE_TRADING_ENABLED` stays `False`** (`official_decision.py`) absent team
 review + validation. Precedent: the counter-trend override was reviewed, met
 all five conditions, fired 2026-05-15, and lost on a 280-pip rally.
+Additionally (2026-09-09): **RANGING is overloaded** — the label covers both
+a quiet market (ADX < 18) and the GBP/JPY exhaustion state (ADX ≥ 35: violent
+one-way move, fade don't follow; surfaced as `regime_*_subtype="EXHAUSTION"`,
+display-only). **PRECONDITION: promoting EXHAUSTION to a first-class regime —
+classifier, composite table, conflict logic, tests — is REQUIRED before
+`RANGE_TRADING_ENABLED` may ever be set True.** A range-trading gate keyed on
+`RANGING` would otherwise fade 60-ADX exhaustion moves as if they were quiet
+ranges.
 
 **Quarantine zones** — `shadow/` (the legacy signal stack; 0 comparisons
 logged, reactivation condition in its README) and `legacy_validators/`

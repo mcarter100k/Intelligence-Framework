@@ -312,7 +312,10 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             decision_str = "STAND DOWN"
 
         # ── 5. Build REASON ───────────────────────────────────────────────────
-        reason = _plain(_build_reason(regime, decision, decision_str, override))
+        # subtype-aware pre-pass first: an exhaustion-typed RANGING must never
+        # reach _plain()'s "moving sideways" mapping (exhaustion display spec).
+        reason = _plain(_exhaustion_reason_pass(
+            _build_reason(regime, decision, decision_str, override), regime))
 
         # ── 6. Build SIZE ─────────────────────────────────────────────────────
         # Size is meaningful only when trading is allowed.
@@ -323,22 +326,11 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             size_pct = int(round(_official["size_mult"] * 100))
 
         # ── 7. Build MARKET STATE ─────────────────────────────────────────────
+        market_state = _build_market_state(regime)
         weekly_ctx = regime.get("weekly_context", "UNKNOWN")
         d1_regime  = regime.get("regime_d1", "UNKNOWN")
-        h4_regime  = regime.get("regime_h4", "UNKNOWN")
         adx_d1     = float(regime.get("adx", 0.0))
         adx_h4     = float(regime.get("adx_h4", 0.0))
-
-        # _plain() applied only to the technical values — not to the label
-        # string itself. "Weekly:" contains uppercase W which _plain() would
-        # wrongly expand to "weekly chartly:" if applied to the whole string.
-        market_state = (
-            f"Weekly: {_plain(weekly_ctx)} | "
-            f"Daily chart: {_plain(d1_regime)} "
-            f"(trend strength {adx_d1:.0f}/100) | "
-            f"4-hour chart: {_plain(h4_regime)} "
-            f"(trend strength {adx_h4:.0f}/100)"
-        )
 
         # ── 8. Build INVALIDATION ─────────────────────────────────────────────
         invalidation = _plain(_build_invalidation(regime, decision_str))
@@ -417,6 +409,13 @@ def _build_reason(regime: dict, decision: dict,
     """
     d1        = regime.get("regime_d1", "UNKNOWN")
     h4        = regime.get("regime_h4", "UNKNOWN")
+    # Exhaustion subtype: a reason that names this timeframe's state must say
+    # overextension — never let its RANGING reach _plain()'s "moving sideways"
+    # (docs/specs/exhaustion_subtype_display_spec.md). Words only.
+    if regime.get("regime_d1_subtype") == "EXHAUSTION":
+        d1 = "overextended in a violent one-way move (not chased)"
+    if regime.get("regime_h4_subtype") == "EXHAUSTION":
+        h4 = "overextended in a violent one-way move (not chased)"
     adx_d1    = regime.get("adx", 0.0)
     adx_h4    = regime.get("adx_h4", 0.0)
     conflict  = regime.get("timeframe_conflict", False)
@@ -688,6 +687,65 @@ _DIR_WORDS = {
     "RANGING":       "moving sideways",
     "VOLATILE":      "choppy with no clear direction",
 }
+
+
+# ── Exhaustion subtype wording (docs/specs/exhaustion_subtype_display_spec.md) ──
+# The classifier's GBP/JPY exhaustion branch returns RANGING meaning "violent
+# extended move — fade, don't follow", not "quiet market". The subtype comes
+# from _classify_ex via get_regime; NO threshold is derived here. Words only —
+# routing and decisions are untouched.
+
+def _exhaustion_phrase(structure: str, adx: float) -> str:
+    direction = {"UPTREND":   "in a strong uptrend",
+                 "DOWNTREND": "in a strong downtrend"}.get(
+                     structure, "in a strong extended move")
+    return (f"{direction}, flagged as overextended — the framework does not "
+            f"chase this (trend strength {adx:.0f}/100)")
+
+
+def _build_market_state(regime: dict) -> str:
+    """MARKET STATE line. _plain() applied only to the technical values — not
+    to the label string itself ("Weekly:" contains uppercase W which _plain()
+    would wrongly expand). Exhaustion subtypes get honest wording — never
+    "moving sideways" for a violent extended move; quiet RANGING keeps its
+    words (docs/specs/exhaustion_subtype_display_spec.md)."""
+    weekly_ctx = regime.get("weekly_context", "UNKNOWN")
+    d1_regime  = regime.get("regime_d1", "UNKNOWN")
+    h4_regime  = regime.get("regime_h4", "UNKNOWN")
+    adx_d1     = float(regime.get("adx", 0.0))
+    adx_h4     = float(regime.get("adx_h4", 0.0))
+
+    if regime.get("regime_d1_subtype") == "EXHAUSTION":
+        d1_part = (f"Daily chart: "
+                   f"{_exhaustion_phrase(regime.get('structure', 'TRANSITIONAL'), adx_d1)}")
+    else:
+        d1_part = (f"Daily chart: {_plain(d1_regime)} "
+                   f"(trend strength {adx_d1:.0f}/100)")
+    if regime.get("regime_h4_subtype") == "EXHAUSTION":
+        h4_part = (f"4-hour chart: "
+                   f"{_exhaustion_phrase(regime.get('structure_h4', 'TRANSITIONAL'), adx_h4)}")
+    else:
+        h4_part = (f"4-hour chart: {_plain(h4_regime)} "
+                   f"(trend strength {adx_h4:.0f}/100)")
+    return f"Weekly: {_plain(weekly_ctx)} | {d1_part} | {h4_part}"
+
+
+def _exhaustion_reason_pass(reason: str, regime: dict) -> str:
+    """A filter reason may carry a technical RANGING token for a timeframe
+    whose subtype is EXHAUSTION; rendering that as "moving sideways" would be
+    the exact incoherence this spec removes. Replace the token with the
+    overextension wording BEFORE _plain() runs. Quiet RANGING is untouched."""
+    import re
+    try:
+        if regime.get("regime_d1_subtype") == "EXHAUSTION":
+            reason = re.sub(r'\bRANGING D1\b',
+                            "overextended one-way move D1 (not chased)", reason)
+        if regime.get("regime_h4_subtype") == "EXHAUSTION":
+            reason = re.sub(r'\bRANGING H4\b',
+                            "overextended one-way move H4 (not chased)", reason)
+    except Exception:
+        pass
+    return reason
 _STRUCT_WORDS = {
     "UPTREND":   "a confirmed stair-step pattern of higher highs and higher lows",
     "DOWNTREND": "a confirmed stair-step pattern of lower highs and lower lows",
@@ -727,11 +785,20 @@ def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None
         d1_rf = " and rising" if dlt > 1 else " and falling" if dlt < -1 else " and steady"
 
     parts = []
-    # 1. weekly  2. daily  3. 4-hour
+    # 1. weekly  2. daily  3. 4-hour — exhaustion subtypes get honest wording
+    # (never "moving sideways" for a violent extended move; exhaustion spec).
     parts.append(f"The weekly chart shows {_plain(weekly)}.")
-    parts.append(f"The daily chart is {d1_word}, trend strength "
-                 f"{adx_d1:.0f}/100{d1_rf}, with {struct_word}.")
-    parts.append(f"The 4-hour chart is {h4_word} (trend strength {adx_h4:.0f}/100).")
+    if regime.get("regime_d1_subtype") == "EXHAUSTION":
+        parts.append(f"The daily chart is "
+                     f"{_exhaustion_phrase(struct, adx_d1)}{d1_rf}.")
+    else:
+        parts.append(f"The daily chart is {d1_word}, trend strength "
+                     f"{adx_d1:.0f}/100{d1_rf}, with {struct_word}.")
+    if regime.get("regime_h4_subtype") == "EXHAUSTION":
+        parts.append(f"The 4-hour chart is "
+                     f"{_exhaustion_phrase(regime.get('structure_h4', 'TRANSITIONAL'), adx_h4)}.")
+    else:
+        parts.append(f"The 4-hour chart is {h4_word} (trend strength {adx_h4:.0f}/100).")
 
     # 4/5/7. why the decision follows + what to watch (trade case handled here)
     if decision_str in ("LONG", "SHORT"):
