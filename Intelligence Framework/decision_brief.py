@@ -600,6 +600,9 @@ def _build_invalidation(regime: dict, decision_str: str) -> str:
             # watch condition is price STRUCTURE confirming — not an ADX cross
             # that is already behind us (the sibling of the REASON-label bug).
             if float(adx_d1 or 0) >= _ADX_TRANSITION_HIGH:
+                concrete = _unconfirmed_exit_sentence(regime)
+                if concrete:
+                    return concrete
                 return ("Daily price structure confirms a direction — a clean "
                         "stair-step pattern of higher highs and higher lows, or "
                         "lower highs and lower lows — with the 4-hour chart "
@@ -718,6 +721,11 @@ def _build_market_state(regime: dict) -> str:
     if regime.get("regime_d1_subtype") == "EXHAUSTION":
         d1_part = (f"Daily chart: "
                    f"{_exhaustion_phrase(regime.get('structure', 'TRANSITIONAL'), adx_d1)}")
+    elif regime.get("regime_d1_subtype") == "UNCONFIRMED_TREND" \
+            and _unconfirmed_fact(regime):
+        _w, _p = _unconfirmed_fact(regime)
+        d1_part = (f"Daily chart: {_w} — {_p} — but the confirmation rule "
+                   f"isn't met yet (trend strength {adx_d1:.0f}/100)")
     else:
         d1_part = (f"Daily chart: {_plain(d1_regime)} "
                    f"(trend strength {adx_d1:.0f}/100)")
@@ -728,6 +736,68 @@ def _build_market_state(regime: dict) -> str:
         h4_part = (f"4-hour chart: {_plain(h4_regime)} "
                    f"(trend strength {adx_h4:.0f}/100)")
     return f"Weekly: {_plain(weekly_ctx)} | {d1_part} | {h4_part}"
+
+
+def _unconfirmed_fact(regime: dict):
+    """(direction_word, pip_phrase) from the 10-session closed-bar change,
+    or None when the fact is unavailable. Description, not classification
+    (docs/specs/unconfirmed_trend_display_spec.md)."""
+    chg = regime.get("d1_change_pips_10")
+    if chg is None or chg == "":
+        return None
+    try:
+        chg = float(chg)
+    except (TypeError, ValueError):
+        return None
+    if chg == 0:
+        return None
+    word = "falling" if chg < 0 else "rising"
+    return word, f"{'down' if chg < 0 else 'up'} {abs(chg):.0f} pips over the last 10 sessions"
+
+
+def _unconfirmed_exit_sentence(regime: dict):
+    """Concrete EXIT IF for the UNCONFIRMED_TREND subtype: name the pending
+    pivot and its TRUE condition (3-bar shape, then ONE close beyond).
+    Rendered only when the promise is honest — the other pivot pair already
+    agrees and the candidate would complete the pattern; else None and the
+    generic sentence stands (docs/specs/unconfirmed_trend_display_spec.md)."""
+    if regime.get("regime_d1_subtype") != "UNCONFIRMED_TREND":
+        return None
+    fact = _unconfirmed_fact(regime)
+    if not fact:
+        return None
+    word, _ = fact
+    try:
+        if word == "falling":
+            cand = float(regime.get("d1_pending_low"))
+            age  = int(regime.get("d1_pending_low_age"))
+            ok   = bool(regime.get("d1_lower_highs"))
+            ref  = regime.get("latest_sl")
+            better = ref is None or ref == "" or cand < float(ref)
+            kind, beyond, trend = "swing low", "above", "downtrend"
+            stays = "the lowest point"
+        else:
+            cand = float(regime.get("d1_pending_high"))
+            age  = int(regime.get("d1_pending_high_age"))
+            ok   = bool(regime.get("d1_higher_lows"))
+            ref  = regime.get("latest_sh")
+            better = ref is None or ref == "" or cand > float(ref)
+            kind, beyond, trend = "swing high", "below", "uptrend"
+            stays = "the highest point"
+    except (TypeError, ValueError):
+        return None
+    if not ok or not better or age > 30:
+        return None
+    if age < 3:
+        need = 3 - age
+        cond = (f"it stays {stays} for {need} more "
+                f"session{'s' if need != 1 else ''} and a session then "
+                f"closes {beyond} it")
+    else:
+        cond = f"a session closes back {beyond} it"
+    return (f"The {kind.split()[1]} near {cand:.4f} confirms as a {kind} — "
+            f"{cond} — with the 4-hour chart aligned, the {trend} is "
+            f"confirmed then. Revisit then.")
 
 
 def _exhaustion_reason_pass(reason: str, regime: dict) -> str:
@@ -791,6 +861,13 @@ def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None
     if regime.get("regime_d1_subtype") == "EXHAUSTION":
         parts.append(f"The daily chart is "
                      f"{_exhaustion_phrase(struct, adx_d1)}{d1_rf}.")
+    elif regime.get("regime_d1_subtype") == "UNCONFIRMED_TREND" \
+            and _unconfirmed_fact(regime):
+        _w, _p = _unconfirmed_fact(regime)
+        _side = "low" if _w == "falling" else "high"
+        parts.append(f"The daily chart has been {_w} — {_p}. The engine is "
+                     f"waiting for the latest {_side} to confirm before "
+                     f"calling it a trend.")
     else:
         parts.append(f"The daily chart is {d1_word}, trend strength "
                      f"{adx_d1:.0f}/100{d1_rf}, with {struct_word}.")
