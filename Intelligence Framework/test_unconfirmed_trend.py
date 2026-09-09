@@ -23,9 +23,10 @@ def test_trending_band_transitional_is_tagged():
     assert rd._classify_ex(25.5, 1.0, 0.1, "GBP_AUD", _AUD, "TRANSITIONAL") \
         == ("VOLATILE", "UNCONFIRMED_TREND")
 
-def test_transition_zone_18_25_is_untagged():
+def test_transition_zone_18_25_has_own_subtype():
+    # follow-up ruling 2026-09-09: transition zone is named, not blank
     assert rd._classify_ex(20.0, 1.0, 0.1, "GBP_AUD", _AUD, "TRANSITIONAL") \
-        == ("VOLATILE", "")
+        == ("VOLATILE", "TRANSITION_ZONE")
 
 def test_confirmed_structure_is_untagged():
     assert rd._classify_ex(28.0, 1.0, 1.0, "GBP_AUD", _AUD, "UPTREND") \
@@ -118,10 +119,14 @@ def test_exit_if_falls_back_without_the_fact():
 
 # ── behavior freeze: neighbors keep their wording ──────────────────────────────
 
-def test_transition_zone_wording_unchanged():
-    r = _regime(adx=20.0, regime_d1_subtype="", d1_change_pips_10=-290.0)
+def test_transition_zone_wording_per_followup_ruling():
+    # superseded by the 2026-09-09 follow-up ruling: transition-zone VOLATILE
+    # names itself
+    r = _regime(adx=20.0, regime_d1_subtype="TRANSITION_ZONE",
+                d1_change_pips_10=-290.0)
     ms = db._build_market_state(r)
-    assert "Daily chart: no clear direction (trend strength 20/100)" in ms
+    assert ("Daily chart: no clear direction yet (trend strength 20/100, "
+            "transition zone)") in ms
 
 def test_h4_quiet_ranging_unchanged():
     ms = db._build_market_state(_regime())

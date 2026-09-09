@@ -663,8 +663,14 @@ def _build_regime_log(d1_regime: str, instrument: str) -> str:
         if d1_regime in acc:
             data = acc[d1_regime]
             n    = data["n"]
+            # Display label only — the evidence key (the accuracy bucket
+            # outcomes are logged under) is UNCHANGED
+            # (docs/specs/unresolved_direction_polish_spec.md item 3).
+            label = ("daily unresolved-direction bucket (transition zone + "
+                     "unconfirmed trends)") if d1_regime == "VOLATILE" \
+                else f"D1 {d1_regime}"
             if n < 20:
-                return (f"D1 {d1_regime}: {n} outcomes logged "
+                return (f"{label}: {n} outcomes logged "
                         f"(early data — accuracy not yet meaningful)")
             pct = f"{data['accuracy']:.0%}"
             if n < 60:
@@ -677,9 +683,12 @@ def _build_regime_log(d1_regime: str, instrument: str) -> str:
                 note += " — REVISE thresholds"
             elif data.get("flagged"):
                 note += " — FLAG, watch closely"
-            return (f"D1 {d1_regime}: {n} outcomes logged, "
+            return (f"{label}: {n} outcomes logged, "
                     f"{pct} accuracy ({note})")
-        return f"D1 {d1_regime}: no outcomes logged yet (new regime)"
+        label = ("daily unresolved-direction bucket (transition zone + "
+                 "unconfirmed trends)") if d1_regime == "VOLATILE" \
+            else f"D1 {d1_regime}"
+        return f"{label}: no outcomes logged yet (new regime)"
     except Exception:
         return "Regime log unavailable"
 
@@ -688,7 +697,7 @@ _DIR_WORDS = {
     "TRENDING_UP":   "trending up",
     "TRENDING_DOWN": "trending down",
     "RANGING":       "moving sideways",
-    "VOLATILE":      "choppy with no clear direction",
+    "VOLATILE":      "showing no clear direction",
 }
 
 
@@ -726,23 +735,37 @@ def _build_market_state(regime: dict) -> str:
         _w, _p = _unconfirmed_fact(regime)
         d1_part = (f"Daily chart: {_w} — {_p} — but the confirmation rule "
                    f"isn't met yet (trend strength {adx_d1:.0f}/100)")
+    elif regime.get("regime_d1_subtype") == "TRANSITION_ZONE":
+        d1_part = (f"Daily chart: no clear direction yet (trend strength "
+                   f"{adx_d1:.0f}/100, transition zone)")
     else:
         d1_part = (f"Daily chart: {_plain(d1_regime)} "
                    f"(trend strength {adx_d1:.0f}/100)")
     if regime.get("regime_h4_subtype") == "EXHAUSTION":
         h4_part = (f"4-hour chart: "
                    f"{_exhaustion_phrase(regime.get('structure_h4', 'TRANSITIONAL'), adx_h4)}")
+    elif regime.get("regime_h4_subtype") == "UNCONFIRMED_TREND" \
+            and _unconfirmed_fact(regime, tf="h4"):
+        _w, _p = _unconfirmed_fact(regime, tf="h4")
+        h4_part = (f"4-hour chart: {_w} — {_p} — but the confirmation rule "
+                   f"isn't met yet (trend strength {adx_h4:.0f}/100)")
+    elif regime.get("regime_h4_subtype") == "TRANSITION_ZONE":
+        h4_part = (f"4-hour chart: no clear direction yet (trend strength "
+                   f"{adx_h4:.0f}/100, transition zone)")
     else:
         h4_part = (f"4-hour chart: {_plain(h4_regime)} "
                    f"(trend strength {adx_h4:.0f}/100)")
     return f"Weekly: {_plain(weekly_ctx)} | {d1_part} | {h4_part}"
 
 
-def _unconfirmed_fact(regime: dict):
-    """(direction_word, pip_phrase) from the 10-session closed-bar change,
-    or None when the fact is unavailable. Description, not classification
-    (docs/specs/unconfirmed_trend_display_spec.md)."""
-    chg = regime.get("d1_change_pips_10")
+def _unconfirmed_fact(regime: dict, tf: str = "d1"):
+    """(direction_word, pip_phrase) from the closed-bar change over the last
+    10 bars of the timeframe, or None when the fact is unavailable.
+    Description, not classification. The H4 window is phrased as hours —
+    a session-count phrase there would be a unit lie
+    (docs/specs/unresolved_direction_polish_spec.md)."""
+    chg = regime.get("h4_change_pips_10" if tf == "h4"
+                     else "d1_change_pips_10")
     if chg is None or chg == "":
         return None
     try:
@@ -752,7 +775,9 @@ def _unconfirmed_fact(regime: dict):
     if chg == 0:
         return None
     word = "falling" if chg < 0 else "rising"
-    return word, f"{'down' if chg < 0 else 'up'} {abs(chg):.0f} pips over the last 10 sessions"
+    window = "over the last 40 hours" if tf == "h4" \
+        else "over the last 10 sessions"
+    return word, f"{'down' if chg < 0 else 'up'} {abs(chg):.0f} pips {window}"
 
 
 def _unconfirmed_exit_sentence(regime: dict):
@@ -868,12 +893,26 @@ def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None
         parts.append(f"The daily chart has been {_w} — {_p}. The engine is "
                      f"waiting for the latest {_side} to confirm before "
                      f"calling it a trend.")
+    elif regime.get("regime_d1_subtype") == "TRANSITION_ZONE":
+        parts.append(f"The daily chart has no clear direction yet (trend "
+                     f"strength {adx_d1:.0f}/100, transition zone)"
+                     f"{d1_rf}, with {struct_word}.")
     else:
         parts.append(f"The daily chart is {d1_word}, trend strength "
                      f"{adx_d1:.0f}/100{d1_rf}, with {struct_word}.")
     if regime.get("regime_h4_subtype") == "EXHAUSTION":
         parts.append(f"The 4-hour chart is "
                      f"{_exhaustion_phrase(regime.get('structure_h4', 'TRANSITIONAL'), adx_h4)}.")
+    elif regime.get("regime_h4_subtype") == "UNCONFIRMED_TREND" \
+            and _unconfirmed_fact(regime, tf="h4"):
+        _w, _p = _unconfirmed_fact(regime, tf="h4")
+        _side = "low" if _w == "falling" else "high"
+        parts.append(f"The 4-hour chart has been {_w} — {_p}. The engine is "
+                     f"waiting for the latest {_side} to confirm before "
+                     f"calling it a trend.")
+    elif regime.get("regime_h4_subtype") == "TRANSITION_ZONE":
+        parts.append(f"The 4-hour chart has no clear direction yet (trend "
+                     f"strength {adx_h4:.0f}/100, transition zone).")
     else:
         parts.append(f"The 4-hour chart is {h4_word} (trend strength {adx_h4:.0f}/100).")
 

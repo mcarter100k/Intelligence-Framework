@@ -705,9 +705,10 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
         # Still classify as trending but caller gets exhaustion flag
         return ("TRENDING_UP" if slope > 0 else "TRENDING_DOWN"), ""
 
-    # Validated transition zone — no statistical edge
+    # Validated transition zone — no statistical edge. Subtype is display
+    # metadata only (docs/specs/unresolved_direction_polish_spec.md).
     if _ADX_RANGING_THRESHOLD <= adx < _ADX_TRANSITION_HIGH:
-        return "VOLATILE", ""  # no edge = untradeable until structure confirms
+        return "VOLATILE", "TRANSITION_ZONE"
 
     # Mean reversion dominant — spike already handled above
     if adx < _ADX_RANGING_THRESHOLD:
@@ -898,6 +899,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     h4_structure = "TRANSITIONAL"
     h4_available = False
     adx_h4       = 0.0
+    h4_change_pips_10 = None
 
     try:
         raw_h4 = _oanda_h4_bars(pair=oanda_pair, count=120)
@@ -932,6 +934,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
                 structure=h4_struct["structure"])
             h4_structure = h4_struct["structure"]
             h4_available = True
+            if len(h4c) >= 11:
+                h4_change_pips_10 = round(
+                    (h4c[-1] - h4c[-11]) / pair.pip_size, 0)
 
     conflict, conflict_type = _detect_conflict(d1_regime, h4_regime)
     # ── Composite regime resolution ───────────────────────────────────────────
@@ -1164,6 +1169,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         # unconfirmed-trend facts (docs/specs/unconfirmed_trend_display_spec.md)
         # — description, not classification; wording only
         "d1_change_pips_10":  d1_change_pips_10,
+        "h4_change_pips_10":  h4_change_pips_10,
         "d1_pending_low":     d1_pending_low,
         "d1_pending_low_age": d1_pending_low_age,
         "d1_pending_high":    d1_pending_high,
