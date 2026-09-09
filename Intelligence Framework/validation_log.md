@@ -1404,8 +1404,15 @@ Seeded 2026-07-31 per the Two-Gate Verification Standard (AGENTS.md rule 7).
 An entry leaves this list only when the real event has occurred and its
 evidence (log line / ledger row / notification) is cited here.
 
-- [ ] **First real alert fire** — a watched-condition flip (##ALERT## line)
+- [x] **First real alert fire** — a watched-condition flip (##ALERT## line)
       produced by a scheduled run on real data, routed to a notification.
+      **CLEARED 2026-09-09** — 40 days after seeding, on the first full day
+      of healthy scheduled runs: `##ALERT## GBP/AUD: the market regime
+      changed since the last run.` at logs/brief_2026-09-09.log lines 342
+      and 467, emitted by the launchd runs of 05:32:52 and 10:30:15 EDT
+      (real prices in both blocks) and routed by the wrapper's ALERT
+      category through notify() — delivered via the osascript fallback,
+      as terminal-notifier permission was still off at those hours.
 - [ ] **First Sunday calendar auto-fetch** — com.quis.intelligence.calendar
       fires on schedule and calendar.csv updates (logs/calendar_*.log).
 - [ ] **First real setup_check use** — a pre-trade stack run before an actual
@@ -1421,15 +1428,31 @@ evidence (log line / ledger row / notification) is cited here.
       slots after the heartbeat branch is live. (Manual bare-env runs
       already proved the mechanism — Gate 2, 2026-09-09 — but only launchd
       itself can prove launchd.)
+      **PARTIAL 2026-09-09 — brief half PROVEN, twice:** launchd fired the
+      brief wrapper at 05:32:52 and 10:30:15 EDT with real prices (1.8762 /
+      208.51), no error markers, and health_state last_success
+      2026-09-09T14:30:15Z written from the scheduled context — `.env`
+      sourcing works under launchd. Outcomes wrapper: its next scheduled
+      slot tonight clears the rest. NOTE, recorded honestly: both fires
+      landed on the PACIFIC-interpreted instants (05:32/10:30 EDT), not
+      the re-based Eastern 02:30/07:30 — the session launchd has not
+      picked up the timezone change (needs logout/reboot). One consistent
+      clock, but the old one; team to choose reboot vs. accept.
 - [ ] **First Sunday heartbeat via launchd** (added 2026-09-09) —
       com.quis.intelligence.heartbeat fires Sunday 12:30 local, notification
       received, logs/heartbeat_<date>.log written. First eligible Sunday:
       2026-09-13.
-- [ ] **Click-through notification confirmed by a human** (added 2026-09-09)
+- [x] **Click-through notification confirmed by a human** (added 2026-09-09)
       — user enables Allow for terminal-notifier (System Settings →
       Notifications), then clicks a real notification and the day's log
       opens. Until enabled, all notifications arrive via the osascript
       fallback (pointer text included) — nothing is lost meanwhile.
+      **CLEARED 2026-09-09** — user enabled Allow (posts flipped from
+      exit 3 to exit 0), was sent a TEST notification targeting
+      logs/brief_2026-09-09.log, and returned that file's full content in
+      chat. Recorded on that basis: the click opened the exact click
+      target. (If it was opened another way, this clearance should be
+      corrected by a new dated entry — the Honesty Correction format.)
 - [ ] **First loss autopsied at scheduled grading time** (added 2026-09-09)
       — a future graded loss gets its loss_species stamped by the scheduled
       run_outcome_check path (the backfill proved the classifier on the
@@ -1802,3 +1825,35 @@ answered Don't Allow — posts now exit 3, the helper's fallback carried
 every message (observed live), and tccutil cannot reset this service class
 (exit 70). Click-through stays dormant until System Settings →
 Notifications → terminal-notifier is set to Allow.
+
+---
+
+## 2026-09-09 — First full scheduled evidence day; two observations for team decision
+
+The heartbeat/credentials merge met its first real day. From
+logs/brief_2026-09-09.log, in order: the Gate-2 forced failures (00:32,
+ALERT at 2nd consecutive), the recovery (00:32:38, RECOVERED after 2), then
+TWO healthy launchd runs (05:32:52, 10:30:15 EDT) with real prices, the
+exhaustion wording live in scheduled production output (GBP/JPY 4-hour
+"in a strong downtrend, flagged as overextended — the framework does not
+chase this (trend strength 64-65/100)"), and the first two real ##ALERT##
+flips, routed to notifications. Three Gate-3 items moved (two cleared, one
+partial — see the pending section).
+
+**Observation 1 — launchd timezone (team decision needed):** last night's
+re-base to America/New_York did not change firing instants: the session
+launchd still resolves StartCalendarInterval in Pacific (05:32/10:30 EDT
+observed against plists saying 02:30/07:30). The fleet is on ONE consistent
+clock — the Pacific one. Realizing Eastern needs a logout/reboot; until
+then expect outcomes 18:15 EDT, Sunday calendar 15:00 EDT, heartbeat
+15:30 EDT. No action taken.
+
+**Observation 2 — session-delta display bug (reported, not fixed):**
+"⚡ SESSION Since 3h 53min ago: Regime changed (no clear direction → no
+clear direction)" — session_memory.py:130 sets regime_changed on D1 OR H4
+change, but the render (session_memory.py:297-299) prints only the D1
+pair, so an H4-only flip (GBP/AUD H4 RANGING↔VOLATILE at trend strength
+17-18) displays as X → X. Same display-honesty class as the exhaustion
+fix; also the source of both of today's ##ALERT## flips (borderline
+oscillation chatter at the RANGING/VOLATILE boundary). Team decides
+whether to fix the render alone or also debounce the flip alert.
