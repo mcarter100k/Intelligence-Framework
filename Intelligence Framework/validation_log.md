@@ -1802,3 +1802,45 @@ answered Don't Allow — posts now exit 3, the helper's fallback carried
 every message (observed live), and tccutil cannot reset this service class
 (exit 70). Click-through stays dormant until System Settings →
 Notifications → terminal-notifier is set to Allow.
+
+---
+
+## 2026-09-09 — setup_check plain-English rewrite (per docs/specs/setup_check_plain_english_spec.md)
+
+Built on `feat/setup-check-plain-english`: every line now reads as a
+colleague explaining — BIAS/REGIME in decision_brief's voice (exhaustion
+subtypes honored), the "since last run: Since…" duplication fixed, PLAY
+asks "Agree?" or says "it's a feeling, not a trade", CLOCK/FUEL/RISK per
+the directed templates. New NOISE FLAG: stop closer than
+MIN_STOP_ATR_MULTIPLE (0.3, INFORMED PRIOR, Episode-1 exhibit cited in the
+code) × daily range renders "hit by accident, not by being wrong"; with
+--target the flattering-ratio warning fires. Overrides ('o') now CAPTURE
+the human's read into the record (previously lost). Advisory VERDICT
+(negative/positive/Mixed) computed after confirms, printed last, and
+carried in the journal's risk column — the 21-column schema unchanged.
+Parser addition (additive): "approved YYYY-MM-DD" accepted as the dated
+header — the live storylines.md always used that form and was being
+treated as undated. Banned tokens extended (invalidation / none-named /
+structural / bare regime / bare stack in sentence bodies; header renamed
+PRE-TRADE CHECK) — the sweep caught "Regime changed" leaking through the
+delta path during build; reworded.
+
+Gate 1: 26 new pins (every line variant, all three verdicts, extended ban,
+journal round-trip) + 4 old wording pins updated (markers/math pins
+unchanged); suite 1157 → 1183 green, shadow 868. Gate 2 (REALITY): live
+GBP/AUD SHORT rendered in full — nearest level 1.8769, 7 pips above price,
+0.09x the 83-pip daily range → noise flag fired; storyline "last approved
+2026-08-03" named from the real file; verdict "stop inside noise, against
+the framework's read. Nothing here says NOW." — printed and logged
+(id 20260909T161724Z_GBP_AUD_SHORT, real journal row).
+
+**Amendment (team ruling, 2026-09-09, same day):** verdict promoted from a
+risk-column suffix to a real `verdict` column — the journal's 22nd, additive,
+old rows blank, loss_species-style logger migration; schema pinned at 22 by
+test. Gate 2 (REALITY): a real setup_check run migrated the live
+pre_trade_journal.csv 21 → 22 columns — both pre-ruling rows verbatim with
+blank verdict, the new row (20260909T163506Z_GBP_AUD_SHORT) carrying
+"VERDICT: stop inside noise, against the framework's read. Nothing here
+says NOW." in its own column. The one interim row written under the draft
+build (20260909T161724Z) keeps its " | VERDICT:" suffix inside `risk` —
+recorded history in an append-only ledger, left untouched.
