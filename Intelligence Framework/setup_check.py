@@ -65,6 +65,10 @@ _JOURNAL_FIELDS = [
     "framework_direction", "framework_grade", "against_framework",
     "stop_price", "stop_pips", "r_to_target", "stop_atr_multiple",
     "breach_max_stop",
+    # verdict: real column (team ruling 2026-09-09; additive, old rows
+    # blank — same logger-managed migration pattern as the shadow ledger's
+    # loss_species column)
+    "verdict",
 ]
 
 _PAIR_LEGS = {"GBP_AUD": ("GBP", "AUD"), "GBP_JPY": ("GBP", "JPY")}
@@ -507,9 +511,32 @@ def _confirm(label: str, marker_now: str,
     return "confirmed", None
 
 
+def _migrate_journal_header(path: str) -> None:
+    """One-time additive migration (verdict column, 2026-09-09): when the
+    journal's header predates a column appended to _JOURNAL_FIELDS, rewrite
+    with the current header — every existing row preserved verbatim in its
+    old columns, blank in the new one. The logger maintaining its own
+    schema, never an edit of recorded values. Must run before any append."""
+    try:
+        with open(path, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames is None or                     list(reader.fieldnames) == _JOURNAL_FIELDS:
+                return
+            rows = list(reader)
+    except OSError:
+        return
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=_JOURNAL_FIELDS)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: (r.get(k) or "") for k in _JOURNAL_FIELDS})
+
+
 def append_journal(stack: Dict, path: str = JOURNAL_FILE) -> None:
     """Append-only ledger write (gitignored). Never edits existing rows."""
     exists = os.path.exists(path)
+    if exists:
+        _migrate_journal_header(path)
     row = {k: stack.get(k, "") for k in _JOURNAL_FIELDS}
     with open(path, "a", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=_JOURNAL_FIELDS)
@@ -545,7 +572,7 @@ def main(argv=None) -> int:
     # the record inside the synthesis line (journal schema unchanged).
     verdict = compute_verdict(stack)
     print(f"\n  {verdict}")
-    stack["risk"] = f"{stack['risk']} | {verdict}"
+    stack["verdict"] = verdict
 
     append_journal(stack)
     print(f"\n  recorded → pre_trade_journal.csv  (id {stack['stack_id']})")

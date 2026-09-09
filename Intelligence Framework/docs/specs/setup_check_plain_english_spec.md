@@ -4,10 +4,11 @@
 2026-09-09) — spec first, branch, both gates, merge held.
 **Contract:** every rendered line reads as a colleague explaining, not a
 field dump — same plain-English rules and banned-token enforcement as
-`decision_brief`. **Journal schema unchanged** (the 21 columns of
-`pre_trade_journal.csv` stay byte-identical in name and order); what changes
-is the sentences stored in the free-text columns, which have always held the
-rendered lines. Decision logic, soft-gate semantics (always logs, never
+`decision_brief`. **Journal schema: the original 21 columns stay
+byte-identical in name and order; one additive `verdict` column (team
+ruling 2026-09-09) makes 22**, via the loss_species-style logger migration;
+what changes otherwise is the sentences stored in the free-text columns,
+which have always held the rendered lines. Decision logic, soft-gate semantics (always logs, never
 blocks), markers, and the read-only stance are untouched.
 
 ## The six lines (templates; live values interpolated)
@@ -74,9 +75,11 @@ override text was lost. Same for FUEL.
 
 ## VERDICT (advisory — soft gate, never blocks)
 
-Rendered as the last line and appended to the journal's `risk` column after
-" | " — **the explicit schema-unchanged compromise, flagged for review**:
-the 21 columns stay; the verdict travels in the stack's synthesis line.
+Rendered as the last line and stored in a real `verdict` column — the
+22nd of `pre_trade_journal.csv` (**team ruling 2026-09-09**, superseding
+the draft's risk-suffix compromise): additive, old rows blank, the same
+logger-managed header migration as the shadow ledger's `loss_species`.
+Schema pinned at 22 columns by test.
 
 - Negative — any blank line, stop inside noise, or fuel CONFLICTS:
   "VERDICT: <the weaknesses present, enumerated — N blank line(s) / stop
@@ -109,8 +112,8 @@ review sees the substitution.
   against; PLAY all five; CLOCK clear/gating/unavailable/intervention;
   FUEL stale-with-date/agrees/conflicts/neutral/missing; RISK found/noise/
   breach/target/fake-ratio/no-stop) and all three verdicts; banned-token
-  test extended per above; journal round-trip shows verdict in the risk
-  column and 21 unchanged headers.
+  test extended per above; journal round-trip shows the verdict in its
+  own column, schema pinned at 22, migration lossless with old rows blank.
 - **Gate 2 (REALITY):** today's live GBP/AUD SHORT rendered in full — with
   the live state (framework says don't trade; storyline stale; nearest
   level ~25 pips inside an 83-pip range) it must end with the "Nothing

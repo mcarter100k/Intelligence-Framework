@@ -1833,3 +1833,14 @@ GBP/AUD SHORT rendered in full — nearest level 1.8769, 7 pips above price,
 2026-08-03" named from the real file; verdict "stop inside noise, against
 the framework's read. Nothing here says NOW." — printed and logged
 (id 20260909T161724Z_GBP_AUD_SHORT, real journal row).
+
+**Amendment (team ruling, 2026-09-09, same day):** verdict promoted from a
+risk-column suffix to a real `verdict` column — the journal's 22nd, additive,
+old rows blank, loss_species-style logger migration; schema pinned at 22 by
+test. Gate 2 (REALITY): a real setup_check run migrated the live
+pre_trade_journal.csv 21 → 22 columns — both pre-ruling rows verbatim with
+blank verdict, the new row (20260909T163506Z_GBP_AUD_SHORT) carrying
+"VERDICT: stop inside noise, against the framework's read. Nothing here
+says NOW." in its own column. The one interim row written under the draft
+build (20260909T161724Z) keeps its " | VERDICT:" suffix inside `risk` —
+recorded history in an append-only ledger, left untouched.

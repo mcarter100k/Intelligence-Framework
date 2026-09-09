@@ -251,15 +251,41 @@ def test_verdict_mixed_names_the_weak_lines():
     assert "the storyline can't back you" in v
     assert "no named play" in v
 
-def test_verdict_travels_in_the_risk_column(tmp_path):
+def test_verdict_is_a_real_column_schema_pinned_at_22(tmp_path):
+    # team ruling 2026-09-09: verdict is the 22nd column, not a risk suffix
+    assert len(sc._JOURNAL_FIELDS) == 22
+    assert sc._JOURNAL_FIELDS[-1] == "verdict"
     s = _stack()
-    v = sc.compute_verdict(s)
-    s["risk"] = f"{s['risk']} | {v}"
+    s["verdict"] = sc.compute_verdict(s)
     path = str(tmp_path / "journal.csv")
     sc.append_journal(s, path=path)
     import csv
     with open(path) as f:
         reader = csv.DictReader(f)
-        assert reader.fieldnames == sc._JOURNAL_FIELDS      # 21 unchanged
+        assert reader.fieldnames == sc._JOURNAL_FIELDS
         row = next(reader)
-    assert "VERDICT:" in row["risk"]
+    assert row["verdict"].startswith("VERDICT:")
+    assert "VERDICT:" not in row["risk"]                 # no suffix append
+
+def test_journal_migration_is_additive_and_lossless(tmp_path):
+    # a real pre-ruling journal: 21-column header, one row
+    path = str(tmp_path / "journal.csv")
+    old_fields = sc._JOURNAL_FIELDS[:-1]
+    import csv
+    with open(path, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=old_fields)
+        w.writeheader()
+        w.writerow({k: ("OLDVAL" if k == "risk" else "x") for k in old_fields})
+
+    s = _stack()
+    s["verdict"] = sc.compute_verdict(s)
+    sc.append_journal(s, path=path)                      # triggers migration
+
+    with open(path) as f:
+        reader = csv.DictReader(f)
+        assert reader.fieldnames == sc._JOURNAL_FIELDS   # 22 now
+        rows = list(reader)
+    assert len(rows) == 2
+    assert rows[0]["risk"] == "OLDVAL"                   # old values verbatim
+    assert rows[0]["verdict"] == ""                      # old rows blank
+    assert rows[1]["verdict"].startswith("VERDICT:")
