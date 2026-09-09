@@ -21,7 +21,7 @@ if printf '%s\n' "$OUT" | grep -q 'shadow-signal outcomes filled'; then
     TALLY="$(python3 - <<'PY'
 from shadow_signals import get_shadow_tally, episode_count
 parts = []
-for c in ("EARLY_MOMENTUM", "THRUST_PULLBACK", "MOMENTUM_JOIN"):
+for c in ("EARLY_MOMENTUM", "EARLY_MOMENTUM_v2", "THRUST_PULLBACK", "MOMENTUM_JOIN"):
     t = get_shadow_tally(c)
     if t["graded"] > 0:
         parts.append(f"{c}: {t['graded']}/{episode_count(c)}ep {t['wins']}W {t['avg_net']:+.0f}p")

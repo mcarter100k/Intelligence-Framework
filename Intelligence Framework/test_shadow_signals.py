@@ -32,7 +32,7 @@ def test_early_momentum_fires_long():
     ctx = _ctx(adx=20.0, struct="UPTREND",
                C=[217.0] * 40, atr=[0.5] * 40,
                sd={"latest_sl": 216.0, "latest_sh": 218.0})
-    s = ss.check_early_momentum("GBP_JPY", ctx)
+    s = ss.check_early_momentum_v2("GBP_JPY", ctx)
     assert s is not None
     assert s["direction"] == "LONG"
     assert s["entry"] == 217.0
@@ -40,19 +40,79 @@ def test_early_momentum_fires_long():
 
 
 def test_early_momentum_silent_adx_too_high():
-    assert ss.check_early_momentum("GBP_JPY", _ctx(adx=25.0, struct="UPTREND")) is None
+    assert ss.check_early_momentum_v2("GBP_JPY", _ctx(adx=25.0, struct="UPTREND")) is None
 
 
 def test_early_momentum_silent_adx_too_low():
-    assert ss.check_early_momentum("GBP_JPY", _ctx(adx=17.9, struct="UPTREND")) is None
+    assert ss.check_early_momentum_v2("GBP_JPY", _ctx(adx=17.9, struct="UPTREND")) is None
 
 
 def test_early_momentum_silent_no_structure():
-    assert ss.check_early_momentum("GBP_JPY", _ctx(adx=20.0, struct="TRANSITIONAL")) is None
+    assert ss.check_early_momentum_v2("GBP_JPY", _ctx(adx=20.0, struct="TRANSITIONAL")) is None
 
 
 def test_early_momentum_silent_wrong_instrument():
-    assert ss.check_early_momentum("GBP_AUD", _ctx(adx=20.0, struct="UPTREND")) is None
+    assert ss.check_early_momentum_v2("GBP_AUD", _ctx(adx=20.0, struct="UPTREND")) is None
+
+
+# ── EARLY_MOMENTUM_v2 stop-validity guard (the ONE change from v1) ─────────────
+# v1's defect geometry, pinned from the graded 2026-07-29/30 rows: SHORT with
+# the stale swing high BELOW entry. v2 must be silent there — no ATR fallback.
+
+def test_em_v2_fires_under_new_id():
+    ctx = _ctx(adx=20.0, struct="UPTREND",
+               C=[217.0] * 40, atr=[0.5] * 40,
+               sd={"latest_sl": 216.0, "latest_sh": 218.0})
+    s = ss.check_early_momentum_v2("GBP_JPY", ctx)
+    assert s is not None
+    assert s["candidate_id"] == "EARLY_MOMENTUM_v2"
+
+def test_em_v2_guard_short_stale_swing_below_entry_no_fire():
+    # entry 218.572 above stale swing high 217.996 — the July row-3 geometry
+    ctx = _ctx(adx=20.8, struct="DOWNTREND",
+               C=[218.572] * 40, atr=[0.37] * 40,
+               sd={"latest_sl": 215.0, "latest_sh": 217.996})
+    assert ss.check_early_momentum_v2("GBP_JPY", ctx) is None
+
+def test_em_v2_guard_short_swing_at_entry_no_fire():
+    ctx = _ctx(adx=20.0, struct="DOWNTREND",
+               C=[218.0] * 40, atr=[0.37] * 40,
+               sd={"latest_sl": 215.0, "latest_sh": 218.0})
+    assert ss.check_early_momentum_v2("GBP_JPY", ctx) is None
+
+def test_em_v2_guard_long_stale_swing_above_entry_no_fire():
+    ctx = _ctx(adx=20.0, struct="UPTREND",
+               C=[216.0] * 40, atr=[0.37] * 40,
+               sd={"latest_sl": 216.5, "latest_sh": 219.0})
+    assert ss.check_early_momentum_v2("GBP_JPY", ctx) is None
+
+def test_em_v2_valid_short_still_fires():
+    # the July row-1 geometry: swing high ABOVE entry — real adverse room
+    ctx = _ctx(adx=20.0, struct="DOWNTREND",
+               C=[217.667] * 40, atr=[0.34] * 40,
+               sd={"latest_sl": 214.0, "latest_sh": 217.996})
+    s = ss.check_early_momentum_v2("GBP_JPY", ctx)
+    assert s is not None
+    assert s["direction"] == "SHORT"
+    assert s["stop"] == 217.996
+
+def test_em_v2_no_swing_keeps_atr_fallback():
+    # v1 behavior preserved: missing swing = entry +/- 1.5*ATR (adverse side)
+    ctx = _ctx(adx=20.0, struct="DOWNTREND",
+               C=[217.0] * 40, atr=[0.5] * 40,
+               sd={"latest_sl": None, "latest_sh": None})
+    s = ss.check_early_momentum_v2("GBP_JPY", ctx)
+    assert s is not None
+    assert s["stop"] == 217.75            # 217.0 + 1.5 * 0.5
+
+def test_em_v2_guarded_no_fire_writes_no_ledger_row(tmp_path, monkeypatch):
+    monkeypatch.setattr(ss, "LOG_FILE", str(tmp_path / "shadow.csv"))
+    ctx = _ctx(adx=20.8, struct="DOWNTREND",
+               C=[218.572] * 40, atr=[0.37] * 40,
+               sd={"latest_sl": 215.0, "latest_sh": 217.996})
+    ss.log_shadow_signals(ss.check_shadow_signals("GBP_JPY", ctx))
+    import os
+    assert not os.path.exists(ss.LOG_FILE)   # nothing fired, nothing written
 
 
 # ── MOMENTUM_JOIN (both) ───────────────────────────────────────────────────────
@@ -129,7 +189,7 @@ def test_idempotent_double_eval_no_duplicate_rows(tmp_path, monkeypatch):
     with open(ss.LOG_FILE) as f:
         rows = list(_csv.DictReader(f))
     assert len(rows) == 1
-    assert rows[0]["candidate_id"] == "EARLY_MOMENTUM"
+    assert rows[0]["candidate_id"] == "EARLY_MOMENTUM_v2"
 
 
 def test_episode_count_collapses_overlapping_horizons(tmp_path, monkeypatch):

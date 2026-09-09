@@ -21,7 +21,11 @@ measured outcome — without trading — until N is large enough to judge.
 ╚══════════════════════════════════════════════════════════════════════════╝
 
 Candidates:
-  EARLY_MOMENTUM  (GBP/JPY only) — join momentum BEFORE ADX confirms.
+  EARLY_MOMENTUM_v2 (GBP/JPY only) — join momentum BEFORE ADX confirms.
+      v1 RETIRED 2026-09-09 (stale-swing stop on the wrong side of entry —
+      unscoreable rows; validation_log 2026-09-09). v2 = identical trigger
+      + stop-validity guard, fresh ledger id, frozen 2026-09-09
+      (docs/specs/early_momentum_v2_spec.md).
   THRUST_PULLBACK (both pairs)   — join momentum AFTER it proves itself.
   MOMENTUM_JOIN   (both pairs)   — INFORMED PRIOR, from the precursor outlier
                                    profile of 3 moves; expected weakest; logged
@@ -114,8 +118,17 @@ def _sig(cid, instrument, ctx, direction, entry, stop, extra=""):
     }
 
 
-# ── Candidate 1: EARLY_MOMENTUM (GBP/JPY only) ──────────────────────────────────
-def check_early_momentum(instrument: str, ctx: Dict) -> Optional[Dict]:
+# ── Candidate 1: EARLY_MOMENTUM_v2 (GBP/JPY only) ───────────────────────────────
+# v1 RETIRED 2026-09-09 (validation_log 2026-09-09; docs/specs/
+# early_momentum_v2_spec.md). Defect: the stale-swing stop could land on the
+# NON-adverse side of entry (SHORT entered above the last swing high) —
+# unscoreable by construction, guaranteed -1.0R at entry. v1's ledger rows are
+# preserved under their original id; its one valid row is Episode 1 = -1.0R.
+# v2 = byte-identical trigger and parameters + ONE guard: when the swing
+# exists but gives no valid adverse-side stop, NO FIRE (no fallback
+# substitution — that ambiguous state is exactly what v1 mis-scored).
+# Frozen 2026-09-09; any further change starts EARLY_MOMENTUM_v3.
+def check_early_momentum_v2(instrument: str, ctx: Dict) -> Optional[Dict]:
     if "JPY" not in instrument:
         return None
     if not (EM_ADX_LO <= ctx["adx"] < EM_ADX_HI):
@@ -130,7 +143,10 @@ def check_early_momentum(instrument: str, ctx: Dict) -> Optional[Dict]:
     if swing is None:
         swing = entry - 1.5 * ctx["atr"][-1] if direction == "LONG" \
             else entry + 1.5 * ctx["atr"][-1]
-    return _sig("EARLY_MOMENTUM", instrument, ctx, direction, entry, swing,
+    elif (direction == "SHORT" and swing <= entry) or \
+         (direction == "LONG" and swing >= entry):
+        return None                        # stale swing, no valid stop — NO FIRE
+    return _sig("EARLY_MOMENTUM_v2", instrument, ctx, direction, entry, swing,
                 extra=f"adx={ctx['adx']:.1f} in[{EM_ADX_LO:.0f},{EM_ADX_HI:.0f})")
 
 
@@ -183,7 +199,7 @@ def check_momentum_join(instrument: str, ctx: Dict) -> Optional[Dict]:
                 extra=f"adx={ctx['adx']:.1f} slope={ctx['adx_slope']:+.1f} INFORMED_PRIOR")
 
 
-_CANDIDATES = [check_early_momentum, check_thrust_pullback, check_momentum_join]
+_CANDIDATES = [check_early_momentum_v2, check_thrust_pullback, check_momentum_join]
 
 
 def check_shadow_signals(instrument: str, ctx: Optional[Dict] = None) -> List[Dict]:
