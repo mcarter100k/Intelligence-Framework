@@ -1844,3 +1844,46 @@ blank verdict, the new row (20260909T163506Z_GBP_AUD_SHORT) carrying
 says NOW." in its own column. The one interim row written under the draft
 build (20260909T161724Z) keeps its " | VERDICT:" suffix inside `risk` —
 recorded history in an append-only ledger, left untouched.
+
+---
+
+## 2026-09-09 — Unconfirmed-trend display subtype (per docs/specs/unconfirmed_trend_display_spec.md)
+
+Stage-1 diagnostic (read-only, recorded in the spec): GBP_AUD D1
+TRANSITIONAL is confirmation LAG, not a bug — highs stepped down
+(1.91912 → 1.89716) but the last CONFIRMED swing low is 1.90733
+(2026-08-04) vs 1.90030 (07-27): a higher low recorded before the ~290-pip
+decline, because in a persistent fall no new low survives the 3-bar shape
+plus close-above confirmation. The blocking pair: the swing lows. Engine
+output matched hand replication exactly.
+
+Stage-2 build on `feat/unconfirmed-trend-display`: subtype
+UNCONFIRMED_TREND single-sourced at _classify_ex's trending-band
+fallthrough (regime stays VOLATILE — routing pinned unchanged); get_regime
+exposes FACTS (signed 10-session closed-bar pip change, the leg's pending
+extreme + age, the engine's lh/hl flags — description, not
+classification). Display: "Daily chart: falling — down 290 pips over the
+last 10 sessions — but the confirmation rule isn't met yet"; FULL PICTURE
+"the engine is waiting for the latest low to confirm"; EXIT IF names the
+real pending pivot with the engine's TRUE rule and is honesty-gated (only
+promised when the other pivot pair already agrees and the candidate would
+complete the pattern). Deviations from the directive's illustrative text,
+flagged in the spec: the fact computes to −290 (not the example −302), and
+the parenthetical "(three sessions closing above it)" was rendered as the
+actual rule (3-bar shape, then ONE close above).
+
+OPEN QUESTIONS logged as directed: (1) does transition-zone VOLATILE
+(18–25) deserve the same factual treatment? Its current "choppy with no
+clear direction" wording was kept verbatim per the directive, though that
+sits in tension with "choppy is permitted ONLY for quiet RANGING". (2) the
+H4 subtype is exposed but unrendered (directed templates were daily-only).
+(3) observed residual: DATA BASIS still labels the accuracy record "daily
+chart no clear direction" — it is keyed to the regime bucket the outcomes
+are actually logged under; renaming it touches evidence lineage, team call.
+
+Gate 1: 16 pins (subtype source, routing matrix, both display sentences,
+EXIT IF young/complete/three honesty fallbacks, vocabulary ban,
+transition-zone + H4 wording unchanged, official decision identical);
+suite 1184 → 1200 green, shadow 868. Gate 2 (REALITY): live GBP/AUD brief
+rendered the new daily sentence and the concrete EXIT IF naming the real
+pending low 1.8732 with its true 2-sessions-plus-close condition.

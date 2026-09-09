@@ -722,6 +722,12 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
         return "TRENDING_UP", ""
     if structure == "DOWNTREND" and slope < 0:
         return "TRENDING_DOWN", ""
+    # Trending-band ADX without confirmed structure: the SINGLE source of the
+    # UNCONFIRMED_TREND subtype (docs/specs/unconfirmed_trend_display_spec.md)
+    # — strength is present, the pivot rule hasn't confirmed a direction yet.
+    # Display metadata only; the regime stays VOLATILE, routing unchanged.
+    if structure == "TRANSITIONAL":
+        return "VOLATILE", "UNCONFIRMED_TREND"
     return "VOLATILE", ""
 
 
@@ -822,6 +828,18 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
 
     # Live bar close is the current market price; closed bar close on weekends.
     current_price = float(live_bar_d1["Close"]) if live_bar_d1 is not None else closes[-1]
+
+    # FACTS for the unconfirmed-trend display (spec 2026-09-09) — computed
+    # from closed bars, structure rule untouched. A signed pip change is
+    # description, not classification (Problem 2 retired slope labels).
+    d1_change_pips_10 = round((closes[-1] - closes[-11]) / pair.pip_size, 0)         if len(closes) >= 11 else None
+    _look = min(60, len(lows))
+    _lo_i = min(range(len(lows) - _look, len(lows)), key=lambda i: lows[i])
+    _hi_i = max(range(len(highs) - _look, len(highs)), key=lambda i: highs[i])
+    d1_pending_low       = lows[_lo_i]
+    d1_pending_low_age   = len(lows) - 1 - _lo_i
+    d1_pending_high      = highs[_hi_i]
+    d1_pending_high_age  = len(highs) - 1 - _hi_i
 
     # ── ATR ───────────────────────────────────────────────────────────────────
     atr_series  = compute_atr_series(highs, lows, closes)
@@ -1143,6 +1161,15 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "regime_d1_subtype":  d1_subtype,
         "regime_h4_subtype":  h4_subtype,
         "structure_h4":       h4_structure,
+        # unconfirmed-trend facts (docs/specs/unconfirmed_trend_display_spec.md)
+        # — description, not classification; wording only
+        "d1_change_pips_10":  d1_change_pips_10,
+        "d1_pending_low":     d1_pending_low,
+        "d1_pending_low_age": d1_pending_low_age,
+        "d1_pending_high":    d1_pending_high,
+        "d1_pending_high_age": d1_pending_high_age,
+        "d1_lower_highs":     bool(structure_data.get("lh")),
+        "d1_higher_lows":     bool(structure_data.get("hl")),
         "adx_h4":             adx_h4,
         "h4_available":       h4_available,
         "timeframe_conflict": conflict,
