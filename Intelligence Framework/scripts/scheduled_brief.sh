@@ -34,7 +34,7 @@ LOG="logs/brief_${DATE}.log"
 # Failures are logged and never fatal (exit 0 discipline).
 if [ ! -f calendar.csv ] || [ -n "$(find calendar.csv -mmin +1440 2>/dev/null)" ]; then
     {
-        echo "----- calendar auto-fetch $(date '+%Y-%m-%d %H:%M:%S %Z') -----"
+        echo "----- calendar auto-fetch $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') -----"
         python3 calendar_fetch.py 2>&1 || echo "calendar fetch wrapper error (non-fatal)"
     } >> "$LOG"
 fi
@@ -43,7 +43,7 @@ fi
 # ##ALERT## channel (docs/specs/alert_expansion_spec.md). Both go to the log.
 ERRTMP="$(mktemp)"
 OUT="$(python3 decision_brief.py GBP_AUD GBP_JPY 2>"$ERRTMP")"
-{ echo "===== $(date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
+{ echo "===== $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
 grep '^##ALERT##' "$ERRTMP" >> "$LOG" 2>/dev/null
 
 # Watched-condition flips (regime change / filter flip / exit-watch fired)

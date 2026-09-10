@@ -14,7 +14,7 @@ Idle agents are correct behavior when the queue is empty.
 
 ## PROTECTED — team review required before any merge
 
-**The 18 live core modules** (the tradeable path and its evidence loop):
+**The 19 live core modules** (the tradeable path and its evidence loop):
 
 ```
 decision_brief.py        run_outcome_check.py     regime_detection.py
@@ -23,6 +23,7 @@ trade_outcome_logger.py  shadow_signals.py        session_memory.py
 entry_confirmation.py    levels_context.py        intraday_context.py
 oanda_feed.py            news_gate.py             calendar_fetch.py
 setup_check.py           session_guard.py         risk_config.py
+display_time.py
 ```
 
 (`news_gate.py` added 2026-07-30 per the team-approved spec in
@@ -35,7 +36,9 @@ match the execution boundary. `session_guard.py` and `risk_config.py`
 promoted out of `shadow/` 2026-09-09 per
 `docs/specs/circuit_breaker_promotion_spec.md` — the circuit breaker reads
 the live `trades.csv` two-row ledger and carries the shared-currency-leg
-standing rule; where it GATES the live path is a separate pending spec.)
+standing rule; where it GATES the live path is a separate pending spec.
+`display_time.py` added 2026-09-10 per docs/specs/display_timezone_spec.md —
+the single point where times become human-readable.)
 
 **Frozen candidate specs** — `shadow_signals.py` candidates (EARLY_MOMENTUM,
 THRUST_PULLBACK, MOMENTUM_JOIN) are FROZEN. Parameter changes are NEVER edited

@@ -22,7 +22,7 @@ DATE="$(date +%F)"
 LOG="logs/outcomes_${DATE}.log"
 
 OUT="$(python3 run_outcome_check.py 2>&1)"
-{ echo "===== $(date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
+{ echo "===== $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
 
 # Health tracking (docs/specs/heartbeat_spec.md item 1). Failure signature:
 # grader early-exit marker, unconfigured feed, no data, or empty output.
