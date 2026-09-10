@@ -79,31 +79,57 @@ def test_digest_failed_run():
     assert dd.build_digest("") == "run failed — see the log"
 
 
-# ── latest-view builder ────────────────────────────────────────────────────────
+# ── latest-view builder: display-day grouping across files ────────────────────
 
-_DAY = ("===== 2026-09-09 00:32:26 EDT =====\n"
-        "  GBP/AUD  |  x\n  DECISION     STAND ASIDE — no\n"
-        "  Framework error — do not trade: OANDA\n\n"
-        "===== 2026-09-09 05:32:52 EDT =====\n"
+def _mk_logs(tmp_path):
+    d = tmp_path / "logs"
+    d.mkdir()
+    # display day 2026-09-09 spans two day files (file rolls on another clock)
+    (d / "brief_2026-09-09.log").write_text(
+        "===== 2026-09-09 05:32:52 PDT =====\n"
         "  GBP/AUD  |  x\n  DECISION     STAND ASIDE — no\n"
         "  GBP/JPY  |  x\n  DECISION     STAND ASIDE — no\n\n"
         "##ALERT## GBP/AUD: the market regime changed since the last run.\n"
-        "===== 2026-09-09 10:30:15 EDT =====\n"
-        "  GBP/AUD  |  x\n  DECISION     LONG\n"
-        "  GBP/JPY  |  x\n  DECISION     STAND ASIDE — no\n")
+        "===== 2026-09-08 23:59:00 PDT =====\n"          # OTHER display day
+        "  GBP/AUD  |  x\n  DECISION     LONG\n\n")
+    (d / "brief_2026-09-10.log").write_text(
+        "===== 2026-09-09 21:31:03 PDT =====\n"          # same display day
+        "  GBP/AUD  |  x\n  DECISION     STAND ASIDE — no\n"
+        "  GBP/JPY  |  x\n  DECISION     LONG\n\n"
+        "===== 2026-09-10 02:00:00 PDT =====\n"          # tomorrow
+        "  GBP/AUD  |  x\n  DECISION     SHORT\n\n")
+    return str(d)
 
-def test_view_latest_block_verbatim_and_digest_lines():
-    v = lv.build_view(_DAY, "brief_2026-09-09.log")
-    assert v.startswith("LATEST RUN — 2026-09-09 10:30:15 EDT")
-    assert "DECISION     LONG" in v
-    assert "2026-09-09 00:32:26 EDT  error" in v
-    assert "2026-09-09 05:32:52 EDT  GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE" in v
+def test_display_day_groups_across_two_files(tmp_path):
+    blocks, sources, fb = lv.collect(_mk_logs(tmp_path), "2026-09-09")
+    assert [b[0] for b in blocks] == [
+        "===== 2026-09-09 05:32:52 PDT =====",
+        "===== 2026-09-09 21:31:03 PDT =====",
+    ]
+    assert sources == ["brief_2026-09-09.log", "brief_2026-09-10.log"]
+    v = lv.build_view(blocks, sources, "2026-09-09", fb)
+    assert v.startswith("LATEST RUN — 2026-09-09 21:31:03 PDT")
+    assert "2026-09-09 05:32:52 PDT  GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE" in v
+    # other display days excluded from TODAY SO FAR
+    assert "2026-09-08 23:59:00" not in v
+    assert "2026-09-10 02:00:00" not in v
+    # signals follow their blocks; sources named
     assert "##ALERT## GBP/AUD: the market regime changed since the last run." in v
-    assert v.rstrip().endswith("Full record: brief_2026-09-09.log")
+    assert v.rstrip().endswith(
+        "Full record: brief_2026-09-09.log, brief_2026-09-10.log")
 
-def test_view_empty_log_is_graceful():
-    v = lv.build_view("", "brief_x.log")
-    assert "No run blocks found" in v
+def test_empty_display_day_falls_back_to_newest(tmp_path):
+    blocks, sources, fb = lv.collect(_mk_logs(tmp_path), "2026-09-11")
+    assert blocks == []
+    v = lv.build_view(blocks, sources, "2026-09-11", fb)
+    assert "No runs yet for 2026-09-11 (display day)." in v
+    assert "LATEST RUN — 2026-09-10 02:00:00 PDT" in v
+
+def test_no_files_at_all_graceful(tmp_path):
+    d = tmp_path / "logs"; d.mkdir()
+    blocks, sources, fb = lv.collect(str(d), "2026-09-09")
+    v = lv.build_view(blocks, sources, "2026-09-09", fb)
+    assert "No run blocks found for 2026-09-09" in v
 
 
 # ── wrapper wiring: digest strictly arg-gated ──────────────────────────────────
@@ -112,6 +138,7 @@ def test_wrapper_digest_gated_on_argument():
     with open(os.path.join(_PROJ, "scripts", "scheduled_brief.sh")) as f:
         src = f.read()
     assert '[ "${1:-}" = "digest" ]' in src
+    assert 'latest_view.py "logs"' in src        # display-day view, not one file
     assert 'notify "DIGEST"' in src
     assert src.count('notify "DIGEST"') == 2      # view target + day-log fallback
 

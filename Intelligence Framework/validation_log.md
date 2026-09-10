@@ -1970,3 +1970,19 @@ setup_check; real digest run with view header "2026-09-09 21:31:03 PDT";
 Friday's UK GDP (real calendar.csv, gate's own now parameter inside the
 window) rendered "GDP m/m in 1h 30m (at 11:00 PM PDT)". Freeze resumes on
 merge — this exception adds no queue items.
+
+**Addendum (2026-09-10, same exception): the view's "today" is the display
+day.** The first build grouped "TODAY SO FAR" by the log FILE's midnight
+(system clock): at 9:33 PM PDT the view showed one run because the file
+had rolled at midnight Eastern. latest_view.py now derives today in
+DISPLAY_TZ, reads the candidate day files (D−1/D/D+1 by name — file
+NAMING unchanged: records, not display), keeps blocks whose ===== header
+carries today's display date, and closes with "Full record:" naming every
+file drawn from. Pins: display day spanning two files; other-date blocks
+excluded; sources line exact; signals follow their blocks; empty-day
+fallback. Suite 1232 → 1233 green. Gate 2 (REALITY): regenerated at
+21:37 PDT — the previously-truncated moment — TODAY SO FAR now lists all
+ten of the display day's runs across brief_2026-09-09.log +
+brief_2026-09-10.log with both alerts, sources named. Transition-day
+quirk documented: blocks stamped pre-conversion (EDT) group by their
+stamped date; coherent from the first full display day onward.
