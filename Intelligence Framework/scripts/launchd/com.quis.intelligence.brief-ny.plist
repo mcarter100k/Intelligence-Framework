@@ -9,6 +9,10 @@
         <string>/Users/quis/Intelligence Framework/scripts/scheduled_brief.sh</string>
         <string>digest</string>
     </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>TZ</key><string>America/Los_Angeles</string>
+    </dict>
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key><integer>7</integer>
