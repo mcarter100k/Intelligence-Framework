@@ -1413,6 +1413,11 @@ evidence (log line / ledger row / notification) is cited here.
       (real prices in both blocks) and routed by the wrapper's ALERT
       category through notify() — delivered via the osascript fallback,
       as terminal-notifier permission was still off at those hours.
+      Evidence caveat (team amendment at approval): both fires were the
+      GBP/AUD H4 RANGING↔VOLATILE oscillation at trend strength 17-18 —
+      the boundary flap later logged as an open question (alert
+      materiality/debounce). The MECHANISM is what this entry clears;
+      the flip itself was marginal, not a tradeable regime change.
 - [ ] **First Sunday calendar auto-fetch** — com.quis.intelligence.calendar
       fires on schedule and calendar.csv updates (logs/calendar_*.log).
 - [ ] **First real setup_check use** — a pre-trade stack run before an actual
