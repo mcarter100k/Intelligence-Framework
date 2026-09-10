@@ -2077,3 +2077,36 @@ outcomes fire time must be checked against 22:15 UTC (the Sunday
 heartbeat and the dated log headers make this a one-glance check). If it
 ever shifts to 19:15 UTC, the machine's system zone must be set to
 America/Los_Angeles — that, not the plist key, governs the schedule.
+
+---
+
+## 2026-09-10 — State-dependent labels (freeze exception, per docs/specs/state_dependent_labels_spec.md)
+
+Label honesty, same class as the regime subtype fixes: a STAND ASIDE
+brief has no position to exit, so its condition slot is now labeled
+**WATCH FOR**, and the concrete pending-pivot sentence carries the
+directed guard so it never over-promises: "…the downtrend is confirmed
+then — the trade still depends on the filter, the calendar, and a valid
+stop. Revisit then." LONG/SHORT briefs render **ENTRY** (trigger + level
+from the entry brief — the same read-only computation the trade path
+already prints), **EXIT IF** with its meaning restored (a position
+exists; this is where it is wrong), and **TARGET** stated honestly: the
+framework does not generate targets — set your own, it must pay ≥1.5x
+after the spread. FULL PICTURE already phrased both states correctly
+("This changes when…" / stop-as-invalidation) and inherits the guard via
+the shared sentence. The daily digest's watch extraction accepts both
+labels. Decisions byte-identical (display fields only).
+
+Gate 1: 6 new pins (labels per state, slot order, guard both directions,
+generic sentence unguarded, digest under both labels) + 2 pins updated;
+suite 1233 → 1239 green, shadow 868. Gate 2 (REALITY): live briefs on
+BOTH pairs render WATCH FOR with the guarded concrete sentence —
+GBP/AUD's pending low 1.8732 now one session from shape-complete;
+GBP/JPY naming its own pending low 207.1000. Zero "EXIT IF" on live
+stand-aside briefs.
+
+**POST-FREEZE QUEUE, first item (recorded, NOT built):** "IF IT
+CONFIRMS" conditional plan on stand-aside briefs when the WATCH FOR
+condition is within 2 sessions — play name, trigger, stop, first target,
+noise-stop check pre-run, storyline agreement — explicitly conditional,
+never a signal. Spec after 2026-09-16.

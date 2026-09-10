@@ -95,7 +95,9 @@ def test_exit_if_names_pending_low_young_candidate():
     assert out == ("The low near 1.8732 confirms as a swing low — it stays "
                    "the lowest point for 2 more sessions and a session then "
                    "closes above it — with the 4-hour chart aligned, the "
-                   "downtrend is confirmed then. Revisit then.")
+                   "downtrend is confirmed then — the trade still depends "
+                   "on the filter, the calendar, and a valid stop. "
+                   "Revisit then.")
 
 def test_exit_if_shape_complete_candidate():
     out = db._build_invalidation(_regime(d1_pending_low_age=4), "STAND DOWN")

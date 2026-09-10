@@ -37,7 +37,7 @@ def build_digest(text: str) -> str:
         # watch condition from EXIT IF sections (unwrap the rendered lines)
         watches = []
         for m in re.finditer(
-                r"EXIT IF\s+(.*?)(?:\n\s*\n|═)", text, re.S):
+                r"(?:EXIT IF|WATCH FOR)\s+(.*?)(?:\n\s*\n|═)", text, re.S):
             watches.append(re.sub(r"\s+", " ", m.group(1)).strip())
         watch = ""
         for w in watches:                     # prefer a concrete pivot watch
