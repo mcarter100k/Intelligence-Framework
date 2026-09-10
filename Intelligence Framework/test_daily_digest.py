@@ -30,7 +30,7 @@ _BRIEF = """═════════
 
   DECISION     STAND ASIDE — conditions not right to trade
 
-  EXIT IF      The low near 1.8732 confirms as a
+  WATCH FOR    The low near 1.8732 confirms as a
                swing low — it stays the lowest point
                for 2 more sessions and a session
                then closes above it — with the
