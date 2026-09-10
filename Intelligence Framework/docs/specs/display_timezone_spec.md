@@ -64,3 +64,30 @@ compares in UTC.
   calendar.csv with the gate's own `now` parameter placed inside the
   2-hour window (real file, real code path, controlled clock — the
   release itself is Friday).
+
+## Addendum (2026-09-10): the view's "today" is the display day
+
+Loose end from the first build: `latest_brief.log` grouped "TODAY SO FAR"
+by the log FILE's boundary (system-clock midnight), so at 9:33 PM PDT the
+view showed one run — the file had rolled at midnight Eastern. Ruling:
+**one clock for the view — the display zone.**
+
+- `latest_view.py` now derives today's date in DISPLAY_TZ, reads every
+  candidate day file that could hold it (D−1, D, D+1 by filename), and
+  keeps the blocks whose ===== header carries today's display date. Since
+  the first build, headers ARE written in the display zone, so header-date
+  grouping IS display-day grouping; blocks stamped in another zone during
+  the one-time transition day group by their stamped date (documented
+  quirk, gone within a day).
+- LATEST RUN = the newest of today's blocks (newest block overall when
+  today has none yet, marked as such). Alert/RECOVERED/flip lines carried
+  from today's blocks only.
+- Log file NAMING is unchanged (records, not display); the view's closing
+  line names every file the section drew from:
+  "Full record: brief_2026-09-09.log, brief_2026-09-10.log".
+- Digest failure fallback (pointing at the current day file) unchanged.
+
+Pins: a display day spanning two files groups both; other-date blocks
+excluded; the sources line lists exactly the files drawn from; signals
+follow their blocks; empty state graceful. Gate 2: real regeneration at a
+moment when the display day spans two files.
