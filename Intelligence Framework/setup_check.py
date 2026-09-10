@@ -363,9 +363,12 @@ def build_stack(instrument: str, direction: str,
     ng = regime.get("news_gate") or {}
     clock_clear = False
     if ng.get("gating"):
+        from display_time import to_display
+        _evt = to_display(ng.get("event_time_utc"), style="time")
+        _at = f" (at {_evt})" if _evt else ""
         clock = (f"{ng.get('event')} in "
-                 f"{_minutes_phrase(ng.get('minutes_until'))} — stand aside "
-                 f"until after.")
+                 f"{_minutes_phrase(ng.get('minutes_until'))}{_at} — "
+                 f"stand aside until after.")
     elif not ng.get("active", False):
         clock = ("The news calendar is out of date or missing — event risk "
                  "is unchecked.")

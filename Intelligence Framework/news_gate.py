@@ -42,9 +42,10 @@ _MISSING_NOTE = "news calendar missing — event risk unchecked"
 
 def _result(active: bool, gating: bool = False, event: str = "",
             currency: str = "", minutes_until: Optional[int] = None,
-            note: str = "") -> Dict:
+            note: str = "", event_time_utc: str = "") -> Dict:
     return {"active": active, "gating": gating, "event": event,
-            "currency": currency, "minutes_until": minutes_until, "note": note}
+            "currency": currency, "minutes_until": minutes_until,
+            "event_time_utc": event_time_utc, "note": note}
 
 
 def check_news_gate(instrument: str, now: Optional[datetime] = None,
@@ -103,10 +104,11 @@ def check_news_gate(instrument: str, now: Optional[datetime] = None,
         mins = (dt - now_naive).total_seconds() / 60.0
         if 0 <= mins <= WINDOW_MINUTES:
             if soonest is None or mins < soonest[0]:
-                soonest = (mins, ccy, name)
+                soonest = (mins, ccy, name, dt)
 
     if soonest:
-        mins, ccy, name = soonest
+        mins, ccy, name, dt = soonest
         return _result(active=True, gating=True, event=name or "high-impact release",
-                       currency=ccy, minutes_until=int(round(mins)))
+                       currency=ccy, minutes_until=int(round(mins)),
+                       event_time_utc=dt.strftime("%Y-%m-%dT%H:%M:%SZ"))
     return _result(active=True)

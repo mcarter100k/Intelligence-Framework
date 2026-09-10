@@ -753,11 +753,12 @@ def _market_status(*, _now=None) -> dict:
         hour=21, minute=0, second=0, microsecond=0)
     if wd == 6 and hr >= 21:  # shouldn't reach, safety
         next_open += timedelta(days=7)
+    from display_time import to_display
     return {"open": False,
-            "next_open_utc": next_open.strftime("%a %d %b %H:%M UTC"),
+            "next_open_utc": next_open.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "note": ("Market closed — analysis based on last "
                      "close. Next open " +
-                     next_open.strftime("%a %H:%M UTC") + ".")}
+                     to_display(next_open, style="day_time") + ".")}
 
 
 def _split_live_bar(df, threshold_hours: float = 24.0) -> tuple:

@@ -272,7 +272,9 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
         DecisionBrief dataclass with .format() method for display.
         Never raises — returns safe STAND DOWN brief on any error.
     """
-    timestamp = datetime.now(timezone.utc).strftime("%a %d %b %Y  %H:%M UTC")
+    # human-read header time in the display zone (display_timezone_spec)
+    from display_time import to_display
+    timestamp = to_display(datetime.now(timezone.utc))
 
     try:
         # ── 1. Get full regime data ───────────────────────────────────────────

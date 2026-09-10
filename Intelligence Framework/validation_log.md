@@ -1941,3 +1941,32 @@ notification, real view (latest block + all five earlier runs digested +
 both ##ALERT## lines + pointer), click URL opens it; a real non-digest run
 posted no digest and left the view byte-identical. Gate 3 pending: first
 scheduled 07:30 digest via launchd.
+
+---
+
+## 2026-09-10 — Display timezone (freeze exception, per docs/specs/display_timezone_spec.md)
+
+User-requested display-layer exception during the freeze: every time a
+human reads now renders in ONE configurable zone (`display_time.py`,
+DEFAULT America/Los_Angeles, `DISPLAY_TZ` env override; PROTECTED list
+18 → 19). Abbreviations come from zoneinfo by date — PST/PDT switch
+automatically, nothing hardcoded. Converted: brief header, market-closed
+note ("Next open Sun 2:00 PM PDT"; the machine field next_open_utc became
+true ISO-Z), news-gate stand-down reason and setup_check CLOCK gain
+"(at 11:00 PM PDT)" from the gate's new additive `event_time_utc` field,
+wrapper ===== headers (sanctioned shell form: TZ-env date), heartbeat's
+last-success line. Verified untouched: all ledger/bar/dedup timestamps,
+market-hours logic, calendar window math; calendar_fetch confirmed to
+store naive-UTC (astimezone(utc) before write — the 2026-09-11 06:00 GBP
+GDP row is 06:00 UTC). trade_logger verified to render no times; digest
+text carries none.
+
+Gate 1: 12 pins (PST and PDT dates, styles, env override, gate firing at
+the identical UTC instant under LA/NY/UTC display zones, official
+decision byte-identical, market-note + filter-reason + CLOCK renders, no
+bare "UTC" in prose); suite 1220 → 1232 green, shadow 868. Gate 2
+(REALITY): live brief header "Wed 09 Sep 2026 9:30 PM PDT"; live
+setup_check; real digest run with view header "2026-09-09 21:31:03 PDT";
+Friday's UK GDP (real calendar.csv, gate's own now parameter inside the
+window) rendered "GDP m/m in 1h 30m (at 11:00 PM PDT)". Freeze resumes on
+merge — this exception adds no queue items.

@@ -84,7 +84,7 @@ print("\n".join(lines))
 PY
 )"
 
-{ echo "===== heartbeat $(date '+%Y-%m-%d %H:%M:%S %Z') ====="
+{ echo "===== heartbeat $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="
   echo "$REPORT"; echo; } >> "$LOG"
 
 # One-line summary for the notification: worst signal first.

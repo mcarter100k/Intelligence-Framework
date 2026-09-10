@@ -155,13 +155,18 @@ def apply_filter(regime: dict) -> FilterResult:
     if _ng.get("gating"):
         _mins = _ng.get("minutes_until")
         _when = f"{int(_mins)} minutes" if _mins is not None else "under 2 hours"
+        # local-time parenthetical (display_timezone_spec) — display only
+        from display_time import to_display
+        _evt = to_display(_ng.get('event_time_utc'), style='time')
+        _at_local = f" (at {_evt})" if _evt else ""
         return FilterResult(
             allowed=False,
             execution_mode="STAND_DOWN",
             size_mult=0.0,
             confidence="NONE",
             reason=(f"Major economic event ahead — "
-                    f"{_ng.get('event') or 'high-impact release'} in {_when}. "
+                    f"{_ng.get('event') or 'high-impact release'} in {_when}"
+                    f"{_at_local}. "
                     f"Markets reprice violently around releases; standing "
                     f"aside until after."),
         )

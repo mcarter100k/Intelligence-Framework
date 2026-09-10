@@ -89,15 +89,29 @@ def record_success() -> str:
     return out
 
 
+def _disp(iso: str) -> str:
+    """Render a stored UTC stamp in the display zone (storage stays UTC).
+    Falls back to the raw stamp if the helper is unavailable."""
+    try:
+        import sys as _s
+        _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _root not in _s.path:
+            _s.path.insert(0, _root)
+        from display_time import to_display
+        return to_display(iso) or iso
+    except Exception:
+        return iso
+
+
 def status() -> str:
     d = _load()
     n = int(d.get("consecutive_failures", 0) or 0)
     if n == 0:
         return (f"healthy — last success "
-                f"{d.get('last_success_utc') or 'not yet recorded'}")
+                f"{_disp(d.get('last_success_utc')) or 'not yet recorded'}")
     return (f"UNHEALTHY — {n} consecutive failed run(s); last reason: "
             f"{d.get('last_failure_reason', '?')}; last success: "
-            f"{d.get('last_success_utc') or 'not yet recorded'}")
+            f"{_disp(d.get('last_success_utc')) or 'not yet recorded'}")
 
 
 def main(argv) -> int:
