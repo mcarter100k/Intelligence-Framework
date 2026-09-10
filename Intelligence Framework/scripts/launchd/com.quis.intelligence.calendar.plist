@@ -8,6 +8,10 @@
         <string>/bin/bash</string>
         <string>/Users/quis/Intelligence Framework/scripts/scheduled_calendar.sh</string>
     </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>TZ</key><string>America/Los_Angeles</string>
+    </dict>
     <key>StartCalendarInterval</key>
     <dict>
         <key>Weekday</key><integer>0</integer>

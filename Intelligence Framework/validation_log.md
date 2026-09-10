@@ -1970,3 +1970,50 @@ setup_check; real digest run with view header "2026-09-09 21:31:03 PDT";
 Friday's UK GDP (real calendar.csv, gate's own now parameter inside the
 window) rendered "GDP m/m in 1h 30m (at 11:00 PM PDT)". Freeze resumes on
 merge — this exception adds no queue items.
+
+**Addendum (2026-09-10, same exception): the view's "today" is the display
+day.** The first build grouped "TODAY SO FAR" by the log FILE's midnight
+(system clock): at 9:33 PM PDT the view showed one run because the file
+had rolled at midnight Eastern. latest_view.py now derives today in
+DISPLAY_TZ, reads the candidate day files (D−1/D/D+1 by name — file
+NAMING unchanged: records, not display), keeps blocks whose ===== header
+carries today's display date, and closes with "Full record:" naming every
+file drawn from. Pins: display day spanning two files; other-date blocks
+excluded; sources line exact; signals follow their blocks; empty-day
+fallback. Suite 1232 → 1233 green. Gate 2 (REALITY): regenerated at
+21:37 PDT — the previously-truncated moment — TODAY SO FAR now lists all
+ten of the display day's runs across brief_2026-09-09.log +
+brief_2026-09-10.log with both alerts, sources named. Transition-day
+quirk documented: blocks stamped pre-conversion (EDT) group by their
+stamped date; coherent from the first full display day onward.
+
+---
+
+## 2026-09-10 — launchd fleet re-based explicitly to America/Los_Angeles (freeze-adjacent correction)
+
+**WHY, on the record:** the outcomes job must run AFTER the 21:00 UTC
+daily close. At 15:15 America/Los_Angeles it fires at 22:15 UTC — after
+the close, grading the just-closed bar. If the same wall-time were ever
+interpreted as Eastern, 15:15 EDT = 19:15 UTC — BEFORE the close — and
+the grader would grade stale bars. The zone is therefore part of the
+schedule's correctness, not a preference.
+
+Done, no restart: all six plists now carry
+`EnvironmentVariables TZ=America/Los_Angeles` (matching DISPLAY_TZ), the
+user-session env is pinned (`launchctl setenv TZ America/Los_Angeles`),
+and all six were reinstalled. Verification dump: london 02:30 / ny 07:30
+(+digest arg intact) / outcomes 15:15 / asia 18:00 / calendar Sun 12:00 /
+heartbeat Sun 12:30 — every plist TZ=America/Los_Angeles; observed firing
+basis is already Pacific (yesterday's fires at 02:32/07:30/18:00 PT).
+
+**Honest limit, recorded so nobody trusts the wrong key:** launchd
+computes StartCalendarInterval in the SESSION's zone, not from the
+plist's EnvironmentVariables (those pin the job's process env — display
+and any date math inside the wrappers). Today the session computes in
+Pacific (observed). After any reboot/login the session zone follows the
+system setting (currently America/New_York) unless the pinned session
+env carries over — SO: after any reboot or timezone change, the first
+outcomes fire time must be checked against 22:15 UTC (the Sunday
+heartbeat and the dated log headers make this a one-glance check). If it
+ever shifts to 19:15 UTC, the machine's system zone must be set to
+America/Los_Angeles — that, not the plist key, governs the schedule.

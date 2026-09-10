@@ -97,7 +97,7 @@ fi
 # through to the regenerated latest-view. View/digest failure falls back
 # to the day log — never breaks the run.
 if [ "${1:-}" = "digest" ]; then
-    python3 scripts/latest_view.py "$LOG" "logs/latest_brief.log" || true
+    python3 scripts/latest_view.py "logs" "logs/latest_brief.log" || true
     DIGEST="$(printf '%s
 ' "$OUT" | python3 scripts/daily_digest.py)"
     [ -z "$DIGEST" ] && DIGEST="digest unavailable — see the log"
