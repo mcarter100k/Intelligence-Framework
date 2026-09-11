@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import csv
 import os
+import sys
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
@@ -158,24 +159,35 @@ def check_early_momentum_v2(instrument: str, ctx: Dict) -> Optional[Dict]:
 def check_thrust_pullback(instrument: str, ctx: Dict) -> Optional[Dict]:
     H, L, C, O, atr = ctx["H"], ctx["L"], ctx["C"], ctx["O"], ctx["atr"]
     n = len(C)
+    # ATR/bar alignment (2026-09-10 fix): compute_atr_series returns
+    # n - period values — atr[i] is the ATR as of bar i + off, so the live
+    # feed (n=300, off=14) made atr[b] with a BAR index raise IndexError on
+    # every call from go-live, silently swallowed upstream into "no signal".
+    # _atr_at maps a bar index to its ATR. Alignment only — every spec
+    # parameter (frozen 2026-07-29) is UNCHANGED, so no new candidate id.
+    off = n - len(atr)
+
+    def _atr_at(i: int) -> float:
+        return atr[i - off]
+
     for b in range(n - 1 - TP_PULLBACK_BARS, n - 1):       # break bar candidates
-        if b - TP_BOX_N < 0:
+        if b - TP_BOX_N < 0 or b - off < 0:
             continue
         box_hi = max(H[b - TP_BOX_N:b]); box_lo = min(L[b - TP_BOX_N:b])
-        if (box_hi - box_lo) > TP_BOX_X * atr[b]:
+        if (box_hi - box_lo) > TP_BOX_X * _atr_at(b):
             continue                                        # box not tight enough
         body = abs(C[b] - O[b])
         # up-break then pullback then fresh close-back above the edge
-        if C[b] > box_hi and body >= TP_BODY_ATR * atr[b]:
+        if C[b] > box_hi and body >= TP_BODY_ATR * _atr_at(b):
             edge = box_hi
-            pulled = any(L[k] <= edge + TP_PULLBACK_ATR * atr[b] for k in range(b + 1, n))
+            pulled = any(L[k] <= edge + TP_PULLBACK_ATR * _atr_at(b) for k in range(b + 1, n))
             if pulled and C[n - 2] <= edge and C[n - 1] > edge:
                 return _sig("THRUST_PULLBACK", instrument, ctx, "LONG",
                             C[n - 1], box_lo, extra=f"box[{box_lo:.5f},{box_hi:.5f}]")
         # down-break mirror
-        if C[b] < box_lo and body >= TP_BODY_ATR * atr[b]:
+        if C[b] < box_lo and body >= TP_BODY_ATR * _atr_at(b):
             edge = box_lo
-            pulled = any(H[k] >= edge - TP_PULLBACK_ATR * atr[b] for k in range(b + 1, n))
+            pulled = any(H[k] >= edge - TP_PULLBACK_ATR * _atr_at(b) for k in range(b + 1, n))
             if pulled and C[n - 2] >= edge and C[n - 1] < edge:
                 return _sig("THRUST_PULLBACK", instrument, ctx, "SHORT",
                             C[n - 1], box_hi, extra=f"box[{box_lo:.5f},{box_hi:.5f}]")
@@ -216,7 +228,17 @@ def check_shadow_signals(instrument: str, ctx: Optional[Dict] = None) -> List[Di
     for fn in _CANDIDATES:
         try:
             s = fn(instrument, ctx)
-        except Exception:
+        except Exception as exc:
+            # A candidate error must NEVER render as "no signal" — that is
+            # how THRUST_PULLBACK logged a can't-fire as a no-setup from
+            # go-live to 2026-09-10. Loud path: machine ##ALERT## line on
+            # stderr; the wrapper routes it to the day log + a notification
+            # and records a health FAILURE, so the daily UNHEALTHY alert
+            # repeats until the candidate is fixed. The other candidates
+            # still run — one broken check never silences the rest.
+            print(f"##ALERT## SHADOW CANDIDATE ERROR — "
+                  f"{getattr(fn, '__name__', str(fn))} {instrument}: "
+                  f"{type(exc).__name__}: {exc}", file=sys.stderr)
             s = None
         if s:
             out.append(s)
