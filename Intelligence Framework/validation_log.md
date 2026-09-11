@@ -2294,3 +2294,53 @@ Mechanism of the original error: transcription at write time (a year typo
 propagated across one writing session), surfaced by the 2026-09-11
 earliest-load inventory when git dates were checked against log headers.
 All statuses (INFORMED PRIOR demotions etc.) unchanged.
+
+---
+
+## 2026-09-11 — STAGE 2 (data_map_spec §10): overlap check FAILED — history-validation INFEASIBLE under today's sourcing
+
+Executed per docs/specs/data_map_spec.md (f5eea4f, amended 67578e5).
+Verification numbers only; no price statistics; **no STUDY bar was
+converted — the ladder stopped the sequence before conversion.**
+
+**Sourcing record (all attempts 2026-09-11):**
+- `datafeed.dukascopy.com` (raw bi5, M1/tick-capable): HTTP 503 then
+  connection timeouts, all session — unreachable.
+- HistData.com (named fallback): site reachable, but `/get.php` returns
+  0 bytes for every dataset; the form token is served EMPTY even to a
+  fully-rendered headless-Chrome DOM. Download flow non-functional
+  programmatically.
+- `freeserv.dukascopy.com` chart feed (same provider, H1 transport):
+  used for the overlap check. Coverage probes: GBP_JPY hourly available
+  ≥ 2005-02-01; GBP_AUD hourly begins between 2006-03-15 and 2006-04-15
+  (exact first bar not pinned — sequence stopped first).
+
+**Feed-overlap check** (2023-09-01 → 2026-09-10, freeserv mid vs OANDA mid,
+frozen thresholds: disagreement ≤ 2%, median |close diff| ≤ 1.5 pips):
+
+| pair/TF | matched | med O/H/L/C (pips) | disagree >5p |
+|---|---|---|---|
+| GBP_AUD D1 | 784 | 4.22 / 0.30 / 0.30 / 1.55 | 53.6% |
+| GBP_AUD H4 | 4704 | 0.30 / 0.25 / 0.25 / 0.30 | 12.7% |
+| GBP_JPY D1 | 784 | 2.90 / 0.20 / 0.20 / 1.65 | 39.7% |
+| GBP_JPY H4 | 4704 | 0.25 / 0.15 / 0.15 / 0.20 | 9.2% |
+
+**FAIL on both pairs.** Decomposition (same check, verdict unchanged): the
+17:00-NY rollover dominates — H4 slot-0 disagreement 62%/44% vs 2.83%/2.24%
+on all other slots — but even the non-rollover slots exceed the 2% bar and
+both D1 close medians exceed 1.5 pips, so the failure is not solely the
+H1-transport's inability to reproduce tick-accurate rollover opens.
+
+**Ladder ruling (spec §2):** Dukascopy FAIL → HistData re-run NOT EXECUTABLE
+(endpoint dead) → **history-validation is INFEASIBLE as of 2026-09-11
+sourcing conditions.** The forward ledger remains the only path. The SEALED
+EXAM stays closed; the STUDY span stays unopened.
+
+**Re-attempt condition (team decision, not self-authorized):** if
+`datafeed.dukascopy.com` becomes reachable, an M1/tick-based re-attempt
+would remove the rollover-granularity component of the disagreement; the
+residual (~2.2–2.8% mid-session, ~1.6-pip close offset between liquidity
+pools) may still fail the frozen thresholds — that is what they are for.
+
+Full numbers: studies/stage2_gate_report.md. Script:
+studies/stage2_source_convert_gate.py (sourcing record in header).
