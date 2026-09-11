@@ -21,10 +21,20 @@ from official_decision import get_official_decision
 
 BANNED = re.compile(r'\bADX\b|HH/HL|LH/LL|\bpivot\b|ATR ratio')
 
+# Raw snake_case tokens (trending_down, stand_down, …) are internal names and
+# must never reach rendered prose (regime_log_restore spec item 4b — the
+# 2026-09-10 "trending_down" leak). Shadow candidate IDs are deliberate
+# ledger identities and stay allowed by name.
+BANNED_RAW = re.compile(r'\b[A-Za-z]+_[A-Za-z0-9]+\b')
+ALLOWED_IDS = re.compile(
+    r'\b(EARLY_MOMENTUM(_v\d+)?|THRUST_PULLBACK|MOMENTUM_JOIN)\b')
+
 
 def _assert_clean(text):
     m = BANNED.search(text)
     assert m is None, f"banned jargon token rendered: {m.group()!r}\n{text}"
+    m = BANNED_RAW.search(ALLOWED_IDS.sub("", text))
+    assert m is None, f"raw internal token rendered: {m.group()!r}\n{text}"
 
 
 def _brief_from_regime(regime, shadow_pending=None, pip=0.0001):

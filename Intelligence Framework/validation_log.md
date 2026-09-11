@@ -1458,6 +1458,18 @@ evidence (log line / ledger row / notification) is cited here.
       chat. Recorded on that basis: the click opened the exact click
       target. (If it was opened another way, this clearance should be
       corrected by a new dated entry — the Honesty Correction format.)
+- [ ] **First scheduled regime-classification row** (added 2026-09-10, per
+      docs/specs/regime_log_restore_narrative_truth_spec.md) — a launchd
+      brief run appends a regime_classification_log.csv row with the
+      subtype column populated where a subtype exists. Manual Gate-2 runs
+      already proved the wiring; only launchd proves launchd. First
+      eligible slot: the next scheduled brief after merge.
+- [ ] **First freshness-driven UNHEALTHY fire** (added 2026-09-10) — a real
+      (or deliberately induced, INTEL-style forced) staleness of an
+      evidence artifact drives scheduled_brief.sh → health_state.py
+      record-failure with a "STALE:" reason, and the daily UNHEALTHY alert
+      names the artifact. Tests pin the mechanism; only reality proves the
+      chain end-to-end.
 - [ ] **First loss autopsied at scheduled grading time** (added 2026-09-09)
       — a future graded loss gets its loss_species stamped by the scheduled
       run_outcome_check path (the backfill proved the classifier on the
@@ -2110,3 +2122,63 @@ CONFIRMS" conditional plan on stand-aside briefs when the WATCH FOR
 condition is within 2 sessions — play name, trigger, stop, first target,
 noise-stop check pre-run, storyline agreement — explicitly conditional,
 never a signal. Spec after 2026-09-16.
+
+---
+
+## 2026-09-10 — Evidence loss: regime classification never logged from the live path (freeze exception, safety class; docs/specs/regime_log_restore_narrative_truth_spec.md)
+
+**The loss, stated honestly:** regime_classification_log.csv holds 25 rows,
+all from two manual bursts (2026-06-28 validation work; 2026-07-28/29
+cleanup-audit verification). `log_regime`'s only caller ever was the shadow
+stack's `market_brain.build_market_report` (exception-swallowed), which was
+never scheduled; the official brief path never called the write side at all
+(it imports only `get_regime_accuracy`). The 2026-07-29 quarantine (commit
+2188ad5) removed the last reachable caller. Every scheduled brief since the
+system went live classified a regime and made an implicit prediction that
+was never recorded — including the resolution-table cells whose re-evaluation
+mandate ("60+ outcomes per combination") this ledger was supposed to feed.
+**No backfill.** Reconstructed rows would be lookahead-contaminated
+hindsight, not predictions. The gap stands as recorded evidence loss; the
+DATA BASIS lines' small N is the honest consequence.
+
+**Discovery path:** the 2026-09-10 18:04 PDT GBP/AUD brief rendered a live
+SHORT @0.5x whose REASON inverted the raw state ("4-hour trending inside
+daily trending_down" — H4 was the unresolved one, ADX 22 transition zone)
+and whose FULL PICTURE asserted "All three timeframes line up" from the
+existence of the decision, not from the fields. The diagnostic that traced
+those two template defects found the dead ledger while hunting the raw
+values (session_context_log.csv row 2026-09-11T01:04:13Z supplied them:
+regime_d1 TRENDING_DOWN, regime_h4 VOLATILE, adx_d1 25.9, adx_h4 22.0,
+cell → REDUCED_MOMENTUM 0.5x).
+
+**Item-0 ruling (recorded):** the (TRENDING_DOWN, VOLATILE) cell's "wait
+for H4 to resolve" exists only in its note string; no code gates on H4
+between the table and the decision (H4's entire influence: a +5 conviction
+bonus it fails to earn). Tonight's SHORT was mechanically intended behavior
+with semantically ambiguous authorship. **Cell behavior unchanged in this
+build** — an H4 gate is live trading logic: separate spec, separate review,
+and it needs the outcome data this build restores.
+
+**Built (branch feat/regime-log-restore-narrative-truth, merge held):**
+1. `log_regime` wired into `get_decision_brief` §1c — every live open-market
+   run logs classification + prediction, subtype column included; closed
+   market skipped (no new bar, no new prediction); failure = stderr line,
+   never silent, never fatal.
+2. REDUCED_MOMENTUM REASON renders per the actual (d1, h4) cell — the
+   D1-trending/H4-unresolved wording now matches the table note; raw-token
+   leak killed; exhaustion honesty preserved.
+3. FULL PICTURE alignment is derived from regime fields (weekly via
+   weekly_context + lt_trend, daily, 4-hour vs decision sign); unresolved
+   and opposed timeframes are named; the reduced-size sentence renders only
+   when size_mult < 1.0.
+4. Systemic: scripts/artifact_freshness.py (pinned cadence table: regime log
+   72h, session log 72h, calendar 192h, storylines 216h, shadow log 504h) —
+   wrapper records a health FAILURE on any STALE artifact (rides the
+   existing 2-consecutive/daily-repeat UNHEALTHY plumbing); Sunday heartbeat
+   prints the full freshness report and treats STALE as NEEDS ATTENTION.
+   Narrative-truth matrix pinned (test_narrative_truth.py), banned-token
+   floor extended to raw snake_case tokens (shadow candidate IDs exempt by
+   name).
+
+Gate 1: 15 new pinned tests; suite 1239 → 1254 green. Gate 2 (REALITY) and
+Gate 3 pending entries: see below and the PENDING LIVE CONFIRMATION list.

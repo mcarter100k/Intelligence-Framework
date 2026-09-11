@@ -80,6 +80,14 @@ try:
 except Exception:
     lines.append("storylines: MISSING")
 
+# 6. evidence-artifact freshness (regime_log_restore spec item 4a)
+try:
+    sys.path.insert(0, "scripts")
+    import artifact_freshness
+    lines.extend(artifact_freshness.check())
+except Exception as e:
+    lines.append(f"freshness: check unavailable ({e})")
+
 print("\n".join(lines))
 PY
 )"
@@ -88,9 +96,9 @@ PY
   echo "$REPORT"; echo; } >> "$LOG"
 
 # One-line summary for the notification: worst signal first.
-if printf '%s\n' "$REPORT" | grep -qE 'UNHEALTHY|NO LOG|ERRORS PRESENT|MISSING'; then
+if printf '%s\n' "$REPORT" | grep -qE 'UNHEALTHY|NO LOG|ERRORS PRESENT|MISSING|STALE'; then
     SUMMARY="NEEDS ATTENTION | $(printf '%s\n' "$REPORT" \
-        | grep -E 'UNHEALTHY|NO LOG|ERRORS PRESENT|MISSING' | head -1)"
+        | grep -E 'UNHEALTHY|NO LOG|ERRORS PRESENT|MISSING|STALE' | head -1)"
 else
     SUMMARY="healthy | $(printf '%s\n' "$REPORT" | grep '^shadow:' | head -1)"
 fi
