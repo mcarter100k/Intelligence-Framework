@@ -50,6 +50,11 @@ second provider, named here:
   2005-01-01. If neither provider covers the start, the STUDY start moves
   forward to the first covered date and that amendment is committed BEFORE
   conversion begins.
+- **Failure ladder (team amendment, 2026-09-11):** a failed overlap check on
+  Dukascopy means try HistData and RE-RUN the overlap check; if both
+  providers fail it, **history-validation is declared INFEASIBLE** — the
+  same standing as a too-low trade count (§9) — and the forward ledger is
+  the only path. The actual overlap numbers are reported either way.
 
 **Feed-overlap check (mandatory, Stage 2, before any STUDY statistic):**
 pull 2023-09-01 → 2026-09-10 (the profile window, both pairs, D1 + H4) from
@@ -57,9 +62,9 @@ the chosen provider, convert to the same 17:00-NY alignment, and compare
 bar-by-bar against the OANDA cache. Report per field (O/H/L/C): median and
 p95 |diff| in pips, and the **disagreement rate** = % of bars with any field
 differing by > 5 pips (GBP_AUD) / > 5 JPY-pips (GBP_JPY).
-*PROPOSED acceptance (frozen at Stage-2 commit unless team amends):*
-disagreement rate ≤ 2% AND median |close diff| ≤ 1.5 pips; otherwise STOP
-and report — no STUDY work on a feed we can't reconcile.
+*Acceptance (APPROVED as proposed, 2026-09-11):*
+disagreement rate ≤ 2% AND median |close diff| ≤ 1.5 pips; otherwise the
+§2 failure ladder applies — no STUDY work on a feed we can't reconcile.
 **Precedent this exists to honor:** v1 thresholds were validated on yfinance
 and traded on OANDA; that mismatch was a real defect (validation_log,
 Honesty Correction / Audit Item 2).
@@ -92,7 +97,7 @@ recorded in validation_log.
 ## 4. Condition 2 — period-appropriate spreads (committed before any statistic)
 
 Round-trip spread schedule, applied by era in every STUDY/EXAM computation.
-*PROPOSED — frozen at Stage-2 commit unless the team amends in review:*
+*APPROVED as proposed, 2026-09-11 — now frozen:*
 
 | Era | GBP_AUD (pips) | GBP_JPY (JPY-pips) |
 |---|---|---|
@@ -124,14 +129,26 @@ forward ledger remains the only evidence about the present.
 The exam-spec (a later artifact, per candidate) MUST contain numeric
 criteria — trades/year, win rate, average R, max drawdown — committed before
 the exam is opened. An exam without committed numbers cannot be opened.
-*PROPOSED template (echoes FLAG_N=30 / REVIEW_N=60; frozen per candidate at
-exam-spec commit after team review):*
+*APPROVED 2026-09-11 with two team amendments, both binding:*
 
-- **VALIDATED:** N ≥ 60 episodes AND avg R ≥ +0.15 AND win rate ≥ 35% AND
-  max drawdown ≤ 12R.
+- **N counts INDEPENDENT EPISODES** — non-overlapping horizons per the
+  shadow-harness counting rule (`shadow_signals.episode_count()` semantics)
+  — never raw trades or raw fires.
+- **Median winner R and median loser R are reported alongside avg R**, and a
+  positive avg R driven by a single outlier is **INCONCLUSIVE, not
+  VALIDATED**. Operational test: if removing the single best episode drops
+  avg R below the VALIDATED threshold, the result is INCONCLUSIVE.
+
+Template (echoes FLAG_N=30 / REVIEW_N=60; frozen per candidate at exam-spec
+commit after team review):
+
+- **VALIDATED:** N ≥ 60 independent episodes AND avg R ≥ +0.15 (surviving
+  the single-outlier removal test) AND win rate ≥ 35% AND max drawdown
+  ≤ 12R.
 - **FAILED:** N ≥ 30 AND (avg R ≤ 0.0 OR max drawdown > 20R).
-- **INCONCLUSIVE:** anything else — including N < 30, which is reported as
-  "exam cannot validate at this frequency," and the exam is still spent.
+- **INCONCLUSIVE:** anything else — including N < 30 ("exam cannot validate
+  at this frequency") and outlier-driven positives. The exam is still
+  spent.
 
 ---
 
@@ -151,7 +168,28 @@ exam-spec commit after team review):*
 
 ---
 
-## 8. Trade-frequency reality check (STUDY half, Stage 3)
+## 8. What the STUDY tests (team amendment, 2026-09-11)
+
+Named explicitly, because the exam can only answer the question it was
+opened for:
+
+- **The STUDY tests the frozen shadow candidates, each evaluated
+  SEPARATELY as its own question:** THRUST_PULLBACK (both pairs),
+  EARLY_MOMENTUM_v2 (GBP/JPY only), MOMENTUM_JOIN (both pairs) — exactly as
+  frozen in `shadow_signals.py` (2026-07-29; EARLY_MOMENTUM_v2 2026-09-09),
+  spec parameters byte-identical, graded by the live grading rule.
+- **The live decision path is OUT of the STUDY's scope.** Its inputs —
+  calendar/news gate, session context, weekly context, COT — cannot be
+  reconstructed for 2005–2013 honestly; a stripped-down replica would test
+  something that never ran live. If the team wants it examined, that is a
+  separate spec with its own data ruling.
+- **A SEALED-EXAM opening names exactly ONE candidate** in its exam-spec;
+  the exam is spent for that candidate alone (§7). Candidates not named
+  keep their claim on the sealed span only per a fresh team ruling.
+
+---
+
+## 9. Trade-frequency reality check (STUDY half, Stage 3)
 
 Before any performance number is discussed, Stage 3 reports the **episode
 count** the candidate produces on the 9-year STUDY span (non-overlapping
@@ -166,17 +204,20 @@ episodes, the shadow-harness counting rule). Explicitly:
 
 ---
 
-## 9. Sequence (stage gates)
+## 10. Sequence (stage gates)
 
-1. **Stage 1 (this commit):** spec written and committed on `main`. STOP.
-   Report to team. No data touched.
+1. **Stage 1:** spec written and committed on `main` (f5eea4f). STOP.
+   Report to team. No data touched. **APPROVED 2026-09-11 with the
+   amendments now folded into §2, §6, §8; spread schedule and overlap
+   thresholds approved as proposed.**
 2. **Stage 2 (after team review):** provider coverage confirmation →
    source + convert STUDY data → feed-overlap check → conversion gate.
    Report the verification numbers ONLY — no price statistics.
-3. **Stage 3 (after gate passes):** STUDY-half work, starting with the §8
+3. **Stage 3 (after gate passes):** STUDY-half work, starting with the §9
    frequency count.
 4. **SEALED EXAM:** stays closed until the team opens it explicitly, per §7.
 
-Anything marked *PROPOSED* above is finalized (accepted or amended) in the
-Stage-1→2 team review and frozen in the Stage-2 commit; everything else in
-this file is fixed by this commit.
+All formerly-PROPOSED items were finalized in the 2026-09-11 Stage-1 review
+(spreads and overlap thresholds approved as proposed; success criteria
+approved as amended in §6; provider approved with the §2 failure ladder).
+This file is now fixed; further change requires a fresh team ruling.
