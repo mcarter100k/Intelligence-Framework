@@ -82,7 +82,7 @@ Re-run `validate_adx_threshold.py` after 6 months of new data to check for thres
 
 ---
 
-## 2025-06-25 — Problem 1 Live API Validation
+## 2026-06-25 — Problem 1 Live API Validation
 
 **Script:** Live validation script (inline, no mocks)
 **Data:** Live OANDA feed — real market data 2025-06-25
@@ -130,7 +130,7 @@ This is now a standing requirement for all future problems.
 
 ---
 
-## 2025-06-25 — Problem 2 Stress Test + Deep Verification
+## 2026-06-25 — Problem 2 Stress Test + Deep Verification
 
 **Script:** stress_test_regime_p2.py (15 scenarios) + 4-part manual verification  
 **Method:** Extreme historical conditions + internal state inspection on all 
@@ -180,7 +180,7 @@ Deep verification after stress tests is now standing protocol:
 
 ---
 
-## 2025-06-25 — Problem 2 Final Sign-off
+## 2026-06-25 — Problem 2 Final Sign-off
 
 ### Test Coverage Summary
 | Layer | Result |
@@ -202,7 +202,7 @@ All historical market conditions tested and verified.
 
 ---
 
-## 2025-06-25 — ATR Spike Multiplier Validation (Problem 3)
+## 2026-06-25 — ATR Spike Multiplier Validation (Problem 3)
 <!-- ⚠️ "observations per pair" below omits the actual count, and cells read
      "—"/"N<15" that validate_atr_threshold.py skips (continue) rather than
      prints — so this table is not faithful script output. Demoted to INFORMED
@@ -258,7 +258,7 @@ This pattern will extend to all future pair-specific parameters.
 
 ---
 
-## 2025-06-25 — Problem 3 Live Historical Replay Validation
+## 2026-06-25 — Problem 3 Live Historical Replay Validation
 
 **Script:** Historical compression replay (inline, live OANDA data)
 **Data:** 1,226 bars — GBP/JPY D1, Aug 2021 to Jun 2026
@@ -300,7 +300,7 @@ Mock is permanently banned from final problem validation.
 
 ---
 
-## 2025-06-28 — Four-Issue Implementation + Validation
+## 2026-06-28 — Four-Issue Implementation + Validation
 
 **Issues resolved:** H4 multi-timeframe, htf_structure absorption,
 decision_engine gates, market_brain pair routing
@@ -388,7 +388,7 @@ as untradeable. This output was invisible before the rebuild.
 
 ---
 
-## 2025-06-28 — Problem 5: Confluence Scoring Rebuild
+## 2026-06-28 — Problem 5: Confluence Scoring Rebuild
 
 **What was built:**
 - `trade_outcome_logger.py` — CSV-based signal logger with outcome tracking
@@ -438,7 +438,7 @@ Logger correctly skipped both — fires only on tradeable signals.
 
 ---
 
-## 2025-06-28 — Problem 6: Composite Regime Resolution Table
+## 2026-06-28 — Problem 6: Composite Regime Resolution Table
 
 **What was built:**
 - `RESOLUTION_TABLE` — 16-cell deterministic D1/H4 lookup table
@@ -508,7 +508,7 @@ unvalidated — do not increase size_mult above 0.5 until validated.
 
 ---
 
-## 2025-06-28 — Problem 7: Validation Infrastructure
+## 2026-06-28 — Problem 7: Validation Infrastructure
 
 **What was built:**
 - `regime_classifier_logger.py` — regime classification logger
@@ -565,7 +565,7 @@ Not real market data. Log cleaned post-validation.
 
 ---
 
-## 2025-06-28 — Problem 8: No-Trade Filter + Counter-Trend Override
+## 2026-06-28 — Problem 8: No-Trade Filter + Counter-Trend Override
 
 **What was built:**
 - `no_trade_filter.py` — standalone FilterResult module,
@@ -628,7 +628,7 @@ Status: UNVALIDATED — requires outcome data before size increase
 
 ---
 
-## 2025-06-29 — Priority 1: Decision Brief + Entry Confirmation
+## 2026-06-29 — Priority 1: Decision Brief + Entry Confirmation
 
 **What was built:**
 - `decision_brief.py` — 7-field trader-facing brief,
@@ -2270,3 +2270,27 @@ Noted, left as-is pending team ruling: the neighboring early entries
 ("2025-06-25" Problem 1 Live API / Problem 2 / Problem 3, "2025-06-28"
 Problems 4-8) show the same year pattern predating the repo's first commit.
 Only the entry named in the directive was corrected.
+
+---
+
+## 2026-09-11 — Housekeeping (team-directed): ALL impossible-year headers corrected (transcription, not re-runs)
+
+Completes the correction opened in the entry above and supersedes its
+"left as-is pending team ruling" note. Eleven further entry headers carried
+2025 dates that are mechanically impossible — **the repo's first commit is
+2026-05-16**, so no 2025 run exists. Corrected in place, year only, content
+untouched, no re-runs:
+
+- 2025-06-25 → 2026-06-25: Problem 1 Live API Validation; Problem 2 Stress
+  Test + Deep Verification; Problem 2 Final Sign-off; ATR Spike Multiplier
+  Validation (Problem 3); Problem 3 Live Historical Replay Validation.
+- 2025-06-28 → 2026-06-28: Four-Issue Implementation + Validation;
+  Problem 5: Confluence Scoring Rebuild; Problem 6: Composite Regime
+  Resolution Table; Problem 7: Validation Infrastructure; Problem 8:
+  No-Trade Filter + Counter-Trend Override.
+- 2025-06-29 → 2026-06-29: Priority 1: Decision Brief + Entry Confirmation.
+
+Mechanism of the original error: transcription at write time (a year typo
+propagated across one writing session), surfaced by the 2026-09-11
+earliest-load inventory when git dates were checked against log headers.
+All statuses (INFORMED PRIOR demotions etc.) unchanged.
