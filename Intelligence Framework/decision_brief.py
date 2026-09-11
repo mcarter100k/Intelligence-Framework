@@ -302,6 +302,22 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
                              market_open=regime.get("market_open", True))
         session_delta = get_session_delta(instrument)
 
+        # ── 1c. Regime classification ledger (regime_log_restore spec) ───────
+        # Every live brief run logs its classification + prediction. The
+        # official path never called log_regime (its only caller was the
+        # shadow stack, quarantined 2026-07-29). Closed market is skipped —
+        # re-reading Friday's bars is not a new prediction. A logger failure
+        # is one stderr line (wrapper log), never silent, never fatal; the
+        # freshness check catches persistent failure.
+        if regime.get("market_open", True):
+            try:
+                from regime_classifier_logger import log_regime
+                log_regime(regime, instrument)
+            except Exception as _rl_exc:
+                import sys as _sys
+                print(f"regime classification logger failed for "
+                      f"{instrument}: {_rl_exc}", file=_sys.stderr)
+
         # ── 2. Derive direction, conviction, grade from official decision path ──
         from official_decision import get_official_decision
         _official  = get_official_decision(regime)
@@ -582,9 +598,30 @@ def _build_reason(regime: dict, decision: dict,
                 f"to hold before entering {direction}.")
 
     if exec_mode == "REDUCED_MOMENTUM":
-        return (f"H4 trending inside D1 {d1.lower()} — "
-                f"suspect move, size reduced. "
-                f"Treat as range trade with momentum bias.")
+        # Four resolution-table cells map here with two opposite meanings
+        # (regime_log_restore spec item 2). Render per the ACTUAL cell —
+        # never one hardcoded case, never a raw regime token in prose.
+        _d1_dir = ("downtrend" if "DOWN" in d1 else
+                   "uptrend" if "UP" in d1 else "")
+        _h4_dir = ("downtrend" if "DOWN" in h4 else
+                   "uptrend" if "UP" in h4 else "")
+        # EXHAUSTION honesty: the subtype rule above already rewrote d1 to
+        # overextension prose — an overextended daily is never "sideways".
+        _d1_exhausted = d1.startswith("overextended")
+        if (d1 == "RANGING" or _d1_exhausted) and _h4_dir:
+            _daily_desc = ("an overextended daily one-way move (not chased)"
+                           if _d1_exhausted else "a sideways daily market")
+            return (f"4-hour {_h4_dir} inside {_daily_desc} — "
+                    f"suspect move, size reduced. "
+                    f"Treat as a range trade with momentum bias.")
+        if _d1_dir and h4 == "VOLATILE":
+            # D1 trend intact, H4 unresolved — the table note's meaning:
+            # the signal stands at reduced size; entry waits on the trigger.
+            return (f"Daily {_d1_dir} intact, but the 4-hour chart has not "
+                    f"resolved in that direction — size reduced. Wait for "
+                    f"the 4-hour chart to resolve before entering.")
+        return ("Reduced-size momentum conditions — the daily and 4-hour "
+                "readings only partly agree, so size is reduced.")
 
     filter_reason = regime.get("filter_reason", "")
     if filter_reason and "20-week trend" in filter_reason:
@@ -954,9 +991,45 @@ def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None
     # 4/5/7. why the decision follows + what to watch (trade case handled here)
     if decision_str in ("LONG", "SHORT"):
         side = "buying" if decision_str == "LONG" else "selling"
-        parts.append(f"All three timeframes line up, which is what produced this "
-                     f"{decision_str} signal — {side} in the direction the weekly, "
-                     f"daily and 4-hour agree on.")
+        # Alignment is DERIVED from the regime fields, never asserted from
+        # the existence of a decision (regime_log_restore spec item 3).
+        dec_sign = 1 if decision_str == "LONG" else -1
+        w_sign = (1 if ("UPTREND" in weekly or lt == "UPTREND") else
+                  -1 if ("DOWNTREND" in weekly or "BOUNCE" in weekly
+                         or lt == "DOWNTREND") else 0)
+        tf_signs = [("weekly", w_sign), ("daily", _dir_sign(d1)),
+                    ("4-hour", _dir_sign(h4))]
+        agree      = [n for n, s in tf_signs if s == dec_sign]
+        unresolved = [n for n, s in tf_signs if s == 0]
+        opposed    = [n for n, s in tf_signs if s == -dec_sign]
+        _size = float(regime.get("filter_size_mult",
+                                 regime.get("size_mult", 0.0)) or 0.0)
+        if not opposed and not unresolved:
+            parts.append(f"All three timeframes line up, which is what produced "
+                         f"this {decision_str} signal — {side} in the direction "
+                         f"the weekly, daily and 4-hour agree on.")
+        else:
+            _agree_txt = " and ".join(agree) if agree else "framework"
+            _dir_txt = "down" if dec_sign < 0 else "up"
+            parts.append(f"The {_agree_txt} chart"
+                         f"{'s' if len(agree) != 1 else ''} point"
+                         f"{'s' if len(agree) == 1 else ''} {_dir_txt}, and "
+                         f"that — not full alignment across all three "
+                         f"timeframes — is what produced this {decision_str} "
+                         f"signal.")
+            if opposed:
+                parts.append(f"The {' and '.join(opposed)} chart"
+                             f"{'s' if len(opposed) != 1 else ''} currently "
+                             f"point{'s' if len(opposed) == 1 else ''} the "
+                             f"other way — the picture is not aligned"
+                             + (", which is why the position size is reduced."
+                                if _size and _size < 1.0 else "."))
+            elif unresolved:
+                parts.append(f"The {' and '.join(unresolved)} chart"
+                             f"{'s have' if len(unresolved) != 1 else ' has'} "
+                             f"not resolved in that direction yet"
+                             + (" — which is why the position size is reduced."
+                                if _size and _size < 1.0 else "."))
         parts.append(f"The stop marks where that idea would be proven wrong; a "
                      f"close through it means the setup has failed and the trade "
                      f"is over.")

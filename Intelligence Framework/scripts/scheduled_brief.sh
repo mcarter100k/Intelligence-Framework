@@ -54,10 +54,20 @@ rm -f "$ERRTMP"
 # empty output is a FAILED run. Two consecutive failures notify, repeating
 # daily until healthy; recovery notifies once. Never breaks the run (exit 0
 # discipline lives in health_state.py too).
+# Artifact freshness (regime_log_restore spec item 4a): a run that succeeds
+# while an evidence artifact is past its expected cadence is ALSO a failed
+# run — a silent ledger must ride the same UNHEALTHY plumbing. Stale lines
+# go to the day log; the check runs after the brief so this run's own
+# writes count.
+FRESH="$(python3 scripts/artifact_freshness.py check 2>/dev/null)"
+STALE_LINE="$(printf '%s\n' "$FRESH" | grep -m1 '^STALE:')"
+[ -n "$STALE_LINE" ] && printf '%s\n' "$FRESH" | grep '^STALE:' >> "$LOG"
 if [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -q 'Framework error'; then
     HREASON="$(printf '%s\n' "$OUT" | grep -o 'Framework error[^"]*' | head -1)"
     [ -z "$HREASON" ] && HREASON="brief produced no output"
     HEALTH="$(python3 scripts/health_state.py record-failure "$HREASON")"
+elif [ -n "$STALE_LINE" ]; then
+    HEALTH="$(python3 scripts/health_state.py record-failure "$STALE_LINE")"
 else
     HEALTH="$(python3 scripts/health_state.py record-success)"
 fi
