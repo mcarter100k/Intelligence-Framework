@@ -23,7 +23,11 @@
 
 ---
 
-## 2025-06-25 — ADX Threshold Validation (Problem 1)
+## 2026-06-25 — ADX Threshold Validation (Problem 1)
+<!-- Date corrected 2026-09-11: header read 2025-06-25; git history (commit
+     2026-06-25 "Add Problems 2-3 …"; the repo's first commit is 2026-05-16)
+     shows the actual run date. Transcription fix only — NOT a re-run;
+     content untouched. See the 2026-09-11 housekeeping entry. -->
 <!-- ⚠️ N column below is hand-blanked ("—") and not script output — see the
      Honesty Correction banner at the top of this file. Findings demoted to
      INFORMED PRIOR (Audit Item 2, 2026-06-29). -->
@@ -2249,3 +2253,20 @@ suite 1254 → 1260 green. Gate 2 (REALITY): live OANDA both pairs — bars
 300 / atr 286 / offset 14 exactly as diagnosed; check_thrust_pullback
 evaluated cleanly to an HONEST zero on both (pre-fix: guaranteed
 IndexError); no error marker emitted.
+
+---
+
+## 2026-09-11 — Housekeeping: validate_adx_threshold header date corrected (transcription, not a re-run)
+
+The "ADX Threshold Validation (Problem 1)" entry header read **2025-06-25**;
+git history shows the script landed 2026-06-25 (commit "Add Problems 2-3:
+pivot structure detection, pair-specific ATR thresholds, empirical
+validation") and the repo's first commit is 2026-05-16 — a 2025 run is
+impossible. Header corrected to **2026-06-25**. Content untouched; findings
+remain INFORMED PRIOR per Audit Item 2. Directed by the team 2026-09-11
+alongside the data-map spec (docs/specs/data_map_spec.md).
+
+Noted, left as-is pending team ruling: the neighboring early entries
+("2025-06-25" Problem 1 Live API / Problem 2 / Problem 3, "2025-06-28"
+Problems 4-8) show the same year pattern predating the repo's first commit.
+Only the entry named in the directive was corrected.
