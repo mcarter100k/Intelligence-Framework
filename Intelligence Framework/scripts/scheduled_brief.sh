@@ -48,6 +48,9 @@ grep '^##ALERT##' "$ERRTMP" >> "$LOG" 2>/dev/null
 
 # Watched-condition flips (regime change / filter flip / exit-watch fired)
 ALERTS="$(grep '^##ALERT## ' "$ERRTMP" | sed 's/^##ALERT## //')"
+# Shadow candidate errors (thrust_pullback_alignment spec): a candidate that
+# raises must ride the UNHEALTHY plumbing, never render as a quiet no-setup.
+SHADOW_ERR="$(grep -m1 'SHADOW CANDIDATE ERROR' "$ERRTMP" | sed 's/^##ALERT## //')"
 rm -f "$ERRTMP"
 
 # Health tracking (docs/specs/heartbeat_spec.md item 1): an error brief or
@@ -66,6 +69,8 @@ if [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -q 'Framework error'; then
     HREASON="$(printf '%s\n' "$OUT" | grep -o 'Framework error[^"]*' | head -1)"
     [ -z "$HREASON" ] && HREASON="brief produced no output"
     HEALTH="$(python3 scripts/health_state.py record-failure "$HREASON")"
+elif [ -n "$SHADOW_ERR" ]; then
+    HEALTH="$(python3 scripts/health_state.py record-failure "$SHADOW_ERR")"
 elif [ -n "$STALE_LINE" ]; then
     HEALTH="$(python3 scripts/health_state.py record-failure "$STALE_LINE")"
 else

@@ -41,7 +41,7 @@ for kind in ("brief", "outcomes"):
     txt = open(p, errors="replace").read()
     runs = sum(1 for ln in txt.splitlines() if ln.startswith("====="))
     bad = ("Framework error" in txt or "GRADER EARLY EXIT" in txt
-           or "not configured" in txt)
+           or "not configured" in txt or "SHADOW CANDIDATE ERROR" in txt)
     lines.append(f"{kind} {yday}: {runs} run header(s), "
                  f"{'ERRORS PRESENT' if bad else 'no error markers'}")
 

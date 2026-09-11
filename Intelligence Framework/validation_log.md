@@ -1470,6 +1470,16 @@ evidence (log line / ledger row / notification) is cited here.
       record-failure with a "STALE:" reason, and the daily UNHEALTHY alert
       names the artifact. Tests pin the mechanism; only reality proves the
       chain end-to-end.
+- [ ] **First THRUST_PULLBACK observation post-fix** (added 2026-09-10, per
+      the ledger-integrity entry of the same date) — a scheduled run either
+      logs the candidate's first-ever valid row or, over time, its honest
+      zeros accumulate from a check that demonstrably EVALUATES (no
+      SHADOW CANDIDATE ERROR marker in the logs). Its N starts here.
+- [ ] **First SHADOW CANDIDATE ERROR alert via the scheduled path** (added
+      2026-09-10) — if a candidate ever raises again, the ##ALERT## line
+      must appear in the day log, a notification must fire, and
+      health_state must record the failure. Pinned in tests; only a real
+      (or deliberately induced) error proves the full chain.
 - [ ] **First loss autopsied at scheduled grading time** (added 2026-09-09)
       — a future graded loss gets its loss_species stamped by the scheduled
       run_outcome_check path (the backfill proved the classifier on the
@@ -2182,3 +2192,60 @@ and it needs the outcome data this build restores.
 
 Gate 1: 15 new pinned tests; suite 1239 → 1254 green. Gate 2 (REALITY) and
 Gate 3 pending entries: see below and the PENDING LIVE CONFIRMATION list.
+
+---
+
+## 2026-09-10 — LEDGER INTEGRITY: THRUST_PULLBACK rows from go-live to this fix are UNOBSERVED, not absent (freeze exception, safety class — fourth silent failure)
+
+**The defect:** `compute_atr_series` returns n − 14 values (the live H4 feed:
+300 bars → 286 ATR values), and `check_thrust_pullback` indexed `atr[b]`
+with a bar index from the longer array. Its break-bar window (b = n−11 …
+n−2) lies entirely past the ATR list's end for EVERY series length the
+guard admits, so the check raised IndexError on its first candidate bar on
+**every live call since go-live (2026-07-29)** — before evaluating a single
+box. `check_shadow_signals` swallowed the exception into "no signal", so a
+structurally can't-fire candidate logged as a market with no setups.
+Diagnostic reproduction (2026-09-10): bars n=300, len(atr)=286, offset=14,
+candidates b=289..298 vs max valid ATR index 285 — IndexError at the
+box-tightness line, rendered as a clean empty result.
+
+**Why Gate 1 never saw it:** every THRUST_PULLBACK test fixture built
+`atr` the SAME length as the bars — a shape the live path never produces.
+The trigger logic was correct and fully pinned; the pins ran against an
+impossible input. (Recorded as a standing lesson: fixtures must carry the
+live data SHAPE, not just the live data logic — this is the same class as
+the Two-Gate standard's founding cases.)
+
+**Ledger ruling (integrity note):** THRUST_PULLBACK has ZERO rows for
+2026-07-29 → 2026-09-10 because it could not observe, not because the
+market offered nothing. That window is **UNOBSERVED, not absent** — it must
+never be cited as "no setups occurred", and no episode count, base rate, or
+FLAG/DECISION clock includes it. **THRUST_PULLBACK's N starts at this fix.**
+No backfill: replaying the window now would grade with today's knowledge of
+the bug window's prices — lookahead-contaminated, refused.
+
+**The fix (branch feat/thrust-pullback-alignment, merge held; stacked on
+feat/regime-log-restore-narrative-truth — merge order matters):** bar→ATR
+index mapping (`off = len(C) − len(atr)`; `_atr_at(b) = atr[b − off]`) with
+a defensive `b − off < 0` skip. Every frozen spec parameter (TP_BOX_N 18,
+TP_BOX_X 3.0, TP_BODY_ATR 1.0, TP_PULLBACK_ATR 0.25, TP_PULLBACK_BARS 10)
+is byte-identical — a computation repair, not a trigger change, so the
+candidate id stays THRUST_PULLBACK per the frozen-spec rules (same ruling
+class as EARLY_MOMENTUM v1→v2 is the CONTRAST: that changed fire behavior
+by adding a guard; this makes the specified computation happen at all).
+`check_shadow_signals` no longer swallows: any candidate error prints a
+machine `##ALERT## SHADOW CANDIDATE ERROR` line on stderr; the wrapper
+routes it to the day log + a notification AND records a health FAILURE
+(daily UNHEALTHY repeat until fixed); the Sunday heartbeat counts the
+marker among error markers. One broken candidate never silences the rest.
+Remaining known swallow (scope-noted, not changed): the news-gate context
+stamp try/except in check_shadow_signals — failure there loses only the
+`news_window` annotation, never a signal.
+
+Gate 1: 6 new pins (live-shape contract n−14; evaluates + fires at live
+shape; identical behavior at legacy equal-length shape; loud error marker;
+error never silences other candidates; healthy runs emit no marker) —
+suite 1254 → 1260 green. Gate 2 (REALITY): live OANDA both pairs — bars
+300 / atr 286 / offset 14 exactly as diagnosed; check_thrust_pullback
+evaluated cleanly to an HONEST zero on both (pre-fix: guaranteed
+IndexError); no error marker emitted.
