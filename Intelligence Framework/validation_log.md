@@ -2510,3 +2510,96 @@ bundled into a defect repair.
 
 **Step 2** (integration inventory, read-only) is held until this merges.
 
+
+---
+
+## 2026-09-16 — Step 2: integration inventory (read-only pass; team-authorized log)
+
+One mechanical pass over the 19 live-core modules: what each READS, WRITES,
+needs from env, who CALLS it, and whether each connection is currently live.
+No repo changes; the analyzer ran from a scratchpad. Logged in full at team
+direction because this IS the spec for anyone who rebuilds the guard later.
+
+### Artifact map — writer → reader
+
+```
+calendar.csv                  W calendar_fetch, update_calendar
+                              R calendar_fetch, news_gate, update_calendar
+pre_trade_journal.csv         W setup_check          R setup_check, trade_logger
+regime_classification_log.csv W/R regime_classifier_logger
+session_context_log.csv       W/R session_memory
+shadow_signal_log.csv         W/R shadow_signals
+trade_signal_log.csv          W trade_outcome_logger R trade_outcome_logger
+trades.csv                    W/R trade_logger       R session_guard
+health_state.json             W/R scripts/health_state
+storylines.md                 W — NOBODY —           R setup_check
+```
+
+`storylines.md` having no machine writer is CORRECT: a human writes it in
+the Sunday session, and its 216h freshness cadence is precisely the control
+for a human who stops. Recorded so a future orphan sweep does not "fix" it.
+
+### Env dependencies
+
+```
+oanda_feed.py    OANDA_API_KEY, OANDA_ACCOUNT_ID, OANDA_ENVIRONMENT
+display_time.py  DISPLAY_TZ
+```
+
+### Module reachability
+
+All 19 resolve LIVE except three, each for a different reason:
+`setup_check.py` is a manual CLI entry point (`__main__`, no importer — not
+an orphan); `risk_config.py` is imported by NO live module — only tests and
+four quarantined files; `session_guard.py`'s only importer is `risk_config`.
+**The circuit-breaker chain therefore has no live entry point at all.** This
+matches the AGENTS.md note that where it GATES the live path is a pending
+spec, but states it more sharply: both modules were promoted OUT of
+quarantine 2026-09-09 and their only real importers are still the
+quarantined modules they were promoted away from.
+
+### Orphans found
+
+**LIVE DEFECT — `trade_outcome_logger.py`** (own spec, Part 1):
+`log_signal()`'s only caller is `shadow/market_brain.py:297` (quarantined
+2026-07-29); `record_outcome()` and `get_accuracy_by_signal_type()` have no
+caller anywhere. `trade_signal_log.csv` last written **2026-06-28, 2 lines**
+(header + one row), while `run_outcome_check.py:60` grades it nightly.
+Neither it nor `trade_log.csv` (2026-04-02, 6 lines) is in the freshness
+watchlist. Third instance of the quarantine-orphan class.
+
+**Known-unused, listed NOT deleted** (several are seeds for the level-map
+work): `levels_context.nearest_resistance/nearest_support/`
+`find_confluence_zones`, `oanda_feed.get_m5_bars`,
+`session_memory.get_session_history_today`, `risk_config.get_size_note/`
+`format_grade_block/print_risk_rules`, `risk_config.calculate_lot_size`
+(test-only), `session_guard.can_trade` (test-only, pending gate spec).
+
+### TWO FALSE POSITIVES — and what they would have cost
+
+Recorded because a guard built without both will fail loudly on working
+code, which is the fastest way to get a guard deleted.
+
+1. **Alias-resolved imports.** The first pass reported `apply_filter()` and
+   `get_filter_summary()` as orphans. `regime_detection.py:1104` imports
+   both under aliases (`as _apply_filter`, `as _get_filter_summary`).
+   Reporting that unchecked would have claimed the single stand-down
+   authority — one of the two suite floors — was dead code.
+2. **Indirect dispatch.** The second pass reported all three FROZEN shadow
+   candidates as having no live caller. `shadow_signals.py:218` holds them
+   in `_CANDIDATES = [...]` and dispatches `for fn in _CANDIDATES`, so they
+   are referenced as values and never called by name. Reporting that
+   unchecked would have claimed the evidence ledger had stopped accruing.
+
+Both were caught by hand-verifying every claim against source before
+reporting. Every surviving claim in this entry was verified the same way.
+
+### Method limits (stated, not hidden)
+
+Static AST analysis with best-effort constant propagation: module constants,
+local path aliases, parameter defaults, aliased imports, `__main__` entry
+points. It cannot resolve a path built at runtime from a loop variable —
+`scripts/artifact_freshness.py` reads all five watched artifacts through
+one, and is classified by reading, not by inference. Dynamic dispatch beyond
+list/dict registries is out of reach.
+
