@@ -2831,3 +2831,77 @@ rule that lives only in an append-only log is one future agents will not
 read. Flagged for the team — revert the AGENTS.md half if the duplication is
 unwanted.
 
+
+---
+
+## 2026-09-16 — CORRECTION: two ledger rows contaminated by the Gate 2 verification run
+
+**Self-reported. Two append-only evidence rows carry synthetic values.
+Neither ledger was edited — corrections are new dated entries, never
+rewrites.**
+
+### What happened
+
+The Gate 2 REALITY run for the evidence-loop repair forced a directional
+decision through the real `get_decision_brief` path. The trade-signal ledger
+was correctly redirected to a temp file, **but `get_decision_brief` also
+calls `log_session_snapshot` and `log_regime`, and those two were not
+redirected.** Both wrote a row built from the forced regime.
+
+### The affected rows — exact, do not use
+
+`session_context_log.csv`
+```
+2026-09-16T09:08:08Z,GBP_AUD,21.9,34.8,0.93,VOLATILE,TRENDING_UP,DOWNTREND,True
+                                                                          ^^^^
+```
+`filter_allowed=True` is **SYNTHETIC**. Reality was `False`. Every other
+field is genuine live OANDA data.
+
+`regime_classification_log.csv`
+```
+2026-09-16T09:08:08Z_GBP_AUD ... execution_mode=NORMAL ... stand_down=False
+```
+`execution_mode=NORMAL` and `stand_down=False` are **SYNTHETIC**. Reality
+was `STAND_DOWN` / `True`. Every other field is genuine. The honest row for
+the same market state is `2026-09-16T09:07:52Z_GBP_AUD`, logged 16 seconds
+earlier, which carries `STAND_DOWN` / `True`.
+
+**This row carries a PREDICTION and will be picked up by the grader.** It
+must be excluded from any accuracy computation, base rate, or N. It is one
+row; the correct handling is exclusion by `log_id`, never deletion.
+
+### Observed consequence
+
+The next real brief emitted a **false alert**:
+
+```
+##ALERT## GBP/AUD: conditions deteriorated — the framework has stood down
+since the last run.
+```
+
+Nothing deteriorated. `session_memory` compared the honest 09:16:46Z row
+against the synthetic 09:08:08Z one and correctly reported a filter flip
+that never occurred. Run through the scheduled wrapper this would have
+fired a real macOS notification.
+
+### Root cause and the lesson
+
+A verification run that exercises a real end-to-end path inherits **every**
+side effect on that path, not just the one under test. Redirecting one
+ledger is not isolation. `get_decision_brief` writes to three ledgers; only
+one was accounted for.
+
+**Rule for future Gate 2 runs that force inputs through a live path: enumerate
+every writer on that path and redirect or neutralize all of them.** The
+existing test helper `_neutralize_side_effects` in
+`test_regime_log_wiring.py` and `test_trade_signal_wiring.py` already does
+exactly this for the unit tests — it was not applied to the REALITY run,
+which is the one that touches real files.
+
+This is also a live instance of the rule adopted in the same session: the
+false alert is a channel screaming without cause, and the cost of that is
+an operator who stops reading it.
+
+**Not fixed by editing.** Both rows stand in the record, flagged here.
+
