@@ -173,18 +173,20 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
                 _eng = _detect_engulfing(m15h, m15l, m15o, m15c)
                 engulfing_detected = _eng["detected"]
 
-            # Level proximity check via levels_context
+            # Level proximity check via levels_context, keyed to THIS pair
+            # (docs/specs/level_source_repair_spec.md D1+D2). Formerly read
+            # last_run.json — an artifact whose only writer was
+            # shadow/market_brain.py, quarantined 2026-07-29; it froze at
+            # 2026-06-10 and carried one pair's levels with no instrument
+            # key, so GBP_JPY could never reach m15_trigger. Asking the
+            # live module directly removes both the staleness class and
+            # the pair mismatch.
             _level_available = False
             _levels: List[float] = []
             try:
-                from pathlib import Path as _Path
-                import json as _json
-                _lr = _Path(__file__).parent / "last_run.json"
-                if _lr.exists():
-                    _ctx = _json.loads(_lr.read_text())
-                    from levels_context import levels_as_list
-                    _levels = levels_as_list(_ctx.get("levels", {}))
-                    _level_available = bool(_levels)
+                from levels_context import get_key_levels, levels_as_list
+                _levels = levels_as_list(get_key_levels(oanda_pair))
+                _level_available = bool(_levels)
             except Exception:
                 _level_available = False
 

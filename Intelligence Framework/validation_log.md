@@ -2402,3 +2402,111 @@ when a real entry check takes the branch and logs
 itself (R1), pair keying (R2/Defect 2), weekly semantics (R5),
 read-side freshness coverage (R3), and the quarantine-boundary test (R4).
 
+
+---
+
+## 2026-09-16 — Step 1: level-source repair (per docs/specs/level_source_repair_spec.md)
+
+Built on `feat/level-source-repair`, spec committed first (`aaac3e3`).
+**Merge held for team review.** Four defects closed; two guards added.
+
+**D1 — orphaned read (R1).** `entry_confirmation.py:176-190` no longer
+reads `last_run.json`; it calls `get_key_levels(oanda_pair)` directly.
+The file dependency is removed rather than monitored — a staleness class
+deleted beats one watched. `last_run.json.orphaned-2026-09-16` is
+retained and never read again.
+
+**D2 — no pair keying.** Resolved by the same change: `oanda_pair` was
+already in scope at entry_confirmation.py:112. Pinned three ways — the
+lookup receives `GBPJPY`; a JPY-scale level within tolerance now reaches
+`m15_trigger = True`; and an AUD-scale level set against a JPY price is
+pinned as still blocking, so the defect itself is a regression test, not
+just a memory.
+
+**D3 — weekly semantics (R5).** `weekly_high`/`weekly_low` →
+`prev_week_high`/`prev_week_low` with the docstring corrected to what the
+code always did. `current_week_high`/`current_week_low` added, aggregated
+from this week's COMPLETED daily bars, with `session_*` covering today;
+`None` on an empty week. Rationale recorded in the module: a high or low
+is a recorded fact, not a revisable computation, so week-to-date data
+carries none of the risk that justifies dropping a forming bar for an
+indicator. `oanda_feed.py` unchanged. No consumer read the old keys by
+name (`levels_as_list`, `nearest_*` iterate values); the same-named keys
+in `shadow/market_brain.py:139-140` are that module's own dict —
+confirmed by the shadow suite staying at 868 green.
+
+**D4 — Asian range never pair-keyed (found while specifying R1, not in
+the ruling).** `get_intraday_context()` took no pair and always fetched
+GBPAUD, so `get_key_levels("GBPJPY")` returned six JPY-scale levels
+beside `asian_high 1.89232` / `asian_low 1.88924`. Fixed at the root —
+the signature now carries `pair="GBPAUD"`, defaulted so both existing
+callers are unaffected. Severity was stated as latent rather than active
+in the spec and that holds: the contaminants sat ~207 below any JPY
+price and could not produce a false match. It had to be fixed in the same
+change because R1 wires `get_key_levels` into the live entry path.
+
+**Guard A (R3) — freshness covers the read side.** `READ_SIDE_NO_CADENCE`
+added to `scripts/artifact_freshness.py`: `trades.csv` (event-driven —
+weeks without a trade is normal) and `.env`. These render `watched:`
+lines, never `STALE:`, so the wrapper's `^STALE:` grep cannot turn normal
+operation into a health failure. A cadence was deliberately NOT invented
+for either — a manufactured cadence would produce false alarms and teach
+the operator to ignore the channel. `last_run.json` is deliberately
+absent from the inventory because R1 deleted the read.
+
+**Guard B (R4) — quarantine boundary,** with its limit recorded in the
+test's own docstring: **it would NOT have caught D1.** `last_run.json`
+is a bare repo-root filename with no `shadow/` substring; the artifact
+was written by a quarantined module but did not live in a quarantined
+path. The control that would have caught it is orphan detection, which
+needs Step 2's read/write map. Recommend promoting that rule to a test
+once Step 2 reports. Guard B scans string constants via AST excluding
+docstrings — comments and docstrings never execute, and live modules
+legitimately cite `shadow/market_brain.py` when explaining the boundary;
+a guard that forced those explanations to be deleted would make the
+boundary less legible. It is proved to fire on synthetic breaches and
+proved not to fire on the prose forms live modules actually contain.
+
+**Why these survived 98 days:** every one is a CONNECTION defect — a
+reader whose writer was quarantined, a pair argument never threaded, a
+signature that lied about being pair-specific. All the affected modules
+had passing component tests throughout. The suite was component-shaped
+and the defects lived between components. `test_live_path_connections.py`
+exists to be the connection-shaped half.
+
+**Gate 1:** 20 new tests (8 connection, 12 per-defect). Suite
+1260 → 1280 green; shadow 868 green, unchanged. Neither floor touched.
+AGENTS.md suite count corrected 1018 → 1280 (stale documentation, not a
+behavior change).
+
+**Gate 2 — REALITY (live OANDA, both pairs, 2026-09-16 ~08:50 UTC):**
+
+```
+GBPAUD  prev_day 1.89456/1.88938   prev_week 1.88838/1.87323
+        current_week 1.89512/1.88617  session 1.89035/1.88904
+        asian 1.89232/1.88924        contaminants: NONE
+GBPJPY  prev_day 209.231/208.252   prev_week 211.224/207.100
+        current_week 209.231/207.457  session 209.021/208.724
+        asian 209.479/208.901        contaminants: NONE
+```
+
+**`asian_*` on GBP/JPY reads 209.479/208.901 — the first correctly-scaled
+value that field has ever returned for this pair.** Real
+`decision_brief.py GBP_AUD GBP_JPY` run: both pairs rendered normally
+(GBP/AUD 1.8898 STAND ASIDE, GBP/JPY 209.038 STAND ASIDE), no exception,
+no output regression. `artifact_freshness.py check` live: five cadence
+lines fresh, two `watched:` lines present. No mock results appear above.
+
+**Gate 3 — PENDING LIVE CONFIRMATION:**
+- The degraded-pass branch firing in production (carried from Step 0).
+- **The first GBP/JPY `m15_trigger = True` in live scheduled output** —
+  the market's own proof that D2's silent kill is lifted. Controlled
+  tests show the path is reachable; only reality can show it reached.
+
+**Out of scope, unchanged:** the one-week level horizon and the unwired
+`find_confluence_zones` / `nearest_resistance` / `nearest_support` /
+`get_round_number_levels`. A level-map spec is its own work and was not
+bundled into a defect repair.
+
+**Step 2** (integration inventory, read-only) is held until this merges.
+

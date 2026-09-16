@@ -25,6 +25,23 @@ Cadence basis (informed priors, revisit with operating data):
   calendar.csv                  192h  — weekly fetch + midweek retry
   storylines.md                 216h  — weekly Sunday session
   shadow_signal_log.csv         504h  — candidates fire irregularly; generous
+
+READ-SIDE INVENTORY (added 2026-09-16,
+docs/specs/level_source_repair_spec.md guard A). The table above is
+write-side only, which is exactly why a 98-day-stale `last_run.json` —
+read by entry_confirmation, written by nobody live — was invisible to it.
+Every artifact the live path READS must now be accounted for here, either
+by carrying a cadence above or by appearing in READ_SIDE_NO_CADENCE with
+a stated reason. A cadence is only meaningful where one is genuinely
+expected; inventing one for an event-driven file would manufacture false
+alarms, so those are listed and explicitly excused instead. The point is
+that the boundary is documented rather than assumed — a new live-path
+read cannot be introduced silently (pinned by
+test_live_path_connections.py).
+
+NOTE: `last_run.json` is deliberately absent. R1 removed the read
+entirely rather than monitoring it — deleting a staleness class beats
+watching one.
 """
 from __future__ import annotations
 
@@ -42,6 +59,30 @@ CADENCES = [
     ("storylines.md",                216),
     ("shadow_signal_log.csv",        504),
 ]
+
+# Read-side artifacts with NO expected cadence. (relative path, reason)
+# These are reported for visibility and can never render a STALE line —
+# a cadence here would alarm on normal operation.
+READ_SIDE_NO_CADENCE = [
+    ("trades.csv", "event-driven — weeks without a trade is normal; the "
+                   "circuit breaker fails closed on a malformed file, which "
+                   "is the real control here"),
+    (".env",       "credentials, not an evidence artifact — its failure mode "
+                   "is a failed run, already caught by health_state"),
+]
+
+
+def read_side_lines(proj: str | None = None) -> list[str]:
+    """Visibility lines for read-side artifacts that carry no cadence.
+    Never STALE by construction — prefix is 'watched:' so the wrapper's
+    '^STALE:' grep cannot turn these into a health failure."""
+    proj = PROJ if proj is None else proj
+    lines = []
+    for rel, reason in READ_SIDE_NO_CADENCE:
+        present = os.path.exists(os.path.join(proj, rel))
+        lines.append(f"watched: {rel} — no cadence "
+                     f"({'present' if present else 'absent'}; {reason})")
+    return lines
 
 
 def check(now: float | None = None, proj: str | None = None) -> list[str]:
@@ -69,6 +110,8 @@ def main(argv) -> int:
     try:
         if len(argv) > 1 and argv[1] == "check":
             for line in check():
+                print(line)
+            for line in read_side_lines():
                 print(line)
     except Exception:
         pass
