@@ -397,6 +397,24 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
                            "it must pay at least 1.5x what you risk after "
                            "the spread (the pre-trade check does the math)")
 
+            # ── Trade-signal ledger (evidence_loop_repair_spec.md Part 1) ──
+            # Every directional decision is logged. log_signal's only caller
+            # was shadow/market_brain.py, quarantined 2026-07-29, so nothing
+            # live had filled trade_signal_log.csv since 2026-06-28 while
+            # run_outcome_check graded it nightly — the first live SHORT in
+            # framework history (GBP/AUD 2026-09-10 18:04 PDT, B, 50%) was
+            # never recorded. Contract matches the log_regime restore:
+            # closed market skipped, loud on stderr, never fatal.
+            if regime.get("market_open", True):
+                try:
+                    from trade_outcome_logger import log_signal
+                    log_signal(regime, _official, instrument,
+                               size_pct=size_pct, entry_context=entry_line)
+                except Exception as _sl_exc:
+                    import sys as _sys
+                    print(f"trade signal logger failed for "
+                          f"{instrument}: {_sl_exc}", file=_sys.stderr)
+
         return DecisionBrief(
             instrument=instrument,
             timestamp=timestamp,

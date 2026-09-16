@@ -2603,3 +2603,182 @@ points. It cannot resolve a path built at runtime from a loop variable —
 one, and is classified by reading, not by inference. Dynamic dispatch beyond
 list/dict registries is out of reach.
 
+
+---
+
+## 2026-09-16 — Evidence-loop repair (per docs/specs/evidence_loop_repair_spec.md)
+
+Built on `feat/evidence-loop-repair`, spec committed first (`3e94f16`).
+**Merge held for team review.**
+
+### PART 1 — `trade_outcome_logger` wired into the live path
+
+`log_signal` now has a live caller. `decision_brief.get_decision_brief`
+logs every LONG/SHORT decision at the point where the official decision and
+`entry_line` are both in scope. Contract matches the `log_regime` restore
+exactly: **closed market skipped, loud on stderr, never fatal.**
+
+**THE CONCRETE LOSS — named, per the ruling.** The first live SHORT in
+framework history produced no ledger row and is unrecoverable:
+
+```
+logs/brief_2026-09-10.log, 18:04:14 PDT scheduled run
+GBP/AUD  |  Thu 10 Sep 2026 6:04 PM PDT   Price: 1.8879  ATR: 84.3 pips
+DECISION     SHORT ▼        CONFIDENCE 50/100  |  Rating: B
+POSITION     50% of standard size
+ENTRY        No bearish engulfing in trade direction — level 1.8862
+```
+
+**LEDGER INTEGRITY (binding).** 2026-06-28 → 2026-09-16 is **UNOBSERVED,
+not absent.** No accuracy claim, base rate, or N may cite that window. No
+backfill was performed and none may be: the signals that were not logged
+are gone, and inventing them would be the exact dishonesty this framework
+exists to prevent.
+
+**Schema.** Additive migration on the real ledger, same guarantee as
+`setup_check._migrate_journal_header` (reviewed 2026-09-09). Inspection
+found the header was ALREADY two columns behind `_FIELDS` — `shadow_direction`
+and `shadow_conviction` were missing — so the migration added four, not two.
+The single 2026-06-28 row was verified preserved **verbatim**, blank in
+every new column. Row count unchanged at 1.
+
+**`record_outcome` / `get_accuracy_by_signal_type` — stated plainly rather
+than wired speculatively.** `check_pending_trade_outcomes` is the scheduled
+grader entry point and fills outcomes through the same `_fill_outcome`
+helper (`trade_outcome_logger.py:289` vs `:206`), so `record_outcome` is a
+parallel MANUAL single-row path and legitimately has no scheduled caller.
+`get_accuracy_by_regime` IS called live (`run_outcome_check.py:68`);
+`get_accuracy_by_signal_type` is its by-signal-type sibling, unused pending
+a report that needs that cut. Both allowlisted with those reasons.
+
+### PART 2 — orphan detection promoted to a test
+
+Fails when a live-core function or artifact has no live producer/consumer
+and no allowlist entry. Built with all four requirements from the start:
+alias-resolved imports, indirect dispatch (names referenced as VALUES, not
+just called), `__main__` entry points, and a reason per allowlist entry —
+with the two Step 2 false positives pinned as explicit regression tests, so
+a future rebuild cannot reintroduce them.
+
+It immediately found one orphan not in the drafted allowlist:
+`shadow_signals.backfill_loss_species`. Inspected rather than rubber-stamped
+— its own docstring (`shadow_signals.py:502`) says "Manual/one-time path —
+scheduled runs classify at grading time." Allowlisted with that citation.
+
+**Root cause recorded.** The 2026-07-29 quarantine was audited
+ONE-DIRECTIONALLY: what `shadow/` imports was checked; what imports
+`shadow/`'s functions, and what consumes artifacts `shadow/` writes, was
+not. Three severed connections followed from that single omission —
+`log_regime` (2026-09-09), `last_run.json` and `trade_signal_log`
+(2026-09-16). One event, one omission, three instances. This test runs the
+audit in the other direction, automatically.
+
+### DEVIATION FROM THE RULING — `trade_log.csv` cadence (standing rule 5)
+
+The ruling directed that `trade_log.csv` be given a freshness cadence.
+**Not done, with cause.** `trade_logger.py:22` calls it "the April-era
+framework-snapshot file … historical"; `trade_logger_repair_spec.md:23-28`
+already ran this premise inspection and ruled it "stays untouched as
+historical evidence." Different schema entirely (bias / confidence /
+value_zone, not trades), superseded by `trades.csv`, deliberately
+writer-less.
+
+A cadence on a deliberately frozen file renders STALE on every run forever
+— **measured at 3987h on the first live check** — which the wrapper turns
+into a health FAILURE, which alerts daily, which trains the operator to
+ignore the channel. That would damage the very alerting path Part 1 relies
+on, and it is the same harm this spec cites when refusing to invent a
+cadence for `trades.csv`. Inventoried under `READ_SIDE_NO_CADENCE` with
+that reason instead: visible on every check, never alarming. **Team to
+confirm.** A cadence would first require the file to have a live writer,
+which is separate work.
+
+### Gate 1
+
+17 new tests (8 trade-signal wiring, 9 orphan detection). Suite
+1280 → **1297 green**; shadow **868**, unchanged. Neither floor touched.
+`test_cadence_table_pinned` updated deliberately — that pin exists so a
+cadence change is a reviewed decision, and this is one.
+
+### Gate 2 — REALITY (live OANDA, 2026-09-16 09:08 UTC)
+
+Real `get_regime("GBP_AUD")` against live OANDA; only the stand-down gate
+and the direction were forced. Every market value in the row below is the
+live one:
+
+```
+REAL regime: price 1.8898  atr 81.1p  adx 21.9/34.8  D1 VOLATILE
+             H4 TRENDING_UP  structure DOWNTREND  weekly ESTABLISHED_DOWNTREND
+ROW WRITTEN: 2026-09-16T09:08:09Z_GBP_AUD  GBP_AUD  SHORT  grade B
+             conviction 50  price_at_signal 1.8898  atr_pips 81.1
+             size_pct 50
+             entry_context "No bearish engulfing in trade direction
+                            — level 1.88924"
+```
+
+`artifact_freshness.py check` live: `trade_signal_log.csv` fresh (720h),
+`trade_log.csv` present under no-cadence, no STALE lines.
+
+**THE LEDGER PATH WAS REDIRECTED TO A TEMP FILE FOR THIS RUN, AND THE REAL
+`trade_signal_log.csv` IS UNCHANGED AT 1 ROW.** The ruling asked for the
+row to land in the real ledger. It was not, and this is raised rather than
+resolved unilaterally: that row would be a signal the framework never
+issued, written into an append-only evidence ledger, inside the very window
+this entry declares UNOBSERVED. The wiring is proven end-to-end either way;
+what a temp-file run cannot prove is a row caused by a real decision.
+**Recommendation: the real-file row is a Gate 3 item.** If the team wants a
+marked verification row in the real ledger instead, `trades.csv` PAPER rows
+are the precedent and a marker column would be required first.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+
+- **First real row in `trade_signal_log.csv` from a genuine directional
+  decision.** Only the market can perform this.
+- Carried forward: the degraded-pass branch firing in production; the first
+  live GBP/JPY `m15_trigger = True`.
+
+---
+
+## 2026-09-16 — THE QUARANTINE-ORPHAN CLASS: three instances, one omission
+
+Recorded as a class, not three bugs, because the fix for a class is a
+control and the fix for a bug is a patch.
+
+| # | found | severed connection | silent for |
+|---|---|---|---|
+| 1 | 2026-09-09 | `log_regime` had no live caller — classifications stopped accruing | ~6 weeks |
+| 2 | 2026-09-16 | `entry_confirmation` read `last_run.json`, whose only writer was quarantined | 98 days |
+| 3 | 2026-09-16 | `log_signal` had no live caller while `run_outcome_check` graded its empty ledger nightly | 80 days |
+
+**One event:** the 2026-07-29 `shadow/` quarantine.
+**One omission:** the audit ran in one direction only — what `shadow/`
+imports was checked; what imports `shadow/`'s functions, and what consumes
+the artifacts `shadow/` writes, was not.
+**One control:** `test_live_path_connections.py` now runs the audit in the
+other direction on every suite run.
+
+Why all three survived so long: each is a CONNECTION defect, and the test
+apparatus is component-shaped. Every affected module had passing component
+tests throughout. Components were tested; the wires between them were not.
+
+---
+
+## 2026-09-16 — STANDING RULE: A ZERO FROM AN UNVERIFIED PATH IS NOT DATA
+
+**Every ledger-derived display must distinguish "no observations" from
+"path not proven live."**
+
+Three times now a can't-fire has rendered as a no-setup:
+
+- `log_regime` (2026-09-09) — an unwired logger read as a quiet classifier
+- THRUST_PULLBACK — a candidate that could not fire read as one that found
+  no setup
+- `trade_signal_log` (2026-09-16) — an empty ledger graded nightly read as
+  a framework that issued no signals, while it had in fact issued at least
+  one (GBP/AUD SHORT, 2026-09-10)
+
+A zero that has never been shown capable of being non-zero is not evidence
+of absence; it is absence of evidence. Any report, display, or DATA BASIS
+line covering such a span must say which one it is. Applies immediately to
+the 2026-06-28 → 2026-09-16 trade-signal window, which is UNOBSERVED.
+

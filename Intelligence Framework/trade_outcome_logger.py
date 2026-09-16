@@ -53,14 +53,49 @@ _FIELDS = [
     "price_20_bars_later",
     "move_pips",
     "signal_correct",
+    # Appended 2026-09-16 (docs/specs/evidence_loop_repair_spec.md Part 1) —
+    # the ruling's payload needs size and entry context, which the original
+    # schema had no column for.
+    "size_pct",
+    "entry_context",
 ]
 
 
+def _migrate_header(path: str = None) -> None:
+    """One-time additive migration (size_pct + entry_context, 2026-09-16).
+
+    Same pattern as setup_check._migrate_journal_header, reviewed
+    2026-09-09: when the ledger's header predates a column appended to
+    _FIELDS, rewrite with the current header — every existing row preserved
+    VERBATIM in its old columns and blank in the new ones. This is the
+    logger maintaining its own schema, never an edit of recorded values.
+    Must run before any append.
+    """
+    path = _LOG_FILE if path is None else path
+    try:
+        with open(path, newline="") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames is None or \
+                    list(reader.fieldnames) == _FIELDS:
+                return
+            rows = list(reader)
+    except OSError:
+        return
+    with open(path, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=_FIELDS)
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: r.get(k, "") for k in _FIELDS})
+
+
 def _ensure_file() -> None:
-    """Create CSV with header row if it does not exist."""
+    """Create CSV with header row if it does not exist; migrate if its
+    header predates an appended column."""
     if not os.path.exists(_LOG_FILE):
         with open(_LOG_FILE, "w", newline="") as f:
             csv.DictWriter(f, fieldnames=_FIELDS).writeheader()
+    else:
+        _migrate_header()
 
 
 def log_signal(
@@ -68,6 +103,8 @@ def log_signal(
     decision_data:  Dict,
     instrument:     str,
     shadow_decision: Optional[Dict] = None,
+    size_pct:        Optional[int] = None,
+    entry_context:   str = "",
 ) -> str:
     """
     Log a signal to trade_signal_log.csv.
@@ -110,6 +147,8 @@ def log_signal(
         "price_20_bars_later": "",
         "move_pips":           "",
         "signal_correct":      "",
+        "size_pct":            "" if size_pct is None else int(size_pct),
+        "entry_context":       entry_context or "",
     }
 
     with open(_LOG_FILE, "a", newline="") as f:

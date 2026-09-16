@@ -207,5 +207,232 @@ def test_read_side_inventory_pinned():
     """The read-side boundary is a reviewed decision, like the cadence
     table it sits beside."""
     assert [rel for rel, _ in af.READ_SIDE_NO_CADENCE] == [
-        "trades.csv", ".env",
+        "trades.csv", ".env", "trade_log.csv",
     ]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PART 2 — orphan detection (docs/specs/evidence_loop_repair_spec.md)
+#
+# ROOT CAUSE this test exists for: the 2026-07-29 quarantine was audited
+# ONE-DIRECTIONALLY — what shadow/ imports was checked; what imports shadow's
+# functions, and what consumes artifacts shadow writes, was not. Three severed
+# connections followed from that single omission (log_regime 2026-09-09,
+# last_run.json and trade_signal_log 2026-09-16). This runs the audit in the
+# other direction, automatically.
+#
+# Built with the four things the Step 2 inventory proved are required. The
+# first two are not hypothetical: both produced real false positives during
+# that pass, and either would have condemned working code.
+#   1. alias-resolved imports   — `import apply_filter as _apply_filter`
+#   2. indirect dispatch        — values in a list/dict, called through a loop
+#   3. __main__ entry points    — reachable with no importer
+#   4. an allowlist with a REASON per entry
+# ══════════════════════════════════════════════════════════════════════════════
+
+SUPPORT_FILES = [
+    "scripts/artifact_freshness.py", "scripts/health_state.py",
+    "scripts/latest_view.py", "scripts/daily_digest.py",
+    "trade_logger.py", "trade_management.py", "update_calendar.py",
+]
+
+# Orphans that are CORRECT. A bare name is not allowed here — every entry
+# carries the reason it is legitimately unreferenced. Known-unused is listed,
+# never deleted: several of these are seeds for the level-map work.
+ORPHAN_ALLOWLIST = {
+    "nearest_resistance": "known-unused; seed for the level-map spec",
+    "nearest_support": "known-unused; seed for the level-map spec",
+    "find_confluence_zones": "known-unused; seed for the level-map spec",
+    "get_round_number_levels": "known-unused; seed for the level-map spec",
+    "get_m5_bars": "known-unused feed helper",
+    "get_session_history_today": "known-unused session helper",
+    "get_size_note": "risk_config display helper; unused pending the "
+                     "circuit-breaker enforcement spec",
+    "format_grade_block": "risk_config display helper; same pending spec",
+    "print_risk_rules": "risk_config display helper; same pending spec",
+    "calculate_lot_size": "test-only; unused pending the breaker wiring",
+    "can_trade": "test-only; unused pending the circuit-breaker gate spec",
+    "record_outcome": "manual single-row path. The SCHEDULED path is "
+                      "check_pending_trade_outcomes, which fills outcomes "
+                      "through the same _fill_outcome helper "
+                      "(trade_outcome_logger.py:289 vs :206). Verified "
+                      "2026-09-16, not wired speculatively.",
+    "backfill_loss_species": "manual one-time path by design — its own "
+                             "docstring (shadow_signals.py:502) says "
+                             "'scheduled runs classify at grading time'. "
+                             "Verified 2026-09-16.",
+    "get_accuracy_by_signal_type": "reporting sibling of "
+                                   "get_accuracy_by_regime, which IS called "
+                                   "live by run_outcome_check.py:68. Unused "
+                                   "pending a report needing the "
+                                   "by-signal-type cut.",
+}
+
+ARTIFACT_ALLOWLIST = {
+    "storylines.md": "CORRECTLY writer-less — a human writes it in the "
+                     "Sunday session; its 216h freshness cadence is the "
+                     "control. Never 'fix' this one.",
+}
+
+
+def _alias_map(tree):
+    """local name -> original name, for `import x as y` in either form."""
+    out = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for a in node.names:
+                if a.asname:
+                    out[a.asname] = a.name
+        elif isinstance(node, ast.Import):
+            for a in node.names:
+                if a.asname:
+                    out[a.asname] = a.name.split(".")[-1]
+    return out
+
+
+def _referenced_names(files):
+    """Every name CALLED or referenced AS A VALUE across `files`.
+
+    Referencing as a value is what makes indirect dispatch visible:
+    `_CANDIDATES = [check_thrust_pullback, ...]` never calls the name, and a
+    call-only scan reports the frozen candidates as dead.
+    """
+    seen = set()
+    for rel in files:
+        path = os.path.join(_ROOT, rel)
+        if not os.path.exists(path):
+            continue
+        try:
+            tree = ast.parse(_source(rel), filename=rel)
+        except SyntaxError:
+            continue
+        alias = _alias_map(tree)
+        for node in ast.walk(tree):
+            nm = None
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+                nm = node.id
+            elif isinstance(node, ast.Attribute):
+                nm = node.attr
+            if nm:
+                seen.add(nm)
+                if nm in alias:
+                    seen.add(alias[nm])
+    return seen
+
+
+def _live_corpus():
+    return LIVE_CORE + [f for f in SUPPORT_FILES
+                        if os.path.exists(os.path.join(_ROOT, f))]
+
+
+def _public_functions(module):
+    tree = ast.parse(_source(module), filename=module)
+    return [n.name for n in tree.body
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and not n.name.startswith("_")]
+
+
+def test_no_unallowlisted_function_orphans():
+    """A live-core function with no live producer/consumer, not allowlisted
+    with a reason, is a severed connection — fail until it is wired or
+    consciously listed."""
+    referenced = _referenced_names(_live_corpus())
+    orphans = []
+    for module in LIVE_CORE:
+        for fn in _public_functions(module):
+            if fn in referenced or fn in ORPHAN_ALLOWLIST:
+                continue
+            orphans.append(f"{module}:{fn}()")
+    assert not orphans, (
+        "live-core functions with no live caller and no allowlist reason "
+        "(wire them, or add an entry to ORPHAN_ALLOWLIST saying why the "
+        "orphan is correct):\n  " + "\n  ".join(orphans))
+
+
+def test_every_allowlist_entry_carries_a_reason():
+    """A bare name in the allowlist is how a guard rots into a rubber stamp."""
+    for table in (ORPHAN_ALLOWLIST, ARTIFACT_ALLOWLIST):
+        for name, reason in table.items():
+            assert isinstance(reason, str) and len(reason.strip()) >= 20, (
+                f"allowlist entry {name!r} needs a real written reason")
+
+
+def test_alias_resolution_is_live_not_orphan():
+    """REGRESSION PIN — false positive #1 from the Step 2 pass.
+
+    regime_detection.py:1104 imports apply_filter and get_filter_summary
+    under aliases. A call-only, alias-blind scan reports both as dead —
+    and apply_filter is one of the two suite floors.
+    """
+    referenced = _referenced_names(_live_corpus())
+    assert "apply_filter" in referenced
+    assert "get_filter_summary" in referenced
+
+
+def test_indirect_dispatch_is_live_not_orphan():
+    """REGRESSION PIN — false positive #2 from the Step 2 pass.
+
+    shadow_signals.py:218 holds the three FROZEN candidates in _CANDIDATES
+    and dispatches `for fn in _CANDIDATES`. A call-only scan reports the
+    evidence ledger as having stopped accruing.
+    """
+    referenced = _referenced_names(_live_corpus())
+    for fn in ("check_early_momentum_v2", "check_thrust_pullback",
+               "check_momentum_join"):
+        assert fn in referenced, f"{fn} is dispatched via _CANDIDATES"
+
+
+def test_cli_entry_points_are_reachable():
+    """A __main__ block makes a module reachable with no importer."""
+    for module in ("setup_check.py", "decision_brief.py",
+                   "run_outcome_check.py"):
+        src_ = _source(module)
+        assert ('__name__ == "__main__"' in src_
+                or "__name__ == '__main__'" in src_), module
+
+
+def test_orphan_detector_catches_a_synthetic_orphan():
+    """The guard must be shown to fire."""
+    referenced = _referenced_names(_live_corpus())
+    assert "a_function_nobody_calls_xyzzy" not in referenced
+
+
+def test_every_live_read_artifact_has_a_live_writer():
+    """The artifact half — D1's actual shape. A live module reading a file
+    nothing live writes is the defect that cost 98 days."""
+    inventoried = ({rel for rel, _ in af.CADENCES}
+                   | {rel for rel, _ in af.READ_SIDE_NO_CADENCE}
+                   | WRITE_ONLY_OK | set(ARTIFACT_ALLOWLIST))
+    unknown = set()
+    for module in LIVE_CORE:
+        for lit in set(_ARTIFACT_LITERAL.findall(_source(module))):
+            if os.path.basename(lit) not in inventoried:
+                unknown.add(lit)
+    assert not unknown, (
+        "live-core artifact with no inventory entry and no allowlist "
+        f"reason: {sorted(unknown)}")
+
+
+def test_trade_signal_ledger_is_now_watched():
+    """The Step 2 finding, pinned: neither ledger was watched, which is how
+    trade_signal_log.csv sat at 2 lines since 2026-06-28 while
+    run_outcome_check graded it nightly."""
+    watched = {rel for rel, _ in af.CADENCES}
+    assert "trade_signal_log.csv" in watched
+    # trade_log.csv is inventoried WITHOUT a cadence: it is frozen
+    # historical evidence (April-era snapshot schema, superseded by
+    # trades.csv, ruled untouched by trade_logger_repair_spec.md:23-28).
+    # A cadence would render STALE forever — 3987h at first check — making
+    # every scheduled run a health FAILURE. Accounted for, never alarming.
+    no_cadence = {rel for rel, _ in af.READ_SIDE_NO_CADENCE}
+    assert "trade_log.csv" in no_cadence
+    assert "trade_log.csv" not in watched
+
+
+def test_log_signal_is_wired_into_the_live_path():
+    """PART 1 pin: the orphaned writer now has a live caller."""
+    src_ = _source("decision_brief.py")
+    code = "\n".join(ln.split("#", 1)[0] for ln in src_.splitlines())
+    assert "log_signal" in code, "decision_brief must call log_signal"
+    referenced = _referenced_names(_live_corpus())
+    assert "log_signal" in referenced

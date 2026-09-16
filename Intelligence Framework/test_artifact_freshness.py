@@ -22,6 +22,14 @@ def test_cadence_table_pinned():
         ("calendar.csv",                 192),
         ("storylines.md",                216),
         ("shadow_signal_log.csv",        504),
+        # Added 2026-09-16, evidence_loop_repair_spec.md Part 1: the ledger
+        # sat at 2 lines from 2026-06-28 while run_outcome_check graded it
+        # nightly, unwatched. 720h is generous on purpose — a directional
+        # decision is NOT a daily event and an honest run of STAND ASIDE
+        # days must not raise a health failure. trade_log.csv is NOT here:
+        # it is frozen historical evidence, inventoried under
+        # READ_SIDE_NO_CADENCE instead (see that table's reason).
+        ("trade_signal_log.csv",         720),
     ]
 
 
