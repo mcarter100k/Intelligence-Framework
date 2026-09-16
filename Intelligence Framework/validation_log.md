@@ -2782,3 +2782,52 @@ of absence; it is absence of evidence. Any report, display, or DATA BASIS
 line covering such a span must say which one it is. Applies immediately to
 the 2026-06-28 → 2026-09-16 trade-signal window, which is UNOBSERVED.
 
+
+---
+
+## 2026-09-16 — Housekeeping (team-directed): schema divergence without detection
+
+Recorded at team direction alongside the AGENTS.md standing-policy additions.
+Committed directly to `main` as team-directed housekeeping — the precedent is
+the 2026-09-11 housekeeping entries (`bd1aa24`, `44bb7e8`) and today's Step 2
+inventory log (`dbe2b67`); no behavior changes, docs and log only.
+
+**Finding.** Before the evidence-loop repair, `trade_signal_log.csv`'s header
+was **two columns behind `_FIELDS`**: `shadow_direction` and
+`shadow_conviction` were absent from the file while present in the code's
+schema. This was discovered while executing Part 1's migration, not by any
+check — nothing compared the ledger's header against the schema that writes
+it.
+
+**Why it belongs with the three orphans.** Same family: *divergence without
+detection*. In each case a connection drifted and nothing noticed, because
+nothing was looking at the joint.
+
+- `log_regime` — a live-path WRITE lost its caller
+- `last_run.json` — a live-path READ lost its writer
+- `log_signal` — a live-path WRITE lost its caller, and its ledger was
+  graded empty
+- `trade_signal_log.csv` header — a live-path SCHEMA drifted from the code
+  that writes it
+
+The first three are now covered by `test_live_path_connections.py`. **The
+fourth is not.** No test compares a ledger's on-disk header against the
+`_FIELDS`/`FIELDNAMES` list of the module that writes it. Recorded as a gap,
+not fixed here: the detection would be a small test per logger, and it is a
+team decision whether to add it.
+
+**Migration outcome.** Four columns added in total (`shadow_direction`,
+`shadow_conviction`, `size_pct`, `entry_context`). The single 2026-06-28 row
+was verified **preserved verbatim** in its original columns and blank in all
+four new ones; row count unchanged at 1. The logger maintaining its own
+schema, never an edit of recorded values — same guarantee as
+`setup_check._migrate_journal_header` (reviewed 2026-09-09).
+
+**Standing policy adopted, AGENTS.md rules 8 and 9 (2026-09-16):**
+*A cadence requires a live writer* (precedents `trades.csv`,
+`trade_log.csv`) and *a zero from an unverified path is not data*. Rule 9 was
+directed to this log; it is ALSO promoted into AGENTS.md because a standing
+rule that lives only in an append-only log is one future agents will not
+read. Flagged for the team — revert the AGENTS.md half if the duplication is
+unwanted.
+

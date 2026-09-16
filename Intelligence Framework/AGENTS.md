@@ -150,6 +150,22 @@ requires team review; their priors are not evidence.
      reality performs them. Never claim a time-dependent behavior works
      until reality has performed it.
 
+8. **A CADENCE REQUIRES A LIVE WRITER (adopted 2026-09-16).** Artifacts
+   with no live producer are inventoried (`READ_SIDE_NO_CADENCE` in
+   `scripts/artifact_freshness.py`) and never alarmed on — a permanent
+   alarm is indistinguishable from a broken one, and the first response to
+   a channel that always screams is to stop reading it. Precedents:
+   `trades.csv` (2026-09-16), `trade_log.csv` (2026-09-16).
+
+9. **A ZERO FROM AN UNVERIFIED PATH IS NOT DATA (adopted 2026-09-16).**
+   Every ledger-derived display must distinguish **"no observations"** from
+   **"path not proven live."** Three times a can't-fire has rendered as a
+   no-setup: `log_regime` (2026-09-09), THRUST_PULLBACK, and
+   `trade_signal_log` (2026-09-16 — an empty ledger graded nightly read as
+   a framework that issued no signals, when it had issued at least one).
+   A zero never shown capable of being non-zero is absence of evidence,
+   not evidence of absence, and the display must say which.
+
 ---
 
 ## Live entry points (what "reachable" means)
