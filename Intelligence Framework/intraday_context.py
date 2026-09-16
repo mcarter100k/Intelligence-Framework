@@ -57,16 +57,23 @@ _NY_OPEN_HOUR      = 13  # New York opens 13:00 UTC
 _NY_WATCH_HOUR     = 16  # NY fakeout window: 13:00–16:00 UTC
 
 
-def get_intraday_context() -> Dict:
+def get_intraday_context(pair: str = "GBPAUD") -> Dict:
     """
     Fetch 1H bars, build Asian range, detect fakeout, return setup dict.
     Fails silently — never breaks the main report.
+
+    `pair` added 2026-09-16 (docs/specs/level_source_repair_spec.md D4):
+    this function is pair-specific and its signature said otherwise, so it
+    always read GBPAUD. levels_context mirrored the result into
+    asian_high/asian_low, making get_key_levels("GBPJPY") return six
+    JPY-scale levels beside two GBP/AUD ones. Defaulted for backward
+    compatibility — existing callers that want GBPAUD need no change.
     """
     if not is_configured():
         return _unavailable("OANDA not configured")
 
     try:
-        df = get_hourly_bars(count=96)  # 4 days of 1H bars
+        df = get_hourly_bars(pair=pair, count=96)  # 4 days of 1H bars
     except Exception as e:
         return _unavailable(str(e))
 

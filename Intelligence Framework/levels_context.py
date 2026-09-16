@@ -7,14 +7,24 @@ and by entry_watcher to find valid entry zones and targets.
 
 Levels returned:
   prev_day_high / prev_day_low   — yesterday's high and low (strongest daily levels)
-  weekly_high  / weekly_low      — current week's extremes (key swing targets)
+  prev_week_high / prev_week_low — PREVIOUS completed week's extremes
+  current_week_high / current_week_low
+                                 — this week to date, from completed daily
+                                   bars; today is covered by session_*
   session_high / session_low     — current session's high and low so far
-  asian_high   / asian_low       — Asian range (already in intraday_context, mirrored here)
+  asian_high   / asian_low       — Asian range for THIS pair
+
+Weekly naming corrected 2026-09-16 (docs/specs/level_source_repair_spec.md
+D3): these keys were called weekly_high/weekly_low and documented as the
+current week, but the feed filters incomplete bars so the value has always
+been the previous completed week. Prior-week extremes are legitimate
+levels and are kept under an honest name; the current week is now supplied
+alongside rather than confused with them.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from oanda_feed import get_daily_bars, get_weekly_bars, get_hourly_bars
@@ -46,8 +56,10 @@ def get_key_levels(pair: str = "GBPAUD") -> dict:
     result = {
         "prev_day_high":  None,
         "prev_day_low":   None,
-        "weekly_high":    None,
-        "weekly_low":     None,
+        "prev_week_high": None,
+        "prev_week_low":  None,
+        "current_week_high": None,
+        "current_week_low":  None,
         "session_high":   None,
         "session_low":    None,
         "session_name":   None,
@@ -70,13 +82,38 @@ def get_key_levels(pair: str = "GBPAUD") -> dict:
     except Exception:
         pass
 
-    # ── Weekly high / low ─────────────────────────────────────────────────────
+    # ── Previous week + current week to date ──────────────────────────────────
+    # The feed filters incomplete bars, so weekly.iloc[-1] is the last CLOSED
+    # week — named prev_week_* accordingly. The current week cannot come from
+    # the weekly series at all (its bar is still forming and is filtered out),
+    # so it is aggregated from this week's completed DAILY bars; today's
+    # forming session is covered by session_high/session_low. A high or low is
+    # a recorded fact, not a revisable computation, so using week-to-date data
+    # carries none of the risk that justifies dropping a forming bar for an
+    # indicator. oanda_feed is deliberately left unchanged.
     try:
         weekly = get_weekly_bars(pair, count=2)
         if weekly is not None and len(weekly) >= 1:
             wk = weekly.iloc[-1]
-            result["weekly_high"] = round(float(wk["High"]), 5)
-            result["weekly_low"]  = round(float(wk["Low"]),  5)
+            result["prev_week_high"] = round(float(wk["High"]), 5)
+            result["prev_week_low"]  = round(float(wk["Low"]),  5)
+
+            cur_open = wk.name + timedelta(days=7)
+            daily_wk = get_daily_bars(pair, count=10)
+            if daily_wk is not None and not daily_wk.empty:
+                idx = daily_wk.index
+                if getattr(idx, "tz", None) is None:
+                    idx = idx.tz_localize("UTC")
+                    daily_wk = daily_wk.copy()
+                    daily_wk.index = idx
+                this_week = daily_wk[daily_wk.index >= cur_open]
+                # Empty between the weekly open and the first completed daily
+                # bar — both keys stay None, per the module's None contract.
+                if not this_week.empty:
+                    result["current_week_high"] = round(
+                        float(this_week["High"].max()), 5)
+                    result["current_week_low"] = round(
+                        float(this_week["Low"].min()), 5)
     except Exception:
         pass
 
@@ -101,10 +138,12 @@ def get_key_levels(pair: str = "GBPAUD") -> dict:
     except Exception:
         pass
 
-    # ── Asian high / low (from intraday_context) ──────────────────────────────
+    # ── Asian high / low (from intraday_context, keyed to THIS pair) ──────────
+    # `pair` threaded 2026-09-16 (spec D4): this call took no pair and always
+    # returned GBPAUD, so a GBP_JPY level set carried two AUD-scale values.
     try:
         from intraday_context import get_intraday_context
-        intra = get_intraday_context()
+        intra = get_intraday_context(pair)
         ah = intra.get("asian_high")
         al = intra.get("asian_low")
         if ah:

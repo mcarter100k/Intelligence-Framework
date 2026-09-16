@@ -106,7 +106,8 @@ requires team review; their priors are not evidence.
      unless review needs them remote. `main` is never the testing ground.
 
 2. **Suite green before any commit.** Full run: `python -m pytest -q`
-   (currently 1018 passed; shadow-stack tests run from `shadow/` via its
+   (currently 1280 passed — count corrected 2026-09-16 from a stale 1018;
+   shadow-stack 868 green, run from `shadow/` via its
    conftest). Two floors that must never be weakened to make something pass:
    - the **banned-token display test** (`test_brief_display.py`) — rendered
      output stays plain-English: no ADX / pivot / HH-HL / LH-LL / ATR-ratio
