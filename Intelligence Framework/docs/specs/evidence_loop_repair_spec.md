@@ -92,10 +92,29 @@ this framework exists to prevent. Any report reading that span must say
 
 ### WATCHLIST
 
-`trade_signal_log.csv` and `trade_log.csv` added to
-`scripts/artifact_freshness.py`, both sides. Cadences are informed priors:
-a directional decision is not a daily event, so the cadence must be
-generous enough not to alarm on an honest run of STAND ASIDE days.
+`trade_signal_log.csv` gets a **720h** cadence — generous on purpose,
+because a directional decision is not a daily event and an honest run of
+STAND ASIDE days must not raise a health failure.
+
+**`trade_log.csv` — deviation from the ruling, with cause (standing rule 5).**
+The ruling asked for a cadence here too. Premise inspection says no:
+`trade_logger.py:22` calls it "the April-era framework-snapshot file …
+historical", and `trade_logger_repair_spec.md:23-28` already ran this
+inspection and ruled it "stays untouched as historical evidence." It is a
+different schema entirely (bias / confidence / value_zone, not trades),
+superseded by `trades.csv`, and **deliberately writer-less**.
+
+A cadence on a deliberately frozen file renders STALE on every run
+forever — measured at **3987h** on the first live check — which the
+wrapper converts into a health FAILURE, which alerts daily, which teaches
+the operator to ignore the channel. That is the same harm this spec cites
+when refusing to invent a cadence for `trades.csv`, and it would damage
+the very alerting path Part 1 depends on.
+
+It is therefore inventoried under `READ_SIDE_NO_CADENCE` with that reason:
+accounted for and visible on every check, never alarming. **Team to
+confirm** — if a cadence is still wanted, the file first needs a live
+writer, which is a different piece of work.
 
 ---
 

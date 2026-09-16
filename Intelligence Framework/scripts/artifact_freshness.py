@@ -58,6 +58,14 @@ CADENCES = [
     ("calendar.csv",                 192),
     ("storylines.md",                216),
     ("shadow_signal_log.csv",        504),
+    # Added 2026-09-16 (evidence_loop_repair_spec.md Part 1). Neither was
+    # watched, which is why trade_signal_log.csv could sit at 2 lines since
+    # 2026-06-28 while run_outcome_check graded it nightly. Cadences are
+    # generous on purpose: a directional decision is NOT a daily event, and
+    # an honest run of STAND ASIDE days must not raise a health failure.
+    # 720h/1440h are informed priors — revisit once the ledger has operating
+    # data, which by definition it does not yet have.
+    ("trade_signal_log.csv",         720),
 ]
 
 # Read-side artifacts with NO expected cadence. (relative path, reason)
@@ -69,6 +77,17 @@ READ_SIDE_NO_CADENCE = [
                    "is the real control here"),
     (".env",       "credentials, not an evidence artifact — its failure mode "
                    "is a failed run, already caught by health_state"),
+    ("trade_log.csv",
+                   "FROZEN historical evidence, deliberately writer-less. The "
+                   "April-era framework-snapshot file (bias/value_zone "
+                   "schema), superseded by trades.csv; trade_logger.py:22 and "
+                   "trade_logger_repair_spec.md:23-28 already ruled it stays "
+                   "untouched. The 2026-09-16 ruling asked for a cadence here; "
+                   "premise inspection (standing rule 5) says a cadence would "
+                   "render STALE forever — measured at 3987h on the first live "
+                   "check — making every scheduled run a health FAILURE and "
+                   "training the operator to ignore the channel. Inventoried "
+                   "without a cadence instead. Team to confirm."),
 ]
 
 
