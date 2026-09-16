@@ -43,6 +43,7 @@ LIVE_CORE = [
     "levels_context.py", "intraday_context.py", "oanda_feed.py",
     "news_gate.py", "calendar_fetch.py", "setup_check.py",
     "session_guard.py", "risk_config.py", "display_time.py",
+    "exclusions.py",          # added 2026-09-16, exclusion_registry_spec.md
 ]
 
 # Artifacts a live module only ever WRITES — nothing on the live path
@@ -207,7 +208,7 @@ def test_read_side_inventory_pinned():
     """The read-side boundary is a reviewed decision, like the cadence
     table it sits beside."""
     assert [rel for rel, _ in af.READ_SIDE_NO_CADENCE] == [
-        "trades.csv", ".env", "trade_log.csv",
+        "trades.csv", ".env", "excluded_rows.csv", "trade_log.csv",
     ]
 
 
@@ -257,6 +258,11 @@ ORPHAN_ALLOWLIST = {
                       "through the same _fill_outcome helper "
                       "(trade_outcome_logger.py:289 vs :206). Verified "
                       "2026-09-16, not wired speculatively.",
+    "append_exclusion": "authoring path, used by tests and by the "
+                        "one-off seeding of an authorized exclusion. "
+                        "Deliberately NOT called by any grader — a grader "
+                        "that could write its own exclusions is the whole "
+                        "failure mode this registry exists to prevent.",
     "backfill_loss_species": "manual one-time path by design — its own "
                              "docstring (shadow_signals.py:502) says "
                              "'scheduled runs classify at grading time'. "

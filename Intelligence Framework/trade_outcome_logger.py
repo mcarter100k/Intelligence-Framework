@@ -259,12 +259,24 @@ def check_pending_trade_outcomes(
     if not rows:
         return 0
 
+    # Excluded rows are never graded (exclusions.py). `rows` is written back
+    # below, so they are skipped here rather than filtered out of the list —
+    # filtering would delete them from an append-only ledger.
+    try:
+        from exclusions import excluded_ids, is_excluded as _is_excl
+        _excl = excluded_ids("trade_signal_log.csv")
+    except Exception:
+        _excl, _is_excl = set(), None
+
     filled = 0
     for row in rows:
         if row.get("instrument") != instrument or row.get("outcome_filled") == "True":
             continue
         if row.get("direction") not in ("LONG", "SHORT"):
             continue  # nothing directional to grade
+        if _excl and _is_excl is not None and \
+                _is_excl(row, "trade_signal_log.csv", _excl):
+            continue
 
         try:
             log_time = datetime.fromisoformat(row["timestamp"].replace("Z", "+00:00"))
@@ -311,6 +323,12 @@ def get_accuracy_by_regime(
     if not os.path.exists(_LOG_FILE):
         return {}
 
+    try:
+        from exclusions import excluded_ids, is_excluded as _is_excl
+        _excl = excluded_ids("trade_signal_log.csv")
+    except Exception:
+        _excl, _is_excl = set(), None
+
     groups: Dict[str, list] = {}
     with open(_LOG_FILE, newline="") as f:
         for row in csv.DictReader(f):
@@ -318,6 +336,9 @@ def get_accuracy_by_regime(
                 continue
             if instrument and row["instrument"] != instrument:
                 continue
+            if _excl and _is_excl is not None and \
+                    _is_excl(row, "trade_signal_log.csv", _excl):
+                continue    # never reaches a tally (exclusions.py)
             regime = row["regime_d1"]
             groups.setdefault(regime, []).append(row)
 
@@ -344,6 +365,12 @@ def get_accuracy_by_signal_type(instrument: Optional[str] = None) -> Dict:
     if not os.path.exists(_LOG_FILE):
         return {}
 
+    try:
+        from exclusions import excluded_ids, is_excluded as _is_excl
+        _excl = excluded_ids("trade_signal_log.csv")
+    except Exception:
+        _excl, _is_excl = set(), None
+
     groups: Dict[str, list] = {}
     with open(_LOG_FILE, newline="") as f:
         for row in csv.DictReader(f):
@@ -351,6 +378,9 @@ def get_accuracy_by_signal_type(instrument: Optional[str] = None) -> Dict:
                 continue
             if instrument and row["instrument"] != instrument:
                 continue
+            if _excl and _is_excl is not None and \
+                    _is_excl(row, "trade_signal_log.csv", _excl):
+                continue    # never reaches a tally (exclusions.py)
             key = (
                 f"{row.get('regime_d1', '')}|"
                 f"{row.get('structure_d1', '')}|"

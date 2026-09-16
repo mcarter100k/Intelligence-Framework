@@ -77,6 +77,13 @@ READ_SIDE_NO_CADENCE = [
                    "is the real control here"),
     (".env",       "credentials, not an evidence artifact — its failure mode "
                    "is a failed run, already caught by health_state"),
+    ("excluded_rows.csv",
+                   "exclusion registry — changes only when a contaminated or "
+                   "withdrawn row is authorized out of the tallies, which may "
+                   "be never. Per STANDING RULE 8 a cadence requires a live "
+                   "writer; this one's writer is a human authorization event, "
+                   "so it is inventoried and never alarmed on. Its integrity "
+                   "control is test_exclusions.py, not freshness."),
     ("trade_log.csv",
                    "FROZEN historical evidence, deliberately writer-less. The "
                    "April-era framework-snapshot file (bias/value_zone "

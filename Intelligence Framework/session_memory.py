@@ -318,6 +318,16 @@ def _get_today_rows(instrument: str) -> List[Dict]:
             if (row["instrument"] == instrument and
                     row["timestamp"].startswith(today)):
                 rows.append(row)
+    # Excluded rows never take part in a delta comparison (exclusions.py).
+    # The 2026-09-16 contamination proved why: a synthetic filter_allowed
+    # made the next honest run render "conditions deteriorated" and fire an
+    # alert for a flip that never happened. This read feeds comparisons
+    # only — nothing is written back — so filtering here is safe.
+    try:
+        from exclusions import filter_rows
+        rows = filter_rows(rows, "session_context_log.csv")
+    except Exception:
+        pass
     return rows
 
 

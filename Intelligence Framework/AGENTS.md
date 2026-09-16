@@ -23,7 +23,7 @@ trade_outcome_logger.py  shadow_signals.py        session_memory.py
 entry_confirmation.py    levels_context.py        intraday_context.py
 oanda_feed.py            news_gate.py             calendar_fetch.py
 setup_check.py           session_guard.py         risk_config.py
-display_time.py
+display_time.py          exclusions.py
 ```
 
 (`news_gate.py` added 2026-07-30 per the team-approved spec in
@@ -165,6 +165,17 @@ requires team review; their priors are not evidence.
    a framework that issued no signals, when it had issued at least one).
    A zero never shown capable of being non-zero is absence of evidence,
    not evidence of absence, and the display must say which.
+
+10. **VERIFICATION RUNS MUST NEUTRALIZE EVERY SIDE EFFECT ON THE PATH THEY
+    EXERCISE (adopted 2026-09-16)**, not only the one under test.
+    `get_decision_brief` writes three ledgers; a Gate-2 run that redirects
+    one contaminates two. Precedents: `trades.csv` test spill
+    (2026-09-11), `session_context_log` + `regime_classification_log`
+    contamination (2026-09-16). Use the `_neutralize_side_effects` helper
+    for any run that touches real files. A contaminated evidence row can
+    never be removed — the ledgers are append-only — so the only remedy is
+    a registry entry (`exclusions.py`) keeping it out of every tally
+    forever. Prevention is the whole of the cure.
 
 ---
 
