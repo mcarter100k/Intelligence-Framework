@@ -2344,3 +2344,61 @@ pools) may still fail the frozen thresholds — that is what they are for.
 
 Full numbers: studies/stage2_gate_report.md. Script:
 studies/stage2_source_convert_gate.py (sourcing record in header).
+
+---
+
+## 2026-09-16 — STEP 0 (team-authorized interim): `last_run.json` neutralized
+
+**This replaces a WRONG level filter with NO level filter. That is an
+improvement, not a fix.** The repair is specified in
+docs/specs/level_source_repair_spec.md (Step 1); this entry records only
+the interim action, authorized standalone by the team without spec or
+branch.
+
+**Action:** `last_run.json` → `last_run.json.orphaned-2026-09-16`
+(renamed, NOT deleted — it is an artifact; gitignored, so a plain `mv`,
+no `git mv` applies). `entry_confirmation.py:180-190` now finds no file,
+sets `_level_available = False`, and its M15 trigger takes the
+`elif not _level_available` degraded-pass branch instead of the `else`
+branch that was silently gating on 2026-06-10 levels.
+
+**Why it was authorized ahead of the spec.** The file's only writer is
+`shadow/market_brain.py` (quarantined 2026-07-29); nothing on the live
+path has written it since. Content frozen at 2026-06-10, `price 1.9076`,
+levels 1.8718–1.90906 — 98 days stale and single-pair. Because the file
+EXISTED, `entry_confirmation` (PROTECTED) trusted it. A deleted file
+degrades gracefully; a stale file does not. The interim restores the
+graceful mode.
+
+**Defect 2 confirmed independently before acting (standing rule 5).** The
+team's code-review finding reproduces: the file carries ONE pair's levels
+with no instrument key, while `get_key_levels` is pair-parameterized.
+Measured this session — GBP_JPY 208.8685 vs GBP_AUD 1.8903, stored levels
+1.8718–1.90906, proximity threshold 25 pips (`_M15_LEVEL_PROXIMITY_PIPS`
+× 0.01 = 0.25 for JPY). Minimum achievable distance ≈ 207.0 against a 0.25
+tolerance: `near_key_level` could never be True on GBP_JPY, and with
+`_level_available` True the code took the `else` branch
+(entry_confirmation.py:227-231, "not near a key level"), never the
+degraded-pass branch. **`m15_trigger`, and therefore `entry_ready`, could
+never be True on GBP_JPY** — silently, since the file froze. One pair's
+entry path has been dead for 98 days with no error, no log line, and no
+test failure. Recorded as a separate defect, not a footnote.
+
+**Verification.** Controlled: replicating entry_confirmation.py:180-190
+against the working tree returns `exists=False`, `_levels=[]`,
+`_level_available=False` → degraded-pass branch reachable. REALITY (both
+pairs, live OANDA): `get_entry_brief` returns normally with no exception
+from the absent file; GBP/AUD structure level 1.8904, GBP/JPY 208.8800 —
+**the first correctly-scaled GBP/JPY level this path has produced since
+the file froze.** No decision output changed (both pairs STAND ASIDE).
+
+**Gate 3 — PENDING LIVE CONFIRMATION:** the degraded-pass branch itself
+is reachable but was not *observed* firing — it requires an in-direction
+engulfing on M15, which did not occur during verification. Clear this
+when a real entry check takes the branch and logs
+"level check unavailable (degraded trigger)".
+
+**Not addressed here** (all held for the Step 1 spec): the orphaned read
+itself (R1), pair keying (R2/Defect 2), weekly semantics (R5),
+read-side freshness coverage (R3), and the quarantine-boundary test (R4).
+
