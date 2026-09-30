@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from exclusions import excluder
-from ledger_io import append_row, atomic_write_rows, locked
+from ledger_io import append_row, atomic_write_rows, locked, migrate_header
 
 _LOG_FILE = "trade_signal_log.csv"
 
@@ -74,19 +74,7 @@ def _migrate_header(path: str = None) -> None:
     logger maintaining its own schema, never an edit of recorded values.
     Must run before any append.
     """
-    path = _LOG_FILE if path is None else path
-    with locked(path):
-        try:
-            with open(path, newline="") as f:
-                reader = csv.DictReader(f)
-                if reader.fieldnames is None or \
-                        list(reader.fieldnames) == _FIELDS:
-                    return
-                rows = list(reader)
-        except OSError:
-            return
-        atomic_write_rows(path, _FIELDS,
-                          [{k: r.get(k, "") for k in _FIELDS} for r in rows])
+    migrate_header(_LOG_FILE if path is None else path, _FIELDS)   # ledger_io
 
 
 def _ensure_file() -> None:

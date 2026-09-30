@@ -40,7 +40,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from exclusions import excluder
-from ledger_io import atomic_write_rows, locked
+from ledger_io import append_row, atomic_write_rows, locked, migrate_header
 
 from regime_detection import (
     _detect_structure, _compute_adx, compute_atr_series, PAIRS,
@@ -279,17 +279,7 @@ def _migrate_header():
     the logger maintaining its own schema, never an edit of recorded
     values. MUST run before any append, or a 19-field row lands under an
     18-column header."""
-    with locked(LOG_FILE):
-        try:
-            with open(LOG_FILE, newline="") as f:
-                reader = csv.DictReader(f)
-                if reader.fieldnames is None or list(reader.fieldnames) == _FIELDS:
-                    return
-                rows = list(reader)
-        except Exception:
-            return                          # unreadable: leave it alone
-        atomic_write_rows(LOG_FILE, _FIELDS,
-                          [{k: r.get(k, "") for k in _FIELDS} for r in rows])
+    migrate_header(LOG_FILE, _FIELDS)          # shared, locked (ledger_io)
 
 
 def log_shadow_signals(signals: List[Dict]) -> int:
@@ -304,19 +294,17 @@ def log_shadow_signals(signals: List[Dict]) -> int:
             for row in csv.DictReader(f):
                 seen.add((row["candidate_id"], row["instrument"], row["timestamp"]))
         written = 0
-        with open(LOG_FILE, "a", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=_FIELDS)
-            for s in signals:
-                key = (s["candidate_id"], s["instrument"], s["timestamp"])
-                if key in seen:
-                    continue
-                row = {k: "" for k in _FIELDS}
-                row.update(s)
-                row["outcome_filled"] = False
-                w.writerow(row)
-                seen.add(key); written += 1
-            f.flush()
-            os.fsync(f.fileno())
+        for s in signals:
+            key = (s["candidate_id"], s["instrument"], s["timestamp"])
+            if key in seen:
+                continue
+            row = {k: "" for k in _FIELDS}
+            row.update(s)
+            row["outcome_filled"] = False
+            # append_row writes the header when the file is empty (review
+            # R4: a 0-byte ledger got headerless rows through open("a")).
+            append_row(LOG_FILE, _FIELDS, row)
+            seen.add(key); written += 1
     return written
 
 

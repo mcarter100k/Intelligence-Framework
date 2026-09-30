@@ -30,7 +30,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Tuple
 
 from exclusions import excluder, filter_rows
-from ledger_io import append_row, atomic_write_rows, locked
+from ledger_io import append_row, atomic_write_rows, locked, migrate_header
 
 LOG_FILE = "regime_classification_log.csv"
 
@@ -550,18 +550,7 @@ def _migrate_header() -> None:
     every existing row verbatim in its old columns, blank in the new one.
     The logger maintaining its own schema; values never edited. Must run
     before any append."""
-    with locked(LOG_FILE):
-        try:
-            with open(LOG_FILE, newline="") as f:
-                reader = csv.DictReader(f)
-                if reader.fieldnames is None or \
-                        list(reader.fieldnames) == FIELDNAMES:
-                    return
-                rows = list(reader)
-        except OSError:
-            return
-        atomic_write_rows(LOG_FILE, FIELDNAMES,
-                          [{k: (r.get(k) or "") for k in FIELDNAMES} for r in rows])
+    migrate_header(LOG_FILE, FIELDNAMES)       # shared, locked (ledger_io)
 
 
 def _write_row(row: Dict) -> None:

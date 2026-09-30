@@ -28,37 +28,47 @@ live_guard "$LOG"
 . "$PROJ/scripts/crash.sh"
 
 # Back up every evidence file BEFORE the grader rewrites anything
-# (docs/specs/safe_ledger_writes_spec.md): a bad grader write is always
-# recoverable from today's hash-verified copy in backups/<date>/.
+# (docs/specs/safe_ledger_writes_spec.md). The grader runs ONLY after the
+# backup's success line (review R2/R10): a failed or crashed backup, or a
+# missing script, means no fresh copy exists, so nothing may be rewritten.
+# Grading is idempotent; a skipped night catches up on the next run.
 BACKUP="$(python3 scripts/backup_ledgers.py 2>&1)"
 echo "$BACKUP" >> "$LOG"
+BACKUP_OK="$(printf '%s\n' "$BACKUP" | grep -m1 '^backup .*all sha256 verified')"
 
-# stdout and stderr captured SEPARATELY: the crash reason must come from
-# stderr (scripts/crash.sh). Both go to the day log.
-ERRTMP="$(mktemp)"
-OUT="$(python3 run_outcome_check.py 2>"$ERRTMP")"
-ORC=$?
-{ echo "===== $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
-if [ -s "$ERRTMP" ]; then
-    { echo "----- stderr (exit $ORC) -----"; cat "$ERRTMP"; echo; } >> "$LOG"
+OUT=""; ORC=0; CRASH=""
+if [ -n "$BACKUP_OK" ]; then
+    # stdout and stderr captured SEPARATELY: the crash reason must come
+    # from stderr (scripts/crash.sh). Both go to the day log.
+    ERRTMP="$(mktemp)"
+    OUT="$(python3 run_outcome_check.py 2>"$ERRTMP")"
+    ORC=$?
+    { echo "===== $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
+    if [ -s "$ERRTMP" ]; then
+        { echo "----- stderr (exit $ORC) -----"; cat "$ERRTMP"; echo; } >> "$LOG"
+    fi
+    CRASH="$(crash_reason grader "$ORC" "$ERRTMP")"
+    rm -f "$ERRTMP"
+else
+    echo "GRADER SKIPPED: no verified backup this run, so nothing is rewritten" >> "$LOG"
 fi
-CRASH="$(crash_reason grader "$ORC" "$ERRTMP")"
-rm -f "$ERRTMP"
 
 # Health tracking (docs/specs/heartbeat_spec.md item 1). Failure signature:
 # a crash (nonzero exit or a Python traceback; visible_failures_spec D1 —
 # before, a traceback matched none of the patterns and counted as SUCCESS),
 # grader early-exit marker, unconfigured feed, no data, or empty output.
-if [ -n "$CRASH" ]; then
-    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$CRASH")"
-elif printf '%s\n' "$BACKUP" | grep -q '^BACKUP FAILED'; then
-    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$(printf '%s\n' "$BACKUP" | grep -m1 '^BACKUP FAILED' | cut -c1-160)")"
+if [ -z "$BACKUP_OK" ]; then
+    BREASON="$(printf '%s\n' "$BACKUP" | grep -m1 '^BACKUP FAILED' | cut -c1-160)"
+    [ -z "$BREASON" ] && BREASON="BACKUP FAILED: no success line ($(printf '%s' "$BACKUP" | tail -1 | cut -c1-120))"
+    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$BREASON" 2>>"$LOG")"
+elif [ -n "$CRASH" ]; then
+    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$CRASH" 2>>"$LOG")"
 elif [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -qE 'GRADER EARLY EXIT|not configured|no data from OANDA'; then
     HREASON="$(printf '%s\n' "$OUT" | grep -oE 'GRADER EARLY EXIT[^(]*|[A-Z_]+: no data from OANDA' | head -1)"
     [ -z "$HREASON" ] && HREASON="outcome check produced no output"
-    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$HREASON")"
+    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$HREASON" 2>>"$LOG")"
 else
-    HEALTH="$(python3 scripts/health_state.py record-success outcomes)"
+    HEALTH="$(python3 scripts/health_state.py record-success outcomes 2>>"$LOG")"
 fi
 if [ -n "$HEALTH" ]; then
     echo "$HEALTH" >> "$LOG"

@@ -239,11 +239,11 @@ def _evidence_project(tmp_path):
 def test_a_backup_copies_and_verifies_every_present_file(tmp_path):
     bl = _backup_module()
     proj = _evidence_project(tmp_path)
-    line = bl.backup(str(proj), date="2026-09-30")
-    day = proj / "backups" / "2026-09-30"
-    assert line == ("backup 2026-09-30: 3 files, "
+    line = bl.backup(str(proj), stamp="2026-09-30T221500Z")
+    day = proj / "backups" / "2026-09-30T221500Z"
+    assert line == ("backup 2026-09-30T221500Z: 3 files, "
                     f"{sum((proj / f).stat().st_size for f in ('regime_classification_log.csv', 'shadow_signal_log.csv', 'logs/health_state.json'))} "
-                    "bytes, all sha256 verified -> backups/2026-09-30")
+                    "bytes, all sha256 verified -> backups/2026-09-30T221500Z")
     manifest = (day / "MANIFEST.txt").read_text().splitlines()
     for entry in manifest:
         parts = entry.split("\t")
@@ -256,13 +256,31 @@ def test_a_backup_copies_and_verifies_every_present_file(tmp_path):
     assert "trade_signal_log.csv\tABSENT" in manifest
 
 
-def test_the_first_backup_of_a_day_is_never_overwritten(tmp_path):
+def test_every_run_gets_its_own_backup_and_none_is_ever_overwritten(tmp_path):
+    """Review R1/R6: a daily slot keyed by UTC date let a late run take the
+    next day's slot (so that day's grader ran with no fresh backup), and a
+    delete-then-rename could destroy a complete backup."""
     bl = _backup_module()
     proj = _evidence_project(tmp_path)
-    bl.backup(str(proj), date="2026-09-30")
+    bl.backup(str(proj), stamp="2026-10-01T003000Z")          # late-firing run
     (proj / "regime_classification_log.csv").write_text("log_id\nA\nB\n")
-    assert "already taken" in bl.backup(str(proj), date="2026-09-30")
-    assert (proj / "backups" / "2026-09-30" / "regime_classification_log.csv").read_text() == "log_id\nA\n"
+    line = bl.backup(str(proj), stamp="2026-10-01T231500Z")   # next normal run
+    assert line.startswith("backup 2026-10-01T231500Z:")
+    assert (proj / "backups" / "2026-10-01T003000Z" / "regime_classification_log.csv").read_text() == "log_id\nA\n"
+    assert (proj / "backups" / "2026-10-01T231500Z" / "regime_classification_log.csv").read_text() == "log_id\nA\nB\n"
+    again = bl.backup(str(proj), stamp="2026-10-01T231500Z")   # same second: new folder
+    assert again.startswith("backup 2026-10-01T231500Z-2:")
+    assert (proj / "backups" / "2026-10-01T231500Z" / "regime_classification_log.csv").read_text() == "log_id\nA\nB\n"
+
+
+def test_trade_log_is_backed_up(tmp_path):
+    """Review R5: AGENTS.md lists trade_log.csv as evidence; it was omitted."""
+    bl = _backup_module()
+    proj = _evidence_project(tmp_path)
+    (proj / "trade_log.csv").write_text("date,bias\n2026-04-02,BEARISH\n")
+    bl.backup(str(proj), stamp="2026-09-30T221500Z")
+    assert (proj / "backups" / "2026-09-30T221500Z" / "trade_log.csv").read_text() == \
+        "date,bias\n2026-04-02,BEARISH\n"
 
 
 def test_a_failed_backup_leaves_no_folder_that_looks_complete(tmp_path, monkeypatch):
@@ -278,7 +296,7 @@ def test_a_failed_backup_leaves_no_folder_that_looks_complete(tmp_path, monkeypa
         return real(src, dst)
     monkeypatch.setattr(bl.shutil, "copy2", flaky)
     with pytest.raises(OSError):
-        bl.backup(str(proj), date="2026-09-30")
+        bl.backup(str(proj), stamp="2026-09-30T221500Z")
     assert not (proj / "backups" / "2026-09-30").exists()
     assert [p for p in os.listdir(proj / "backups") if not p.startswith(".")] == []
 
@@ -303,5 +321,53 @@ def test_a_corrupted_copy_fails_the_backup(tmp_path, monkeypatch):
             f.write(b"CORRUPTED")
     monkeypatch.setattr(bl.shutil, "copy2", corrupting)
     with pytest.raises(RuntimeError, match="hash mismatch"):
-        bl.backup(str(proj), date="2026-09-30")
+        bl.backup(str(proj), stamp="2026-09-30T221500Z")
     assert not (proj / "backups" / "2026-09-30").exists()
+
+
+
+# ── review findings R3, R4 ────────────────────────────────────────────────────
+
+def test_r4_appending_to_an_empty_shadow_log_writes_the_header(tmp_path, monkeypatch):
+    import shadow_signals as ss
+    p = tmp_path / "shadow_signal_log.csv"
+    p.write_text("")                      # e.g. what B2's truncation left behind
+    monkeypatch.setattr(ss, "LOG_FILE", str(p))
+    ss.log_shadow_signals([{"candidate_id": "MOMENTUM_JOIN", "timestamp": "2026-01-01T00:00:00Z",
+                            "instrument": "GBP_AUD", "direction": "LONG", "entry": "1",
+                            "stop": "0.9", "atr": "1", "adx": "30", "adx_slope": "9",
+                            "structure": "UPTREND", "extra": ""}])
+    rows = _rows(str(p))
+    assert len(rows) == 1 and rows[0]["candidate_id"] == "MOMENTUM_JOIN"
+
+
+def _hs_module(state):
+    s = importlib.util.spec_from_file_location("hs", os.path.join(_ROOT, "scripts", "health_state.py"))
+    m = importlib.util.module_from_spec(s)
+    s.loader.exec_module(m)
+    m.STATE_FILE = state
+    return m
+
+
+def test_r3_a_save_error_never_swallows_the_alert(tmp_path, monkeypatch, capsys):
+    import ledger_io
+    hs = _hs_module(str(tmp_path / "h.json"))
+    hs.record_failure("outcomes", "x")
+    monkeypatch.setattr(ledger_io, "atomic_write_text",
+                        lambda p, t, lock=True: (_ for _ in ()).throw(OSError("disk full")))
+    hs.main(["x", "record-failure", "outcomes", "x"])
+    out = capsys.readouterr()
+    assert out.out.startswith("ALERT:OUTCOMES UNHEALTHY")
+    assert "state NOT saved: OSError: disk full" in out.err
+
+
+def test_r3_an_unavailable_lock_still_counts_once_and_says_so(tmp_path, monkeypatch, capsys):
+    import ledger_io
+    hs = _hs_module(str(tmp_path / "h.json"))
+
+    def no_lock(path, timeout=60):
+        raise ledger_io.LedgerLockTimeout("held elsewhere")
+    monkeypatch.setattr(ledger_io, "locked", no_lock)
+    hs.record_failure("brief", "x")
+    assert json.load(open(tmp_path / "h.json"))["jobs"]["brief"]["consecutive_failures"] == 1
+    assert "lock unavailable" in capsys.readouterr().err

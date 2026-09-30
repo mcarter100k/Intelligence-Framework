@@ -308,10 +308,23 @@ def test_the_backup_runs_before_the_grader_rewrites_anything(tmp_path):
         (proj / "regime_classification_log.csv").read_text()
 
 
-def test_a_failed_backup_is_an_outcomes_failure(tmp_path):
-    proj = _project(tmp_path)
+def test_a_failed_backup_is_an_outcomes_failure_and_the_grader_does_not_run(tmp_path):
+    """Review R2: the grader used to rewrite the ledgers anyway."""
+    proj = _project(tmp_path, outcome="print('GRADER RAN')")
     (proj / "backups").write_text("a FILE where the backups folder must go")
     _run(tmp_path, proj, "scheduled_outcome_check.sh")
     reason = _jobs(proj)["outcomes"]["last_failure_reason"]
     assert reason.startswith("BACKUP FAILED")
-    assert "BACKUP FAILED" in _log(proj, "outcomes")
+    log = _log(proj, "outcomes")
+    assert "GRADER SKIPPED" in log and "GRADER RAN" not in log
+
+
+def test_a_crashed_or_missing_backup_script_also_stops_the_grader(tmp_path):
+    """Review R10: only a '^BACKUP FAILED' line used to count; a traceback or
+    a missing script was recorded as success and the grader ran."""
+    proj = _project(tmp_path, outcome="print('GRADER RAN')")
+    (proj / "scripts" / "backup_ledgers.py").unlink()
+    _run(tmp_path, proj, "scheduled_outcome_check.sh")
+    reason = _jobs(proj)["outcomes"]["last_failure_reason"]
+    assert reason.startswith("BACKUP FAILED: no success line")
+    assert "GRADER RAN" not in _log(proj, "outcomes")

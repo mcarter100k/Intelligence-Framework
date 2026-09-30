@@ -73,10 +73,42 @@ def _ledger_io():
 
 def _save(d: dict) -> None:
     """Atomic replace (docs/specs/safe_ledger_writes_spec.md): a crash can
-    no longer leave a truncated, unparseable state file. Errors propagate to
-    main(), which reports them on stderr instead of hiding them."""
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    _ledger_io().atomic_write_text(STATE_FILE, json.dumps(d, indent=2))
+    no longer leave a truncated, unparseable state file. A save error is
+    reported on stderr (the wrappers append it to the day log) and never
+    swallows the ALERT/RECOVERED line the caller is about to return
+    (review R3: on the branch's first version, it did)."""
+    try:
+        os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+        _ledger_io().atomic_write_text(STATE_FILE, json.dumps(d, indent=2),
+                                       lock=_save_with_lock[0])
+    except Exception as exc:
+        print(f"health_state: state NOT saved: {type(exc).__name__}: {exc}",
+              file=sys.stderr)
+
+
+_save_with_lock = [True]      # False only inside _with_lock's fallback
+
+
+def _with_lock(fn, *args):
+    """Run a load-modify-save under the state lock. If the lock cannot be
+    had, still compute and return the line (best effort, reported): losing
+    an ALERT is worse than one racy counter update."""
+    lock = None
+    try:
+        lock = _ledger_io().locked(STATE_FILE)
+        lock.__enter__()
+    except Exception as exc:              # only a failure to ACQUIRE falls back
+        print(f"health_state: lock unavailable ({type(exc).__name__}: {exc}); "
+              f"updating without it", file=sys.stderr)
+        _save_with_lock[0] = False
+        try:
+            return fn(*args)
+        finally:
+            _save_with_lock[0] = True
+    try:
+        return fn(*args)                  # runs exactly once
+    finally:
+        lock.__exit__(None, None, None)
 
 
 def _now() -> datetime:
@@ -87,8 +119,7 @@ def record_failure(job: str, reason: str) -> str:
     """Count a failed run of `job`; return the alert line to emit, or ''.
     The whole load-modify-save holds the state file's lock: two wrappers
     finishing together no longer lose an update (B5: 16-37 of 40 kept)."""
-    with _ledger_io().locked(STATE_FILE):
-        return _record_failure_unlocked(job, reason)
+    return _with_lock(_record_failure_unlocked, job, reason)
 
 
 def _record_failure_unlocked(job: str, reason: str) -> str:
@@ -114,8 +145,7 @@ def _record_failure_unlocked(job: str, reason: str) -> str:
 def record_success(job: str) -> str:
     """Reset `job`'s streak; return its one-shot recovery line, or ''.
     Locked load-modify-save, like record_failure."""
-    with _ledger_io().locked(STATE_FILE):
-        return _record_success_unlocked(job)
+    return _with_lock(_record_success_unlocked, job)
 
 
 def _record_success_unlocked(job: str) -> str:

@@ -52,7 +52,10 @@ _held: Dict[str, list] = {}
 
 
 def _lock_path(path: str) -> str:
-    d, name = os.path.split(os.path.abspath(path))
+    # From the REAL path (review R8): through a symlinked ledger file, the
+    # abspath spelling named a different sidecar, so two processes could
+    # both hold "the" lock at once.
+    d, name = os.path.split(os.path.realpath(path))
     return os.path.join(d, f".{name}.lock")
 
 
@@ -100,11 +103,14 @@ def _replace_atomically(path: str, write) -> None:
     """Write via `write(fileobj)` to a temp file beside `path`, fsync it, then
     os.replace it over `path`. Keeps the existing file's permissions."""
     d = os.path.dirname(os.path.abspath(path)) or "."
-    mode = None
     try:
         mode = os.stat(path).st_mode & 0o777
     except FileNotFoundError:
-        pass
+        # A NEW file gets what a plain open() would have given it (review
+        # R7): mkstemp creates 0600, which made fresh ledgers owner-only.
+        umask = os.umask(0)
+        os.umask(umask)
+        mode = 0o666 & ~umask
     fd, tmp = tempfile.mkstemp(prefix=f".{os.path.basename(path)}.",
                                suffix=".tmp", dir=d)
     try:
@@ -112,8 +118,7 @@ def _replace_atomically(path: str, write) -> None:
             write(f)
             f.flush()
             os.fsync(f.fileno())
-        if mode is not None:
-            os.chmod(tmp, mode)
+        os.chmod(tmp, mode)
         os.replace(tmp, path)
     except BaseException:
         try:
@@ -160,7 +165,34 @@ def append_row(path: str, fieldnames: List[str], row: Dict) -> None:
             os.fsync(f.fileno())
 
 
-def atomic_write_text(path: str, text: str) -> None:
-    """Replace a non-CSV file atomically, under its lock."""
+def migrate_header(path: str, fieldnames: List[str]) -> bool:
+    """Additive schema migration, the one shared implementation (review R9;
+    four hand-written copies existed). When the file's header differs from
+    `fieldnames`, rewrite it atomically with the current header: every
+    existing value kept verbatim in its column, blank in any new one.
+    Returns True when it rewrote. A missing, empty or unreadable file is left
+    alone. Holds the lock from the read to the write."""
+    with locked(path):
+        try:
+            with open(path, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                if reader.fieldnames is None or \
+                        list(reader.fieldnames) == list(fieldnames):
+                    return False
+                rows = list(reader)
+        except (OSError, csv.Error, UnicodeDecodeError):
+            return False
+        atomic_write_rows(path, fieldnames,
+                          [{k: (r.get(k) or "") for k in fieldnames} for r in rows])
+        return True
+
+
+def atomic_write_text(path: str, text: str, lock: bool = True) -> None:
+    """Replace a non-CSV file atomically, under its lock. `lock=False` is
+    for an operational file whose lock could not be had (health_state's
+    fallback); the replace itself is still atomic."""
+    if not lock:
+        _replace_atomically(path, lambda f: f.write(text))
+        return
     with locked(path):
         _replace_atomically(path, lambda f: f.write(text))

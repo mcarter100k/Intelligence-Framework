@@ -38,7 +38,6 @@ PLAY pattern mapping (deterministic, suggested-only — the human confirms):
 from __future__ import annotations
 
 import argparse
-import csv
 import os
 import re
 import sys
@@ -520,19 +519,8 @@ def _migrate_journal_header(path: str) -> None:
     with the current header — every existing row preserved verbatim in its
     old columns, blank in the new one. The logger maintaining its own
     schema, never an edit of recorded values. Must run before any append."""
-    from ledger_io import atomic_write_rows, locked
-    with locked(path):
-        try:
-            with open(path, newline="", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                if reader.fieldnames is None or \
-                        list(reader.fieldnames) == _JOURNAL_FIELDS:
-                    return
-                rows = list(reader)
-        except OSError:
-            return
-        atomic_write_rows(path, _JOURNAL_FIELDS,
-                          [{k: (r.get(k) or "") for k in _JOURNAL_FIELDS} for r in rows])
+    from ledger_io import migrate_header
+    migrate_header(path, _JOURNAL_FIELDS)
 
 
 def append_journal(stack: Dict, path: str = JOURNAL_FILE) -> None:

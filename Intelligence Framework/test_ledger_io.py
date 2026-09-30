@@ -153,3 +153,49 @@ def test_the_lock_survives_an_atomic_replace(tmp_path):
                 sys.exit(0)
         """)
         assert other.wait(timeout=30) == 0
+
+
+
+# ── review findings R7, R8, R9 ────────────────────────────────────────────────
+
+def test_r7_a_new_file_gets_normal_permissions(tmp_path):
+    p = tmp_path / "new.csv"
+    umask = os.umask(0)
+    os.umask(umask)
+    ledger_io.atomic_write_rows(str(p), FIELDS, [])
+    assert (os.stat(p).st_mode & 0o777) == (0o666 & ~umask)
+
+
+def test_r8_a_symlinked_ledger_shares_the_real_files_lock(tmp_path):
+    real = tmp_path / "x.csv"
+    real.write_text("a\n")
+    link = tmp_path / "x_link.csv"
+    link.symlink_to(real)
+    holder = _py(f"""
+        import time, ledger_io
+        with ledger_io.locked({str(link)!r}):
+            print("held", flush=True)
+            time.sleep(5)
+    """, stdout=subprocess.PIPE, text=True)
+    assert holder.stdout.readline().strip() == "held"
+    with pytest.raises(ledger_io.LedgerLockTimeout):
+        with ledger_io.locked(str(real), timeout=0.5):
+            pass
+    holder.kill()
+    holder.wait()
+
+
+def test_r9_migrate_header_is_additive_and_verbatim(tmp_path):
+    p = tmp_path / "l.csv"
+    p.write_text("timestamp,x\nt1,1\nt2,\n")
+    assert ledger_io.migrate_header(str(p), ["timestamp", "x", "new_col"]) is True
+    assert p.read_text() == "timestamp,x,new_col\nt1,1,\nt2,,\n"
+    assert ledger_io.migrate_header(str(p), ["timestamp", "x", "new_col"]) is False
+
+
+def test_r9_migrate_header_leaves_missing_and_empty_files_alone(tmp_path):
+    assert ledger_io.migrate_header(str(tmp_path / "none.csv"), FIELDS) is False
+    e = tmp_path / "empty.csv"
+    e.write_text("")
+    assert ledger_io.migrate_header(str(e), FIELDS) is False
+    assert e.read_text() == ""
