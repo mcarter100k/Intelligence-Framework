@@ -172,8 +172,13 @@ def get_session_delta(instrument: str) -> Optional[Dict]:
                               adx_d1_delta, adx_trend, instrument)
         atr_note = _atr_note(atr_now, atr_prior,
                               atr_delta, atr_trend, instrument)
+        # Which timeframes changed, from the flags computed above — the ONE
+        # comparison (regime_change_message_spec review F1).
+        regime_changes = [tf for tf, changed in (("D1", regime_d1_changed),
+                                                 ("H4", regime_h4_changed))
+                          if changed]
         summary  = _build_summary(
-            minutes_ago, regime_changed, filter_changed,
+            minutes_ago, regime_changes, filter_changed,
             adx_trend, atr_trend, adx_note, atr_note,
             current, previous,
         )
@@ -282,27 +287,49 @@ def _atr_note(now: float, prior: float, delta: float,
     return f"Volatility {direction} ({prior:.2f}x → {now:.2f}x)"
 
 
+_NO_DATA = ("", "UNAVAILABLE", "UNKNOWN", "NONE")
+
+
+def _regime_change_text(regime_changes: list, current: dict, previous: dict) -> str:
+    """'D1: A → B; H4: C → D' for the timeframes that changed. Raw tokens —
+    the brief's _plain() words them ('daily chart', 'trending up'). A blank or
+    unavailable reading is a data gap, not a regime: 'no data this run'."""
+    key = {"D1": "regime_d1", "H4": "regime_h4"}
+    def val(row, tf):
+        v = (row.get(key[tf]) or "").strip()
+        return "no data this run" if v.upper() in _NO_DATA else v
+    return "; ".join(f"{tf}: {val(previous, tf)} → {val(current, tf)}"
+                     for tf in regime_changes)
+
+
 def _build_summary(
-    minutes_ago: int, regime_changed: bool, filter_changed: bool,
+    minutes_ago: int, regime_changes: list, filter_changed: bool,
     adx_trend: str, atr_trend: str, adx_note: str, atr_note: str,
     current: dict, previous: dict,
 ) -> str:
     time_str = (f"{minutes_ago}min ago" if minutes_ago < 60
                 else f"{minutes_ago//60}h {minutes_ago%60}min ago")
 
+    changes = _regime_change_text(regime_changes, current, previous)
+    # A filter flip that coincides with a regime change names it too, so the
+    # session line and the regime alert agree (review F6).
+    also = f" Regime changed — {changes}." if changes else ""
+
     # Regime flip — most important, surfaces first
     if filter_changed:
         if str(current["filter_allowed"]).lower() == "true":
             return (f"Since {time_str}: CONDITIONS IMPROVED — "
-                    f"framework may now allow a trade. Re-read the full brief.")
+                    f"framework may now allow a trade.{also} Re-read the full brief.")
         else:
             return (f"Since {time_str}: CONDITIONS DETERIORATED — "
-                    f"framework moved to stand aside.")
+                    f"framework moved to stand aside.{also}")
 
-    if regime_changed:
-        return (f"Since {time_str}: Regime changed "
-                f"({previous['regime_d1']} → {current['regime_d1']}). "
-                f"Re-evaluate.")
+    if changes:
+        # Name each timeframe that actually changed (regime_change_message_
+        # spec): the message used to print the D1 pair only — an H4-only
+        # change read "no clear direction → no clear direction". An em dash,
+        # not parentheses: _plain() adds its own "(…)" to some tokens.
+        return (f"Since {time_str}: Regime changed — {changes}. Re-evaluate.")
 
     # No regime change — surface the most notable delta
     if adx_trend != "STABLE":
