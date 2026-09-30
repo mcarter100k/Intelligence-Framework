@@ -16,7 +16,7 @@ RAW_TOKEN = re.compile(r'\b[A-Za-z]+_[A-Za-z0-9]+\b')
 
 
 def _reason(regime, decision_str="SHORT"):
-    return db._plain(db._build_reason(regime, {}, decision_str, False))
+    return db._render_reason(regime, {}, decision_str, False)
 
 
 def _narrative(regime, decision_str):
