@@ -497,9 +497,14 @@ def test_session_flip_only_alerts_under_the_same_rules(tmp_path, monkeypatch,
                                                        prior_lv, expect_flag):
     """Control (same rules) flags the flip; across the rule change it does not."""
     monkeypatch.setattr(sm, "LOG_FILE", str(tmp_path / "s.csv"))
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    sm._append_row(_session_row(f"{today}T01:00:00Z", True, prior_lv))
-    sm._append_row(_session_row(f"{today}T02:00:00Z", False, LOGIC_VERSION))
+
+    class _Frozen(datetime):          # no UTC-midnight split (issue 4 review F8)
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(sm, "datetime", _Frozen)
+    sm._append_row(_session_row("2026-09-30T01:00:00Z", True, prior_lv))
+    sm._append_row(_session_row("2026-09-30T02:00:00Z", False, LOGIC_VERSION))
     delta = sm.get_session_delta("GBP_AUD")
     assert delta["filter_changed"] is expect_flag
 

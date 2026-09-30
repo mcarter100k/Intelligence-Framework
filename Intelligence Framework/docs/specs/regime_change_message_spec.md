@@ -35,3 +35,19 @@ file touched: `session_memory.py`. Merge is HELD for owner approval.
 - **Gate 2:** `reality_run brief` against the live ledgers (today's rows give
   a real delta).
 - **Gate 3 (PENDING):** the first live brief after a single-timeframe change.
+
+## Addendum (2026-09-30): `/code-review` findings, each reproduced before fixing
+
+| # | Finding | Fix |
+|---|---|---|
+| F1 | `_build_summary` re-compared the regimes, so `Regime changed ()` was possible | The caller passes the timeframes it already flagged (one comparison) |
+| F2/F3 | A blank or outage H4 value rendered `4-hour chart:  → …` or `…unavailable (the data could not be fetched)).` as a market regime | A blank / UNAVAILABLE / UNKNOWN / NONE reading renders "no data this run". An em dash replaces the parentheses (`_plain` adds its own) |
+| F4 | setup_check (the second consumer) had no test on the new format | A test through `setup_check._delta_sentence` |
+| F5 | The raw-token assertion missed single-word tokens (VOLATILE) | The assertion covers VOLATILE/RANGING/TRENDING/UNKNOWN/UNAVAILABLE/D1/H4 and underscores |
+| F6 | A filter flip returned first and hid a simultaneous regime change | The flip message appends "Regime changed — …"; a flip without a change is byte-identical to before |
+| F7 | Display labels were hard-coded in the data layer | The summary carries `D1:` / `H4:` tokens and `_plain` words them |
+| F8 | The test could split "today" across UTC midnight (also latent in the Phase 5 session test) | Time frozen in both |
+
+Final format: `Since 8h 14min ago: Regime changed — H4: TRENDING_UP → VOLATILE.
+Re-evaluate.` renders as `… Regime changed — 4-hour chart: trending up → no
+clear direction. Re-evaluate.`

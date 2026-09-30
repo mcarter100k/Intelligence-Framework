@@ -3571,3 +3571,33 @@ migration immediately after the merge, outside the job windows.
   - The checker found 1 of 1 planted changes per ledger.
 - **Live-checkout suite:** **763 passed, 0 skipped.** The 6 ledger-header checks that skip in a worktree ran and passed.
 - **Gate 3 — PENDING:** the 15:15 PDT grader and the 18:00 brief are the first scheduled runs on p5 code; new rows must carry `p5-2026-09-30`.
+
+---
+
+## 2026-09-30 — Issue 4: the session "Regime changed" message names the timeframe (per docs/specs/regime_change_message_spec.md). Merge HELD
+
+**Defect (live, 02:30 PDT GBP/AUD):** `Regime changed (no clear direction → no clear direction)`. The session rows were D1 VOLATILE→VOLATILE and H4 TRENDING_UP→VOLATILE.
+
+**Before/after, same instrument** (`scratchpad/i4/measure.py`, today's two real rows replayed):
+
+| | Main | Branch |
+|---|---|---|
+| H4-only change (real rows) | `(no clear direction → no clear direction)` | `Regime changed — 4-hour chart: trending up → no clear direction` |
+| Both changed | the H4 change is dropped | both named, daily first |
+
+### Gate 1
+- **Tests:** 11 new tests. 9 fail on main's code; the 2 that pass are the controls (no change; a flip without a change).
+- **Mutations:** 7/7 killed, with the full suite passing after the reverts.
+- **Full suite:** 768 passed (worktree).
+- **Audit probe:** 0 network lookups; the only write is /dev/null (the same as its positive control).
+- **`/code-review`:** 8 findings, all reproduced, all fixed (spec addendum). This includes a latent UTC-midnight race in the Phase 5 session test, now frozen.
+
+### Gate 2
+- **`reality_run brief`** with the branch against the live ledgers: exit 0, project UNCHANGED (hash).
+- **Rendering not exercised live:** no regime change happened in the 35 min since the last run ("Conditions unchanged").
+- **Phase 5's same-rules guard observed live on this run:**
+  - GBP/JPY's pre-migration row has `filter_allowed=True` with a blank version; the new p5 row has `False`.
+  - The session line correctly says "Conditions unchanged", with no false "DETERIORATED".
+
+### Gate 3 — PENDING
+The first live brief after a single-timeframe regime change.
