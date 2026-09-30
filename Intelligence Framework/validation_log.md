@@ -1422,6 +1422,28 @@ evidence (log line / ledger row / notification) is cited here.
       the boundary flap later logged as an open question (alert
       materiality/debounce). The MECHANISM is what this entry clears;
       the flip itself was marginal, not a tradeable regime change.
+- [x] **First FILTER-FLIP alert fire** (added and cleared 2026-09-16) — the
+      second of the three alert variants in
+      docs/specs/alert_expansion_spec.md (regime change / filter flip /
+      exit-watch). The 2026-09-09 clearing above covered the regime-change
+      variant only. **CLEARED 2026-09-16 — MECHANISM ONLY, TRIGGER
+      SYNTHETIC:** `##ALERT## GBP/AUD: conditions deteriorated — the
+      framework has stood down since the last run.` emitted by a real brief
+      run at 02:16 PDT on real OANDA prices. The end-to-end plumbing is
+      demonstrated: session_memory detected a filter transition, built the
+      plain-English line, and decision_brief routed it to the ##ALERT##
+      machine channel where the wrapper would have notified.
+      **The trigger was NOT genuine.** The transition was manufactured by
+      the Gate-2 contamination logged the same day (`0d5607a`): a synthetic
+      `filter_allowed=True` row compared against the next honest `False`
+      row. Nothing deteriorated; the framework had stood down throughout.
+      Same shape as the caveat on the entry above — mechanism proven,
+      trigger not real — and recorded that way deliberately, because a
+      cleared Gate-3 entry that quietly rested on a synthetic trigger would
+      be exactly the "zero from an unverified path" failure inverted:
+      a ONE from a path that only appeared to fire. **A genuine filter flip
+      on real market movement is still owed** and is NOT covered by this
+      entry.
 - [ ] **First Sunday calendar auto-fetch** — com.quis.intelligence.calendar
       fires on schedule and calendar.csv updates (logs/calendar_*.log).
 - [ ] **First real setup_check use** — a pre-trade stack run before an actual
@@ -2905,3 +2927,173 @@ an operator who stops reading it.
 
 **Not fixed by editing.** Both rows stand in the record, flagged here.
 
+
+---
+
+## 2026-09-16 — Exclusion registry, header check, rules 8-10 (per docs/specs/exclusion_registry_spec.md)
+
+Built on `feat/exclusion-registry`, spec committed first (`2bc5246`).
+**Merge held for team review.**
+
+### Why a prose correction was not enough
+
+The CORRECTION entry earlier today (`0d5607a`) named two contaminated rows
+and told a human to exclude them. **The grader is not a human.** It runs at
+15:15, and `regime_classification_log.csv 2026-09-16T09:08:08Z_GBP_AUD`
+carries a prediction with a synthetic `stand_down=False`. Left alone it
+would have been graded and fed into DATA BASIS. Documentation is not a
+control; this is the control.
+
+### `exclusions.py` (NEW — protected list 19 → 20)
+
+Append-only `excluded_rows.csv`:
+`log_id, ledger, date, reason, authorizing_entry`. Seeded with both
+contaminated rows, each citing the CORRECTION entry.
+
+Four design rules, each recorded in the module because each is a place this
+could have gone wrong:
+
+1. **Ledgers are NEVER edited.** The module only reads. An exclusion is an
+   act of interpretation recorded BESIDE the evidence.
+2. **Filter at USE, never at READ.** `check_pending_outcomes` and
+   `check_pending_trade_outcomes` read rows and write them back; filtering
+   at read would have DELETED the excluded rows from append-only ledgers —
+   the precise harm this module exists to prevent. Excluded rows are
+   skipped for grading and passed through to the write-back untouched.
+3. **Every exclusion names an authorizing entry** or `append_exclusion`
+   raises. An unauthorized exclusion is indistinguishable from hiding an
+   inconvenient result.
+4. **Fail OPEN, loudly.** An unreadable registry excludes nothing and says
+   so on stderr. A grader that silently excluded a whole ledger because a
+   file went missing would be worse than one that excluded nothing.
+
+Wired into every tally the ruling named: `check_pending_outcomes`,
+`get_regime_accuracy`, `check_pending_trade_outcomes`,
+`get_accuracy_by_regime`, `get_accuracy_by_signal_type`, session-delta
+comparisons (`_get_today_rows`), and shadow `episode_count` /
+`get_shadow_tally` — the last two sitting beside the existing
+`is_invalid_spec` exclusion, which is the same idea that already existed
+for a different reason.
+
+### Header-vs-schema check — the fourth divergence member
+
+`test_ledger_headers.py`, seven ledgers parameterized, asserting the
+on-disk header equals the writing module's `FIELDNAMES`/`_FIELDS`. An
+absent ledger is SKIPPED, not failed: a fresh checkout has no ledgers, and
+a guard that fails on a clean clone is a guard someone disables. A
+companion test asserts no `.csv` in the repo escapes coverage.
+
+All seven currently match. The check is proved to fire against the real
+historical case — a header missing `shadow_direction` / `shadow_conviction`.
+
+### The guards caught something on their own
+
+Adding `exclusions.py` to the live core made `test_every_live_artifact_is_inventoried`
+fail immediately: `excluded_rows.csv` was a new live-path artifact with no
+inventory entry. **That is the first time these guards have caught anything
+other than the case they were built from.**
+
+It was resolved under STANDING RULE 8 on the rule's first day: the
+registry's writer is a human authorization event, so it can have no
+cadence. Inventoried under `READ_SIDE_NO_CADENCE`, never alarmed on; its
+integrity control is `test_exclusions.py`, not freshness.
+
+### Gate 1
+
+23 new tests (14 exclusion, 9 header). Suite 1297 → **1320 green**; shadow
+**868** unchanged. Neither floor touched. `append_exclusion` is
+allowlisted as an orphan with the reason that matters: **no grader calls
+it, deliberately** — a grader able to write its own exclusions is the
+entire failure mode this registry exists to prevent.
+
+### Gate 2 — REALITY (live, 2026-09-16 ~09:30 UTC)
+
+No neutralization applied and none needed: nothing is forced, every input
+is genuine, and the grader's writes ARE the behavior under test. That
+distinction is exactly what rule 10 draws.
+
+Real `session_context_log.csv`, GBP_AUD, today:
+
+```
+rows physically in the ledger  : 7      <- synthetic row still present
+synthetic row on disk          : True   <- never removed, never will be
+rows reaching delta comparison : 6
+synthetic row reaching a delta : False
+surviving row w/ filter_allowed=True : None
+```
+
+Real `run_outcome_check.py` run, both pairs, completed clean with the
+exclusion wiring live:
+
+```
+GBP_AUD: 0 regime outcomes filled
+  TRENDING_DOWN : 100% (2/2) [7 rows -> 2 independent]
+  VOLATILE      : 0%   (0/3) [8 rows -> 3 independent]
+GBP_JPY: 0 regime outcomes filled
+  RANGING  : 100% (1/1)     VOLATILE : 100% (2/2) [9 rows -> 2 independent]
+```
+
+The excluded row remains `outcome_filled=False` after a real grader pass —
+in the ledger, out of every tally.
+
+**Honest limit:** both 2026-09-16 rows are ~7 hours old against a 20-bar
+D1 window, so neither was gradeable today regardless. This Gate 2 proves
+the wiring runs clean on real data and that the session-delta exclusion
+works on the real ledger; the decisive "would have been graded but was
+not" case is covered by the controlled tests, and by the Gate 3 entry
+below.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+
+- **The excluded row surviving a SCHEDULED 15:15 grader run ungraded**, and
+  still ungraded once its 20-bar window has elapsed — that is the moment
+  exclusion is the only thing preventing a grade.
+- Carried forward: first real `trade_signal_log.csv` row from a genuine
+  directional decision; the degraded-pass branch firing; first live
+  GBP/JPY `m15_trigger = True`; **a genuine filter-flip alert on real
+  market movement** (see the Gate-3 list — the mechanism is cleared, the
+  trigger is not).
+
+### AGENTS.md
+
+Rule 10 added as directed. Rule 9 stays per ruling 1. `exclusions.py`
+joins the PROTECTED list (19 → 20).
+
+
+---
+
+## 2026-09-29 — Full audit + owner-approved removals (branch `chore/audit-cleanup`)
+
+Six review passes, recorded in full in `docs/audit_2026-09-29.md` (verdict,
+scorecard, ranked defects, removal manifest, roadmap). The owner approved
+the removals in session. Nothing in this entry changes a ledger.
+
+**Removed (all recoverable from git history):**
+- `shadow/`: 9,016 LOC and 868 tests. 0 comparisons ever logged.
+- `legacy_validators/`: invalidated 2026-06-29.
+- `studies/verify_shadow_path.py`
+- `update_calendar.py`: superseded by `calendar_fetch.py`.
+- About 300 LOC of unreferenced functions and constants in live modules, plus 18 unused imports.
+- `intraday_context.py` cut from 544 to 113 lines. Only the Asian range was ever consumed. The removed fakeout logic encoded a premise this log had already refuted.
+- `test_decision_invariants.py` keeps the 3 live-module invariants that previously sat under `shadow/`.
+
+**Fixed:** `scripts/weekly_heartbeat.sh` never ran under launchd, because
+`/bin/bash` 3.2 could not parse an apostrophe inside the heredoc at line 35.
+Three Sunday heartbeats were lost (09-13, 09-20, 09-27). The 2026-09-09
+Gate 2 had run under Homebrew bash 5. New guard: `test_shell_syntax.py`.
+`uninstall.sh` now covers the heartbeat plist.
+
+**Evidence-integrity findings, logged here and NOT yet fixed** (see the audit for the full list):
+- `current_price` is the previous closed D1 bar. `_get_bars` drops the forming candle, so `_split_live_bar` never splits. `trade_signal_log.price_at_signal` and `regime_classification_log.price_at_log` therefore carry prices up to about 24h stale.
+- The regime-accuracy tally is not evidence:
+  - MR_WIN measures against the outcome window's own mean.
+  - VOL_EXPANSION is near-impossible to pass.
+  - The "independent" N is inflated about 2x.
+- `shadow_signals.episode_count` treats 30 H4 bars as 120 clock hours (true: about 168h). It also counts ungraded rows.
+- Candidates are evaluated only on the H4 bar that is latest at brief time, so about half of all bars are never checked.
+- The integration tests (`-m integration`) write synthetic rows to the real ledgers. This is the likely origin of the unexplained 2026-07-29T04:23:31Z row.
+- The trade_signal row 2026-06-28T21:39:15Z (exactly +150.0 pips) and the regime row 2026-06-28T23:19:58Z_GBP_AUD carry synthetic signatures. **They are candidates for the exclusion registry and are pending an owner ruling.**
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+
+- First Sunday heartbeat actually delivered under launchd (after merge).

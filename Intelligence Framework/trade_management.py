@@ -31,7 +31,6 @@ MAX_STOP_ATR_MULTIPLE = 1.5  # INFORMED PRIOR — a structural stop wider than
 SPREAD_PIPS           = 4.0  # typical broker round-trip (from quarantined
 MIN_RR_AFTER_SPREAD   = 1.5  # HARD_LIMITS — informed priors, self-contained)
 BREAKEVEN_R    = 1.0   # move stop to entry when trade reaches this R
-PARTIAL_R      = 1.0   # first partial exit at this R (same trigger as breakeven)
 PARTIAL_PCT    = 50    # % of position to close at Step 1
 TRAIL_START_R  = 1.5   # begin trailing after this R
 TRAIL_GAP_R    = 0.5   # trailing stop stays this many R behind current price
@@ -167,84 +166,6 @@ def get_management_plan(
         "r_pips":              r_pips,
         "full_target_price":   target,
         "plan_text":           plan_text,
-    }
-
-
-def check_management_action(
-    entry: float,
-    stop: float,
-    current_price: float,
-    direction: str,
-) -> dict:
-    """
-    Given where price is right now during an open trade, return the action.
-
-    Plain English: call this while in a trade to check what you should do.
-                   The function finds which management rule applies and
-                   tells you the exact next step and new stop price.
-
-    Returns dict:
-        action    : "HOLD" | "MOVE_BREAKEVEN" | "TRAIL" | "INVALIDATED"
-        new_stop  : updated stop (unchanged if HOLD)
-        current_r : R multiple the trade is currently at (negative = underwater)
-        message   : plain-English instruction
-    """
-    r_price = abs(entry - stop)
-    if r_price == 0:
-        return {
-            "action": "HOLD", "new_stop": stop,
-            "current_r": 0.0,
-            "message": "Cannot compute R — stop equals entry price.",
-        }
-
-    current_r = (
-        (current_price - entry) / r_price if direction == "LONG"
-        else (entry - current_price) / r_price
-    )
-    current_r = round(current_r, 2)
-
-    if current_r <= -1.0:
-        return {
-            "action":    "INVALIDATED",
-            "new_stop":  stop,
-            "current_r": current_r,
-            "message":   f"At {current_r:.1f}R — stop should have triggered. Trade idea is dead.",
-        }
-
-    if current_r >= TRAIL_START_R:
-        new_stop = (
-            round(current_price - TRAIL_GAP_R * r_price, 5) if direction == "LONG"
-            else round(current_price + TRAIL_GAP_R * r_price, 5)
-        )
-        return {
-            "action":    "TRAIL",
-            "new_stop":  new_stop,
-            "current_r": current_r,
-            "message": (
-                f"At {current_r:.1f}R — trail active. Move stop to {new_stop:.5f}. "
-                f"Continue moving it {TRAIL_GAP_R}R behind price as trade extends."
-            ),
-        }
-
-    if current_r >= BREAKEVEN_R:
-        return {
-            "action":    "MOVE_BREAKEVEN",
-            "new_stop":  entry,
-            "current_r": current_r,
-            "message": (
-                f"At {current_r:.1f}R — move stop to breakeven ({entry:.5f}). "
-                f"Close {PARTIAL_PCT}% of position now. Let the rest run to target."
-            ),
-        }
-
-    return {
-        "action":    "HOLD",
-        "new_stop":  stop,
-        "current_r": current_r,
-        "message": (
-            f"At {current_r:.1f}R — hold. Stop stays at {stop:.5f}. "
-            f"Move to breakeven when trade reaches +{BREAKEVEN_R}R."
-        ),
     }
 
 

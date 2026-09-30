@@ -2,8 +2,8 @@
 trade_outcome_logger.py
 
 Logs every signal output with enough context to validate accuracy later.
-CSV-based. One row per signal. Outcome fields filled in separately via
-record_outcome().
+CSV-based. One row per signal. Outcome fields filled in by the nightly
+grader, check_pending_trade_outcomes().
 
 Schema mirrors TradeSignal — see field comments for data source.
 """
@@ -47,7 +47,7 @@ _FIELDS = [
     # Price context at signal time
     "price_at_signal",
     "atr_pips",
-    # Outcome fields (filled later via record_outcome())
+    # Outcome fields (filled later by check_pending_trade_outcomes())
     "outcome_filled",
     "outcome_direction",
     "price_20_bars_later",
@@ -109,7 +109,7 @@ def log_signal(
     """
     Log a signal to trade_signal_log.csv.
     Returns the signal_id (ISO timestamp + instrument).
-    outcome_filled defaults to False — call record_outcome() later.
+    outcome_filled defaults to False — the nightly grader fills it.
     shadow_decision: the signal-stack result (logged for comparison, never traded).
     """
     _ensure_file()
@@ -141,7 +141,7 @@ def log_signal(
         "shadow_conviction":   shadow_decision.get("conviction", "") if shadow_decision else "",
         "price_at_signal":     regime_data.get("current_price", 0.0),
         "atr_pips":            regime_data.get("atr_pips", 0.0),
-        # Outcome defaults — populated by record_outcome()
+        # Outcome defaults — populated by check_pending_trade_outcomes()
         "outcome_filled":      False,
         "outcome_direction":   "",
         "price_20_bars_later": "",
@@ -186,38 +186,6 @@ def _fill_outcome(row: Dict, price_outcome: float) -> None:
     row["signal_correct"]      = signal_correct
 
 
-def record_outcome(
-    signal_id:     str,
-    price_outcome: float,
-    bars_elapsed:  int = 20,
-) -> bool:
-    """
-    Fill in outcome fields for a single logged signal by id.
-    Returns True if record found and updated.
-    """
-    if not os.path.exists(_LOG_FILE):
-        return False
-
-    rows = []
-    found = False
-    with open(_LOG_FILE, newline="") as f:
-        for row in csv.DictReader(f):
-            if row["signal_id"] == signal_id and row.get("outcome_filled") != "True":
-                _fill_outcome(row, price_outcome)
-                found = True
-            rows.append(row)
-
-    if not found:
-        return False
-
-    with open(_LOG_FILE, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        writer.writeheader()
-        writer.writerows(rows)
-
-    return True
-
-
 def _bars_after(log_time, index=None) -> int:
     """Number of D1 bar timestamps in `index` strictly after log_time.
     Returns 0 when no index is supplied (cannot locate the window bar)."""
@@ -259,12 +227,24 @@ def check_pending_trade_outcomes(
     if not rows:
         return 0
 
+    # Excluded rows are never graded (exclusions.py). `rows` is written back
+    # below, so they are skipped here rather than filtered out of the list —
+    # filtering would delete them from an append-only ledger.
+    try:
+        from exclusions import excluded_ids, is_excluded as _is_excl
+        _excl = excluded_ids("trade_signal_log.csv")
+    except Exception:
+        _excl, _is_excl = set(), None
+
     filled = 0
     for row in rows:
         if row.get("instrument") != instrument or row.get("outcome_filled") == "True":
             continue
         if row.get("direction") not in ("LONG", "SHORT"):
             continue  # nothing directional to grade
+        if _excl and _is_excl is not None and \
+                _is_excl(row, "trade_signal_log.csv", _excl):
+            continue
 
         try:
             log_time = datetime.fromisoformat(row["timestamp"].replace("Z", "+00:00"))
@@ -311,6 +291,12 @@ def get_accuracy_by_regime(
     if not os.path.exists(_LOG_FILE):
         return {}
 
+    try:
+        from exclusions import excluded_ids, is_excluded as _is_excl
+        _excl = excluded_ids("trade_signal_log.csv")
+    except Exception:
+        _excl, _is_excl = set(), None
+
     groups: Dict[str, list] = {}
     with open(_LOG_FILE, newline="") as f:
         for row in csv.DictReader(f):
@@ -318,6 +304,9 @@ def get_accuracy_by_regime(
                 continue
             if instrument and row["instrument"] != instrument:
                 continue
+            if _excl and _is_excl is not None and \
+                    _is_excl(row, "trade_signal_log.csv", _excl):
+                continue    # never reaches a tally (exclusions.py)
             regime = row["regime_d1"]
             groups.setdefault(regime, []).append(row)
 
@@ -333,37 +322,3 @@ def get_accuracy_by_regime(
             "avg_conviction": round(sum(convictions) / len(convictions), 1) if convictions else 0.0,
         }
     return result
-
-
-def get_accuracy_by_signal_type(instrument: Optional[str] = None) -> Dict:
-    """
-    Compute accuracy for each signal combination:
-    regime_d1 + structure_d1 + weekly_context.
-    Returns dict sorted by accuracy descending.
-    """
-    if not os.path.exists(_LOG_FILE):
-        return {}
-
-    groups: Dict[str, list] = {}
-    with open(_LOG_FILE, newline="") as f:
-        for row in csv.DictReader(f):
-            if row.get("outcome_filled") != "True":
-                continue
-            if instrument and row["instrument"] != instrument:
-                continue
-            key = (
-                f"{row.get('regime_d1', '')}|"
-                f"{row.get('structure_d1', '')}|"
-                f"{row.get('weekly_context', '')}"
-            )
-            groups.setdefault(key, []).append(row)
-
-    result = {}
-    for key, key_rows in groups.items():
-        correct = sum(1 for r in key_rows if r["signal_correct"] == "True")
-        result[key] = {
-            "accuracy": round(correct / len(key_rows), 4),
-            "n":        len(key_rows),
-        }
-
-    return dict(sorted(result.items(), key=lambda x: x[1]["accuracy"], reverse=True))

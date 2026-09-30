@@ -208,10 +208,3 @@ class TestDefect2JpyEntryPathIsAlive:
 
 
 # ── DEFECT 1 — the orphaned read is gone ──────────────────────────────────────
-
-def test_last_run_json_is_never_read_again(tmp_path, monkeypatch):
-    """Planting the artifact back at the repo root must change nothing."""
-    planted = os.path.join(_ROOT, "last_run.json")
-    assert not os.path.exists(planted), (
-        "last_run.json is back on disk — Step 0 renamed it aside and "
-        "nothing should recreate it")

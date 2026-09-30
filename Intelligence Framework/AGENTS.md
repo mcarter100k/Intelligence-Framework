@@ -14,7 +14,7 @@ Idle agents are correct behavior when the queue is empty.
 
 ## PROTECTED — team review required before any merge
 
-**The 19 live core modules** (the tradeable path and its evidence loop):
+**The 20 live core modules** (the tradeable path and its evidence loop):
 
 ```
 decision_brief.py        run_outcome_check.py     regime_detection.py
@@ -23,7 +23,7 @@ trade_outcome_logger.py  shadow_signals.py        session_memory.py
 entry_confirmation.py    levels_context.py        intraday_context.py
 oanda_feed.py            news_gate.py             calendar_fetch.py
 setup_check.py           session_guard.py         risk_config.py
-display_time.py
+display_time.py          exclusions.py
 ```
 
 (`news_gate.py` added 2026-07-30 per the team-approved spec in
@@ -67,10 +67,12 @@ classifier, composite table, conflict logic, tests — is REQUIRED before
 `RANGING` would otherwise fade 60-ADX exhaustion moves as if they were quiet
 ranges.
 
-**Quarantine zones** — `shadow/` (the legacy signal stack; 0 comparisons
-logged, reactivation condition in its README) and `legacy_validators/`
-(invalidated methodology; never cite their output). Promotion out of either
-requires team review; their priors are not evidence.
+**Former quarantine zones — REMOVED 2026-09-29** (owner-approved audit,
+`docs/audit_2026-09-29.md`). `shadow/` (the legacy signal stack; 0
+comparisons ever logged, superseded by `shadow_signals.py`) and
+`legacy_validators/` (invalidated overlapping-window methodology) are gone
+from the tree and live only in git history. Their priors are not evidence;
+restoring either requires team review and a concrete evidence path.
 
 ---
 
@@ -80,6 +82,9 @@ requires team review; their priors are not evidence.
   deleted, never imported by the live path)
 - `scripts/` — automation wrappers and launchd config
 - Tests (new tests are always welcome; see the two floors below)
+- `foundation/` — the curated "what is proven good" knowledge base and the
+  source of the `trading-foundation` skill (`foundation/build_skill.sh`).
+  Add new findings, incidents and rules here with citations.
 - Docs (`*.md`), this file included — but `validation_log.md` is append-only
 
 ---
@@ -106,9 +111,8 @@ requires team review; their priors are not evidence.
      unless review needs them remote. `main` is never the testing ground.
 
 2. **Suite green before any commit.** Full run: `python -m pytest -q`
-   (currently 1280 passed — count corrected 2026-09-16 from a stale 1018;
-   shadow-stack 868 green, run from `shadow/` via its
-   conftest). Two floors that must never be weakened to make something pass:
+   (currently 557 passed — 2026-09-29, after `shadow/` and its 868 tests
+   were removed). Two floors that must never be weakened to make something pass:
    - the **banned-token display test** (`test_brief_display.py`) — rendered
      output stays plain-English: no ADX / pivot / HH-HL / LH-LL / ATR-ratio
    - the **stand-down consistency matrix** (`test_regime_detection_p1.py`,
@@ -166,14 +170,28 @@ requires team review; their priors are not evidence.
    A zero never shown capable of being non-zero is absence of evidence,
    not evidence of absence, and the display must say which.
 
+10. **VERIFICATION RUNS MUST NEUTRALIZE EVERY SIDE EFFECT ON THE PATH THEY
+    EXERCISE (adopted 2026-09-16)**, not only the one under test.
+    `get_decision_brief` writes three ledgers; a Gate-2 run that redirects
+    one contaminates two. Precedents: `trades.csv` test spill
+    (2026-09-11), `session_context_log` + `regime_classification_log`
+    contamination (2026-09-16). Use the `_neutralize_side_effects` helper
+    for any run that touches real files. A contaminated evidence row can
+    never be removed — the ledgers are append-only — so the only remedy is
+    a registry entry (`exclusions.py`) keeping it out of every tally
+    forever. Prevention is the whole of the cure.
+
 ---
 
 ## Live entry points (what "reachable" means)
 
 Daily brief: `python3 decision_brief.py GBP_AUD GBP_JPY`
 Nightly grader: `python3 run_outcome_check.py`
-Automation: `scripts/scheduled_brief.sh`, `scripts/scheduled_outcome_check.sh`
-(launchd plists in `scripts/launchd/`), plus the test suite.
-Anything not reachable from these is research (`studies/`), quarantined
-(`shadow/`, `legacy_validators/`), or a manual tool (`trade_logger.py`,
-`trade_management.py`, `update_calendar.py`).
+Automation: `scripts/scheduled_brief.sh`, `scripts/scheduled_outcome_check.sh`,
+`scripts/scheduled_calendar.sh`, `scripts/weekly_heartbeat.sh` (launchd
+plists in `scripts/launchd/`; launchd runs `/bin/bash` 3.2 — see
+`test_shell_syntax.py`), plus the test suite.
+Anything not reachable from these is research (`studies/`) or a manual tool
+(`setup_check.py`, `trade_logger.py`, `trade_management.py`). Note:
+`session_guard.py` and `risk_config.py` are protected but have NO live
+caller (2026-09-29 audit) — wire them or delete them.

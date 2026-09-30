@@ -105,7 +105,7 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
     try:
         from oanda_feed import get_hourly_bars, get_m15_bars
         from regime_detection import (
-            _detect_structure, _compute_adx, compute_atr_series, PAIRS,
+            _detect_structure, _compute_adx, PAIRS,
         )
 
         pair_cfg   = PAIRS.get(instrument, PAIRS["GBP_AUD"])

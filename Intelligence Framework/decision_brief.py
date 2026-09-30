@@ -27,11 +27,11 @@ DESIGN RULES:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, Dict
 
-from regime_detection import get_regime, PAIRS
+from regime_detection import get_regime
 from regime_classifier_logger import get_regime_accuracy
 
 
@@ -672,7 +672,6 @@ def _build_invalidation(regime: dict, decision_str: str) -> str:
     from regime_detection import (
         _ADX_RANGING_THRESHOLD,
         _ADX_TRANSITION_HIGH,
-        _ADX_EXHAUSTION_THRESHOLD,
     )
 
     d1        = regime.get("regime_d1", "UNKNOWN")

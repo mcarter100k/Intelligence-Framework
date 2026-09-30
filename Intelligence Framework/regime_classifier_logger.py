@@ -26,19 +26,10 @@ USAGE:
 
 import csv
 import os
-import math
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 LOG_FILE = "regime_classification_log.csv"
-
-# Outcome windows per regime type (in bars)
-OUTCOME_WINDOWS = {
-    "TRENDING_UP":   20,
-    "TRENDING_DOWN": 20,
-    "RANGING":       20,
-    "VOLATILE":      8,
-}
 
 # Minimum accuracy threshold — below this a regime is underperforming
 MIN_ACCURACY_THRESHOLD = 0.55
@@ -208,10 +199,24 @@ def check_pending_outcomes(
     filled_count = 0
     now_price = recent_closes[-1] if recent_closes else None
 
+    # Excluded rows are never graded (exclusions.py). They are passed through
+    # to `updated` untouched — the ledger is append-only, so an excluded row
+    # stays in the record; it simply never earns an outcome or a tally.
+    try:
+        from exclusions import excluded_ids, is_excluded
+        _excl = excluded_ids("regime_classification_log.csv")
+    except Exception:
+        _excl, is_excluded = set(), None
+
     updated = []
     for row in rows:
         if (row["instrument"] != instrument or
                 row["outcome_filled"] == "True"):
+            updated.append(row)
+            continue
+
+        if _excl and is_excluded is not None and \
+                is_excluded(row, "regime_classification_log.csv", _excl):
             updated.append(row)
             continue
 
@@ -286,6 +291,13 @@ def get_regime_accuracy(
     actionable    → rerun threshold validation now
     """
     rows = _read_all()
+    # Contaminated/withdrawn rows never reach a tally (exclusions.py). The
+    # ledger keeps them; the accuracy N does not count them.
+    try:
+        from exclusions import filter_rows
+        rows = filter_rows(rows, "regime_classification_log.csv")
+    except Exception:
+        pass
     filled = [r for r in rows
               if r.get("outcome_filled") == "True"
               and (instrument is None or r["instrument"] == instrument)]

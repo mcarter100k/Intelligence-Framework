@@ -36,7 +36,6 @@ from __future__ import annotations
 
 import os
 import requests
-from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import pandas as pd
@@ -157,12 +156,6 @@ def get_h4_bars(pair: str = "GBPAUD", count: int = 120,
                 timeout: int = 10) -> Optional[pd.DataFrame]:
     """Fetch recent 4-hour OHLCV bars from OANDA."""
     return _get_bars(pair, granularity="H4", count=count, timeout=timeout)
-
-
-def get_m5_bars(pair: str = "GBPAUD", count: int = 10,
-                timeout: int = 10) -> Optional[pd.DataFrame]:
-    """Fetch recent 5-minute OHLCV bars from OANDA."""
-    return _get_bars(pair, granularity="M5", count=count, timeout=timeout)
 
 
 def get_m15_bars(pair: str = "GBPAUD", count: int = 10,
