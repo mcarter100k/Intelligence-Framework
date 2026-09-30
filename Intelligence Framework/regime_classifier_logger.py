@@ -87,6 +87,10 @@ FIELDNAMES = [
     # "prior_close" (fallback, labelled). BLANK on rows logged before
     # 2026-09-30: those all used the previous D1 close.
     "price_basis",
+    # decision_logic_spec.md: the decision rules in force when the row was
+    # written (official_decision.LOGIC_VERSION). BLANK on rows logged before
+    # Phase 5 (2026-09-30) — never pool evidence across rule changes.
+    "logic_version",
 ]
 
 
@@ -174,6 +178,7 @@ def log_regime(regime_data: Dict, instrument: str) -> str:
         "price_at_outcome":   "",
         "outcome_correct":    "",
         "outcome_detail":     "",
+        "logic_version":      regime_data.get("logic_version", ""),
     }
 
     _write_row(row)

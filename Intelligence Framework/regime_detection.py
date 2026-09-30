@@ -673,14 +673,16 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
     follow" — NOT a quiet market), else "". The subtype exists so the
     display layer can render the two meanings of RANGING honestly without
     re-deriving any threshold (docs/specs/exhaustion_subtype_display_spec.md).
-    Routing is unchanged — the subtype is metadata, never a decision input.
+    Since decision_logic_spec D1 (2026-09-30) the subtype is also read by
+    apply_filter: EXHAUSTION on either timeframe stands aside.
 
     INFORMED PRIOR (v1 invalidated by serial correlation, see validation_log 2026-06-29):
     - ADX < 18: mean reversion dominant on both pairs — RANGING
     - ADX 18-25: no consistent edge — TRANSITION (size down, require structure)
     - ADX 25-32: narrow momentum window, degrades fast — TRENDING (cautious)
     - ADX 32+ GBP/JPY: 82.7% mean reversion at 40+ — EXHAUSTION → RANGING
-    - ADX > 32 general: late-trend, not entry signal — flag in output
+    - ADX > 32 general: late-trend, not entry signal — flag in output;
+      a trend only with agreeing structure, like 25-32
 
     ADX does NOT predict trend continuation. It measures trend strength
     that already occurred. Use structure (Problem 2) for direction confirmation.
@@ -703,10 +705,10 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
     if instrument == "GBP_JPY" and adx >= _ADX_JPY_EXHAUSTION:
         return "RANGING", "EXHAUSTION"  # exhaustion: fade, don't follow
 
-    # Late-trend warning for both pairs
-    if adx >= _ADX_EXHAUSTION_THRESHOLD:
-        # Still classify as trending but caller gets exhaustion flag
-        return ("TRENDING_UP" if slope > 0 else "TRENDING_DOWN"), ""
+    # ADX >= 32 (late trend) falls through to the SAME structure-agreement
+    # rule as 25-32 (decision_logic_spec D2, owner decision 2026-09-30):
+    # there are no slope-only trend calls. The late-trend warning is carried
+    # by get_regime's adx_exhaustion flag, which cuts conviction.
 
     # Validated transition zone — no statistical edge. Subtype is display
     # metadata only (docs/specs/unresolved_direction_polish_spec.md).
@@ -717,7 +719,8 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
     if adx < _ADX_RANGING_THRESHOLD:
         return "RANGING", ""
 
-    # ADX 25-32: narrow momentum window — require HTF structure confirmation
+    # ADX 25+ (the 25-32 momentum window and the 32+ late trend): require HTF
+    # structure confirmation
     # (Problem 2). Slope alone is NOT a confirmed trend: the structure must
     # agree with the slope direction. Transitional or conflicting structure →
     # no confirmed edge → VOLATILE (stand aside), never a slope-only momentum
@@ -732,7 +735,22 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
     # Display metadata only; the regime stays VOLATILE, routing unchanged.
     if structure == "TRANSITIONAL":
         return "VOLATILE", "UNCONFIRMED_TREND"
+    # Confirmed structure that the slope strictly OPPOSES: the single source
+    # of STRUCTURE_DISAGREES (decision_logic_spec review 2, R1/R7/R9). The
+    # filter and the brief read this instead of re-deriving ADX bands — they
+    # had drifted (an ATR spike was called a disagreement). A flat slope is
+    # not a disagreement and stays "".
+    if (structure == "UPTREND" and slope < 0) or \
+            (structure == "DOWNTREND" and slope > 0):
+        return "VOLATILE", "STRUCTURE_DISAGREES"
     return "VOLATILE", ""
+
+
+def _logic_version() -> str:
+    """The decision rules in force (official_decision.LOGIC_VERSION); lazy so
+    this module never needs official_decision at import time."""
+    from official_decision import LOGIC_VERSION
+    return LOGIC_VERSION
 
 
 def is_trading_day(d) -> bool:
@@ -1154,8 +1172,35 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     from news_gate import check_news_gate as _check_news_gate
     _news_gate = _check_news_gate(pair.instrument)
 
+    # ── Range bounds (for range / fade-from-edge trading) ─────────────────────
+    # In a RANGING regime the decision layer needs the consolidation bounds to
+    # know whether price sits at an edge (tradeable) or mid-range (no edge).
+    # Defined over the last ~20 completed D1 bars. range_position: 0.0 = at the
+    # low (support), 1.0 = at the high (resistance).
+    _rng_n    = min(20, len(highs))
+    _rng_hi   = max(highs[-_rng_n:]) if _rng_n else last_close
+    _rng_lo   = min(lows[-_rng_n:])  if _rng_n else last_close
+    _rng_span = _rng_hi - _rng_lo
+    _rng_pos  = (last_close - _rng_lo) / _rng_span if _rng_span > 0 else 0.5
+    _rng_pos  = max(0.0, min(1.0, _rng_pos))
+
+    _adx_exhaustion = (current_adx >= _ADX_EXHAUSTION_THRESHOLD or
+                       (pair.instrument == "GBP_JPY"
+                        and current_adx >= _ADX_JPY_EXHAUSTION))
+
+    # The filter runs the official decision on its provisional allow
+    # (decision_logic_spec D4), so it gets every input that decision reads —
+    # formerly adx, confidence, instrument, the subtypes and range_position
+    # were missing here and only reached the official path afterwards.
     from no_trade_filter import apply_filter as _apply_filter, get_filter_summary as _get_filter_summary
     _fr = _apply_filter({
+        "instrument":           pair.instrument,
+        "adx":                  current_adx,
+        "confidence":           confidence,
+        "adx_exhaustion":       _adx_exhaustion,
+        "range_position":       round(_rng_pos, 3),
+        "regime_d1_subtype":    d1_subtype,
+        "regime_h4_subtype":    h4_subtype,
         "regime_d1":            d1_regime,
         "regime_h4":            h4_regime,
         "adx_h4":               adx_h4,
@@ -1176,18 +1221,6 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     _fr_summary       = _get_filter_summary(_fr)
     stand_down        = not _fr.allowed
     stand_down_reason = _fr.reason if not _fr.allowed else ""
-
-    # ── Range bounds (for range / fade-from-edge trading) ─────────────────────
-    # In a RANGING regime the decision layer needs the consolidation bounds to
-    # know whether price sits at an edge (tradeable) or mid-range (no edge).
-    # Defined over the last ~20 completed D1 bars. range_position: 0.0 = at the
-    # low (support), 1.0 = at the high (resistance).
-    _rng_n    = min(20, len(highs))
-    _rng_hi   = max(highs[-_rng_n:]) if _rng_n else last_close
-    _rng_lo   = min(lows[-_rng_n:])  if _rng_n else last_close
-    _rng_span = _rng_hi - _rng_lo
-    _rng_pos  = (last_close - _rng_lo) / _rng_span if _rng_span > 0 else 0.5
-    _rng_pos  = max(0.0, min(1.0, _rng_pos))
 
     return {
         "regime":          regime,
@@ -1218,8 +1251,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         # ── Multi-timeframe (D1 + H4) ─────────────────────────────────────────
         "regime_d1":          d1_regime,
         "regime_h4":          h4_regime,
-        # display-honesty subtypes (docs/specs/exhaustion_subtype_display_spec.md)
-        # — metadata for wording only, never a decision input
+        # display-honesty subtypes (docs/specs/exhaustion_subtype_display_spec.md).
+        # EXHAUSTION is ALSO a decision input since decision_logic_spec D1: the
+        # filter stands aside on it (passed to apply_filter above).
         "regime_d1_subtype":  d1_subtype,
         "regime_h4_subtype":  h4_subtype,
         "structure_h4":       h4_structure,
@@ -1267,16 +1301,11 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "slope_fallback":   structure_data["slope_fallback"],
         "pivot_count_high": structure_data["pivot_count_high"],
         "pivot_count_low":  structure_data["pivot_count_low"],
-        "adx_exhaustion": (
-            (current_adx >= _ADX_EXHAUSTION_THRESHOLD) or
-            (pair.instrument == "GBP_JPY" and current_adx >= _ADX_JPY_EXHAUSTION)
-        ),
+        "adx_exhaustion": _adx_exhaustion,
         "adx_exhaustion_note": (
             f"ADX {current_adx} — late trend warning. "
             f"Mean reversion probability elevated. Size down, do not chase."
-            if (current_adx >= _ADX_EXHAUSTION_THRESHOLD or
-                (pair.instrument == "GBP_JPY" and current_adx >= _ADX_JPY_EXHAUSTION))
-            else ""
+            if _adx_exhaustion else ""
         ),
         "atr_compression":      _atr_compression,
         "atr_compression_note": _atr_compression_note,
@@ -1288,9 +1317,11 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "filter_mode":         _fr.execution_mode,
         "filter_size_mult":    _fr.size_mult,
         "filter_reason":       _fr.reason,
+        "filter_block":        _fr.block,
         "override_fired":      _fr.override_fired,
         "override_conditions": _fr.override_conditions,
         "filter_summary":      _fr_summary,
+        "logic_version":       _logic_version(),
         # ── Bar freshness (audit item 4) ──────────────────────────────────────
         "last_closed_bar_age_hours": round(live_bar_age_d1, 1),
         "live_bar_in_progress":      live_bar_d1 is not None,
@@ -1347,9 +1378,11 @@ def _error_result(msg: str) -> Dict:
         "filter_mode":         "STAND_DOWN",
         "filter_size_mult":    0.0,
         "filter_reason":       "",
+        "filter_block":        "",
         "override_fired":      False,
         "override_conditions": "",
         "filter_summary":      "",
+        "logic_version":       _logic_version(),
         "structure":           "TRANSITIONAL",
         "confirmed_highs":     [],
         "confirmed_lows":      [],

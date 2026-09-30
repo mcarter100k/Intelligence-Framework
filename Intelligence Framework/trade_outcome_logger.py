@@ -65,6 +65,10 @@ _FIELDS = [
     # "prior_close" (fallback, labelled). BLANK on rows logged before
     # 2026-09-30: those all used the previous D1 close.
     "price_basis",
+    # decision_logic_spec.md: the decision rules in force when the row was
+    # written (official_decision.LOGIC_VERSION). BLANK on rows logged before
+    # Phase 5 (2026-09-30) — never pool evidence across rule changes.
+    "logic_version",
 ]
 
 
@@ -143,6 +147,7 @@ def log_signal(
         "signal_correct":      "",
         "size_pct":            "" if size_pct is None else int(size_pct),
         "entry_context":       entry_context or "",
+        "logic_version":       decision_data.get("logic_version", ""),
     }
 
     append_row(_LOG_FILE, _FIELDS, row)          # locked + fsynced (ledger_io)

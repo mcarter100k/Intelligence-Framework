@@ -253,7 +253,11 @@ def check_shadow_signals(instrument: str, ctx: Optional[Dict] = None) -> List[Di
     if out:
         try:
             from news_gate import check_news_gate
-            if check_news_gate(instrument).get("gating"):
+            # "pre_release", not "gating": the gate gained a 30-min
+            # post-release buffer on 2026-09-30 (decision_logic_spec D5); the
+            # frozen stamp keeps its original meaning — an event 0-120 min
+            # ahead — so shadow evidence is never pooled across definitions.
+            if check_news_gate(instrument).get("pre_release"):
                 for s in out:
                     s["extra"] = (f"{s['extra']}|" if s.get("extra") else "") + \
                                  "news_window=true"

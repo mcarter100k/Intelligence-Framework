@@ -131,9 +131,13 @@ def test_brief_renders_stale_calendar_line():
 
 def test_shadow_signals_fire_through_news_window(monkeypatch):
     import shadow_signals as ss
+    # pre_release: the gate's flag for "an event 0-120 min ahead" (added with
+    # the post-release buffer, decision_logic_spec review V6); this mock is an
+    # event 30 min ahead, so the real gate sets it.
     monkeypatch.setattr(news_gate, "check_news_gate",
                         lambda *a, **k: {"active": True, "gating": True,
-                                         "event": "UK CPI", "minutes_until": 30})
+                                         "event": "UK CPI", "minutes_until": 30,
+                                         "pre_release": True})
     ctx = {
         "O": [217.0] * 40, "H": [217.5] * 40, "L": [216.5] * 40, "C": [217.0] * 40,
         "T": [datetime(2026, 7, 30, 12, 0, tzinfo=timezone.utc)] * 40,

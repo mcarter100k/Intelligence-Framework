@@ -198,7 +198,7 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
                         key_level_price = _lvl
                         break
 
-            # M15 trigger: engulfing in direction + near key level (or level unavailable)
+            # M15 trigger: engulfing in direction + near key level (both required)
             if nm >= 2:
                 if direction == "LONG":
                     m15_level = m15l[-1]
@@ -217,13 +217,18 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
                                          f"{key_level_price:.4f} — enter on "
                                          f"close above/below engulfing candle")
                     elif not _level_available:
-                        m15_trigger   = True
-                        trigger_basis = (f"{_eng['pattern']} confirmed "
-                                         f"— level check unavailable "
-                                         f"(degraded trigger)")
-                        m15_signal    = (f"{_eng['pattern']} — level check "
-                                         f"unavailable, triggering on "
-                                         f"pattern alone")
+                        # Missing level data is NOT READY, never a looser
+                        # trigger (decision_logic_spec D6): the key-level
+                        # check is half the trigger, and a failed feed must
+                        # not quietly waive it.
+                        m15_trigger   = False
+                        trigger_basis = (f"{_eng['pattern']} seen, but level "
+                                         f"data unavailable — cannot confirm "
+                                         f"the entry at a key level; not ready")
+                        m15_signal    = (f"{_eng['pattern']} — level data "
+                                         f"unavailable, so the key-level "
+                                         f"check cannot run; do not enter "
+                                         f"on the pattern alone")
                     else:
                         trigger_basis = (f"{_eng['pattern']} detected, "
                                          f"not near a key level "

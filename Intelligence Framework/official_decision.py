@@ -30,33 +30,62 @@ _RANGE_EDGE = 0.25
 RANGE_TRADING_ENABLED = False
 
 
+# The decision rules in force (docs/specs/decision_logic_spec.md). Logged on
+# every regime, trade and session row so evidence recorded under different
+# rules is never pooled: rows written before Phase 5 carry it blank.
+LOGIC_VERSION = "p5-2026-09-30"
+
+
+def _no_trade(reason: str) -> Dict:
+    return {
+        "direction": "NO TRADE", "conviction": 0, "grade": "C",
+        "size_mult": 0.0, "reason": reason,
+        "source": "official_filter_path", "logic_version": LOGIC_VERSION,
+    }
+
+
 def get_official_decision(regime: Dict) -> Dict:
     """
     The single official decision. Input: full get_regime() dict.
     Output dict:
-      direction   : "LONG" | "SHORT" | "NO TRADE"
-      conviction  : 0-100
-      grade       : "A+" | "A" | "B+" | "B" | "C"
-      size_mult   : float (from filter)
-      reason      : str
-      source      : "official_filter_path"
+      direction     : "LONG" | "SHORT" | "NO TRADE"
+      conviction    : 0-100
+      grade         : "A+" | "A" | "B+" | "B" | "C"
+      size_mult     : float (from filter)
+      reason        : str
+      source        : "official_filter_path"
+      logic_version : LOGIC_VERSION
+
+    NO TRADE when the filter blocked; otherwise decide(). Since apply_filter
+    itself runs decide() and blocks whenever it would not trade, a filter
+    allow always yields LONG/SHORT here (decision_logic_spec: the filter is
+    the single stand-down authority). The checks in decide() still run on
+    this path — defence in depth, never a second, disagreeing authority.
     """
-    allowed    = regime.get("filter_allowed", False)
-    exec_mode  = regime.get("filter_mode",
-                 regime.get("execution_mode", "STAND_DOWN"))
-    size_mult  = float(regime.get("filter_size_mult", 0.0) or 0.0)
+    if not regime.get("filter_allowed", False):
+        return _no_trade(regime.get("filter_reason", "Filter stand-down"))
+    return decide(
+        regime,
+        exec_mode=regime.get("filter_mode",
+                             regime.get("execution_mode", "STAND_DOWN")),
+        size_mult=float(regime.get("filter_size_mult", 0.0) or 0.0),
+        override=regime.get("override_fired", False),
+    )
+
+
+def decide(regime: Dict, exec_mode: str, size_mult: float,
+           override: bool = False) -> Dict:
+    """
+    The whole call for a setup the market-condition checks have passed:
+    direction, the (disabled) range trade, conviction and grade. Pure — the
+    same inputs always give the same answer. apply_filter calls this on its
+    provisional allow and blocks with the returned reason whenever the
+    direction is NO TRADE, so the filter and the official decision cannot
+    disagree.
+    """
     confidence = regime.get("confidence", "NONE")
     d1         = regime.get("regime_d1", "UNKNOWN")
     structure  = regime.get("structure", "TRANSITIONAL")
-    override   = regime.get("override_fired", False)
-
-    if not allowed:
-        return {
-            "direction": "NO TRADE", "conviction": 0, "grade": "C",
-            "size_mult": 0.0,
-            "reason": regime.get("filter_reason", "Filter stand-down"),
-            "source": "official_filter_path",
-        }
 
     from no_trade_filter import _derive_direction
 
@@ -89,23 +118,18 @@ def get_official_decision(regime: Dict) -> Dict:
         # Gate: an unreviewed heuristic does not trade. A detected range
         # candidate stands aside until range trading is reviewed + validated.
         if range_trade and not RANGE_TRADING_ENABLED:
-            return {
-                "direction": "NO TRADE", "conviction": 0, "grade": "C",
-                "size_mult": 0.0,
-                "reason": ("Range trading candidate detected — disabled pending "
-                           "team review and validation."),
-                "source": "official_filter_path",
-            }
+            return _no_trade("Range trading candidate detected — disabled "
+                             "pending team review and validation.")
 
     if direction == "NONE":
-        return {
-            "direction": "NO TRADE", "conviction": 0, "grade": "C",
-            "size_mult": 0.0,
-            "reason": ("Range mid-zone or edge blocked by the dominant weekly "
-                       "trend — wait for price to reach a tradeable range "
-                       "extreme before fading."),
-            "source": "official_filter_path",
-        }
+        if exec_mode == "FADE_EXTREMES":
+            return _no_trade("Range mid-zone or edge blocked by the dominant "
+                             "weekly trend — wait for price to reach a "
+                             "tradeable range extreme before fading.")
+        # A mode that wants a trend direction the daily chart does not give
+        # (e.g. daily ranging under a trending 4-hour) — nothing to follow.
+        return _no_trade("The daily chart gives no trend direction to follow "
+                         "— no trade. Standing aside.")
 
     # Conviction: deterministic from validated components
     # Base by confidence tier (from resolution table, P6)
@@ -166,9 +190,16 @@ def get_official_decision(regime: Dict) -> Dict:
     elif conviction >= 45: grade = "B"
     else:                  grade = "C"
 
+    # Grade C is never a trade (owner decision 2026-09-30; risk_config risks
+    # 0% on C). Formerly the brief showed a C as a direction at 75% size —
+    # the real 2026-09-25 GBP/JPY row.
+    if grade == "C":
+        return _no_trade(f"Setup grades C (conviction {conviction} of 100) — "
+                         f"the risk rules never trade a C. Standing aside.")
+
     return {
         "direction": direction, "conviction": conviction,
         "grade": grade, "size_mult": size_mult,
         "reason": regime.get("resolution_note", exec_mode) + jpy_note + range_note,
-        "source": "official_filter_path",
+        "source": "official_filter_path", "logic_version": LOGIC_VERSION,
     }
