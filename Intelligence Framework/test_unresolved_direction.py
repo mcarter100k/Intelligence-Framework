@@ -96,9 +96,10 @@ def test_data_basis_other_regimes_unchanged(monkeypatch):
 
 # ── regime ledger: 26-column pin, migration, populated subtype ─────────────────
 
-def test_ledger_schema_pinned_at_26():
-    assert len(rcl.FIELDNAMES) == 26
-    assert rcl.FIELDNAMES[-1] == "subtype"
+def test_ledger_schema_pinned_at_27():
+    # 26 -> 27 on 2026-09-30: price_basis appended (data_at_source_spec P1).
+    assert len(rcl.FIELDNAMES) == 27
+    assert rcl.FIELDNAMES[-2:] == ["subtype", "price_basis"]
 
 def test_subtype_tag_format():
     assert rcl._subtype_tag({"regime_d1_subtype": "UNCONFIRMED_TREND",
@@ -111,7 +112,7 @@ def test_subtype_tag_format():
 
 def test_migration_additive_and_lossless(tmp_path, monkeypatch):
     monkeypatch.setattr(rcl, "LOG_FILE", str(tmp_path / "regime.csv"))
-    old_fields = rcl.FIELDNAMES[:-1]
+    old_fields = rcl.FIELDNAMES[:-2]        # before subtype AND price_basis
     with open(rcl.LOG_FILE, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=old_fields)
         w.writeheader()
@@ -124,6 +125,7 @@ def test_migration_additive_and_lossless(tmp_path, monkeypatch):
         rows = list(reader)
     assert rows[0]["outcome_detail"] == "KEEP"        # old values verbatim
     assert rows[0]["subtype"] == ""                   # old rows blank
+    assert rows[0]["price_basis"] == ""               # blank = pre-2026-09-30 prior close
 
 def test_new_classification_populates_subtype(tmp_path, monkeypatch):
     monkeypatch.setattr(rcl, "LOG_FILE", str(tmp_path / "regime.csv"))

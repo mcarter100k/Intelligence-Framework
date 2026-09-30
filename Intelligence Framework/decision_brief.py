@@ -70,6 +70,7 @@ class DecisionBrief:
     entry_line:           str             = ""   # LONG/SHORT: trigger + level
     target_line:          str             = ""   # LONG/SHORT: honest target note
     news_note:            str             = ""   # stale/missing-calendar honesty line
+    price_basis:          str             = "live"   # data_at_source_spec P1
 
     def format(self) -> str:
         """Render the brief as a formatted string."""
@@ -112,6 +113,10 @@ class DecisionBrief:
             f"  MARKET STATE {self._wrap(ms, 37, 15)}",
             f"",
         ]
+        # A fallback price is never shown as if it were live (P1).
+        if self.price_basis == "prior_close":
+            lines.insert(3, "  Price is the previous daily close — the live "
+                            "price could not be fetched")
         # Market status / bar freshness — inserted between Price/ATR line and border
         if not self.market_open and self.market_note:
             lines.insert(3, f"  {self.market_note}")
@@ -231,6 +236,7 @@ def _plain(text: str) -> str:
         ("LH_LL",                  "lower highs and lower lows"),
         ("TRANSITIONAL",           "mixed structure"),
         ("CONTINUATION",           "trend continuation"),
+        ("UNAVAILABLE",            "unavailable (the data could not be fetched)"),
         # ── Jargon sweep (display layer only) — banned tokens → plain English ──
         ("pivot structure",        "price structure"),
         ("HH/HL",                  "stair-step pattern of higher highs and higher lows"),
@@ -419,6 +425,7 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             instrument=instrument,
             timestamp=timestamp,
             price=float(regime.get("current_price", 0.0)),
+            price_basis=regime.get("price_basis") or "live",
             atr_pips=float(regime.get("atr_pips", 0.0)),
             decision=decision_str,
             reason=reason,

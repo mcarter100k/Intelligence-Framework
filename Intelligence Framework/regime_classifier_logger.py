@@ -83,6 +83,10 @@ FIELDNAMES = [
     # unresolved bucket can be split in future accuracy analysis.
     # Old rows blank; loss_species-style migration on append.
     "subtype",
+    # data_at_source_spec.md P1: "live" (OANDA mid at log time) or
+    # "prior_close" (fallback, labelled). BLANK on rows logged before
+    # 2026-09-30: those all used the previous D1 close.
+    "price_basis",
 ]
 
 
@@ -156,6 +160,7 @@ def log_regime(regime_data: Dict, instrument: str) -> str:
         "timeframe_conflict": regime_data.get("timeframe_conflict", False),
         "stand_down":         regime_data.get("stand_down", False),
         "price_at_log":       regime_data.get("current_price", 0.0),
+        "price_basis":        regime_data.get("price_basis", ""),
         "atr_pips_at_log":    regime_data.get("atr_pips", 0.0),
         "prediction_type":    prediction_type,
         "prediction_window":  prediction_window,

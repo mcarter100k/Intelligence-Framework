@@ -171,6 +171,20 @@ def apply_filter(regime: dict) -> FilterResult:
                     f"aside until after."),
         )
 
+    # Weekly trend data unavailable (docs/specs/data_at_source_spec.md P3).
+    # The 20-week trend gate below needs lt_trend; without it the gate used to
+    # be skipped silently (UNAVAILABLE used to arrive as RANGING). Same class
+    # as the H4 outage: the framework will not present a read it cannot check.
+    if weekly_ctx == "UNAVAILABLE" or lt_trend == "UNAVAILABLE":
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=("Weekly trend data unavailable — the 20-week trend "
+                    "check cannot run, so standing aside."),
+        )
+
     # ATR compression (GBP/JPY pre-BoJ coil)
     if atr_comp:
         return FilterResult(
