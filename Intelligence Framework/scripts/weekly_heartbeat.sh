@@ -32,7 +32,7 @@ st = subprocess.run(["python3", "scripts/health_state.py", "status"],
                     capture_output=True, text=True).stdout.strip()
 lines.append(f"health: {st or 'state unavailable'}")
 
-# 2. yesterday's scheduled runs: present? error content?
+# 2. scheduled runs from yesterday: present? error content?
 for kind in ("brief", "outcomes"):
     p = f"logs/{kind}_{yday}.log"
     if not os.path.exists(p):
