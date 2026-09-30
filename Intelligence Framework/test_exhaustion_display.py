@@ -125,8 +125,7 @@ def test_build_reason_live_shape_never_says_sideways_on_exhaustion():
               "weekly_context": "PULLBACK_IN_UPTREND",
               "execution_mode": "STAND_DOWN", "stand_down_reason": "",
               "filter_allowed": False, "filter_reason": ""}
-    reason = db._plain(db._exhaustion_reason_pass(
-        db._build_reason(regime, {}, "STAND DOWN", False), regime))
+    reason = db._render_reason(regime, {}, "STAND DOWN", False)
     assert "moving sideways" not in reason
     assert "overextended" in reason
 
@@ -139,8 +138,7 @@ def test_build_reason_quiet_h4_ranging_still_says_sideways():
               "weekly_context": "PULLBACK_IN_UPTREND",
               "execution_mode": "STAND_DOWN", "stand_down_reason": "",
               "filter_allowed": False, "filter_reason": ""}
-    reason = db._plain(db._exhaustion_reason_pass(
-        db._build_reason(regime, {}, "STAND DOWN", False), regime))
+    reason = db._render_reason(regime, {}, "STAND DOWN", False)
     assert "moving sideways" in reason
 
 

@@ -3601,3 +3601,31 @@ migration immediately after the merge, outside the job windows.
 
 ### Gate 3 — PENDING
 The first live brief after a single-timeframe regime change.
+
+---
+
+## 2026-09-30 — R2b (Phase 5 review 2): the 20-week alignment gate's dead exceptions removed; the reason states the real rule (per docs/specs/weekly_alignment_wording_spec.md + addendum)
+
+- **Owner direction:** "fix the 10 more problems from the 2nd code review". Nine were already fixed in Phase 5; R2b was the one left open.
+- **Correction during the work:**
+  - My first build reworded the exception ("allowed only when … bouncing against the main trend").
+  - `/code-review` showed that sentence promised something that can never happen: the exceptions are unreachable.
+- **Unreachability proven with the real classifier:** over all 9 lt × st combinations (each one realized), COUNTER_TREND_BOUNCE never pairs with lt=UPTREND, and PULLBACK_IN_UPTREND never pairs with lt=DOWNTREND. The exceptions have been dead since d661d81 (2026-06-28).
+- **What the gate actually is:** never trade against the 20-week trend. The reason now says exactly that, coded `weekly_alignment`.
+
+### Gate 1
+- **No decision changes:**
+  - Grid of 6,912 reachable cells, main vs branch: **0 differences**, with the identical 864 gate-blocked cells.
+  - History replay, 825 days × 2 pairs: **0 decision differences**.
+  - The one behavior change is on impossible hand-built dicts (the exception pairing), which are now blocked. That is stricter, and it is pinned.
+- **Tests:** 13 new. The rendered REASON for every reachable blocked combination has no raw labels. The gate stays silent with the trend or on a RANGING 20-week.
+- **Mutations:** 6/6 killed, including restoring either dead exception. The full suite passes after the reverts.
+- **`_render_reason`:** now the single REASON pipeline. The banned-token floor test and three others use it (stronger: they now check what the trader sees).
+- **`/code-review`:** two rounds, with 8 findings in round 2, all addressed.
+- **Full suite:** 781 passed (worktree).
+
+### Gate 2
+- `reality_run brief`: exit 0, project UNCHANGED (hash).
+
+### Open owner decision
+Whether a counter-trend exception is wanted at all. It has never been active.

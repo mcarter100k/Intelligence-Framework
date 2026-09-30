@@ -44,7 +44,7 @@ def _brief_from_regime(regime, shadow_pending=None, pip=0.0001):
     direction = off["direction"]
     decision_str = ("STAND DOWN" if direction in ("NO TRADE", "") or regime.get("stand_down")
                     else direction)
-    reason = db._plain(db._build_reason(regime, {}, decision_str, regime.get("override_fired", False)))
+    reason = db._render_reason(regime, {}, decision_str, regime.get("override_fired", False))
     invalidation = db._plain(db._build_invalidation(regime, decision_str))
     d1, h4 = regime.get("regime_d1"), regime.get("regime_h4")
     adx_d1, adx_h4 = float(regime.get("adx", 0)), float(regime.get("adx_h4", 0))

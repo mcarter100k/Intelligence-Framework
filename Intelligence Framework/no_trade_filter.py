@@ -57,7 +57,8 @@ class FilterResult:
     # renderers show it verbatim instead of re-narrating the cause from the
     # daily chart (decision_logic_spec review V5; review 2 R2/R8):
     # "exhaustion", "conflict", "decision" (the official decision would not
-    # trade), "weekly_unavailable". "" = the renderer words it itself.
+    # trade), "weekly_unavailable", "weekly_alignment". "" = the renderer
+    # words it itself.
     block:               str  = ""
 
 
@@ -302,13 +303,20 @@ def apply_filter(regime: dict) -> FilterResult:
     # Checks that the intended trade direction does not contradict
     # the dominant 20-week trend (lt_trend).
     #
-    # ALIGNMENT RULE:
-    #   SHORT against lt_trend=UPTREND is blocked
-    #     UNLESS weekly_context=COUNTER_TREND_BOUNCE
-    #     (dominant macro trend is actually DOWN)
-    #   LONG against lt_trend=DOWNTREND is blocked
-    #     UNLESS weekly_context=PULLBACK_IN_UPTREND
-    #     (dominant macro trend is actually UP)
+    # ALIGNMENT RULE: never trade against the 20-week trend.
+    #   SHORT against lt_trend=UPTREND is blocked.
+    #   LONG against lt_trend=DOWNTREND is blocked.
+    # The former "UNLESS" exceptions (short if COUNTER_TREND_BOUNCE, long if
+    # PULLBACK_IN_UPTREND) could never fire: _compute_weekly_context emits
+    # COUNTER_TREND_BOUNCE only when lt=DOWNTREND and PULLBACK_IN_UPTREND only
+    # when lt=UPTREND — proven over all 9 lt x st cases
+    # (test_weekly_alignment_wording.test_the_former_exceptions_are_unreachable;
+    # docs/specs/weekly_alignment_wording_spec.md addendum). Removed: no
+    # decision the classifier can produce changes. A hand-built dict pairing
+    # lt=UPTREND with COUNTER_TREND_BOUNCE (impossible from the classifier)
+    # used to allow the short and is now blocked — the stricter direction.
+    # Whether a counter-trend exception is wanted at all is an open owner
+    # decision, not an accident of dead code.
     #
     # Uses lt_trend (20-week) not weekly_context label —
     # lt_trend is the clean directional read.
@@ -317,32 +325,26 @@ def apply_filter(regime: dict) -> FilterResult:
     intended = _derive_direction(d1, exec_mode)
 
     if intended == "SHORT" and lt_trend == "UPTREND":
-        if weekly_ctx != "COUNTER_TREND_BOUNCE":
-            return FilterResult(
-                allowed=False,
-                execution_mode="STAND_DOWN",
-                size_mult=0.0,
-                confidence="NONE",
-                reason=(
-                    f"Short blocked: dominant 20-week trend is UPTREND. "
-                    f"Counter-trend short requires COUNTER_TREND_BOUNCE "
-                    f"weekly context (current: {weekly_ctx})."
-                ),
-            )
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=("Short blocked: dominant 20-week trend is up — the "
+                    "framework does not trade against it."),
+            block="weekly_alignment",
+        )
 
     if intended == "LONG" and lt_trend == "DOWNTREND":
-        if weekly_ctx != "PULLBACK_IN_UPTREND":
-            return FilterResult(
-                allowed=False,
-                execution_mode="STAND_DOWN",
-                size_mult=0.0,
-                confidence="NONE",
-                reason=(
-                    f"Long blocked: dominant 20-week trend is DOWNTREND. "
-                    f"Counter-trend long requires PULLBACK_IN_UPTREND "
-                    f"weekly context (current: {weekly_ctx})."
-                ),
-            )
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=("Long blocked: dominant 20-week trend is down — the "
+                    "framework does not trade against it."),
+            block="weekly_alignment",
+        )
 
     # ── Resolution table allows trading ───────────────────────────────────────
     if exec_mode == "STAND_DOWN":

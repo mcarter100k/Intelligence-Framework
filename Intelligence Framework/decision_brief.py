@@ -353,8 +353,7 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
         # ── 5. Build REASON ───────────────────────────────────────────────────
         # subtype-aware pre-pass first: an exhaustion-typed RANGING must never
         # reach _plain()'s "moving sideways" mapping (exhaustion display spec).
-        reason = _plain(_exhaustion_reason_pass(
-            _build_reason(regime, decision, decision_str, override), regime))
+        reason = _render_reason(regime, decision, decision_str, override)
 
         # ── 6. Build SIZE ─────────────────────────────────────────────────────
         # Size is meaningful only when trading is allowed.
@@ -480,6 +479,14 @@ def _last_expected_d1_close(now, close_hour: int):
     while not is_trading_day(c.date()):
         c -= timedelta(days=1)
     return c
+
+
+def _render_reason(regime: dict, decision: dict, decision_str: str,
+                   override: bool) -> str:
+    """The REASON line exactly as the brief prints it — the one pipeline, so
+    tests check what the trader sees (weekly_alignment_wording_spec review F7)."""
+    return _plain(_exhaustion_reason_pass(
+        _build_reason(regime, decision, decision_str, override), regime))
 
 
 def _build_reason(regime: dict, decision: dict,
