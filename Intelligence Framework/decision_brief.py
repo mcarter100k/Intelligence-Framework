@@ -513,10 +513,11 @@ def _build_reason(regime: dict, decision: dict,
     if decision_str == "STAND DOWN" and _ng.get("gating"):
         if stand_rsn:
             return stand_rsn
-        _mins = _ng.get("minutes_until")
-        _when = f"{int(_mins)} minutes" if _mins is not None else "under 2 hours"
-        return (f"Major economic event ahead — "
-                f"{_ng.get('event') or 'high-impact release'} in {_when}. "
+        from news_gate import when_phrase
+        _when = when_phrase(_ng.get("minutes_until"))
+        _lead = "" if _when.startswith("released") else "in "
+        return (f"Major economic event{'' if _lead == '' else ' ahead'} — "
+                f"{_ng.get('event') or 'high-impact release'} {_lead}{_when}. "
                 f"Markets reprice violently around releases; standing aside "
                 f"until after.")
 
@@ -1071,10 +1072,15 @@ def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None
         ng = regime.get("news_gate") or {}
         if ng.get("gating"):
             _mins = ng.get("minutes_until")
-            _when = f"about {int(_mins)} minutes" if _mins is not None else "under two hours"
+            if _mins is not None and int(_mins) < 0:
+                _due = f"was released about {-int(_mins)} minutes ago"
+            elif _mins is not None:
+                _due = f"is due in about {int(_mins)} minutes"
+            else:
+                _due = "is due in under two hours"
             parts.append(f"A major economic release — "
-                         f"{ng.get('event') or 'a high-impact event'} — is due in "
-                         f"{_when}, and prices move violently around releases, so "
+                         f"{ng.get('event') or 'a high-impact event'} — {_due}, "
+                         f"and prices move violently around releases, so "
                          f"the framework stands aside until it has passed.")
         elif comp:
             parts.append("Volatility is compressed below its normal level, which "

@@ -243,6 +243,8 @@ def _minutes_phrase(minutes) -> str:
         m = int(minutes)
     except (TypeError, ValueError):
         return "a short while"
+    if m < 0:                        # the gate's 30-min post-release buffer
+        return f"released {-m} minutes ago"
     if m < 60:
         return f"{m} minutes"
     return f"{m // 60}h {m % 60:02d}m"
@@ -365,8 +367,10 @@ def build_stack(instrument: str, direction: str,
         from display_time import to_display
         _evt = to_display(ng.get("event_time_utc"), style="time")
         _at = f" (at {_evt})" if _evt else ""
-        clock = (f"{ng.get('event')} in "
-                 f"{_minutes_phrase(ng.get('minutes_until'))}{_at} — "
+        _phr = _minutes_phrase(ng.get("minutes_until"))
+        _lead = "" if _phr.startswith("released") else "in "
+        clock = (f"{ng.get('event')} {_lead}"
+                 f"{_phr}{_at} — "
                  f"stand aside until after.")
     elif not ng.get("active", False):
         clock = ("The news calendar is out of date or missing — event risk "

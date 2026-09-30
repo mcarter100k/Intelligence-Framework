@@ -35,8 +35,10 @@ from no_trade_filter import apply_filter
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Fields: (id, adx, atr, slope, instrument, structure, expected)
-# Cases outside the 25-32 band are structure-independent (TRANSITIONAL default).
-# In the 25-32 band (Phase 1.4) TRENDING now requires structure confirmation.
+# Cases below 25 are structure-independent (TRANSITIONAL default). From 25 up
+# (Phase 1.4 for 25-32; decision_logic_spec D2 for 32+, owner-authorized floor
+# change 2026-09-30) TRENDING requires agreeing structure — except the GBP/JPY
+# exhaustion branch (35+), which is RANGING regardless.
 CLASSIFY_CASES = [
     # T01 — below ranging threshold, normal ATR → RANGING
     ("T01", 10, 1.0, +0.01, "GBP_AUD", "TRANSITIONAL", "RANGING"),
@@ -56,18 +58,30 @@ CLASSIFY_CASES = [
     ("T08", 28, 1.0, -0.01, "GBP_AUD", "DOWNTREND", "TRENDING_DOWN"),
     # T09 — just below exhaustion, CONFIRMED up-structure → TRENDING_UP
     ("T09", 31, 1.0, +0.01, "GBP_AUD", "UPTREND", "TRENDING_UP"),
-    # T10 — at exhaustion threshold → still TRENDING_UP (>=32 band, structure-independent)
-    ("T10", 32, 1.0, +0.01, "GBP_AUD", "TRANSITIONAL", "TRENDING_UP"),
-    # T11 — well above exhaustion, GBP_AUD → TRENDING_UP (never RANGING from exhaustion)
-    ("T11", 40, 1.0, +0.01, "GBP_AUD", "TRANSITIONAL", "TRENDING_UP"),
-    # T12 — GBP_JPY ADX=34: below JPY exhaustion (35), >=32 exhaustion band → TRENDING_UP
-    ("T12", 34, 1.0, +0.01, "GBP_JPY", "TRANSITIONAL", "TRENDING_UP"),
+    # T10 — at the late-trend threshold, unconfirmed structure → VOLATILE
+    #   (was TRENDING_UP from slope alone; changed 2026-09-30, D2)
+    ("T10", 32, 1.0, +0.01, "GBP_AUD", "TRANSITIONAL", "VOLATILE"),
+    # T11 — well above 32, GBP_AUD, unconfirmed → VOLATILE, never RANGING
+    #   (was TRENDING_UP; D2)
+    ("T11", 40, 1.0, +0.01, "GBP_AUD", "TRANSITIONAL", "VOLATILE"),
+    # T12 — GBP_JPY ADX=34: below JPY exhaustion (35), unconfirmed → VOLATILE
+    #   (was TRENDING_UP; D2)
+    ("T12", 34, 1.0, +0.01, "GBP_JPY", "TRANSITIONAL", "VOLATILE"),
     # T13 — GBP_JPY ADX=35: at JPY exhaustion → RANGING
     ("T13", 35, 1.0, +0.01, "GBP_JPY", "TRANSITIONAL", "RANGING"),
     # T14 — GBP_JPY ADX=45: above exhaustion → RANGING
     ("T14", 45, 1.0, +0.01, "GBP_JPY", "TRANSITIONAL", "RANGING"),
-    # T15 — GBP_AUD ADX=35: AUD exhaustion is 32 not 35, JPY rule N/A → TRENDING_UP
-    ("T15", 35, 1.0, +0.01, "GBP_AUD", "TRANSITIONAL", "TRENDING_UP"),
+    # T15 — GBP_AUD ADX=35: JPY exhaustion rule N/A, unconfirmed → VOLATILE
+    #   (was TRENDING_UP; D2)
+    ("T15", 35, 1.0, +0.01, "GBP_AUD", "TRANSITIONAL", "VOLATILE"),
+    # ── decision_logic_spec D2: 32+ trends only with agreeing structure ───────
+    # T10c/T11c/T12c/T15c — the same cells WITH confirmed structure stay trends
+    ("T10c", 32, 1.0, +0.01, "GBP_AUD", "UPTREND", "TRENDING_UP"),
+    ("T11c", 40, 1.0, -0.01, "GBP_AUD", "DOWNTREND", "TRENDING_DOWN"),
+    ("T12c", 34, 1.0, +0.01, "GBP_JPY", "UPTREND", "TRENDING_UP"),
+    ("T15c", 35, 1.0, +0.01, "GBP_AUD", "UPTREND", "TRENDING_UP"),
+    # T45 — 32+ with structure against the slope → VOLATILE (no slope-only call)
+    ("T45", 36, 1.0, -0.01, "GBP_AUD", "UPTREND", "VOLATILE"),
     # T30 — regression: ADX=22 GBP_AUD → VOLATILE (old code said TRENDING_UP)
     ("T30", 22, 1.0, +0.01, "GBP_AUD", "TRANSITIONAL", "VOLATILE"),
     # T31 — regression: ADX=36 GBP_JPY → RANGING (old code said TRENDING_UP)
@@ -246,10 +260,14 @@ FILTER_MATRIX = [
         "st_trend": "UPTREND", "execution_mode": "STAND_DOWN",
         "size_mult": 0.0, "confidence": "NONE",
     }, True),
+    # T37 fed "TRENDING_UP__TRENDING_DOWN", a token _detect_conflict never
+    # emits — it passed only because the filter matched that same phantom
+    # (decision_logic_spec D3). Now the emitted type; CONTINUATION mode kept
+    # so ONLY the named conflict block can stop it (reason pinned below).
     ("T37", "Opposite trend conflict (D1_UP + H4_DOWN)", {
         "regime_d1": "TRENDING_UP", "regime_h4": "TRENDING_DOWN", "adx_h4": 26.0,
         "atr_vs_avg": 1.0, "atr_compression": False, "timeframe_conflict": True,
-        "conflict_type": "TRENDING_UP__TRENDING_DOWN", "structure": "UPTREND",
+        "conflict_type": "D1_BULLISH_H4_BEARISH", "structure": "UPTREND",
         "weekly_context": "ESTABLISHED_UPTREND", "lt_trend": "UPTREND",
         "st_trend": "UPTREND", "execution_mode": "CONTINUATION",
         "size_mult": 1.0, "confidence": "HIGH",
@@ -295,3 +313,5 @@ def test_filter_matrix(cid, label, scenario, expected_allowed):
     assert fr.allowed is expected_allowed, label
     # stand_down is the exact inverse of allowed — anti-drift lock
     assert (not fr.allowed) is (not expected_allowed)
+    if cid == "T37":
+        assert fr.reason.startswith("Opposite trend conflict"), fr.reason

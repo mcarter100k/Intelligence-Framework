@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, List
 
 from exclusions import filter_rows
-from ledger_io import append_row
+from ledger_io import append_row, locked, migrate_header
 from regime_detection import _ADX_TRANSITION_HIGH, _ADX_RANGING_THRESHOLD, PAIRS
 
 LOG_FILE = "session_context_log.csv"
@@ -34,6 +34,10 @@ FIELDNAMES = [
     "timestamp", "instrument", "adx_d1", "adx_h4",
     "atr_ratio", "regime_d1", "regime_h4",
     "structure_d1", "filter_allowed",
+    # decision_logic_spec.md: filter_allowed changed meaning on 2026-09-30
+    # (it now includes the official decision), so a flip is only compared
+    # between rows written under the same rules. BLANK on older rows.
+    "logic_version",
 ]
 
 
@@ -64,6 +68,7 @@ def log_session_snapshot(regime: dict, instrument: str,
             "regime_h4":    regime.get("regime_h4", ""),
             "structure_d1": regime.get("structure", ""),
             "filter_allowed": regime.get("filter_allowed", False),
+            "logic_version":  regime.get("logic_version", ""),
         }
         _append_row(row)
     except Exception as exc:
@@ -137,10 +142,14 @@ def get_session_delta(instrument: str) -> Optional[Dict]:
         # Structure change
         structure_changed = current["structure_d1"] != previous["structure_d1"]
 
-        # Filter change — the most important event
+        # Filter change — the most important event. Only between rows written
+        # under the same decision rules: across a rule change the flip is the
+        # rules, not the market, and must not alert (decision_logic_spec).
         filter_now   = str(current["filter_allowed"]).lower() == "true"
         filter_prior = str(previous["filter_allowed"]).lower() == "true"
-        filter_changed = filter_now != filter_prior
+        same_rules   = ((current.get("logic_version") or "") ==
+                        (previous.get("logic_version") or ""))
+        filter_changed = same_rules and filter_now != filter_prior
 
         # ADX trend classification
         if abs(adx_d1_delta) < 0.5:
@@ -324,4 +333,10 @@ def _get_today_rows(instrument: str) -> List[Dict]:
 
 
 def _append_row(row: dict) -> None:
-    append_row(LOG_FILE, FIELDNAMES, row)       # locked + fsynced (ledger_io)
+    """Append under the lock, migrating an older header first: append_row
+    writes no header to an existing file, so a row with a new column under
+    the old header would land misaligned."""
+    with locked(LOG_FILE):
+        if os.path.exists(LOG_FILE):
+            migrate_header(LOG_FILE, FIELDNAMES)   # additive; values verbatim
+        append_row(LOG_FILE, FIELDNAMES, row)     # locked + fsynced (ledger_io)

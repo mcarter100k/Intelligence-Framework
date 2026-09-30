@@ -16,6 +16,12 @@ STAND-DOWN CONDITIONS (any one triggers NO TRADE):
   4. Extreme ATR spike (ratio >= 2.0x)
   5. RANGING D1 + VOLATILE H4 (range breaking down)
   6. Both timeframes VOLATILE
+  7. Exhaustion move on either timeframe (GBP/JPY RANGING/EXHAUSTION) —
+     fade, don't follow; stands aside until EXHAUSTION is validated
+  8. The official decision would not trade (no direction, disabled range
+     trade, grade C) — official_decision.decide() runs on every provisional
+     allow, so allowed == "the official decision trades"
+     (docs/specs/decision_logic_spec.md)
 
 COUNTER-TREND OVERRIDE (lifts D1 VOLATILE stand-down only):
   ALL of the following must be true:
@@ -120,8 +126,6 @@ def apply_filter(regime: dict) -> FilterResult:
         except (TypeError, ValueError):
             atr_ratio = float("nan")
     atr_comp   = regime.get("atr_compression", False)
-    conflict   = regime.get("timeframe_conflict", False)
-    conflict_t = regime.get("conflict_type",   "") or ""
     structure  = regime.get("structure",       "TRANSITIONAL") or "TRANSITIONAL"
     weekly_ctx = regime.get("weekly_context",  "RANGING") or "RANGING"
     lt_trend   = regime.get("lt_trend",        "RANGING") or "RANGING"
@@ -153,8 +157,9 @@ def apply_filter(regime: dict) -> FilterResult:
     # via get_regime) so this decision is deterministic from the input dict.
     _ng = regime.get("news_gate") or {}
     if _ng.get("gating"):
-        _mins = _ng.get("minutes_until")
-        _when = f"{int(_mins)} minutes" if _mins is not None else "under 2 hours"
+        from news_gate import when_phrase
+        _when = when_phrase(_ng.get("minutes_until"))
+        _lead = "" if _when.startswith("released") else "in "
         # local-time parenthetical (display_timezone_spec) — display only
         from display_time import to_display
         _evt = to_display(_ng.get('event_time_utc'), style='time')
@@ -164,8 +169,8 @@ def apply_filter(regime: dict) -> FilterResult:
             execution_mode="STAND_DOWN",
             size_mult=0.0,
             confidence="NONE",
-            reason=(f"Major economic event ahead — "
-                    f"{_ng.get('event') or 'high-impact release'} in {_when}"
+            reason=(f"Major economic event{'' if _lead == '' else ' ahead'} — "
+                    f"{_ng.get('event') or 'high-impact release'} {_lead}{_when}"
                     f"{_at_local}. "
                     f"Markets reprice violently around releases; standing "
                     f"aside until after."),
@@ -196,16 +201,33 @@ def apply_filter(regime: dict) -> FilterResult:
                               "ATR compression — pre-intervention coil"),
         )
 
-    # Opposite-trend conflict — structural disagreement
-    if conflict and any(x in conflict_t for x in
-                        ("TRENDING_UP__TRENDING_DOWN",
-                         "TRENDING_DOWN__TRENDING_UP")):
+    # Exhaustion (decision_logic_spec D1, owner decision 2026-09-30). The
+    # GBP/JPY RANGING/EXHAUSTION label means a violent extended move, not a
+    # quiet market; read as a pullback it produced a grade-A trade WITH the
+    # exhausted move. Stand aside until EXHAUSTION is a validated regime. The
+    # subtype is regime_detection's single source — no threshold re-derived.
+    if "EXHAUSTION" in (regime.get("regime_h4_subtype"),
+                        regime.get("regime_d1_subtype")):
         return FilterResult(
             allowed=False,
             execution_mode="STAND_DOWN",
             size_mult=0.0,
             confidence="NONE",
-            reason=f"Opposite trend conflict: {conflict_t} — no edge",
+            reason=("The market is in an exhaustion move — fade, don't "
+                    "follow. Standing aside."),
+        )
+
+    # Opposite-trend conflict — structural disagreement. Compared on the
+    # regimes themselves: the former string match looked for tokens
+    # _detect_conflict never emits, so this block could not fire (D3).
+    if {d1, h4} == {"TRENDING_UP", "TRENDING_DOWN"}:
+        return FilterResult(
+            allowed=False,
+            execution_mode="STAND_DOWN",
+            size_mult=0.0,
+            confidence="NONE",
+            reason=("Opposite trend conflict — the daily and 4-hour trends "
+                    "point in opposite directions. No edge; standing aside."),
         )
 
     # Extreme ATR spike
@@ -245,7 +267,7 @@ def apply_filter(regime: dict) -> FilterResult:
             h4, adx_h4, weekly_ctx, lt_trend, st_trend, structure
         )
         if override_result:
-            return override_result
+            return _confirm_with_decision(regime, override_result)
         # Override not eligible — stand-down holds. Distinguish WHY D1 is
         # VOLATILE so the reason does not lie: ADX 25-32 with unconfirmed pivot
         # structure is the "trending band, structure not confirmed" gate
@@ -326,13 +348,36 @@ def apply_filter(regime: dict) -> FilterResult:
             reason=regime.get("resolution_note", "Resolution table: STAND_DOWN"),
         )
 
-    # Trading allowed — pass through resolution table parameters
-    return FilterResult(
+    # Market conditions pass — the official decision has the last word.
+    return _confirm_with_decision(regime, FilterResult(
         allowed=True,
         execution_mode=exec_mode,
         size_mult=size_mult,
         confidence=confidence,
         reason="All filter conditions passed",
+    ))
+
+
+def _confirm_with_decision(regime: dict, provisional: FilterResult) -> FilterResult:
+    """The filter is the single stand-down authority (decision_logic_spec D4):
+    a provisional allow stands only if the official decision, run on it,
+    trades. Otherwise block with the decision's own reason — no direction,
+    a disabled range trade, or grade C. Before this, the filter allowed
+    RANGING cells the official path then vetoed, and every consumer of
+    filter_allowed (ledgers, session flips, alerts) saw an allow that was
+    never a trade."""
+    from official_decision import decide     # lazy: official imports this module
+    d = decide(regime, exec_mode=provisional.execution_mode,
+               size_mult=provisional.size_mult,
+               override=provisional.override_fired)
+    if d["direction"] in ("LONG", "SHORT"):
+        return provisional
+    return FilterResult(
+        allowed=False,
+        execution_mode="STAND_DOWN",
+        size_mult=0.0,
+        confidence="NONE",
+        reason=d["reason"],
     )
 
 

@@ -198,12 +198,15 @@ class TestDefect2JpyEntryPathIsAlive:
         assert brief.m15_trigger is False
         assert "not near a key level" in brief.trigger_basis
 
-    def test_degraded_pass_when_no_levels_at_all(self, monkeypatch):
-        """Absent levels degrade to a pass — the branch Step 0 restored."""
+    def test_no_levels_at_all_is_not_ready(self, monkeypatch):
+        """Absent levels are NOT READY (decision_logic_spec D6, 2026-09-30).
+        Formerly pinned the reverse — a 'degraded pass' on the pattern
+        alone — which let a failed level feed loosen the entry trigger."""
         monkeypatch.setattr(levels_context, "get_key_levels",
                             lambda pair: {})
         brief = entry_confirmation.get_entry_brief("GBP_JPY", "SHORT")
-        assert brief.m15_trigger is True
+        assert brief.m15_trigger is False
+        assert brief.entry_ready is False
         assert "unavailable" in brief.trigger_basis
 
 

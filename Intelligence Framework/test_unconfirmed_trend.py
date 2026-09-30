@@ -40,7 +40,10 @@ def test_routing_matrix_unchanged():
         ((20.0, 1.0, 0.1, "GBP_AUD", _AUD, "TRANSITIONAL"), "VOLATILE"),
         ((15.0, 1.0, 0.0, "GBP_AUD", _AUD, "TRANSITIONAL"), "RANGING"),
         ((64.1, 1.05, -1.0, "GBP_JPY", _JPY, "DOWNTREND"), "RANGING"),
-        ((35.0, 1.0, -1.0, "GBP_AUD", _AUD, "TRANSITIONAL"), "TRENDING_DOWN"),
+        # was TRENDING_DOWN from slope alone; ADX 32+ needs agreeing
+        # structure since decision_logic_spec D2 (owner-authorized 2026-09-30)
+        ((35.0, 1.0, -1.0, "GBP_AUD", _AUD, "TRANSITIONAL"), "VOLATILE"),
+        ((35.0, 1.0, -1.0, "GBP_AUD", _AUD, "DOWNTREND"), "TRENDING_DOWN"),
     ]
     for args, want in cases:
         assert rd._classify(*args) == want, args
