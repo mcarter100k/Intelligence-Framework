@@ -99,8 +99,19 @@ restoring either requires team review and a concrete evidence path.
    gitignored ledgers are staged.
 
 1b. **Branch workflow (adopted 2026-07-30). Never build directly on `main`.**
-   - Each task starts a feature branch off up-to-date `main`:
-     `git checkout -b feat/<short-name>` — including doc-only changes.
+   - **The project folder is the LIVE checkout and stays on `main`**
+     (amended 2026-09-29). launchd runs whatever is checked out there; from
+     2026-09-16 to 2026-09-29 it ran an unmerged branch for 13 days.
+     `scripts/live_guard.sh` alerts on every scheduled run when it is not
+     on `main`.
+   - Each task starts a feature branch off up-to-date `main` **in a git
+     worktree outside the project folder**, including doc-only changes:
+     `git -C /Users/quis worktree add -b feat/<short-name> <dir> main`.
+     Remove the worktree after merge (`git worktree remove <dir>`).
+   - Verification runs that call real code from a worktree must still
+     neutralize side effects (rule 10). Run from a temp working directory
+     so relative ledger paths land there, and hash the project before and
+     after.
    - All commits happen on the branch (spec artifact first for protected-path
      work, then build commits). The branch is where testing AND team review
      happen.

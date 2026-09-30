@@ -25,6 +25,9 @@ fi
 
 DATE="$(date +%F)"
 LOG="logs/brief_${DATE}.log"
+# The live checkout must be on main (scripts/live_guard.sh).
+. "$PROJ/scripts/live_guard.sh"
+live_guard "$LOG"
 
 # News-calendar refresh: when calendar.csv is missing or older than 24h, run
 # the AUTO-FETCHER before the brief (docs/specs/calendar_autofetch_spec.md —

@@ -18,6 +18,9 @@ fi
 
 DATE="$(date +%F)"
 LOG="logs/heartbeat_${DATE}.log"
+# The live checkout must be on main (scripts/live_guard.sh).
+. "$PROJ/scripts/live_guard.sh"
+live_guard "$LOG"
 YDAY="$(date -v-1d +%F 2>/dev/null || date -d yesterday +%F)"
 
 REPORT="$(python3 - "$YDAY" <<'PY'
