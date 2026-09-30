@@ -3551,3 +3551,23 @@ migration immediately after the merge, outside the job windows.
   vs the first branch build: **0 decision/regime fields changed**. 16
   GBP/AUD reason texts changed; all are review-1 V2 naming unconfirmed
   structure at ADX ≥ 32.
+
+### 2026-09-30 — Phase 5 merged (010ed03, 08:44 PDT) and live ledgers migrated (08:49 PDT)
+- The owner approved the merge and, after an auto-mode permission block, explicitly allowed the migration.
+- **Backup:** `backups/2026-09-30T154429Z` (backup_ledgers.py: "all sha256 verified").
+  - Independently re-verified 9/9.
+  - The live ledgers were byte-identical to it before the migration.
+- **Migration:** each logger's own `migrate_header` (all three rewrote).
+- **Field-by-field against the backup:**
+
+  | Ledger | Rows | Diffs |
+  |---|---|---|
+  | regime | 118 → 118 | **0 of 3,186 fields** |
+  | trade | 4 → 4 | **0 of 128** |
+  | session | 164 → 164 | **0 of 1,476** |
+
+  - Old columns are unchanged and in order, and `logic_version` is appended
+    blank on every old row.
+  - The checker found 1 of 1 planted changes per ledger.
+- **Live-checkout suite:** **763 passed, 0 skipped.** The 6 ledger-header checks that skip in a worktree ran and passed.
+- **Gate 3 — PENDING:** the 15:15 PDT grader and the 18:00 brief are the first scheduled runs on p5 code; new rows must carry `p5-2026-09-30`.
