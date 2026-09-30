@@ -30,21 +30,57 @@ def _rows(p):
 
 
 def _race(ledger, appender_code, run_grader, monkeypatch):
-    real_wh = csv.DictWriter.writeheader
+    """Start a REAL second process that appends to `ledger` the instant the
+    grader FINISHES READING it (when its read handle closes), and give it
+    0.7s. That is exactly the stale-snapshot window of a read-modify-write:
+    without a lock held from the read to the write, the append lands and the
+    grader's write-back destroys it.
+
+    (The first version triggered at the grader's header write, which sits
+    inside the write's own lock; mutation testing showed removing the
+    grader's outer lock did not fail it. Validation_log, Phase 3.)"""
+    import builtins
+    real_open = builtins.open
+    base = os.path.basename(ledger)
     state = {"proc": None}
 
-    def hooked(self):
+    def fire():
         if state["proc"] is None:
             state["proc"] = subprocess.Popen(
                 [sys.executable, "-c", textwrap.dedent(appender_code)],
                 env=dict(os.environ, PYTHONPATH=_ROOT, PYTHONDONTWRITEBYTECODE="1"))
             time.sleep(0.7)
-        return real_wh(self)
 
-    monkeypatch.setattr(csv.DictWriter, "writeheader", hooked)
+    class _ReadHandle:
+        def __init__(self, f):
+            self._f = f
+        def __getattr__(self, n):
+            return getattr(self._f, n)
+        def __iter__(self):
+            return iter(self._f)
+        def __enter__(self):
+            self._f.__enter__()
+            return self
+        def __exit__(self, *a):
+            r = self._f.__exit__(*a)
+            fire()
+            return r
+        def close(self):
+            self._f.close()
+            fire()
+
+    def hooked(file, mode="r", *a, **k):
+        f = real_open(file, mode, *a, **k)
+        if (state["proc"] is None and isinstance(file, (str, os.PathLike))
+                and os.path.basename(os.fspath(file)) == base
+                and not any(c in mode for c in "wax+")):
+            return _ReadHandle(f)
+        return f
+
+    monkeypatch.setattr(builtins, "open", hooked)
     result = run_grader()
-    monkeypatch.setattr(csv.DictWriter, "writeheader", real_wh)
-    assert state["proc"] is not None, "the grader never wrote: race not exercised"
+    monkeypatch.setattr(builtins, "open", real_open)
+    assert state["proc"] is not None, "the grader never read the ledger: race not exercised"
     assert state["proc"].wait(timeout=60) == 0, "the concurrent appender failed"
     return result
 
