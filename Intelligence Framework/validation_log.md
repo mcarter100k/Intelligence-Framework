@@ -3333,3 +3333,46 @@ Mutants MD, ME and MF survived the first race tests, because the trigger sat ins
 - The first scheduled 15:15 run after merge writes `backups/<stamp>/` with a verified manifest, then grades.
 - `session_context_log.csv` still holds its 2026-09-09 rows after 2026-10-09, which is when they would first have been pruned.
 - **Off-machine backup:** backups on the same disk do not survive disk loss. This is the owner's decision.
+
+---
+
+## 2026-09-30 — Phase 3 follow-ups (owner-directed): exact wrapper overlap; skill auto-loading
+
+### 1. Exact overlap of the concurrent real-wrapper run
+This was NOT CHECKED in the Phase 3 report. It is now measured with `scripts/trace/`. The tracer's positive control recorded the expected lock, append, read, replace and unlock sequence. The runs used the real wrappers and the real venv on full copies of the project, with the live project UNCHANGED by hash both times.
+
+**Natural run** (both wrappers launched at the same instant):
+- The brief and the grader were alive together for **1,322 ms**.
+- Inside that window they alternated on the SAME ledgers:
+  - regime: grader 790 ms, brief 1,123, grader 1,151, brief 1,873;
+  - shadow: grader 1,019, brief append 1,322, grader rewrite 1,392. That rewrite read the brief's row under the lock.
+- **0 overlapping lock holds** by different processes. There was no contention: critical sections last about 0.2–2 ms and never collided.
+
+**Forced collision** (the grader held inside its regime-ledger lock for 4 s):
+- The grader held the lock 725 → 4,739 ms.
+- The brief found it busy at 1,100 ms and retried 151 times at about 20 ms.
+- The brief acquired it **6.7 ms after release** (4,746 ms) and appended.
+- The regime ledger went 114 → 116, with both brief rows present; 0 overlapping holds.
+- **Honest limit:** in this run the grader had nothing due, so it read under the lock without rewriting. The rewrite-plus-waiting-append case is the deterministic B1 proof.
+
+### 2. Why `evidence-validation` was "Unknown skill" here, and proof it loads on its own
+**Cause (process tree plus timestamps):**
+- This session runs in PID 64042 (the Cursor extension, Claude Code **v2.1.284**), started **2026-09-29 21:00:47**.
+- `~/.claude/skills` itself was created **21:00:48**, one second later, by the claude.ai skill sync.
+- Per the Claude Code docs (skills.md, "Edit a skill during a session"), a top-level skills directory that did not exist at session start is not watched until `/reload-skills`.
+- The skills themselves were never the problem.
+
+**Evidence the skills are correct:**
+- `claude plugin validate ~/.claude/skills` reports "✔ Validation passed".
+- Names match their directories; the descriptions are 732 and 869 chars (the listing cap is 1,536).
+- A fresh headless session (v2.1.285) lists both skills among 36 at startup.
+
+**Auto-trigger eval:** `foundation/tools/skill_trigger_eval.py` runs fresh headless sessions from a scratch directory with every modifying tool disallowed.
+- 6 should-trigger prompts: correct skill invoked **18/18**.
+- 3 near-miss prompts: no skill invoked **9/9**.
+- **27/27 total.**
+
+**Fix going forward:** any NEW session loads both skills. In a session that predates the skills directory, run `/reload-skills`.
+
+### Gate 3 — PENDING
+- `/reload-skills` in the pre-existing session makes the Skill tool resolve `evidence-validation` there. It needs the owner to type the command; the result is to be recorded.
