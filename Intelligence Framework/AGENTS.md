@@ -122,8 +122,12 @@ restoring either requires team review and a concrete evidence path.
      unless review needs them remote. `main` is never the testing ground.
 
 2. **Suite green before any commit.** Full run: `python -m pytest -q`
-   (currently 557 passed — 2026-09-29, after `shadow/` and its 868 tests
-   were removed). Two floors that must never be weakened to make something pass:
+   (currently 591 passed on the live checkout — 2026-09-29). `conftest.py` isolates EVERY test:
+   each runs in its own tmp_path (relative ledger paths land there), the
+   absolute-path writers are redirected, unit tests cannot reach the network
+   (mark real-network tests `@pytest.mark.integration`), and the session
+   FAILS if any real evidence file changed. Never weaken these to make a
+   test pass. Two floors that must never be weakened to make something pass:
    - the **banned-token display test** (`test_brief_display.py`) — rendered
      output stays plain-English: no ADX / pivot / HH-HL / LH-LL / ATR-ratio
    - the **stand-down consistency matrix** (`test_regime_detection_p1.py`,
@@ -157,7 +161,10 @@ restoring either requires team review and a concrete evidence path.
    - **Gate 2 — pre-merge reality verification (mandatory):** real OANDA,
      real files, real scheduled paths. Every run report carries a
      **REALITY GATE** section showing actual output. Mock results may never
-     appear in it.
+     appear in it. Run it with `scripts/reality_run.py brief|grader|script`,
+     which neutralizes every side effect and certifies it (see rule 10). An
+     exit code is not a certification: the brief exits 0 on an error page,
+     and the tool treats that as a failure (exit 3).
    - **Gate 3 — PENDING LIVE CONFIRMATION:** anything only time can prove
      (a scheduled job firing, an alert on a real flip, a ledger graded by
      the market) gets an entry in `validation_log.md`'s PENDING LIVE
@@ -186,8 +193,13 @@ restoring either requires team review and a concrete evidence path.
     `get_decision_brief` writes three ledgers; a Gate-2 run that redirects
     one contaminates two. Precedents: `trades.csv` test spill
     (2026-09-11), `session_context_log` + `regime_classification_log`
-    contamination (2026-09-16). Use the `_neutralize_side_effects` helper
-    for any run that touches real files. A contaminated evidence row can
+    contamination (2026-09-16). Use `scripts/reality_run.py` for any run
+    that touches real code and real data. It runs the target from a temp
+    working directory with copies of the ledgers and the `.env` credentials,
+    then hashes the whole project before and after and fails (exit 2) if
+    anything changed. It needs no knowledge of which writers exist, which is
+    exactly what the 2026-09-16 run lacked. Add `--code <worktree>` to verify
+    a branch against the live ledgers. A contaminated evidence row can
     never be removed — the ledgers are append-only — so the only remedy is
     a registry entry (`exclusions.py`) keeping it out of every tally
     forever. Prevention is the whole of the cure.

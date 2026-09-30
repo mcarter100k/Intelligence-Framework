@@ -150,20 +150,42 @@ REQUIRED_KEYS = {
 }
 
 
+def _uptrend(n, step, end_offset):
+    closes = [1.8000 + i * 0.0010 for i in range(n)]
+    end = pd.Timestamp.now(tz="UTC").floor("h") - end_offset
+    # Fixed steps, not date_range(freq="W"): anchored weekly ranges snap to
+    # Sundays and silently drop a bar.
+    idx = pd.DatetimeIndex([end - (n - 1 - i) * step for i in range(n)])
+    return pd.DataFrame({"High": [c + 0.0020 for c in closes],
+                         "Low": [c - 0.0020 for c in closes],
+                         "Close": closes}, index=idx)
+
+
 @pytest.fixture(scope="module")
 def mocked_regime():
-    """get_regime('GBP_AUD') over a synthetic clean-uptrend D1 series."""
-    closes = [1.8000 + i * 0.0010 for i in range(100)]
-    highs = [c + 0.0020 for c in closes]
-    lows = [c - 0.0020 for c in closes]
-    idx = pd.date_range(
-        end=pd.Timestamp.now(tz="UTC") - timedelta(days=5),
-        periods=100, freq="D",
-    )
-    df = pd.DataFrame({"High": highs, "Low": lows, "Close": closes}, index=idx)
+    """get_regime('GBP_AUD') over a synthetic clean uptrend on EVERY timeframe.
+
+    D1, H4 and weekly are all mocked. Before 2026-09-29 only D1 was, so the H4
+    and weekly fetches reached live OANDA from the unit suite (the audit
+    found 2 authenticated calls per run), and the contract cases asserted on
+    synthetic D1 mixed with whatever the live market was doing.
+    """
     with mock.patch("regime_detection._oanda_ok", return_value=True), \
-         mock.patch("regime_detection._oanda_daily_bars", return_value=df):
+         mock.patch("regime_detection._oanda_daily_bars",
+                    return_value=_uptrend(100, timedelta(days=1), timedelta(days=5))), \
+         mock.patch("regime_detection._oanda_h4_bars",
+                    return_value=_uptrend(120, timedelta(hours=4), timedelta(hours=8))), \
+         mock.patch("regime_detection._oanda_weekly_bars",
+                    return_value=_uptrend(110, timedelta(weeks=1), timedelta(days=14))):
         return get_regime("GBP_AUD")
+
+
+def test_mocked_regime_never_touched_the_network(mocked_regime):
+    """Every timeframe was served by the mocks, so nothing is UNAVAILABLE:
+    a real fetch would be blocked by conftest and show up here."""
+    assert mocked_regime["regime_h4"] != "UNAVAILABLE"
+    assert mocked_regime["lt_trend"] != "RANGING" or \
+        mocked_regime["weekly_context"] != "RANGING"
 
 
 @pytest.mark.parametrize("key,etype", list(REQUIRED_KEYS.items()), ids=list(REQUIRED_KEYS))

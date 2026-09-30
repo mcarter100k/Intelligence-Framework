@@ -58,8 +58,11 @@ def test_closed_market_run_logs_nothing(monkeypatch):
     monkeypatch.setattr(db, "get_regime",
                         lambda inst: _mk_regime(market_open=False))
 
-    db.get_decision_brief("GBP_AUD")
+    brief = db.get_decision_brief("GBP_AUD")
 
+    # A crashed brief also logs nothing. Without this line the test
+    # passes on a crash (2026-09-29 audit, T5).
+    assert brief.error is None, brief.error
     assert calls == [], "closed market re-reads old bars — not a new prediction"
 
 

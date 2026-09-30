@@ -117,6 +117,9 @@ def test_stand_aside_logs_nothing(monkeypatch):
 
     brief = db.get_decision_brief("GBP_AUD")
 
+    # A crashed brief also logs nothing. Without this line the test
+    # passes on a crash (2026-09-29 audit, T5).
+    assert brief.error is None, brief.error
     assert brief.decision != "SHORT"
     assert rows == []
 
@@ -129,8 +132,11 @@ def test_closed_market_logs_nothing(monkeypatch):
     monkeypatch.setattr(db, "get_regime",
                         lambda inst: _mk_regime(market_open=False))
 
-    db.get_decision_brief("GBP_AUD")
+    brief = db.get_decision_brief("GBP_AUD")
 
+    # A crashed brief also logs nothing. Without this line the test
+    # passes on a crash (2026-09-29 audit, T5).
+    assert brief.error is None, brief.error
     assert rows == []
 
 
@@ -204,3 +210,4 @@ def test_migration_is_idempotent(tmp_path):
 def test_migration_on_missing_file_is_a_no_op(tmp_path):
     import trade_outcome_logger as tol
     tol._migrate_header(str(tmp_path / "nope.csv"))   # must not raise
+    assert not (tmp_path / "nope.csv").exists(), "a no-op must not create it"

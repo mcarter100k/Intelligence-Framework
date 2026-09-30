@@ -10,6 +10,7 @@ in the wrapper.
 Run: pytest test_alert_flags.py
 """
 import io
+import os
 
 import decision_brief as db
 
@@ -101,7 +102,8 @@ def test_emit_goes_to_stream_with_prefix():
 # ── Wrapper wiring (class (c) verify + routing present) ────────────────────────
 
 def test_wrapper_routes_alerts_and_still_notifies_shadow():
-    src = open("scripts/scheduled_brief.sh").read()
+    src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            "scripts", "scheduled_brief.sh")).read()
     assert "##ALERT##" in src                          # flip routing wired
     assert "SHADOW SIGNALS" in src                     # class (c) still wired
     assert 'grep -qv \'STAND ASIDE\'' in src or "STAND ASIDE" in src
