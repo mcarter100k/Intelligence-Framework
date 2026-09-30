@@ -198,3 +198,20 @@ and a mutant that the test kills.
 4. After the migration, the full suite on the live checkout, with the count
    recorded in AGENTS.md rule 2. The `test_ledger_headers` checks that skip in
    a worktree run there and must pass.
+
+## Addendum 2 (2026-09-30): second `/code-review` (of the V-fix commit 83eb51b)
+
+Reproduced on the branch before fixing (`scratchpad/p5/repro_review2.py`),
+then re-measured fixed with the same script. Each fix has a test and a
+killed mutant. The history replay shows **0 decisions changed** by these
+fixes; they are wording and cause-naming only.
+
+| # | Finding | Fix |
+|---|---|---|
+| R1/R7/R9 | The filter and the brief each re-derived the cause of a VOLATILE daily from ADX bands, and they drifted: an ATR spike (and a flat slope) was called a "structure disagreement" | The classifier names the cause once. The new subtype **STRUCTURE_DISAGREES** is set only when confirmed structure is strictly opposed by the slope. The filter reason is keyed on the subtype (UNCONFIRMED_TREND / STRUCTURE_DISAGREES / TRANSITION_ZONE / generic); the brief likewise. Other subtype readers compare specific values, so the new one renders as plain VOLATILE there |
+| R2/R8 | The brief kept an allowlist of block codes; the weekly-unavailable block still got re-narrated | The filter sets `block` on every block whose reason is plain English (now including `weekly_unavailable`). The brief shows the reason for any coded block, with no list in the brief |
+| R3/R4 | Nearest-by-distance could hide an upcoming release behind a slightly closer past one, and "until 30 minutes after it" could understate the stand-aside | The gate reports the **soonest upcoming** event; a past release is reported only when nothing is upcoming. The wording is now "for at least 30 minutes after it". This supersedes review-1's V4 control (−5 over +90) |
+| R5 | A release seconds ago rounded to "in 0 minutes"; "1 minutes" | Signs are exact (a released event is ≤ −1); singular "1 minute" |
+| R6 | EXIT IF for a structure disagreement asked for structure that already exists | "The daily chart's recent direction turns to agree with its uptrend structure, or the structure breaks" |
+| R10 | `filter_block` was missing from `_error_result` | Added |
+| (noted) | The 20-week alignment block's reason carries raw labels (COUNTER_TREND_BOUNCE). This predates Phase 5 and is not re-narrated | Out of scope; listed for Phase 6 |

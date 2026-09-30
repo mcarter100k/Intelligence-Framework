@@ -3531,3 +3531,23 @@ migration immediately after the merge, outside the job windows.
 - The first real post-release window: the gate holds 30 min after the event.
 - The first Monday with last week's calendar, if the Sunday fetch fails: the
   note, not an all-clear.
+
+### 2026-09-30 — Phase 5, second `/code-review` (of 83eb51b). Owner approved Phase 5 at 03:2x PDT
+- **10 findings**, 9 reproduced as stated. R2b (the 20-week alignment reason
+  has raw labels) predates Phase 5 and was noted for Phase 6. Fixes: see
+  spec Addendum 2.
+- **Same instrument, before/after.** `repro_review2.py` shows R1/R2a/R3/R5
+  fixed.
+  - The first AFTER run still showed R6 unfixed. The instrument passed
+    ADX/structure without running the classifier, so the new cause subtype
+    was absent.
+  - With the classifier's output passed in, R6 on 83eb51b gives the
+    "stair-step" wording, and on the fix gives "direction turns to agree".
+- **Suite:** 757 passed (branch, clean cache, `-rf`).
+- **Mutations:** **33** mutants (M01–M17, V1–V6b, R1–R10), all killed with a
+  real test failure (exit 1 ×33). Every revert was hash-verified, and the
+  full suite passes after all reverts.
+- **History replay** (the same cached candles, 825 days × 2 pairs), fixed code
+  vs the first branch build: **0 decision/regime fields changed**. 16
+  GBP/AUD reason texts changed; all are review-1 V2 naming unconfirmed
+  structure at ADX ≥ 32.

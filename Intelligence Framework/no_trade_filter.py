@@ -53,9 +53,11 @@ class FilterResult:
     reason:              str
     override_fired:      bool = False
     override_conditions: str  = ""
-    # Which rule blocked, for renderers that must not re-narrate the cause
-    # (decision_logic_spec review V1/V5): "exhaustion", "conflict" or
-    # "decision" (the official decision would not trade). "" otherwise.
+    # Which rule blocked, set ONLY on blocks whose reason is plain English, so
+    # renderers show it verbatim instead of re-narrating the cause from the
+    # daily chart (decision_logic_spec review V5; review 2 R2/R8):
+    # "exhaustion", "conflict", "decision" (the official decision would not
+    # trade), "weekly_unavailable". "" = the renderer words it itself.
     block:               str  = ""
 
 
@@ -186,6 +188,7 @@ def apply_filter(regime: dict) -> FilterResult:
             confidence="NONE",
             reason=("Weekly trend data unavailable — the 20-week trend "
                     "check cannot run, so standing aside."),
+            block="weekly_unavailable",
         )
 
     # ATR compression (GBP/JPY pre-BoJ coil)
@@ -268,24 +271,21 @@ def apply_filter(regime: dict) -> FilterResult:
         )
         if override_result:
             return _confirm_with_decision(regime, override_result)
-        # Override not eligible — stand-down holds. Distinguish WHY D1 is
-        # VOLATILE so the reason does not lie: ADX 25+ with unconfirmed pivot
-        # structure is the "trending band, structure not confirmed" gate
-        # (Problem 2; 32+ joined it with decision_logic_spec D2); ADX 25+ with
-        # confirmed structure against the recent direction is a disagreement;
-        # ADX 18-25 is the genuine no-edge transition zone. (Zone boundaries
-        # mirror regime_detection; kept local to avoid a circular import,
-        # since regime_detection imports this module.)
+        # Override not eligible — stand-down holds. Say WHY D1 is VOLATILE
+        # from the classifier's own cause (regime_d1_subtype, the single
+        # source; decision_logic_spec review 2 R7) — never by re-deriving ADX
+        # bands here, which called an ATR spike a structure disagreement.
         d1_adx = float(regime.get("adx", 0.0) or 0.0)
-        if d1_adx >= 25.0 and structure not in ("UPTREND", "DOWNTREND"):
+        d1_sub = regime.get("regime_d1_subtype") or ""
+        if d1_sub == "UNCONFIRMED_TREND":
             _reason = (f"D1 ADX {d1_adx:.1f} is in the trending band but pivot "
                        f"structure has not confirmed (no clean HH/HL or LH/LL) "
                        f"— trend unconfirmed, standing aside.")
-        elif d1_adx >= 25.0:
+        elif d1_sub == "STRUCTURE_DISAGREES":
             _reason = (f"D1 ADX {d1_adx:.1f} is in the trending band but the "
                        f"recent direction disagrees with the {structure.lower()} "
                        f"structure — trend unconfirmed, standing aside.")
-        elif 18.0 <= d1_adx < 25.0:
+        elif d1_sub == "TRANSITION_ZONE":
             _reason = (f"D1 in transition zone (ADX {d1_adx:.1f}) — "
                        f"no statistical edge.")
         else:

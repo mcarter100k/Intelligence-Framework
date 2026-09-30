@@ -244,7 +244,7 @@ def _minutes_phrase(minutes) -> str:
     except (TypeError, ValueError):
         return "a short while"
     if m < 0:                        # the gate's 30-min post-release buffer
-        return f"released {-m} minutes ago"
+        return f"released {-m} minute{'' if m == -1 else 's'} ago"
     if m < 60:
         return f"{m} minutes"
     return f"{m // 60}h {m % 60:02d}m"

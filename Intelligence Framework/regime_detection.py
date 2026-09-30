@@ -735,6 +735,14 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
     # Display metadata only; the regime stays VOLATILE, routing unchanged.
     if structure == "TRANSITIONAL":
         return "VOLATILE", "UNCONFIRMED_TREND"
+    # Confirmed structure that the slope strictly OPPOSES: the single source
+    # of STRUCTURE_DISAGREES (decision_logic_spec review 2, R1/R7/R9). The
+    # filter and the brief read this instead of re-deriving ADX bands — they
+    # had drifted (an ATR spike was called a disagreement). A flat slope is
+    # not a disagreement and stays "".
+    if (structure == "UPTREND" and slope < 0) or \
+            (structure == "DOWNTREND" and slope > 0):
+        return "VOLATILE", "STRUCTURE_DISAGREES"
     return "VOLATILE", ""
 
 
@@ -1370,6 +1378,7 @@ def _error_result(msg: str) -> Dict:
         "filter_mode":         "STAND_DOWN",
         "filter_size_mult":    0.0,
         "filter_reason":       "",
+        "filter_block":        "",
         "override_fired":      False,
         "override_conditions": "",
         "filter_summary":      "",

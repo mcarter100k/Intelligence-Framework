@@ -25,6 +25,7 @@ Behavior:
 from __future__ import annotations
 
 import csv
+import math
 import os
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
@@ -67,6 +68,10 @@ def covered_through(newest_event_utc: datetime) -> datetime:
     return end.astimezone(timezone.utc).replace(tzinfo=None)
 
 
+def _minutes(n: int) -> str:
+    return "1 minute" if n == 1 else f"{n} minutes"
+
+
 def gate_reason(gate: Dict, at_local: str = "") -> str:
     """The stand-aside sentence for a gating result — the one builder for the
     filter reason and the brief's fallback. Pre-release wording is unchanged
@@ -74,11 +79,12 @@ def gate_reason(gate: Dict, at_local: str = "") -> str:
     event = gate.get("event") or "high-impact release"
     mins = gate.get("minutes_until")
     if mins is not None and int(mins) < 0:
-        return (f"Major economic event — {event} released {-int(mins)} "
-                f"minutes ago{at_local}. Markets reprice violently around "
-                f"releases; standing aside until {AFTER_MINUTES} minutes "
-                f"after it.")
-    when = f"{int(mins)} minutes" if mins is not None else "under 2 hours"
+        # "at least": another release entering the 2-hour window keeps the
+        # gate up past the buffer (review 2 R4)
+        return (f"Major economic event — {event} released {_minutes(-int(mins))} "
+                f"ago{at_local}. Markets reprice violently around releases; "
+                f"standing aside for at least {AFTER_MINUTES} minutes after it.")
+    when = _minutes(int(mins)) if mins is not None else "under 2 hours"
     return (f"Major economic event ahead — {event} in {when}{at_local}. "
             f"Markets reprice violently around releases; standing aside "
             f"until after.")
@@ -91,7 +97,8 @@ def check_news_gate(instrument: str, now: Optional[datetime] = None,
       active        : calendar present and fresh enough to trust
       gating        : a HIGH-impact own-currency event is within 2 hours,
                       or was released under 30 minutes ago
-      event/currency: the nearest such event (by distance either side)
+      event/currency: the soonest upcoming such event; if none, the most
+                      recent release still inside the 30-min buffer
       minutes_until : minutes to that event (negative once released)
       pre_release   : an event is 0-120 min AHEAD — exactly the pre-buffer
                       definition of gating, kept for the frozen shadow
@@ -135,25 +142,31 @@ def check_news_gate(instrument: str, now: Optional[datetime] = None,
     if now_naive > covered_through(newest):
         return _result(active=False, note=_STALE_NOTE)
 
-    # Calendar covers now — report the HIGH-impact own-currency event inside
-    # the window NEAREST to now either side: a release 29 minutes ago yields
-    # to one due in 2 (the trader must hear about the imminent one).
-    nearest = None
-    pre_release = False
+    # Calendar covers now. Report the SOONEST UPCOMING HIGH-impact
+    # own-currency event in the window — the trader must hear about what is
+    # coming, and the stand-aside lasts until after it (review 2 R3/R4).
+    # Only when nothing is upcoming, report the most recent release still
+    # inside the 30-minute buffer.
+    upcoming = released = None
     for dt, ccy, name, impact in events:
         if impact != "high" or ccy not in currencies:
             continue
         mins = (dt - now_naive).total_seconds() / 60.0
         if 0 <= mins <= WINDOW_MINUTES:
-            pre_release = True
-        if -AFTER_MINUTES <= mins <= WINDOW_MINUTES:
-            if nearest is None or abs(mins) < abs(nearest[0]):
-                nearest = (mins, ccy, name, dt)
+            if upcoming is None or mins < upcoming[0]:
+                upcoming = (mins, ccy, name, dt)
+        elif -AFTER_MINUTES <= mins < 0:
+            if released is None or mins > released[0]:
+                released = (mins, ccy, name, dt)
 
-    if nearest:
-        mins, ccy, name, dt = nearest
+    pick = upcoming or released
+    if pick:
+        mins, ccy, name, dt = pick
+        # Signs are exact (review 2 R5): upcoming >= 0, released <= -1, so a
+        # release 25 s ago is "released 1 minute ago", never "in 0 minutes".
+        m = int(round(mins)) if mins >= 0 else -int(math.ceil(-mins))
         return _result(active=True, gating=True, event=name or "high-impact release",
-                       currency=ccy, minutes_until=int(round(mins)),
+                       currency=ccy, minutes_until=m,
                        event_time_utc=dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                       pre_release=pre_release)
+                       pre_release=upcoming is not None)
     return _result(active=True)

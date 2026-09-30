@@ -516,14 +516,12 @@ def _build_reason(regime: dict, decision: dict,
         from news_gate import gate_reason
         return gate_reason(_ng)
 
-    # Exhaustion, opposite-trend conflict and "the official decision would
-    # not trade" (grade C, no direction, disabled range trade) are named
-    # filter blocks: their reason IS the story. The regime branches below
-    # would otherwise re-narrate the cause from the daily chart — a grade-C
-    # override read as "transition zone" (decision_logic_spec review V5).
-    if (decision_str == "STAND DOWN" and stand_rsn
-            and regime.get("filter_block") in ("exhaustion", "conflict",
-                                               "decision")):
+    # A coded filter block's reason IS the story: the filter codes exactly the
+    # blocks whose reason is plain English (FilterResult.block). The regime
+    # branches below would otherwise re-narrate the cause from the daily
+    # chart — a grade-C override read as "transition zone"
+    # (decision_logic_spec review V5; review 2 R2/R8: no list kept here).
+    if decision_str == "STAND DOWN" and stand_rsn and regime.get("filter_block"):
         return stand_rsn
 
     if atr_comp:
@@ -581,12 +579,22 @@ def _build_reason(regime: dict, decision: dict,
                 f"higher lows, or lower highs and lower lows). 4-hour chart {h4}. "
                 f"Standing aside until structure confirms."
             )
-        if float(adx_d1 or 0) >= _ADX_TRANSITION_HIGH:
+        # The classifier's own cause (review 2 R7): confirmed structure the
+        # recent direction opposes.
+        if regime.get("regime_d1_subtype") == "STRUCTURE_DISAGREES":
             return (
                 f"Daily chart trend strength is {float(adx_d1):.0f}/100 — in the "
                 f"trending band — but the recent direction disagrees with the "
                 f"price structure. 4-hour chart {h4}. Standing aside until they "
                 f"agree."
+            )
+        # Trending band, confirmed structure, no named cause (e.g. a flat
+        # slope): never the 18-25 "transition zone" wording.
+        if float(adx_d1 or 0) >= _ADX_TRANSITION_HIGH:
+            return (
+                f"Daily chart trend strength is {float(adx_d1):.0f}/100 — in the "
+                f"trending band — but no direction is confirmed yet. 4-hour "
+                f"chart {h4}. Standing aside."
             )
 
         # Cause 3b: ADX 18-25 — genuine no-edge transition zone
@@ -701,6 +709,13 @@ def _build_invalidation(regime: dict, decision_str: str) -> str:
             # When trend strength is ALREADY above the trending threshold, the
             # watch condition is price STRUCTURE confirming — not an ADX cross
             # that is already behind us (the sibling of the REASON-label bug).
+            if regime.get("regime_d1_subtype") == "STRUCTURE_DISAGREES":
+                # structure IS confirmed; what's missing is the direction
+                # agreeing with it (review 2 R6)
+                _st = "uptrend" if structure == "UPTREND" else "downtrend"
+                return (f"The daily chart's recent direction turns to agree "
+                        f"with its {_st} structure, or the structure breaks — "
+                        f"revisit then.")
             if float(adx_d1 or 0) >= _ADX_TRANSITION_HIGH:
                 concrete = _unconfirmed_exit_sentence(regime)
                 if concrete:
@@ -1073,7 +1088,8 @@ def _build_narrative(regime: dict, decision_str: str, session_delta: dict = None
         if ng.get("gating"):
             _mins = ng.get("minutes_until")
             if _mins is not None and int(_mins) < 0:
-                _due = f"was released about {-int(_mins)} minutes ago"
+                _n = -int(_mins)
+                _due = f"was released about {_n} minute{'' if _n == 1 else 's'} ago"
             elif _mins is not None:
                 _due = f"is due in about {int(_mins)} minutes"
             else:

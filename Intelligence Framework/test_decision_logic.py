@@ -255,7 +255,8 @@ def test_gate_reason_pre_release_wording_unchanged():
 def test_gate_reason_after_release():
     r = gate_reason({"event": "UK CPI", "minutes_until": -12})
     assert r.startswith("Major economic event — UK CPI released 12 minutes ago")
-    assert "30 minutes after" in r
+    assert "at least 30 minutes after" in r          # review 2 R4
+    assert "released 1 minute ago" in gate_reason({"event": "X", "minutes_until": -1})
 
 
 # ── code-review findings (decision_logic_spec addendum), each reproduced first ─
@@ -272,10 +273,31 @@ def test_v4_imminent_event_outranks_one_released_29_min_ago(tmp_path):
     assert (g["event"], g["minutes_until"]) == ("B", 2)
 
 
-def test_v4_control_fresh_release_outranks_one_90_min_away(tmp_path):
+def test_r3_upcoming_event_is_reported_even_when_a_release_is_closer(tmp_path):
+    """Review 2 R3: nearest-by-distance hid B (+12) behind A (-10). The
+    upcoming event is what the stand-aside waits for, so it is reported.
+    (Supersedes the review-1 control that expected the -5 release over a
+    +90 event: that choice told the trader the stand-aside ended in 25 min.)"""
+    g = _cal_now(tmp_path, [("2026-09-30 11:50", "GBP", "A"),
+                            ("2026-09-30 12:12", "GBP", "B")], 12, 0)
+    assert (g["event"], g["minutes_until"]) == ("B", 12)
     g = _cal_now(tmp_path, [("2026-09-30 11:55", "GBP", "A"),
                             ("2026-09-30 13:30", "GBP", "B")], 12, 0)
-    assert (g["event"], g["minutes_until"]) == ("A", -5)
+    assert (g["event"], g["minutes_until"]) == ("B", 90)
+
+
+def test_r3_control_release_reported_when_nothing_is_upcoming(tmp_path):
+    g = _cal_now(tmp_path, [("2026-09-30 11:40", "GBP", "A"),
+                            ("2026-09-30 11:55", "GBP", "B")], 12, 0)
+    assert (g["event"], g["minutes_until"]) == ("B", -5)   # the most recent
+
+
+def test_r5_a_release_seconds_ago_is_released_not_upcoming(tmp_path):
+    path = _cal(tmp_path, ("2026-09-30 12:00", "GBP", "A"))
+    g = check_news_gate("GBP_AUD", calendar_path=path,
+                        now=datetime(2026, 9, 30, 12, 0, 25, tzinfo=timezone.utc))
+    assert g["minutes_until"] == -1 and g["pre_release"] is False
+    assert "released 1 minute ago" in gate_reason(g)
 
 
 @pytest.mark.parametrize("rows,pre", [
@@ -326,10 +348,49 @@ def test_v1_v2_late_trend_unconfirmed_is_not_called_exhaustion():
 
 
 def test_v2_confirmed_structure_against_the_slope_says_so():
-    fr, why = _brief_reason(_regime("VOLATILE", "RANGING", adx=33.0, structure="UPTREND",
-                                    atr_spike_multiplier=1.5))
+    lab = rd._classify_ex(33, 1.0, -0.01, "GBP_AUD", rd.PAIRS["GBP_AUD"], "UPTREND")
+    assert lab == ("VOLATILE", "STRUCTURE_DISAGREES")
+    r = _regime("VOLATILE", "RANGING", adx=33.0, structure="UPTREND",
+                regime_d1_subtype=lab[1], atr_spike_multiplier=1.5)
+    fr, why = _brief_reason(r)
     assert "disagrees" in fr.reason and "disagrees" in why
     assert "transition zone" not in why
+    inv = db._build_invalidation(dict(r, stand_down=True), "STAND DOWN")   # R6
+    assert "agree with its uptrend structure" in inv and "stair-step" not in inv
+
+
+def test_r1_an_atr_spike_is_not_called_a_structure_disagreement():
+    lab = rd._classify_ex(30, 1.7, 0.01, "GBP_AUD", rd.PAIRS["GBP_AUD"], "UPTREND")
+    assert lab == ("VOLATILE", "")                     # the spike rule, no cause subtype
+    fr, why = _brief_reason(_regime("VOLATILE", "RANGING", adx=30.0, atr_vs_avg=1.7,
+                                    structure="UPTREND", regime_d1_subtype=lab[1],
+                                    atr_spike_multiplier=1.2))
+    assert "disagrees" not in fr.reason and "trending band" not in fr.reason
+    assert "ATR spike" in why
+
+
+def test_r9_a_flat_slope_is_not_a_disagreement():
+    lab = rd._classify_ex(28, 1.0, 0.0, "GBP_AUD", rd.PAIRS["GBP_AUD"], "UPTREND")
+    assert lab == ("VOLATILE", "")
+    fr, why = _brief_reason(_regime("VOLATILE", "RANGING", adx=28.0, structure="UPTREND",
+                                    regime_d1_subtype="", atr_spike_multiplier=1.5))
+    assert "disagrees" not in fr.reason and "disagrees" not in why
+    assert "transition zone" not in why
+
+
+def test_r2_weekly_unavailable_brief_shows_the_filter_reason():
+    fr, why = _brief_reason(_regime("VOLATILE", "RANGING", adx=21.0,
+                                    weekly_context="UNAVAILABLE", lt_trend="UNAVAILABLE",
+                                    atr_spike_multiplier=1.5))
+    assert fr.block == "weekly_unavailable"
+    assert why == fr.reason and "transition zone" not in why
+
+
+def test_r10_error_result_has_the_same_filter_keys():
+    err = rd._error_result("x") if hasattr(rd, "_error_result") else None
+    assert err is not None
+    for k in ("filter_block", "filter_reason", "logic_version"):
+        assert k in err, k
 
 
 def test_v3_conflict_brief_shows_the_named_block():
