@@ -69,6 +69,19 @@ reported as success until someone asked for the evidence.
    rm -rf {} +` after each revert. A source diff alone does not prove the
    revert.
 
+**Validate the instrument's own actors and placement.**
+- A "missing" result means nothing until every tool the test depends on is
+  shown to work alone. Before "the grader lost the row", prove the
+  second-process appender CAN append (a positive control) and record that
+  it actually ran and exited 0.
+- Assert that the code under test actually reached the path you mean to
+  exercise. For example, "the grader never wrote" is a failed measurement,
+  not a pass.
+- Put the trigger at the EDGE of the property being tested, never inside a
+  mechanism that masks it. A race trigger placed inside the write's own
+  lock cannot tell whether the READ was locked. Mutation testing (removing
+  the outer lock) is how you find out.
+
 **Controlled comparison, when changing a test:** run the old and new
 versions against the same mutant. This proves the new one catches what the
 old one missed, so "improved" becomes a measured claim.
@@ -140,4 +153,6 @@ the earlier claim.
 | "The guard protects the ledgers" | It missed writes to `logs/` and new files | A planted violation passed the old guard |
 | "No leaked processes" | The old test leaked 1 orphan per run; a count masked it | A PID-set diff, old vs new |
 | "The new assertions catch crashes" | Unproven until a mutant crashed the brief | Mutant A: new tests 3 failed, old tests 3 passed |
+| "Graders keep concurrent rows" (Phase 3, first version) | The trigger fired inside the write's own lock; removing each grader's OUTER lock still passed | Mutants MD/ME/MF survived; the trigger moved to the end of the read |
+| "The grader lost the row" (first measurement) | The appender itself crashed (a field not in the schema), and in another case the grader never wrote at all | A positive control on the appender, plus an assert that the grader wrote |
 | "Mutant reverted cleanly" (source diff was empty) | Python kept running the 54-char mutant's cached bytecode, which was the same size as the original and reverted in the same second | A later full run failed 3/3 with no probe. Clearing `__pycache__` restored 635/635 |
