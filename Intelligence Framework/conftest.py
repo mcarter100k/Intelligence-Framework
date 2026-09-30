@@ -52,13 +52,20 @@ def _isolate_evidence(tmp_path, monkeypatch):
         monkeypatch.setattr(mod, attr, str(tmp_path / name))
 
 
+# Everything except regenerable caches and the environment. The first version
+# watched only root-level .csv/.json plus logs/health_state.json. The
+# 2026-09-29 validation proved it missed a test appending to logs/ and a
+# test creating a new file at the root, so it now watches the whole tree.
+_UNWATCHED_DIRS = {"venv", "__pycache__", ".pytest_cache", ".git"}
+
+
 def _evidence_files():
-    """Every real file a test must never change: root-level ledgers and
-    registries, plus the health state the wrappers alert from."""
-    files = [os.path.join(_ROOT, f) for f in os.listdir(_ROOT)
-             if f.endswith((".csv", ".json"))]
-    files.append(os.path.join(_ROOT, "logs", "health_state.json"))
-    return sorted(f for f in files if os.path.isfile(f))
+    """Every file in the project a test must never create, change or delete."""
+    files = []
+    for dirpath, dirnames, filenames in os.walk(_ROOT):
+        dirnames[:] = [d for d in dirnames if d not in _UNWATCHED_DIRS]
+        files.extend(os.path.join(dirpath, f) for f in filenames)
+    return sorted(files)
 
 
 def _digest():

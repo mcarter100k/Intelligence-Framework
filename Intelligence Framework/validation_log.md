@@ -3187,3 +3187,57 @@ project files    : UNCHANGED (verified by hash)
 ```
 
 **`reality_run.py grader`:** exit 0. Shadow outcomes filled in the copy; project UNCHANGED.
+
+---
+
+## 2026-09-29 — CORRECTION: Phase 1 was reported finished before it was fully validated. Validation completed.
+
+**What was overclaimed.** The Phase 1 entry above and the merge report
+presented Phase 1 as done. The owner asked whether every claim was
+validated. Six were not:
+1. "The default suite makes no network calls." The block itself was tested, but the whole suite was never re-measured after the change.
+2. The new `brief.error is None` assertions were never shown to fail on a crash.
+3. The no-op-migration assertion was never shown to be able to fail.
+4. The integration run was checked only with `ls *.csv`. That would miss writes to `logs/`, subfolders, and absolute paths.
+5. The session guard watched only root `.csv`/`.json` and `logs/health_state.json`.
+6. The audit's orphaned-process finding (T7) was never checked.
+
+**How each was validated.** All evidence was observed in session.
+
+**1. The default suite makes no network calls.**
+- **Instrument:** an interpreter-level probe (`sys.addaudithook`), which no test can monkeypatch.
+- **Positive control:** a planted test that writes to its project and resolves `api-fxtrade.oanda.com` was caught: 1 lookup, 1 write.
+- **On the live checkout:** 591 passed, **0 non-local lookups, 0 writes** other than `/dev/null`.
+
+**2 and 3. Mutation tests** (in a disposable worktree).
+- **Mutant A:** the brief raises right after fetching the regime.
+  - The 3 new "logs nothing" tests: **3 failed**.
+  - The same 3 tests from before Phase 1: **3 passed**. They could never detect a crash.
+- **Mutant B:** the no-op migration creates the missing file.
+  - The new test: **1 failed**. The old test: **1 passed**.
+
+**4. `-m integration` against live OANDA**, in a copy of main seeded with copies of the real ledgers and `health_state.json`.
+- The probe saw 13 lookups (allowed for these tests) and **0 writes**.
+- A before/after hash of every file: **153 non-cache files identical**. Only Python bytecode caches differed.
+
+**5. The session guard.**
+- **Weakness shown first:** a planted test appending to `logs/` and another creating a root file both passed under the old guard.
+- **Fix:** the guard now hashes every project file, excluding caches, `venv/` and `.git`.
+- **After:** the same run exits 1 and names both files.
+- **Permanent tests** now cover both cases.
+- **Regression check:** the full suite under the stricter guard has no alert, so no existing test writes anywhere in the project.
+
+**6. Orphaned processes: confirmed, and fixed.**
+- `test_hung_binary_watchdog_fires_fallback`'s stub ran `sleep 300` as a child. The watchdog killed the stub and left the sleep orphaned.
+- **Controlled PID-set diff:** the old test gives exactly **1 new orphan per run** (PID 10019). The fixed stub (`exec sleep 300`) gives **0**.
+- The fixed test also now asserts that the hung process is dead.
+- The orphans leaked by this session's earlier runs (8775, 9675, 10019) were killed.
+
+**Every Phase 1 safeguard was shown to fail when removed (mutants C–G).** Each mutation was confirmed to have changed the file, and each broke its test:
+- C: remove the H4 mock
+- D: remove the network block
+- E: remove the tmp_path chdir
+- F: remove the absolute-writer redirects
+- G: disable the session guard's failure
+
+**Standing rule adopted (owner-directed):** no claim without observed evidence. See AGENTS.md rule 11 and the `evidence-validation` skill.

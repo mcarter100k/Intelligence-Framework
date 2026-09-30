@@ -122,11 +122,12 @@ restoring either requires team review and a concrete evidence path.
      unless review needs them remote. `main` is never the testing ground.
 
 2. **Suite green before any commit.** Full run: `python -m pytest -q`
-   (currently 591 passed on the live checkout — 2026-09-29). `conftest.py` isolates EVERY test:
+   (currently 593 passed on the live checkout — 2026-09-29). `conftest.py` isolates EVERY test:
    each runs in its own tmp_path (relative ledger paths land there), the
    absolute-path writers are redirected, unit tests cannot reach the network
    (mark real-network tests `@pytest.mark.integration`), and the session
-   FAILS if any real evidence file changed. Never weaken these to make a
+   FAILS if ANY file in the project (logs/ included; caches, venv/ and .git
+   excepted) was created, changed or deleted. Never weaken these to make a
    test pass. Two floors that must never be weakened to make something pass:
    - the **banned-token display test** (`test_brief_display.py`) — rendered
      output stays plain-English: no ADX / pivot / HH-HL / LH-LL / ATR-ratio
@@ -203,6 +204,17 @@ restoring either requires team review and a concrete evidence path.
     never be removed — the ledgers are append-only — so the only remedy is
     a registry entry (`exclusions.py`) keeping it out of every tally
     forever. Prevention is the whole of the cure.
+
+11. **NO CLAIM WITHOUT OBSERVED EVIDENCE (owner-directed 2026-09-29).**
+    Nothing is reported as done, fixed, working, safe or validated unless it
+    was observed this session with a check shown able to fail. That means a
+    positive control for "found nothing" and a mutation test for "the test
+    catches it". Label every claim VERIFIED / OBSERVED / INFERRED / PENDING /
+    NOT CHECKED; only VERIFIED may be called done. Exit codes, counts and `ls`
+    are not certification. When an overclaim is discovered, lead with it and
+    log a dated correction. Precedent: Phase 1 was reported finished with six
+    inferred claims (validation_log 2026-09-29 CORRECTION). Method and report
+    format: the `evidence-validation` skill (`foundation/skills/`).
 
 ---
 

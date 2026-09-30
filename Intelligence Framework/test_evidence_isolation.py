@@ -63,6 +63,8 @@ def _mini_project(tmp_path, test_body):
     for name, body in _STUB_MODULES.items():
         (proj / name).write_text(body)
     (proj / "fake_ledger.csv").write_text("a,b\n1,2\n")
+    (proj / "logs").mkdir()
+    (proj / "logs" / "brief_2026-09-29.log").write_text("real log\n")
     (proj / "test_mini.py").write_text(textwrap.dedent(test_body))
     return proj
 
@@ -94,3 +96,27 @@ def test_session_guard_passes_a_clean_run(tmp_path):
     r = _run_pytest(proj)
     assert r.returncode == 0, r.stdout + r.stderr
     assert (proj / "fake_ledger.csv").read_text() == "a,b\n1,2\n"
+
+
+def test_session_guard_catches_a_write_to_logs(tmp_path):
+    """The first guard watched only root .csv/.json. The 2026-09-29
+    validation proved a test could append to logs/ undetected."""
+    proj = _mini_project(tmp_path, f"""
+        def test_appends_to_a_real_log():
+            with open({str(tmp_path / 'proj' / 'logs' / 'brief_2026-09-29.log')!r}, "a") as f:
+                f.write("contaminated\\n")
+    """)
+    r = _run_pytest(proj)
+    assert r.returncode != 0
+    assert "logs/brief_2026-09-29.log" in r.stdout + r.stderr
+
+
+def test_session_guard_catches_a_new_file_in_the_project(tmp_path):
+    proj = _mini_project(tmp_path, f"""
+        def test_creates_a_file():
+            with open({str(tmp_path / 'proj' / 'notes.txt')!r}, "w") as f:
+                f.write("x")
+    """)
+    r = _run_pytest(proj)
+    assert r.returncode != 0
+    assert "notes.txt" in r.stdout + r.stderr
