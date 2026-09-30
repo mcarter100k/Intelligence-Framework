@@ -18,7 +18,6 @@ def main() -> None:
     from oanda_feed import get_daily_bars, is_configured
     from regime_classifier_logger import (
         check_pending_outcomes, get_accuracy_report, get_regime_accuracy,
-        MIN_SAMPLES_FOR_REVIEW,
     )
 
     if not is_configured():

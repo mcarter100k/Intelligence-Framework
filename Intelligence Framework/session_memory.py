@@ -21,9 +21,8 @@ not tracked here.
 
 import csv
 import os
-import math
-from datetime import datetime, timezone, date, timedelta
-from typing import Optional, Dict, List, Tuple
+from datetime import datetime, timezone, timedelta
+from typing import Optional, Dict, List
 
 from regime_detection import _ADX_TRANSITION_HIGH, _ADX_RANGING_THRESHOLD, PAIRS
 
@@ -192,14 +191,6 @@ def get_session_delta(instrument: str) -> Optional[Dict]:
         }
     except Exception:
         return None
-
-
-def get_session_history_today(instrument: str) -> List[Dict]:
-    """
-    Return all readings for this instrument today, oldest first.
-    Useful for showing the full session progression.
-    """
-    return _get_today_rows(instrument)
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────

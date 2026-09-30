@@ -26,19 +26,10 @@ USAGE:
 
 import csv
 import os
-import math
 from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 LOG_FILE = "regime_classification_log.csv"
-
-# Outcome windows per regime type (in bars)
-OUTCOME_WINDOWS = {
-    "TRENDING_UP":   20,
-    "TRENDING_DOWN": 20,
-    "RANGING":       20,
-    "VOLATILE":      8,
-}
 
 # Minimum accuracy threshold — below this a regime is underperforming
 MIN_ACCURACY_THRESHOLD = 0.55

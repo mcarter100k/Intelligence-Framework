@@ -27,7 +27,6 @@ from zoneinfo import ZoneInfo
 
 DEFAULT_DISPLAY_TZ = "America/Los_Angeles"
 
-_STYLES = ("full", "time", "day_time")
 
 
 def display_zone() -> ZoneInfo:

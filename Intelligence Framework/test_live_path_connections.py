@@ -238,26 +238,15 @@ SUPPORT_FILES = [
 ]
 
 # Orphans that are CORRECT. A bare name is not allowed here — every entry
-# carries the reason it is legitimately unreferenced. Known-unused is listed,
-# never deleted: several of these are seeds for the level-map work.
+# carries the reason it is legitimately unreferenced. Plain dead code is
+# deleted, not allowlisted (2026-09-29 audit).
 ORPHAN_ALLOWLIST = {
-    "nearest_resistance": "known-unused; seed for the level-map spec",
-    "nearest_support": "known-unused; seed for the level-map spec",
-    "find_confluence_zones": "known-unused; seed for the level-map spec",
-    "get_round_number_levels": "known-unused; seed for the level-map spec",
-    "get_m5_bars": "known-unused feed helper",
-    "get_session_history_today": "known-unused session helper",
     "get_size_note": "risk_config display helper; unused pending the "
                      "circuit-breaker enforcement spec",
     "format_grade_block": "risk_config display helper; same pending spec",
     "print_risk_rules": "risk_config display helper; same pending spec",
     "calculate_lot_size": "test-only; unused pending the breaker wiring",
     "can_trade": "test-only; unused pending the circuit-breaker gate spec",
-    "record_outcome": "manual single-row path. The SCHEDULED path is "
-                      "check_pending_trade_outcomes, which fills outcomes "
-                      "through the same _fill_outcome helper "
-                      "(trade_outcome_logger.py:289 vs :206). Verified "
-                      "2026-09-16, not wired speculatively.",
     "append_exclusion": "authoring path, used by tests and by the "
                         "one-off seeding of an authorized exclusion. "
                         "Deliberately NOT called by any grader — a grader "
@@ -267,11 +256,6 @@ ORPHAN_ALLOWLIST = {
                              "docstring (shadow_signals.py:502) says "
                              "'scheduled runs classify at grading time'. "
                              "Verified 2026-09-16.",
-    "get_accuracy_by_signal_type": "reporting sibling of "
-                                   "get_accuracy_by_regime, which IS called "
-                                   "live by run_outcome_check.py:68. Unused "
-                                   "pending a report needing the "
-                                   "by-signal-type cut.",
 }
 
 ARTIFACT_ALLOWLIST = {

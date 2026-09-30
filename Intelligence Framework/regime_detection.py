@@ -19,8 +19,7 @@ Data source: yfinance (free, no API key needed)
 from __future__ import annotations
 import math
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime
+from typing import Dict, List, Tuple
 
 from oanda_feed import (
     get_daily_bars  as _oanda_daily_bars,
@@ -79,7 +78,6 @@ _ADX_PERIOD  = 14
 # Momentum win rates collapse above 25-28 on both pairs.
 # GBP/JPY ADX 40+ = 82.7% mean reversion — exhaustion, not trend.
 _ADX_RANGING_THRESHOLD    = 18    # below this: mean reversion dominant (was 20)
-_ADX_TRANSITION_LOW       = 18    # 18-25: no statistical edge, require structure confirmation
 _ADX_TRANSITION_HIGH      = 25    # 25-32: cautious trend, HTF confirmation required
 _ADX_EXHAUSTION_THRESHOLD = 32    # above this: late-trend warning, reduce size
 _ADX_JPY_EXHAUSTION       = 35    # GBP/JPY specific: mean reversion accelerates here

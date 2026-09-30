@@ -35,7 +35,7 @@ Data: 1H bars from OANDA via get_hourly_bars().
 
 from __future__ import annotations
 from datetime import datetime, timezone, timedelta, time as dtime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from oanda_feed import get_hourly_bars, is_configured
 

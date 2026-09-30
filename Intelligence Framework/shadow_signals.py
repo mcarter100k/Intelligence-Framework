@@ -36,7 +36,7 @@ from __future__ import annotations
 import csv
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Dict, List, Optional
 
 from regime_detection import (
