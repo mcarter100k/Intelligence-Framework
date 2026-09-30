@@ -106,33 +106,3 @@ def test_nonzero_exit_falls_back(tmp_path):
 def test_success_does_not_double_notify(tmp_path):
     tn, osa = _run(tmp_path, tn_body="exit 0")
     assert tn is not None and osa is None
-
-
-# ── wrapper category routing (static pins on the wrapper sources) ──────────────
-
-def _src(name):
-    with open(os.path.join(_PROJ, "scripts", name)) as f:
-        return f.read()
-
-def test_wrappers_source_helper_and_use_categories():
-    brief = _src("scheduled_brief.sh")
-    assert '. "$PROJ/scripts/notify.sh"' in brief
-    assert 'CATEGORY="ALERT"' in brief and 'CATEGORY="DECISION"' in brief \
-        and 'CATEGORY="SHADOW"' in brief
-    assert 'notify "$CATEGORY" "$SUMMARY" "$LOG"' in brief
-    out = _src("scheduled_outcome_check.sh")
-    assert '. "$PROJ/scripts/notify.sh"' in out
-    assert 'notify "SHADOW"' in out
-    hb = _src("weekly_heartbeat.sh")
-    assert 'notify "HEARTBEAT"' in hb
-    # health path in both daily wrappers: ALERT vs RECOVERED
-    for s in (brief, out):
-        assert 'HCAT="ALERT"' in s and 'HCAT="RECOVERED"' in s
-    # no wrapper calls osascript directly anymore (only the helper's fallback)
-    for name in ("scheduled_brief.sh", "scheduled_outcome_check.sh",
-                 "weekly_heartbeat.sh"):
-        for line in _src(name).splitlines():
-            stripped = line.strip()
-            if stripped.startswith("#"):
-                continue
-            assert "osascript" not in stripped, (name, line)

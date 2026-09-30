@@ -796,18 +796,15 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
 
     _ms = _market_status()
     oanda_pair = pair.instrument.replace("_", "")
-    try:
-        raw = _oanda_daily_bars(pair=oanda_pair, count=220)
-    except Exception as exc:
-        try:
-            from oanda_feed import get_daily_bars, is_configured
-            raw = get_daily_bars(pair=oanda_pair, count=220) if is_configured() else None
-        except Exception:
-            raw = None
-        if raw is None:
-            return _error_result(f"OANDA unavailable for {pair.display_name}: {exc}")
-
-    if raw is None or raw.empty or len(raw) < _ADX_PERIOD * 3:
+    # The feed never raises; it returns None and records why. The old
+    # try/except retry here could never run (visible_failures_spec D7), and
+    # a fetch failure read "Not enough data" whatever had actually happened.
+    raw = _oanda_daily_bars(pair=oanda_pair, count=220)
+    if raw is None or raw.empty:
+        from oanda_feed import last_error
+        return _error_result(f"OANDA unreachable for {pair.display_name}: "
+                             f"{last_error() or 'no candles returned'}")
+    if len(raw) < _ADX_PERIOD * 3:
         return _error_result("Not enough data to calculate regime indicators")
 
     if hasattr(raw.columns, "levels"):

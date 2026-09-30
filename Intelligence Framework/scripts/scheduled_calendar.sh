@@ -6,7 +6,9 @@
 # calendar_fetch.py, which keeps the existing file on ANY failure.
 # Always exits 0 so launchd never enters an error state.
 
-PROJ="/Users/quis/Intelligence Framework"
+# INTEL_PROJ exists for the behavioral tests only; launchd sets nothing,
+# so production always uses the path below.
+PROJ="${INTEL_PROJ:-/Users/quis/Intelligence Framework}"
 cd "$PROJ" || exit 0
 [ -f "venv/bin/activate" ] && source "venv/bin/activate"
 mkdir -p logs

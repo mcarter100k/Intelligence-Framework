@@ -35,6 +35,7 @@ SECURITY:
 from __future__ import annotations
 
 import os
+import time
 import requests
 from typing import Optional
 
@@ -176,9 +177,46 @@ def get_hourly_bars(pair: str = "GBPAUD", count: int = 72,
     return _get_bars(pair, granularity="H1", count=count, timeout=timeout)
 
 
+# ── Failure classification (docs/specs/visible_failures_spec.md D7) ─────────
+# Before: every failure (revoked key, OANDA outage, timeout) returned None
+# after ONE attempt, and the trader read "Not enough data to calculate regime
+# indicators" for all of them. Now each failure is classified, transient ones
+# retry, and the latest classification is available to the caller.
+_RETRY_WAITS = (1.0, 2.0)          # seconds before retry 1 and retry 2
+_last_error: Optional[str] = None
+
+
+def last_error() -> Optional[str]:
+    """Plain-English classification of the most recent failed fetch, or
+    None when the most recent fetch succeeded."""
+    return _last_error
+
+
+def _classify(exc: Exception) -> tuple:
+    """(message, transient) for a failed request."""
+    if isinstance(exc, requests.HTTPError):
+        code = getattr(getattr(exc, "response", None), "status_code", None)
+        if code in (401, 403):
+            return (f"HTTP {code}: OANDA rejected the credentials (key revoked, "
+                    f"expired, or for the wrong environment)", False)
+        if code == 429:
+            return ("HTTP 429: rate limited by OANDA", True)
+        if code is not None and code >= 500:
+            return (f"HTTP {code}: OANDA server error", True)
+        return (f"HTTP {code}: request rejected by OANDA", False)
+    if isinstance(exc, requests.Timeout):
+        return ("request timed out", True)
+    if isinstance(exc, requests.ConnectionError):
+        return ("connection failed (network down or OANDA unreachable)", True)
+    if isinstance(exc, ValueError) and "environment variable" in str(exc):
+        return (f"credentials missing: {exc}", False)
+    return (f"{type(exc).__name__}: {exc}", False)
+
+
 def _get_bars(pair: str, granularity: str, count: int,
               timeout: int) -> Optional[pd.DataFrame]:
     """Internal: fetch OHLCV candles from OANDA instruments endpoint."""
+    global _last_error
     try:
         instrument = _pair(pair)
         url = f"{_base_url()}/v3/instruments/{instrument}/candles"
@@ -188,8 +226,20 @@ def _get_bars(pair: str, granularity: str, count: int,
             "price":       "M",  # mid prices
         }
 
-        resp = requests.get(url, headers=_headers(), params=params, timeout=timeout)
-        resp.raise_for_status()
+        for attempt in range(len(_RETRY_WAITS) + 1):
+            try:
+                resp = requests.get(url, headers=_headers(), params=params,
+                                    timeout=timeout)
+                resp.raise_for_status()
+                break
+            except Exception as exc:
+                msg, transient = _classify(exc)
+                if not transient or attempt == len(_RETRY_WAITS):
+                    tries = attempt + 1
+                    _last_error = (f"{msg} ({granularity} {instrument}, "
+                                   f"{tries} attempt{'s' if tries > 1 else ''})")
+                    return None
+                time.sleep(_RETRY_WAITS[attempt])
         data = resp.json()
 
         candles = data.get("candles", [])
@@ -219,11 +269,11 @@ def _get_bars(pair: str, granularity: str, count: int,
 
         df = pd.DataFrame(rows)
         df = df.set_index("Datetime").sort_index()
+        _last_error = None
         return df
 
-    except ValueError:
-        return None
-    except Exception:
+    except Exception as exc:
+        _last_error, _ = _classify(exc)
         return None
 
 

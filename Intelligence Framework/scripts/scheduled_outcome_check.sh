@@ -5,7 +5,9 @@
 # full output to a dated log, and fires a macOS notification ONLY when a SHADOW
 # outcome was graded this run (including the updated tally). Always exits 0.
 
-PROJ="/Users/quis/Intelligence Framework"
+# INTEL_PROJ exists for the behavioral tests only; launchd sets nothing,
+# so production always uses the path below.
+PROJ="${INTEL_PROJ:-/Users/quis/Intelligence Framework}"
 cd "$PROJ" || exit 0
 [ -f "venv/bin/activate" ] && source "venv/bin/activate"
 mkdir -p logs
@@ -25,16 +27,22 @@ LOG="logs/outcomes_${DATE}.log"
 live_guard "$LOG"
 
 OUT="$(python3 run_outcome_check.py 2>&1)"
+ORC=$?
 { echo "===== $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
 
 # Health tracking (docs/specs/heartbeat_spec.md item 1). Failure signature:
+# a crash (nonzero exit or a Python traceback; visible_failures_spec D1 —
+# before, a traceback matched none of the patterns and counted as SUCCESS),
 # grader early-exit marker, unconfigured feed, no data, or empty output.
-if [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -qE 'GRADER EARLY EXIT|not configured|no data from OANDA'; then
+if [ "$ORC" -ne 0 ] || printf '%s\n' "$OUT" | grep -q 'Traceback (most recent call last)'; then
+    HREASON="grader crashed (exit $ORC): $(printf '%s\n' "$OUT" | grep -v '^[[:space:]]' | grep -v '^Traceback' | tail -1 | cut -c1-160)"
+    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$HREASON")"
+elif [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -qE 'GRADER EARLY EXIT|not configured|no data from OANDA'; then
     HREASON="$(printf '%s\n' "$OUT" | grep -oE 'GRADER EARLY EXIT[^(]*|[A-Z_]+: no data from OANDA' | head -1)"
     [ -z "$HREASON" ] && HREASON="outcome check produced no output"
-    HEALTH="$(python3 scripts/health_state.py record-failure "$HREASON")"
+    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$HREASON")"
 else
-    HEALTH="$(python3 scripts/health_state.py record-success)"
+    HEALTH="$(python3 scripts/health_state.py record-success outcomes)"
 fi
 if [ -n "$HEALTH" ]; then
     echo "$HEALTH" >> "$LOG"

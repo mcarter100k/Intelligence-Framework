@@ -4,7 +4,9 @@
 # MISSING Sunday notification is itself the alarm. Appends the full report to
 # logs/heartbeat_<date>.log. Always exits 0.
 
-PROJ="/Users/quis/Intelligence Framework"
+# INTEL_PROJ exists for the behavioral tests only; launchd sets nothing,
+# so production always uses the path below.
+PROJ="${INTEL_PROJ:-/Users/quis/Intelligence Framework}"
 cd "$PROJ" || exit 0
 [ -f "venv/bin/activate" ] && source "venv/bin/activate"
 mkdir -p logs
