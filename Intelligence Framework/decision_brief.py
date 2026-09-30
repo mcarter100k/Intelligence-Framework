@@ -70,7 +70,7 @@ class DecisionBrief:
     entry_line:           str             = ""   # LONG/SHORT: trigger + level
     target_line:          str             = ""   # LONG/SHORT: honest target note
     news_note:            str             = ""   # stale/missing-calendar honesty line
-    price_basis:          str             = "live"   # data_at_source_spec P1
+    price_basis:          str             = "unknown"   # data_at_source_spec P1
 
     def format(self) -> str:
         """Render the brief as a formatted string."""
@@ -113,10 +113,13 @@ class DecisionBrief:
             f"  MARKET STATE {self._wrap(ms, 37, 15)}",
             f"",
         ]
-        # A fallback price is never shown as if it were live (P1).
+        # A fallback price is never shown as if it were live (P1; review V5:
+        # a missing basis now reads as unknown, not live).
         if self.price_basis == "prior_close":
             lines.insert(3, "  Price is the previous daily close — the live "
                             "price could not be fetched")
+        elif self.price_basis == "unknown" and self.price:
+            lines.insert(3, "  Price source unknown — do not treat it as live")
         # Market status / bar freshness — inserted between Price/ATR line and border
         if not self.market_open and self.market_note:
             lines.insert(3, f"  {self.market_note}")
@@ -425,7 +428,7 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             instrument=instrument,
             timestamp=timestamp,
             price=float(regime.get("current_price", 0.0)),
-            price_basis=regime.get("price_basis") or "live",
+            price_basis=regime.get("price_basis") or "unknown",
             atr_pips=float(regime.get("atr_pips", 0.0)),
             decision=decision_str,
             reason=reason,
@@ -468,10 +471,13 @@ def _last_expected_d1_close(now, close_hour: int):
     back over the weekend so a fresh Monday-morning brief is not flagged stale.
     """
     from datetime import timedelta
+    from regime_detection import is_trading_day
     c = now.replace(hour=close_hour, minute=0, second=0, microsecond=0)
     if c > now:
         c -= timedelta(days=1)
-    while c.weekday() >= 5:      # 5 = Saturday, 6 = Sunday
+    # Step back over weekends AND the Dec 25 / Jan 1 closures, using the same
+    # calendar as the market-open check (data_at_source review V7).
+    while not is_trading_day(c.date()):
         c -= timedelta(days=1)
     return c
 

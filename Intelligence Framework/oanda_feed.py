@@ -87,6 +87,7 @@ def get_live_price(pair: str = "GBPAUD", timeout: int = 5) -> Optional[float]:
     Uses the account pricing endpoint which gives real-time bid/ask.
     Mid = (best_bid + best_ask) / 2
     """
+    global _last_error
     try:
         instrument = _pair(pair)
         url = f"{_base_url()}/v3/accounts/{_account_id()}/pricing"
@@ -98,6 +99,7 @@ def get_live_price(pair: str = "GBPAUD", timeout: int = 5) -> Optional[float]:
 
         prices = data.get("prices", [])
         if not prices:
+            _last_error = f"live price: no price returned ({instrument})"
             return None
 
         price_data = prices[0]
@@ -110,6 +112,7 @@ def get_live_price(pair: str = "GBPAUD", timeout: int = 5) -> Optional[float]:
             bid = float(bids[0]["price"])
             ask = float(asks[0]["price"])
             mid = round((bid + ask) / 2, 5)
+            _last_error = None
             return mid
 
         # Fallback: use closeoutBid/closeoutAsk
@@ -120,11 +123,10 @@ def get_live_price(pair: str = "GBPAUD", timeout: int = 5) -> Optional[float]:
 
         return None
 
-    except ValueError:
-        # API key or account ID not configured — silent, expected during setup
-        return None
-    except Exception:
-        # Network error, rate limit, anything else — fail silently
+    except Exception as exc:
+        # Never raises, but always records WHY (data_at_source review V6: a
+        # revoked key, a 429 and a timeout all used to read identically).
+        _last_error = f"live price: {_classify(exc)[0]}"
         return None
 
 

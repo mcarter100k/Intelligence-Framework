@@ -44,10 +44,20 @@ _ABSOLUTE_WRITERS = [
 ]
 
 
+# Read by absolute path, so the REAL file would leak into every test that
+# runs the live path. news_gate reads calendar.csv: a real HIGH-impact event
+# within 2 hours changed apply_filter's answer and made tests fail by
+# wall-clock (data_at_source review V4, reproduced with a planted event).
+# Tests that need a calendar pass their own path or set this attribute.
+_ABSOLUTE_READERS = [
+    ("news_gate", "_CALENDAR_FILE", "calendar.csv"),
+]
+
+
 @pytest.fixture(autouse=True)
 def _isolate_evidence(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    for module, attr, name in _ABSOLUTE_WRITERS:
+    for module, attr, name in _ABSOLUTE_WRITERS + _ABSOLUTE_READERS:
         mod = __import__(module)
         monkeypatch.setattr(mod, attr, str(tmp_path / name))
 

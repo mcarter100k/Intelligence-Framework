@@ -159,8 +159,13 @@ def log_regime(regime_data: Dict, instrument: str) -> str:
         "weekly_context":     regime_data.get("weekly_context", ""),
         "timeframe_conflict": regime_data.get("timeframe_conflict", False),
         "stand_down":         regime_data.get("stand_down", False),
-        "price_at_log":       regime_data.get("current_price", 0.0),
-        "price_basis":        regime_data.get("price_basis", ""),
+        # The closed D1 bar the classification was computed from: the right
+        # baseline for D1-bar outcomes, and stable across runs on the same
+        # bar, so repeat logs of one state still merge (review V2).
+        "price_at_log":       regime_data.get("last_close",
+                                              regime_data.get("current_price", 0.0)),
+        "price_basis":        "d1_close" if "last_close" in regime_data
+                              else regime_data.get("price_basis", ""),
         "atr_pips_at_log":    regime_data.get("atr_pips", 0.0),
         "prediction_type":    prediction_type,
         "prediction_window":  prediction_window,
