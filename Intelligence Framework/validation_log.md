@@ -3376,3 +3376,44 @@ This was NOT CHECKED in the Phase 3 report. It is now measured with `scripts/tra
 
 ### Gate 3 — PENDING
 - `/reload-skills` in the pre-existing session makes the Skill tool resolve `evidence-validation` there. It needs the owner to type the command; the result is to be recorded.
+
+---
+
+## 2026-09-30 — Phase 4: data at the source (per docs/specs/data_at_source_spec.md). Merge HELD
+
+**Method (AGENTS.md rule 11).** Each defect was reproduced on main (ce4cab6) with controls, then re-measured with the same script.
+
+| # | Defect | BEFORE (main) | AFTER (branch) |
+|---|---|---|---|
+| P1 | The brief's price is the previous D1 close | GBP/AUD 1.8938 vs live 1.90163: **78.3 pips**. GBP/JPY: 6.5 pips | 0.2 and 0.0 pips; `price_basis=live` |
+| P2 | Market hours hard-coded at 21:00 UTC | 4 wrong cases after DST / on holidays; the summer controls correct | all 7 correct |
+| P3 | A weekly outage silently skips the 20-week gate | allowed ("All filter conditions passed"); the control was blocked | stands down ("Weekly trend data unavailable…"); the control is unchanged |
+
+**`/code-review`.** 10 findings, all reproduced, then fixed and re-measured. See the spec addendum, including the design correction: classification and the regime ledger use the closed D1 bar; only the display and the trade entry are live.
+
+### Gate 1
+- **Full suite:** 703 passed (worktree, clean cache), with 0 network lookups (audit-hook probe).
+- **Controlled comparison:** 17 of 26 new tests fail on main's code. With the mock target made tolerant they fail on behavior: P1 price 1.851 vs live, P3 RANGING vs UNAVAILABLE, and UNAVAILABLE printed raw. The 9 that pass on main are the cases main already got right.
+- **Mutation tests:** 18 mutants (M1–M9, MV1–MV9), each applied, failing, reverted, caches cleared, and re-run to PASS.
+- **Correction:** the V-fix commit message stated "703 passed" before the full suite was run; it was verified afterwards (703 passed).
+
+### Gate 2 (REALITY)
+- **`reality_run brief` / `grader`** with the branch code against the live ledgers: exit 0, project UNCHANGED.
+  - The brief shows live prices: 1.9021, where it showed the stale 1.8938.
+  - The regime copy migrated additively. The 114 pre-existing rows show **0 field differences** against the live ledger, all with a blank basis. The new rows carry `price_at_log` = the D1 close and `price_basis=d1_close`.
+- **Forced live-price failure:** the brief shows "Price is the previous daily close — the live price could not be fetched".
+- **The real wrappers end to end** (brief and grader launched together on a project copy):
+  - live prices in the day log;
+  - `DUE:` logged;
+  - a verified backup before grading;
+  - health `brief: 0`, `outcomes: 0`;
+  - the live project UNCHANGED.
+
+### Merge preconditions (owner)
+1. The Phase 2/3 Gate-3 checks of the 02:30 brief and the 15:15 grader pass.
+2. Owner approval of this branch.
+3. Owner approval of the controlled header migration of the two LIVE ledgers at merge: backup first, then the loggers' own `migrate_header`, then a field-by-field comparison against the backup, which must show 0 differences.
+
+### Gate 3 — PENDING
+- The first scheduled briefs after merge show live prices within 3 pips of the mid.
+- The first real Sunday-open and Friday-close boundaries after 2026-11-01 are handled correctly.

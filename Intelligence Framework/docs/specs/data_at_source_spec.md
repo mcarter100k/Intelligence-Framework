@@ -103,3 +103,36 @@ forming candle, so `_split_live_bar` never finds a live bar to split.
     within 3 pips of the live mid.
   - The first real Sunday and Friday market-hour boundaries after
     2026-11-01 are handled correctly.
+
+## Addendum (2026-09-30): design correction and `/code-review` findings
+
+**Design correction (from V2/V3).** Only the displayed price and the trade
+entry (`trade_signal_log.price_at_signal`, basis `live` / `prior_close`) use
+the live mid. Classification inputs (`atr_pct`, the moving-average context,
+`range_position`) and the regime ledger's `price_at_log` use
+**`last_close`**, the closed D1 bar the classification was computed from,
+with basis `d1_close`.
+
+Why: the first build let the live mid leak into those inputs.
+- Two runs on the same bars flipped `range_position` 0.0 ↔ 1.0, which
+  drives the range-trade direction.
+- Repeat logs of one state no longer de-duplicated.
+
+The closed bar is also the right baseline for D1-bar regime outcomes.
+Basis values: `live`, `prior_close` (fallback), `market_closed` (no pricing
+request is made), `d1_close` (regime rows), and blank (pre-fix rows).
+
+**Findings.** Each was reproduced on the branch before fixing, then
+re-measured fixed with the same script. All 10 were confirmed.
+
+| # | Finding | Fix |
+|---|---|---|
+| V1 | 20–22 weekly bars passed as "available" but the 20-week read needs 23, so the gate was skipped silently | `_WEEKLY_MIN_BARS = 23` |
+| V2/V3 | The live mid leaked into classification and broke de-duplication | See the design correction above |
+| V4 | Tests read the real news calendar; a planted event 59 min out failed them | conftest redirects `news_gate._CALENDAR_FILE` |
+| V5 | A missing basis defaulted to "live" | Defaults to "unknown", shown as "Price source unknown" |
+| V6 | `get_live_price` recorded no reason | Records `last_error` like the bar fetches |
+| V7 | The stale-feed check ignored Dec 25 / Jan 1 (a false "feed stale" on Dec 28) | One `is_trading_day` calendar for both |
+| V8 | A weekend quote was labelled live | `market_closed`, with no pricing request |
+| V9 | The error path kept RANGING | UNAVAILABLE plus `weekly_available=False` |
+| V10 | A dead `try` | Removed |
