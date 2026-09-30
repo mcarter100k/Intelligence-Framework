@@ -3137,3 +3137,53 @@ The valid exclusion still held: the row stayed ungraded.
 
 ### Gate 3 — PENDING LIVE CONFIRMATION
 - A scheduled 15:15 grader run, after the row's 20-bar window has elapsed, leaves `2026-09-16T09:08:08Z_GBP_AUD` ungraded. This carries over from the 2026-09-16 entry.
+
+---
+
+## 2026-09-29 — Phase 1: the test suite cannot touch evidence or the network
+
+**Measured before changing anything.** A probe plugin recorded every network lookup and every write outside a temp directory, per test.
+
+**Default suite:**
+- 0 real writes.
+- 2 live authenticated OANDA calls, both from `test_regime_detection_p1.py`'s `mocked_regime` fixture. It mocked only D1; H4 and weekly went to the live API. So the 29 contract cases asserted on synthetic D1 data mixed with the live market.
+
+**`-m integration` (run in a worktree):**
+- `test_full_brief_produces_long_on_clean_uptrend` wrote synthetic rows to three ledgers: `trade_signal_log.csv` ×2, `session_context_log.csv` and `regime_classification_log.csv`.
+- It is the likely origin of the unexplained 2026-07-29T04:23:31Z session row.
+
+**Built:**
+- **`conftest.py`: every test runs in its own tmp_path**, so relative ledger paths land there. The absolute-path writers (pre-trade journal, trades.csv, calendar) are redirected too.
+- **A session-wide network block.** Only `integration` tests lift it. The first version blocked per test, which missed module-scoped fixtures, the exact case above. It was caught in testing.
+- **A session guard.** It hashes every real evidence file and FAILS the run on any change. It is proven in a throwaway project: it fails a contaminating run and passes a clean one.
+- **`mocked_regime` now mocks D1, H4 and weekly.** The contract cases now run the real tradeable path (TRENDING_UP/TRENDING_UP, CONTINUATION).
+- **Weak tests fixed:**
+  - The "logs nothing" wiring tests now assert `brief.error is None`, so a crash no longer passes them.
+  - The header "would have caught it" test now calls the real check, and fails when that check is broken.
+  - A cwd-dependent `open("scripts/...")` in `test_alert_flags.py` now uses an absolute path.
+- **`scripts/reality_run.py`: the Gate-2 tool that rule 10 had referred to.** It runs from a temp cwd with ledger copies and `.env`, hashes the project before and after, and fails with exit 2 on any escape.
+
+**Caught during its own Gate 2:**
+- The first version of `reality_run.py` certified an ERROR PAGE as a successful run. Trailing `--project/--code` options were swallowed as script arguments, so it ran the wrong project with no credentials. The brief exits 0 on an error page.
+- **Fixed:**
+  - Options are now parsed intermixed.
+  - A missing `.env` is flagged.
+  - A failure marker in the output (error page, traceback, grader early exit) returns exit 3: "NOT a valid REALITY GATE".
+  - Ten days of real brief and outcome logs contain none of the markers, so there are no false positives.
+
+### Gate 1
+585 passed in the worktree; the 6 ledger-header cases skip there because the ledgers are absent.
+
+### Gate 2 (REALITY)
+**`-m integration`:** runs against live OANDA; 2 passed. No ledger files were created in the project (before: 3 synthetic ledgers).
+
+**`reality_run.py brief --project <live> --code <branch>`:**
+```
+exit code        : 0
+ledger copy changed: regime_classification_log.csv (115 -> 117 lines)
+ledger copy changed: session_context_log.csv (161 -> 163 lines)
+ledger copy changed: shadow_signal_log.csv (20 -> 21 lines)
+project files    : UNCHANGED (verified by hash)
+```
+
+**`reality_run.py grader`:** exit 0. Shadow outcomes filled in the copy; project UNCHANGED.
