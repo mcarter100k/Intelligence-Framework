@@ -3286,3 +3286,50 @@ validated. Six were not:
 - The first scheduled brief and grader runs after merge write per-job health.
 - The first real scheduled brief after merge logs `DUE: storylines.md` and records success.
 - The next Sunday heartbeat reports both jobs, and shows DUE without NEEDS ATTENTION.
+
+---
+
+## 2026-09-30 — Phase 3: safe ledger writes (per docs/specs/safe_ledger_writes_spec.md)
+
+**Method (AGENTS.md rule 11).** Every defect was reproduced on main (67a8aef) with real processes and the real logger functions, on copies of the live ledgers. The instrument controls were:
+- every second-process appender first shown to append on its own;
+- every run recorded that the second process ran and exited 0;
+- the trigger placed at the end of the grader's READ.
+
+The same script was re-run on the branch.
+
+| # | Defect | BEFORE (main) | AFTER (branch) |
+|---|---|---|---|
+| B1a–c | A grader's read-modify-write destroys a concurrently appended row | shadow 19→19, regime 114→114, trade 4→4: row lost in all three | 19→20, 114→115, 4→5: row kept in all three |
+| B2 | SIGKILL mid-rewrite of a real regime-ledger copy | 114 rows → **0** | 114 → 114 |
+| B3 | Session log deletes rows older than 30 days | a 59-day-old row deleted | kept |
+| B4 | No backups | none | hash-verified folder per nightly run |
+| B5 | 40 concurrent health updates | 16, 32, 33, 34, 37 of 40 counted | 40 of 40 |
+
+**Supersedes the 2026-09-09 entry** ("session_context_log.csv … a designed **rolling 30-day window**, not an append-only archive"). As of this merge the ledger is append-only, which is what AGENTS.md already said. The pruning it described has already cost evidence: the 2026-07-29 synthetic row, which Phase 1 traced to the integration tests, was deleted by it. Owner to confirm at merge review (spec addendum).
+
+### Gate 1
+- **Full suite:** 666 passed (worktree, clean cache, `PYTHONDONTWRITEBYTECODE=1`), with 0 network lookups (audit-hook probe).
+- **Controlled comparison:** the 12 new-behavior tests fail on main's code. The three race tests fail on the "the other process's row survived" assertion.
+- **Mutation tests:** 25 mutants, each applied, each failing its test, each reverted with caches cleared and the test re-run to PASS:
+  - MA–MK: the build;
+  - MR1–MR10: the review fixes;
+  - the restructured health lock, caught 3 of 3.
+
+### Correction during Gate 1
+Mutants MD, ME and MF survived the first race tests, because the trigger sat inside the write's own lock. The trigger was moved, the tests and the B1 measurement were re-run before and after, and all three mutants now fail. The spec addendum lists every instrument correction.
+
+### Gate 2 (REALITY)
+- **`reality_run brief` / `grader`** with the branch code against the live ledgers: exit 0, no failure markers, project UNCHANGED by hash.
+- **Real wrappers on a full project copy** (the live ledgers, `.env`, the venv), with the brief and the grader **launched simultaneously**:
+  - 0 pre-existing rows lost in any ledger;
+  - shadow: the grader's fill (9→10 graded) and the brief's new row (19→20) both kept;
+  - backup `2026-09-30T070502Z`: 9 files, all sha256 verified, 0 mismatches on an independent re-hash;
+  - no leftover temp files; health `brief: 0`, `outcomes: 0`;
+  - the live project was UNCHANGED (every file hashed).
+  - **Honest limit:** the exact interleaving of the two wrappers was not instrumented. The deterministic race proof is B1.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+- The first scheduled 15:15 run after merge writes `backups/<stamp>/` with a verified manifest, then grades.
+- `session_context_log.csv` still holds its 2026-09-09 rows after 2026-10-09, which is when they would first have been pruned.
+- **Off-machine backup:** backups on the same disk do not survive disk loss. This is the owner's decision.

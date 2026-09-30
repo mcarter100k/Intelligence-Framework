@@ -55,14 +55,9 @@ def _read_rows(path: Optional[str] = None) -> List[Dict]:
 
 
 def _append_row(row: Dict, path: Optional[str] = None) -> None:
+    from ledger_io import append_row               # locked + fsynced
     path = path or TRADES_FILE
-    exists = os.path.exists(path)
-    out = {k: row.get(k, "") for k in FIELDS}
-    with open(path, "a", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=FIELDS)
-        if not exists:
-            w.writeheader()
-        w.writerow(out)
+    append_row(path, FIELDS, {k: row.get(k, "") for k in FIELDS})
 
 
 def open_positions(path: Optional[str] = None) -> List[Dict]:

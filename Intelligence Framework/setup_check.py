@@ -38,7 +38,6 @@ PLAY pattern mapping (deterministic, suggested-only — the human confirms):
 from __future__ import annotations
 
 import argparse
-import csv
 import os
 import re
 import sys
@@ -520,32 +519,18 @@ def _migrate_journal_header(path: str) -> None:
     with the current header — every existing row preserved verbatim in its
     old columns, blank in the new one. The logger maintaining its own
     schema, never an edit of recorded values. Must run before any append."""
-    try:
-        with open(path, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            if reader.fieldnames is None or                     list(reader.fieldnames) == _JOURNAL_FIELDS:
-                return
-            rows = list(reader)
-    except OSError:
-        return
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=_JOURNAL_FIELDS)
-        w.writeheader()
-        for r in rows:
-            w.writerow({k: (r.get(k) or "") for k in _JOURNAL_FIELDS})
+    from ledger_io import migrate_header
+    migrate_header(path, _JOURNAL_FIELDS)
 
 
 def append_journal(stack: Dict, path: str = JOURNAL_FILE) -> None:
     """Append-only ledger write (gitignored). Never edits existing rows."""
-    exists = os.path.exists(path)
-    if exists:
-        _migrate_journal_header(path)
-    row = {k: stack.get(k, "") for k in _JOURNAL_FIELDS}
-    with open(path, "a", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=_JOURNAL_FIELDS)
-        if not exists:
-            w.writeheader()
-        w.writerow(row)
+    from ledger_io import append_row, locked
+    with locked(path):
+        if os.path.exists(path):
+            _migrate_journal_header(path)
+        append_row(path, _JOURNAL_FIELDS,
+                   {k: stack.get(k, "") for k in _JOURNAL_FIELDS})
 
 
 def main(argv=None) -> int:

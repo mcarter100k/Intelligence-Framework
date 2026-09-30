@@ -21,14 +21,14 @@ not tracked here.
 
 import csv
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional, Dict, List
 
 from exclusions import filter_rows
+from ledger_io import append_row
 from regime_detection import _ADX_TRANSITION_HIGH, _ADX_RANGING_THRESHOLD, PAIRS
 
 LOG_FILE = "session_context_log.csv"
-PRUNE_DAYS = 30
 
 FIELDNAMES = [
     "timestamp", "instrument", "adx_d1", "adx_h4",
@@ -41,8 +41,12 @@ def log_session_snapshot(regime: dict, instrument: str,
                          market_open: bool = True) -> None:
     """
     Log current session snapshot. Called after every get_regime().
-    Prunes entries older than PRUNE_DAYS on each write.
-    Never raises — logging failure never breaks the brief.
+    APPEND-ONLY (docs/specs/safe_ledger_writes_spec.md): the former 30-day
+    prune deleted evidence, including the 2026-07-29 synthetic row whose
+    origin can now never be checked. The 30-day view lives in the reader
+    (_get_today_rows reads today only), not in deletion.
+    Never raises — logging failure never breaks the brief — but a failure is
+    printed to stderr, which the brief wrapper keeps in the day log.
     Skips logging when market is closed — closed-market deltas are noise.
     """
     if not market_open:
@@ -62,9 +66,10 @@ def log_session_snapshot(regime: dict, instrument: str,
             "filter_allowed": regime.get("filter_allowed", False),
         }
         _append_row(row)
-        _prune_old_entries()
-    except Exception:
-        pass
+    except Exception as exc:
+        import sys
+        print(f"session snapshot NOT logged for {instrument}: "
+              f"{type(exc).__name__}: {exc}", file=sys.stderr)
 
 
 def get_session_delta(instrument: str) -> Optional[Dict]:
@@ -319,23 +324,4 @@ def _get_today_rows(instrument: str) -> List[Dict]:
 
 
 def _append_row(row: dict) -> None:
-    exists = os.path.exists(LOG_FILE)
-    with open(LOG_FILE, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        if not exists:
-            writer.writeheader()
-        writer.writerow(row)
-
-
-def _prune_old_entries() -> None:
-    if not os.path.exists(LOG_FILE):
-        return
-    cutoff = (datetime.now(timezone.utc).date() - timedelta(days=PRUNE_DAYS)).isoformat()
-    with open(LOG_FILE, newline="") as f:
-        rows = list(csv.DictReader(f))
-    fresh = [r for r in rows if r["timestamp"][:10] >= cutoff]
-    if len(fresh) < len(rows):
-        with open(LOG_FILE, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-            writer.writeheader()
-            writer.writerows(fresh)
+    append_row(LOG_FILE, FIELDNAMES, row)       # locked + fsynced (ledger_io)

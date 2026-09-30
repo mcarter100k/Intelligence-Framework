@@ -83,17 +83,17 @@ STALE_LINE="$(printf '%s\n' "$FRESH" | grep -m1 '^STALE:')"
 # logged, never a failure (visible_failures_spec D5).
 printf '%s\n' "$FRESH" | grep '^DUE:' >> "$LOG"
 if [ -n "$CRASH" ]; then
-    HEALTH="$(python3 scripts/health_state.py record-failure brief "$CRASH")"
+    HEALTH="$(python3 scripts/health_state.py record-failure brief "$CRASH" 2>>"$LOG")"
 elif [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -q 'Framework error'; then
     HREASON="$(printf '%s\n' "$OUT" | grep -o 'Framework error[^"]*' | head -1)"
     [ -z "$HREASON" ] && HREASON="brief produced no output"
-    HEALTH="$(python3 scripts/health_state.py record-failure brief "$HREASON")"
+    HEALTH="$(python3 scripts/health_state.py record-failure brief "$HREASON" 2>>"$LOG")"
 elif [ -n "$SHADOW_ERR" ]; then
-    HEALTH="$(python3 scripts/health_state.py record-failure brief "$SHADOW_ERR")"
+    HEALTH="$(python3 scripts/health_state.py record-failure brief "$SHADOW_ERR" 2>>"$LOG")"
 elif [ -n "$STALE_LINE" ]; then
-    HEALTH="$(python3 scripts/health_state.py record-failure brief "$STALE_LINE")"
+    HEALTH="$(python3 scripts/health_state.py record-failure brief "$STALE_LINE" 2>>"$LOG")"
 else
-    HEALTH="$(python3 scripts/health_state.py record-success brief)"
+    HEALTH="$(python3 scripts/health_state.py record-success brief 2>>"$LOG")"
 fi
 if [ -n "$HEALTH" ]; then
     echo "$HEALTH" >> "$LOG"

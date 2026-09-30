@@ -30,6 +30,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Tuple
 
 from exclusions import excluder, filter_rows
+from ledger_io import append_row, atomic_write_rows, locked, migrate_header
 
 LOG_FILE = "regime_classification_log.csv"
 
@@ -169,7 +170,14 @@ def log_regime(regime_data: Dict, instrument: str) -> str:
     return log_id
 
 
-def check_pending_outcomes(
+def check_pending_outcomes(instrument, recent_closes, recent_highs, recent_lows, recent_index=None):
+    """Grade pending classifications. Holds the ledger lock from the read to
+    the write, so a row appended meanwhile cannot be lost (ledger_io)."""
+    with locked(LOG_FILE):
+        return _check_pending_outcomes_unlocked(instrument, recent_closes, recent_highs, recent_lows, recent_index)
+
+
+def _check_pending_outcomes_unlocked(
     instrument:    str,
     recent_closes: List[float],
     recent_highs:  List[float],
@@ -542,32 +550,15 @@ def _migrate_header() -> None:
     every existing row verbatim in its old columns, blank in the new one.
     The logger maintaining its own schema; values never edited. Must run
     before any append."""
-    try:
-        with open(LOG_FILE, newline="") as f:
-            reader = csv.DictReader(f)
-            if reader.fieldnames is None or \
-                    list(reader.fieldnames) == FIELDNAMES:
-                return
-            rows = list(reader)
-    except OSError:
-        return
-    with open(LOG_FILE, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        w.writeheader()
-        for r in rows:
-            w.writerow({k: (r.get(k) or "") for k in FIELDNAMES})
+    migrate_header(LOG_FILE, FIELDNAMES)       # shared, locked (ledger_io)
 
 
 def _write_row(row: Dict) -> None:
-    """Append a single row to the log file."""
-    file_exists = os.path.exists(LOG_FILE)
-    if file_exists:
-        _migrate_header()
-    with open(LOG_FILE, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        if not file_exists:
-            writer.writeheader()
-        writer.writerow(row)
+    """Append a single row to the log file (locked; ledger_io)."""
+    with locked(LOG_FILE):
+        if os.path.exists(LOG_FILE):
+            _migrate_header()
+        append_row(LOG_FILE, FIELDNAMES, row)
 
 
 def _read_all() -> List[Dict]:
@@ -579,8 +570,6 @@ def _read_all() -> List[Dict]:
 
 
 def _write_all(rows: List[Dict]) -> None:
-    """Overwrite the log file with updated rows."""
-    with open(LOG_FILE, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(rows)
+    """Overwrite the log file with updated rows, atomically (ledger_io).
+    Callers doing read-modify-write must hold locked(LOG_FILE) from the read."""
+    atomic_write_rows(LOG_FILE, FIELDNAMES, rows)

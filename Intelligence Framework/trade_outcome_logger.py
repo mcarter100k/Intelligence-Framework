@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Dict, Optional
 
 from exclusions import excluder
+from ledger_io import append_row, atomic_write_rows, locked, migrate_header
 
 _LOG_FILE = "trade_signal_log.csv"
 
@@ -73,31 +74,17 @@ def _migrate_header(path: str = None) -> None:
     logger maintaining its own schema, never an edit of recorded values.
     Must run before any append.
     """
-    path = _LOG_FILE if path is None else path
-    try:
-        with open(path, newline="") as f:
-            reader = csv.DictReader(f)
-            if reader.fieldnames is None or \
-                    list(reader.fieldnames) == _FIELDS:
-                return
-            rows = list(reader)
-    except OSError:
-        return
-    with open(path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=_FIELDS)
-        w.writeheader()
-        for r in rows:
-            w.writerow({k: r.get(k, "") for k in _FIELDS})
+    migrate_header(_LOG_FILE if path is None else path, _FIELDS)   # ledger_io
 
 
 def _ensure_file() -> None:
     """Create CSV with header row if it does not exist; migrate if its
     header predates an appended column."""
-    if not os.path.exists(_LOG_FILE):
-        with open(_LOG_FILE, "w", newline="") as f:
-            csv.DictWriter(f, fieldnames=_FIELDS).writeheader()
-    else:
-        _migrate_header()
+    with locked(_LOG_FILE):
+        if not os.path.exists(_LOG_FILE):
+            atomic_write_rows(_LOG_FILE, _FIELDS, [])
+        else:
+            _migrate_header()
 
 
 def log_signal(
@@ -153,8 +140,7 @@ def log_signal(
         "entry_context":       entry_context or "",
     }
 
-    with open(_LOG_FILE, "a", newline="") as f:
-        csv.DictWriter(f, fieldnames=_FIELDS).writerow(row)
+    append_row(_LOG_FILE, _FIELDS, row)          # locked + fsynced (ledger_io)
 
     return signal_id
 
@@ -208,7 +194,16 @@ def _bars_after(log_time, index=None) -> int:
         return 0
 
 
-def check_pending_trade_outcomes(
+def check_pending_trade_outcomes(instrument, recent_closes, recent_index=None,
+                                 window=20):
+    """Grade pending trade signals. Holds the ledger lock from the read to
+    the write, so a row appended meanwhile cannot be lost (ledger_io)."""
+    with locked(_LOG_FILE):
+        return _check_pending_trade_outcomes_unlocked(
+            instrument, recent_closes, recent_index, window)
+
+
+def _check_pending_trade_outcomes_unlocked(
     instrument:    str,
     recent_closes: list,
     recent_index=None,
@@ -267,10 +262,7 @@ def check_pending_trade_outcomes(
         filled += 1
 
     if filled:
-        with open(_LOG_FILE, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=_FIELDS)
-            writer.writeheader()
-            writer.writerows(rows)
+        atomic_write_rows(_LOG_FILE, _FIELDS, rows)
 
     return filled
 

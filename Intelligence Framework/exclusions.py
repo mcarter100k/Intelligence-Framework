@@ -187,11 +187,7 @@ def append_exclusion(log_id: str, ledger: str, date: str, reason: str,
             "every exclusion needs log_id, ledger, date, reason AND an "
             "authorizing validation_log entry — an unauthorized exclusion "
             "is indistinguishable from hiding an inconvenient result")
-    exists = os.path.exists(REGISTRY_FILE)
-    with open(REGISTRY_FILE, "a", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=FIELDS)
-        if not exists:
-            w.writeheader()
-        w.writerow({"log_id": log_id, "ledger": ledger, "date": date,
-                    "reason": reason,
-                    "authorizing_entry": authorizing_entry})
+    from ledger_io import append_row             # stdlib-only; no cycle
+    append_row(REGISTRY_FILE, FIELDS,
+               {"log_id": log_id, "ledger": ledger, "date": date,
+                "reason": reason, "authorizing_entry": authorizing_entry})
