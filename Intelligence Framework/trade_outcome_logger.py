@@ -61,6 +61,10 @@ _FIELDS = [
     # schema had no column for.
     "size_pct",
     "entry_context",
+    # data_at_source_spec.md P1: "live" (OANDA mid at log time) or
+    # "prior_close" (fallback, labelled). BLANK on rows logged before
+    # 2026-09-30: those all used the previous D1 close.
+    "price_basis",
 ]
 
 
@@ -129,6 +133,7 @@ def log_signal(
         "shadow_direction":    shadow_decision.get("direction", "") if shadow_decision else "",
         "shadow_conviction":   shadow_decision.get("conviction", "") if shadow_decision else "",
         "price_at_signal":     regime_data.get("current_price", 0.0),
+        "price_basis":         regime_data.get("price_basis", ""),
         "atr_pips":            regime_data.get("atr_pips", 0.0),
         # Outcome defaults — populated by check_pending_trade_outcomes()
         "outcome_filled":      False,

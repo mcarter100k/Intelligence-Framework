@@ -25,6 +25,7 @@ from oanda_feed import (
     get_daily_bars  as _oanda_daily_bars,
     get_h4_bars     as _oanda_h4_bars,
     get_weekly_bars as _oanda_weekly_bars,
+    get_live_price  as _oanda_live_price,
     is_configured   as _oanda_ok,
 )
 
@@ -85,6 +86,10 @@ _ADX_JPY_EXHAUSTION       = 35    # GBP/JPY specific: mean reversion accelerates
 # Weekly context constants — sourced from htf_structure 5yr analysis
 _WEEKLY_LT_LOOKBACK = 20  # 20W long-term trend lookback (~5 months)
 _WEEKLY_ST_LOOKBACK = 4   # 4W short-term trend lookback (~1 month)
+# What _trend_dir actually needs for the 20-week read (3-bar averages on both
+# ends). Review V1: the old guard allowed 20-22 bars, where _trend_dir returns
+# RANGING and the 20-week gate was skipped silently again.
+_WEEKLY_MIN_BARS = _WEEKLY_LT_LOOKBACK + 3
 _MA_SHORT_PERIOD    = 50  # 50-day moving average — medium-term structural bias
 _MA_LONG_PERIOD     = 200 # 200-day moving average — long-term structural bias
 
@@ -730,27 +735,48 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
     return "VOLATILE", ""
 
 
+def is_trading_day(d) -> bool:
+    """The ONE trading calendar (review V7: two copies had drifted). A trading
+    day is a weekday that is not Dec 25 or Jan 1, the only weekdays missing
+    from OANDA's D1 bars in the 2023-2026 census
+    (foundation/market_data_facts.md)."""
+    return d.weekday() < 5 and (d.month, d.day) not in ((12, 25), (1, 1))
+
+
 def _market_status(*, _now=None) -> dict:
     """
-    FX market: opens Sunday 21:00 UTC, closes Friday 21:00 UTC.
-    Returns {"open": bool, "next_open_utc": iso str or "",
-             "note": plain-English str}
-    _now: optional datetime for testing; defaults to datetime.now(UTC).
+    Is the FX market open? (docs/specs/data_at_source_spec.md P2)
+
+    The FX trading day D runs from 17:00 America/New_York on D-1 to 17:00 on
+    D, so trading date = (New York local time + 7h).date(). The market is
+    CLOSED when the trading date is a Saturday or Sunday, or Dec 25 / Jan 1
+    (the only weekdays missing from OANDA's D1 bars in the 2023-2026 census,
+    foundation/market_data_facts.md). New York time makes this correct on
+    both sides of daylight saving: the old version hard-coded 21:00 UTC,
+    which is an hour wrong from the first Sunday of November to March.
+
+    Returns {"open": bool, "next_open_utc": iso str or "", "note": str}.
+    _now: optional aware datetime for testing; defaults to now (UTC).
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import date, datetime, timezone, timedelta
+    from zoneinfo import ZoneInfo
+    ny = ZoneInfo("America/New_York")
     now = _now if _now is not None else datetime.now(timezone.utc)
-    wd, hr = now.weekday(), now.hour  # Mon=0..Sun=6
-    is_open = True
-    if wd == 5: is_open = False                      # Saturday
-    elif wd == 6 and hr < 21: is_open = False        # Sun pre-open
-    elif wd == 4 and hr >= 21: is_open = False       # Fri post-close
-    if is_open:
+
+    def _trading_date(t):
+        return (t.astimezone(ny) + timedelta(hours=7)).date()
+
+    def _closed(d: date) -> bool:
+        return not is_trading_day(d)
+
+    d = _trading_date(now)
+    if not _closed(d):
         return {"open": True, "next_open_utc": "", "note": ""}
-    days_ahead = (6 - wd) % 7
-    next_open = (now + timedelta(days=days_ahead)).replace(
-        hour=21, minute=0, second=0, microsecond=0)
-    if wd == 6 and hr >= 21:  # shouldn't reach, safety
-        next_open += timedelta(days=7)
+    while _closed(d):
+        d += timedelta(days=1)
+    prev = d - timedelta(days=1)                       # opens 17:00 NY the day before
+    next_open = datetime(prev.year, prev.month, prev.day, 17, 0,
+                         tzinfo=ny).astimezone(timezone.utc)
     from display_time import to_display
     return {"open": False,
             "next_open_utc": next_open.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -823,8 +849,33 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if n < _ADX_PERIOD * 3:
         return _error_result(f"Only {n} data points — need at least {_ADX_PERIOD * 3}")
 
-    # Live bar close is the current market price; closed bar close on weekends.
-    current_price = float(live_bar_d1["Close"]) if live_bar_d1 is not None else closes[-1]
+    # The LIVE price (docs/specs/data_at_source_spec.md P1). Indicators use
+    # closed bars only; the price the trader sees and the ledgers record is
+    # OANDA's current bid/ask mid. Before this, current_price was always the
+    # previous D1 close (the feed drops the forming candle, so the live-bar
+    # branch here could never run): 78.3 pips stale on GBP/AUD when measured.
+    # Fallback is the last close, LABELLED, never silent.
+    # Classification inputs (atr_pct, the moving-average context,
+    # range_position) use last_close, the closed bar they were computed from,
+    # so a classification is reproducible from bars (review V3: the live mid
+    # had leaked into them and flipped range_position 0.0 <-> 1.0 between
+    # runs). current_price, used only for display and the trade entry, is live.
+    last_close = closes[-1]
+    if not _ms["open"]:
+        # Closed market: the pricing endpoint returns a stale, untradeable
+        # quote (review V8). Say so; skip the request (V10).
+        current_price, price_basis = last_close, "market_closed"
+    else:
+        _live = _oanda_live_price(oanda_pair)       # never raises
+        if _live is not None and _live > 0:
+            current_price, price_basis = float(_live), "live"
+        else:
+            current_price, price_basis = last_close, "prior_close"
+            import sys as _sys
+            from oanda_feed import last_error as _last_error
+            print(f"live price unavailable for {pair.display_name} "
+                  f"({_last_error() or 'no reason recorded'}); using the "
+                  f"previous daily close ({last_close})", file=_sys.stderr)
 
     # FACTS for the unconfirmed-trend display (spec 2026-09-09) — computed
     # from closed bars, structure rule untouched. A signed pip change is
@@ -843,7 +894,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     current_atr = atr_series[-1]
     avg_atr_20  = sum(atr_series[-20:]) / min(20, len(atr_series))
     atr_pips    = round(current_atr / pair.pip_size, 1)
-    atr_pct     = round(current_atr / current_price * 100, 3)
+    atr_pct     = round(current_atr / last_close * 100, 3)
     atr_ratio   = round(current_atr / avg_atr_20, 2) if avg_atr_20 > 0 else 1.0
 
     # ── ADX ───────────────────────────────────────────────────────────────────
@@ -954,29 +1005,36 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
                            "alignment cannot be confirmed.")
 
     # ── Weekly context + MA (absorbs htf_structure weekly/MA logic) ────────────
-    lt_trend = st_trend = weekly_context = "RANGING"
-    context_note = ""
+    # A failed / empty / too-short weekly fetch is UNAVAILABLE, never RANGING
+    # (data_at_source_spec.md P3): RANGING silently skipped the 20-week trend
+    # gate, so a counter-trend trade the gate blocks with data was allowed.
+    lt_trend = st_trend = weekly_context = "UNAVAILABLE"
+    context_note = ("Weekly trend data unavailable — the 20-week trend check "
+                    "cannot run.")
+    weekly_available = False
 
     try:
         raw_w = _oanda_weekly_bars(pair=oanda_pair, count=110)
     except Exception:
         raw_w = None
 
-    if raw_w is not None and not raw_w.empty and len(raw_w) >= _WEEKLY_LT_LOOKBACK:
+    if raw_w is not None and not raw_w.empty and len(raw_w) >= _WEEKLY_MIN_BARS:
         if hasattr(raw_w.columns, "levels"):
             raw_w.columns = raw_w.columns.get_level_values(0)
         raw_w_closed, _, _ = _split_live_bar(raw_w, threshold_hours=168.0)
-        raw_w_work = raw_w_closed if len(raw_w_closed) >= _WEEKLY_LT_LOOKBACK else raw_w
+        raw_w_work = raw_w_closed if len(raw_w_closed) >= _WEEKLY_MIN_BARS else raw_w
         wh = [float(v) for v in raw_w_work["High"].dropna().values]
         wl = [float(v) for v in raw_w_work["Low"].dropna().values]
         wc = [float(v) for v in raw_w_work["Close"].dropna().values]
-        _wctx        = _compute_weekly_context(wh, wl, wc)
-        lt_trend     = _wctx["lt_trend"]
-        st_trend     = _wctx["st_trend"]
-        weekly_context = _wctx["weekly_context"]
-        context_note   = _wctx["context_note"]
+        if len(wc) >= _WEEKLY_MIN_BARS:
+            _wctx        = _compute_weekly_context(wh, wl, wc)
+            lt_trend     = _wctx["lt_trend"]
+            st_trend     = _wctx["st_trend"]
+            weekly_context = _wctx["weekly_context"]
+            context_note   = _wctx["context_note"]
+            weekly_available = True
 
-    _mac           = _compute_ma_context(closes, current_price)
+    _mac           = _compute_ma_context(closes, last_close)
     ma50           = _mac["ma50"]
     ma200          = _mac["ma200"]
     price_vs_ma50  = _mac["price_vs_ma50"]
@@ -1125,10 +1183,10 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     # Defined over the last ~20 completed D1 bars. range_position: 0.0 = at the
     # low (support), 1.0 = at the high (resistance).
     _rng_n    = min(20, len(highs))
-    _rng_hi   = max(highs[-_rng_n:]) if _rng_n else current_price
-    _rng_lo   = min(lows[-_rng_n:])  if _rng_n else current_price
+    _rng_hi   = max(highs[-_rng_n:]) if _rng_n else last_close
+    _rng_lo   = min(lows[-_rng_n:])  if _rng_n else last_close
     _rng_span = _rng_hi - _rng_lo
-    _rng_pos  = (current_price - _rng_lo) / _rng_span if _rng_span > 0 else 0.5
+    _rng_pos  = (last_close - _rng_lo) / _rng_span if _rng_span > 0 else 0.5
     _rng_pos  = max(0.0, min(1.0, _rng_pos))
 
     return {
@@ -1146,6 +1204,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "vol_note":        vol_note,
         "trade_guidance":  trade_guidance,
         "current_price":   round(current_price, 4),
+        "weekly_available": weekly_available,
+        "price_basis":     price_basis,
+        "last_close":      round(last_close, 5),
         "today_high":      round(today_high, 4),
         "today_low":       round(today_low, 4),
         "range_used":      range_used,
@@ -1253,6 +1314,8 @@ def _error_result(msg: str) -> Dict:
         "vol_note":       msg,
         "trade_guidance": "Regime data unavailable — proceed with caution.",
         "current_price":  None,
+        "price_basis":    "",
+        "weekly_available": False,
         "error":          msg,
         "today_high":     None,
         "today_low":      None,
@@ -1299,9 +1362,9 @@ def _error_result(msg: str) -> Dict:
         "slope_fallback":      False,
         "pivot_count_high":    0,
         "pivot_count_low":     0,
-        "lt_trend":            "RANGING",
-        "st_trend":            "RANGING",
-        "weekly_context":      "RANGING",
+        "lt_trend":            "UNAVAILABLE",
+        "st_trend":            "UNAVAILABLE",
+        "weekly_context":      "UNAVAILABLE",
         "context_note":        "",
         "ma50":                None,
         "ma200":               None,

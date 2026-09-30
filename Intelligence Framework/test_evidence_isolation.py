@@ -35,10 +35,11 @@ def test_relative_ledger_writes_land_in_tmp(tmp_path):
 
 def test_absolute_path_writers_are_redirected(tmp_path):
     import calendar_fetch
+    import news_gate
     import setup_check
     import trade_logger
     for path in (setup_check.JOURNAL_FILE, trade_logger.TRADES_FILE,
-                 calendar_fetch._CALENDAR_FILE):
+                 calendar_fetch._CALENDAR_FILE, news_gate._CALENDAR_FILE):
         assert path.startswith(str(tmp_path)), path
 
 
@@ -52,6 +53,7 @@ _STUB_MODULES = {
     "setup_check.py":    'JOURNAL_FILE = "x"\n',
     "trade_logger.py":   'TRADES_FILE = "x"\n',
     "calendar_fetch.py": '_CALENDAR_FILE = "x"\n',
+    "news_gate.py":      '_CALENDAR_FILE = "x"\n',
 }
 
 
