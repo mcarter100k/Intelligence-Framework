@@ -10,6 +10,7 @@ record their argv; no real notification is posted.
 Run: pytest test_notify_helper.py
 """
 import os
+import time
 import subprocess
 
 import pytest
@@ -75,10 +76,27 @@ def test_missing_binary_falls_back_to_osascript_with_pointer(tmp_path):
     assert "Intelligence Framework" in osa and "SHADOW" in osa
 
 def test_hung_binary_watchdog_fires_fallback(tmp_path):
-    # simulates the unauthorized first post: binary blocks forever
-    tn, osa = _run(tmp_path, tn_body="sleep 300", watchdog="1")
+    # simulates the unauthorized first post: binary blocks forever.
+    # `exec` makes the stub BE the blocking process, as the real binary is.
+    # The first version ran `sleep 300` as a CHILD of the stub script: the
+    # watchdog killed the script and orphaned the sleep, one leaked process
+    # per test run (found 2026-09-29: two orphans alive after two runs).
+    pidfile = tmp_path / "tn.pid"
+    tn, osa = _run(tmp_path, watchdog="1",
+                   tn_body=f'echo $$ > "{pidfile}"; exec sleep 300')
     assert osa is not None                         # message not lost
     assert "hello world" in osa
+
+    pid = int(pidfile.read_text())
+    for _ in range(50):                            # kill delivery is async
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.02)
+    else:
+        os.kill(pid, 9)
+        raise AssertionError(f"hung notifier process {pid} survived the watchdog")
 
 def test_nonzero_exit_falls_back(tmp_path):
     tn, osa = _run(tmp_path, tn_body="exit 3")

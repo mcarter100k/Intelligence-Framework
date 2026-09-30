@@ -122,11 +122,12 @@ restoring either requires team review and a concrete evidence path.
      unless review needs them remote. `main` is never the testing ground.
 
 2. **Suite green before any commit.** Full run: `python -m pytest -q`
-   (currently 591 passed on the live checkout — 2026-09-29). `conftest.py` isolates EVERY test:
+   (currently 593 passed on the live checkout — 2026-09-29). `conftest.py` isolates EVERY test:
    each runs in its own tmp_path (relative ledger paths land there), the
    absolute-path writers are redirected, unit tests cannot reach the network
    (mark real-network tests `@pytest.mark.integration`), and the session
-   FAILS if any real evidence file changed. Never weaken these to make a
+   FAILS if ANY file in the project (logs/ included; caches, venv/ and .git
+   excepted) was created, changed or deleted. Never weaken these to make a
    test pass. Two floors that must never be weakened to make something pass:
    - the **banned-token display test** (`test_brief_display.py`) — rendered
      output stays plain-English: no ADX / pivot / HH-HL / LH-LL / ATR-ratio
