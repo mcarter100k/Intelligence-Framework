@@ -37,18 +37,21 @@ The biggest gap is that nothing grades the trader. The best next evidence source
 | `trader_review.md` | **The missing half:** the loop that grades the trader, not only the model |
 | `tools/power_check.py` | Is this N enough? Power, required N, false-pass rate, bootstrap bound |
 | `tools/episodes.py` | Honest non-overlapping episode counting on the real bar index |
-| `skill/SKILL.md` | Source of the `trading-foundation` Claude skill built from this folder |
+| `skills/trading-foundation/SKILL.md` | Source of the `trading-foundation` skill built from this folder |
+| `skills/evidence-validation/` | Source of the `evidence-validation` skill: no claim without observed evidence (owner rule, 2026-09-29), with the audit-hook probe |
 
-## The skill
+## The skills
 
-`build_skill.sh` assembles the `trading-foundation` skill from this folder:
-`skill/SKILL.md`, the `.md` files as `references/`, and `tools/` as
-`scripts/`. The skill is installed at `~/.claude/skills/trading-foundation/`,
-so it is available in every Claude session. This folder is the single source
-of truth. Edit here, then rebuild:
+`build_skill.sh` builds every skill under `skills/` and installs it to
+`~/.claude/skills/<name>/`, so each is available in every Claude session:
+- **trading-foundation**: `SKILL.md`, plus this folder's `.md` files as
+  `references/` and `tools/` as `scripts/`.
+- **evidence-validation**: `SKILL.md` plus its own `scripts/`.
 
-    ./foundation/build_skill.sh            # installs to ~/.claude/skills/trading-foundation
-    ./foundation/build_skill.sh <dest-dir> # or anywhere else
+This folder is the single source of truth. Edit here, then rebuild:
+
+    ./foundation/build_skill.sh             # installs to ~/.claude/skills/<name>
+    ./foundation/build_skill.sh <dest-root> # or anywhere else
 
 ## Keeping it honest
 

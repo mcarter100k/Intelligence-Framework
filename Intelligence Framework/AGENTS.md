@@ -205,6 +205,17 @@ restoring either requires team review and a concrete evidence path.
     a registry entry (`exclusions.py`) keeping it out of every tally
     forever. Prevention is the whole of the cure.
 
+11. **NO CLAIM WITHOUT OBSERVED EVIDENCE (owner-directed 2026-09-29).**
+    Nothing is reported as done, fixed, working, safe or validated unless it
+    was observed this session with a check shown able to fail. That means a
+    positive control for "found nothing" and a mutation test for "the test
+    catches it". Label every claim VERIFIED / OBSERVED / INFERRED / PENDING /
+    NOT CHECKED; only VERIFIED may be called done. Exit codes, counts and `ls`
+    are not certification. When an overclaim is discovered, lead with it and
+    log a dated correction. Precedent: Phase 1 was reported finished with six
+    inferred claims (validation_log 2026-09-29 CORRECTION). Method and report
+    format: the `evidence-validation` skill (`foundation/skills/`).
+
 ---
 
 ## Live entry points (what "reachable" means)
