@@ -6,7 +6,9 @@
 # notification ONLY when there is something to see (a tradeable decision, or a
 # shadow signal). Always exits 0 so launchd never enters an error state.
 
-PROJ="/Users/quis/Intelligence Framework"
+# INTEL_PROJ exists for the behavioral tests only; launchd sets nothing,
+# so production always uses the path below.
+PROJ="${INTEL_PROJ:-/Users/quis/Intelligence Framework}"
 cd "$PROJ" || exit 0
 [ -f "venv/bin/activate" ] && source "venv/bin/activate"
 mkdir -p logs
@@ -28,6 +30,7 @@ LOG="logs/brief_${DATE}.log"
 # The live checkout must be on main (scripts/live_guard.sh).
 . "$PROJ/scripts/live_guard.sh"
 live_guard "$LOG"
+. "$PROJ/scripts/crash.sh"
 
 # News-calendar refresh: when calendar.csv is missing or older than 24h, run
 # the AUTO-FETCHER before the brief (docs/specs/calendar_autofetch_spec.md —
@@ -43,17 +46,25 @@ if [ ! -f calendar.csv ] || [ -n "$(find calendar.csv -mmin +1440 2>/dev/null)" 
 fi
 
 # stdout = the human brief (logged verbatim); stderr = warnings + the machine
-# ##ALERT## channel (docs/specs/alert_expansion_spec.md). Both go to the log.
+# ##ALERT## channel (docs/specs/alert_expansion_spec.md). ALL of stderr goes
+# to the log (visible_failures_spec D2/D3): the old version kept only the
+# ##ALERT## lines, so a logger failure or a crash's traceback was discarded.
 ERRTMP="$(mktemp)"
 OUT="$(python3 decision_brief.py GBP_AUD GBP_JPY 2>"$ERRTMP")"
+BRC=$?
 { echo "===== $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
-grep '^##ALERT##' "$ERRTMP" >> "$LOG" 2>/dev/null
+if [ -s "$ERRTMP" ]; then
+    { echo "----- stderr (exit $BRC) -----"; cat "$ERRTMP"; echo; } >> "$LOG"
+fi
 
 # Watched-condition flips (regime change / filter flip / exit-watch fired)
 ALERTS="$(grep '^##ALERT## ' "$ERRTMP" | sed 's/^##ALERT## //')"
 # Shadow candidate errors (thrust_pullback_alignment spec): a candidate that
 # raises must ride the UNHEALTHY plumbing, never render as a quiet no-setup.
 SHADOW_ERR="$(grep -m1 'SHADOW CANDIDATE ERROR' "$ERRTMP" | sed 's/^##ALERT## //')"
+# A crash is a FAILED run whatever else happened (D3): nonzero exit or a
+# Python traceback. Reason = the exception line, so the alert says what broke.
+CRASH="$(crash_reason brief "$BRC" "$ERRTMP")"
 rm -f "$ERRTMP"
 
 # Health tracking (docs/specs/heartbeat_spec.md item 1): an error brief or
@@ -68,16 +79,21 @@ rm -f "$ERRTMP"
 FRESH="$(python3 scripts/artifact_freshness.py check 2>/dev/null)"
 STALE_LINE="$(printf '%s\n' "$FRESH" | grep -m1 '^STALE:')"
 [ -n "$STALE_LINE" ] && printf '%s\n' "$FRESH" | grep '^STALE:' >> "$LOG"
-if [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -q 'Framework error'; then
+# DUE: lines (human-written files past their cadence) are reminders only:
+# logged, never a failure (visible_failures_spec D5).
+printf '%s\n' "$FRESH" | grep '^DUE:' >> "$LOG"
+if [ -n "$CRASH" ]; then
+    HEALTH="$(python3 scripts/health_state.py record-failure brief "$CRASH")"
+elif [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -q 'Framework error'; then
     HREASON="$(printf '%s\n' "$OUT" | grep -o 'Framework error[^"]*' | head -1)"
     [ -z "$HREASON" ] && HREASON="brief produced no output"
-    HEALTH="$(python3 scripts/health_state.py record-failure "$HREASON")"
+    HEALTH="$(python3 scripts/health_state.py record-failure brief "$HREASON")"
 elif [ -n "$SHADOW_ERR" ]; then
-    HEALTH="$(python3 scripts/health_state.py record-failure "$SHADOW_ERR")"
+    HEALTH="$(python3 scripts/health_state.py record-failure brief "$SHADOW_ERR")"
 elif [ -n "$STALE_LINE" ]; then
-    HEALTH="$(python3 scripts/health_state.py record-failure "$STALE_LINE")"
+    HEALTH="$(python3 scripts/health_state.py record-failure brief "$STALE_LINE")"
 else
-    HEALTH="$(python3 scripts/health_state.py record-success)"
+    HEALTH="$(python3 scripts/health_state.py record-success brief)"
 fi
 if [ -n "$HEALTH" ]; then
     echo "$HEALTH" >> "$LOG"

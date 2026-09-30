@@ -3241,3 +3241,48 @@ validated. Six were not:
 - G: disable the session guard's failure
 
 **Standing rule adopted (owner-directed):** no claim without observed evidence. See AGENTS.md rule 11 and the `evidence-validation` skill.
+
+---
+
+## 2026-09-29 — Phase 2: failures are visible (per docs/specs/visible_failures_spec.md)
+
+**Method (AGENTS.md rule 11).** Every defect was reproduced on main (58433b4) before any change, using the real wrappers in a throwaway project and the real `get_regime` with simulated OANDA failures. The same scripts were re-run after the change.
+
+| # | Defect | BEFORE (main) | AFTER (branch) |
+|---|---|---|---|
+| D1 | Grader traceback | recorded as SUCCESS | `outcomes` failure: "grader crashed (exit 1): ZeroDivisionError: boom" |
+| D2 | Brief non-ALERT stderr | absent from the day log | present |
+| D3 | Brief crash | traceback lost; "no output" | traceback logged; "brief crashed (exit 1): ZeroDivisionError: boom" |
+| D4 | Shared health counter | UNHEALTHY, then a false "RECOVERED after 2 failed runs" from the grader | "BRIEF UNHEALTHY" only |
+| D5 | Stale human `storylines.md` | fails every healthy brief | a `DUE:` line; the run stays healthy |
+| D6 | Grader rewrite of a ledger whose newest row is 2000h old | `fresh ... 0h old` | `STALE ... 2000h ago (newest row)` |
+| D7 | 401 / 503 / timeout | "Not enough data to calculate regime indicators", 1 attempt each | credentials rejected (1 attempt); server error (3); timed out (3) |
+
+**`/code-review`.** It found 10 findings. Each was verified before fixing: 9 confirmed, 1 not reproduced (F1, fixed defensively). See the spec addendum.
+
+### Gate 1
+- **Full suite:** 635 passed in the worktree, with 0 network lookups (audit-hook probe).
+- **Controlled comparison:** the new tests run against main's code fail 38 times with assertion failures. The 8 preserved-behavior pins pass on both.
+- **Mutation tests:** 16 mutants (M1–M9 build, M10–M16 review fixes), each applied, each failing its guarding test, each reverted.
+
+### Correction discovered during Gate 1
+- A later full run failed 3/3 on F6, with or without the probe.
+- **Cause:** mutant M14 was the same length as the original line (54 chars), and it was reverted within the same second. Python kept the mutant's cached `.pyc`, although the source diff was clean.
+- **After clearing `__pycache__`:** 635/635, twice. Every Gate 2 run that imports worktree code was redone from a clean cache, with identical results.
+- **Fix to the method:** the `evidence-validation` skill now requires clearing caches and re-running the test after each revert.
+
+### Gate 2 (REALITY)
+- **Real OANDA with a deliberately invalid key** (scratch project, via `reality_run.py`): the brief says "credentials rejected (HTTP 401): key revoked, expired, or for the wrong environment (D GBP_AUD, 1 attempt)". `reality_run` returns exit 3, so an error page never certifies.
+- **`reality_run brief` / `grader` with the branch code against the live ledgers:** exit 0, no failure markers, project UNCHANGED by hash.
+- **Real wrappers end to end,** in a full copy of the project (the live ledgers, the legacy `health_state.json`, `.env`, the venv, and `storylines.md` at its real 459h age). Notifications went to a stub. Every live file was hashed before and after and was **UNCHANGED**.
+  - The legacy flat health state migrated into `jobs.brief`.
+  - A healthy run then sent "RECOVERED: brief healthy again after 1 failed runs", a true recovery since the failures were storylines.
+  - `DUE: storylines.md — last written 459h ago` was logged, with 0 UNHEALTHY notifications.
+  - The stderr section was logged.
+  - The grader's SHADOW tally rendered under the venv, the one part the harness could not assert.
+  - The branch guard alerted, correctly, because the copy is not a git checkout.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+- The first scheduled brief and grader runs after merge write per-job health.
+- The first real scheduled brief after merge logs `DUE: storylines.md` and records success.
+- The next Sunday heartbeat reports both jobs, and shows DUE without NEEDS ATTENTION.

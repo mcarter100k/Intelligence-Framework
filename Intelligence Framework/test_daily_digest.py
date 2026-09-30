@@ -132,15 +132,8 @@ def test_no_files_at_all_graceful(tmp_path):
     assert "No run blocks found for 2026-09-09" in v
 
 
-# ── wrapper wiring: digest strictly arg-gated ──────────────────────────────────
-
-def test_wrapper_digest_gated_on_argument():
-    with open(os.path.join(_PROJ, "scripts", "scheduled_brief.sh")) as f:
-        src = f.read()
-    assert '[ "${1:-}" = "digest" ]' in src
-    assert 'latest_view.py "logs"' in src        # display-day view, not one file
-    assert 'notify "DIGEST"' in src
-    assert src.count('notify "DIGEST"') == 2      # view target + day-log fallback
+# ── digest wiring: only the NY plist passes "digest". The wrapper's gating on
+#    that argument is EXECUTED in test_wrapper_behavior.py. ──────────────────
 
 def test_only_brief_ny_plist_passes_digest():
     ld = os.path.join(_PROJ, "scripts", "launchd")

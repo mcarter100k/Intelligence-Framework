@@ -14,9 +14,12 @@ NEEDS ATTENTION.
 Usage:
     python3 scripts/artifact_freshness.py check
 Stdout: one line per artifact —
-    "fresh: <name> — <age>h old (cadence <N>h)"  or
-    "STALE: <name> — last write <age>h ago, expected within <N>h"
+    "fresh: <name> — <age>h old (<basis>; cadence <N>h)"  or
+    "STALE: <name> — last write <age>h ago (<basis>), expected within <N>h"
     ("STALE: <name> — MISSING" when the file does not exist)
+    "DUE: <name> — ..." for a HUMAN-written file past its cadence: a
+    reminder only, never a run failure (visible_failures_spec D5).
+    <basis> is "newest row" for the live ledgers (D6), else "file time".
 Exit 0 always (exit-0 discipline: the watcher never breaks the runs).
 
 Cadence basis (informed priors, revisit with operating data):
@@ -111,24 +114,83 @@ def read_side_lines(proj: str | None = None) -> list[str]:
     return lines
 
 
+# Written by a HUMAN, not by a live job (docs/specs/visible_failures_spec.md
+# D5). Rule 8: a cadence requires a live writer. Past-due renders as a DUE:
+# reminder, never a STALE: failure. Before this, a stale storylines.md failed
+# every healthy brief run and made the health channel alarm daily.
+HUMAN_WRITTEN = {"storylines.md"}
+
+# Ledgers whose age is the NEWEST ROW's timestamp, not the file's mtime
+# (D6). The nightly graders rewrite whole files, which refreshes mtime even
+# when no live writer has appended anything, so mtime hid a dead writer.
+ROW_TIMESTAMPED = {"regime_classification_log.csv", "session_context_log.csv",
+                   "shadow_signal_log.csv", "trade_signal_log.csv"}
+
+
+def _newest_row_epoch(path: str) -> float | None:
+    """Epoch seconds of the newest `timestamp` in a CSV ledger, or None."""
+    import csv
+    from datetime import datetime
+    newest = None
+    try:
+        with open(path, newline="", encoding="utf-8", errors="replace") as f:
+            for row in csv.DictReader(f):
+                ts = (row.get("timestamp") or "").strip()
+                if not ts:
+                    continue
+                try:
+                    t = datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+                except ValueError:
+                    continue
+                newest = t if newest is None or t > newest else newest
+    except Exception:
+        return None
+    return newest
+
+
+def _age_hours(path: str, rel: str, now: float) -> tuple[float, str]:
+    """(age in hours, basis). Raises OSError when the file is missing."""
+    mtime = os.path.getmtime(path)
+    if rel in ROW_TIMESTAMPED:
+        t = _newest_row_epoch(path)
+        if t is None:
+            # Review F6: no parseable row means no live writer has proven
+            # anything. Falling back to mtime would let a grader rewrite of a
+            # header-only file read as fresh, the hole D6 closed.
+            return float("inf"), "no timestamped rows"
+        return (now - t) / 3600.0, "newest row"
+    return (now - mtime) / 3600.0, "file time"
+
+
 def check(now: float | None = None, proj: str | None = None) -> list[str]:
-    """Return the per-artifact report lines. Pure function of file mtimes."""
+    """Return the per-artifact report lines."""
     now = time.time() if now is None else now
     proj = PROJ if proj is None else proj
     lines = []
     for rel, cadence_h in CADENCES:
         path = os.path.join(proj, rel)
+        human = rel in HUMAN_WRITTEN
         try:
-            age_h = (now - os.path.getmtime(path)) / 3600.0
+            age_h, basis = _age_hours(path, rel, now)
         except OSError:
-            lines.append(f"STALE: {rel} — MISSING")
+            lines.append(f"DUE: {rel} — MISSING (written by you; a reminder, "
+                         f"never a run failure)" if human
+                         else f"STALE: {rel} — MISSING")
             continue
-        if age_h > cadence_h:
-            lines.append(f"STALE: {rel} — last write {age_h:.0f}h ago, "
-                         f"expected within {cadence_h}h")
+        if age_h > cadence_h and human:
+            lines.append(f"DUE: {rel} — last written {age_h:.0f}h ago, your "
+                         f"cadence is {cadence_h}h (a reminder, never a run "
+                         f"failure)")
+        elif basis == "no timestamped rows":
+            lines.append(f"STALE: {rel} — no timestamped rows (a rewrite "
+                         f"cannot prove a live writer), expected within "
+                         f"{cadence_h}h")
+        elif age_h > cadence_h:
+            lines.append(f"STALE: {rel} — last write {age_h:.0f}h ago "
+                         f"({basis}), expected within {cadence_h}h")
         else:
-            lines.append(f"fresh: {rel} — {age_h:.0f}h old "
-                         f"(cadence {cadence_h}h)")
+            lines.append(f"fresh: {rel} — {age_h:.0f}h old ({basis}; "
+                         f"cadence {cadence_h}h)")
     return lines
 
 
