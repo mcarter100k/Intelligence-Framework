@@ -14,7 +14,7 @@ Idle agents are correct behavior when the queue is empty.
 
 ## PROTECTED — team review required before any merge
 
-**The 20 live core modules** (the tradeable path and its evidence loop):
+**The 21 live core modules** (the tradeable path and its evidence loop):
 
 ```
 decision_brief.py        run_outcome_check.py     regime_detection.py
@@ -23,7 +23,7 @@ trade_outcome_logger.py  shadow_signals.py        session_memory.py
 entry_confirmation.py    levels_context.py        intraday_context.py
 oanda_feed.py            news_gate.py             calendar_fetch.py
 setup_check.py           session_guard.py         risk_config.py
-display_time.py          exclusions.py
+display_time.py          exclusions.py            ledger_io.py
 ```
 
 (`news_gate.py` added 2026-07-30 per the team-approved spec in
@@ -51,6 +51,13 @@ at N=60. Episodes = non-overlapping 30-bar horizons, not raw rows.
 `trade_signal_log.csv`, `session_context_log.csv`, `trade_log.csv`,
 and everything under `logs/`. Agents never edit, regenerate, or delete them.
 `logs/archive_prerebuild/` is historical record — untouchable.
+**Every write goes through `ledger_io.py`** (added 2026-09-30,
+docs/specs/safe_ledger_writes_spec.md). Use `append_row` for appends,
+`atomic_write_rows` for rewrites, and `migrate_header` for schema changes,
+and hold `locked(path)` from the read to the write of any read-modify-write.
+A bare `open(ledger, "w"/"a")` loses concurrent rows, and a crash mid-write
+empties the file; both were reproduced. `backups/<UTC stamp>/` holds
+hash-verified copies taken before every nightly grade; never edit them.
 
 **`validation_log.md` is append-only.** Corrections are new dated entries,
 never rewrites of old ones (see the Honesty Correction banner for the format).
@@ -122,7 +129,7 @@ restoring either requires team review and a concrete evidence path.
      unless review needs them remote. `main` is never the testing ground.
 
 2. **Suite green before any commit.** Full run: `python -m pytest -q`
-   (currently 641 passed on the live checkout — 2026-09-29). `conftest.py` isolates EVERY test:
+   (currently 672 passed on the live checkout — 2026-09-30). `conftest.py` isolates EVERY test:
    each runs in its own tmp_path (relative ledger paths land there), the
    absolute-path writers are redirected, unit tests cannot reach the network
    (mark real-network tests `@pytest.mark.integration`), and the session

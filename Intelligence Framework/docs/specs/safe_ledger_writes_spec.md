@@ -116,3 +116,43 @@ deleted around 2026-10-16.
     machine.
   - `session_context_log.csv` keeps rows past 30 days, first visible around
     2026-10-09 for the 2026-09-09 rows.
+
+## Addendum (2026-09-30): what verification changed
+
+**Instrument corrections found while verifying.** Each was caught before
+any result was reported as final.
+- **Invalid appender:** the first B1 appender carried a field not in the
+  shadow schema, so it crashed. A positive control now requires every
+  appender to append on its own first.
+- **Grader that never wrote:** the first trade setup was not due for
+  grading because it passed a plain list where the grader needs a time
+  index, which it silently read as 0 bars. The instrument now asserts that
+  the grader actually wrote. That silent zero is itself a fragility, noted
+  for Phase 6.
+- **Implementation-dependent trigger:** the first "after" trigger fired on
+  `open(ledger, "w")`, which the new code never calls.
+- **Trigger inside the inner lock:** the second trigger fired at the
+  rewrite's header write, which sits inside the write's own lock. Mutation
+  testing proved this: removing each grader's OUTER lock (MD/ME/MF) still
+  passed. The trigger now fires when the grader's READ handle closes, the
+  start of the stale-snapshot window. Before and after were both re-measured
+  with it: main loses the row in all three graders; the branch keeps it.
+
+**`/code-review` findings.** Each was reproduced on the branch before
+fixing (AGENTS.md rule 11). All 10 were confirmed. R8 did not reproduce
+for a symlinked directory, but did for a symlinked file.
+
+| # | Finding | Fix |
+|---|---|---|
+| R1/R6 | A UTC-day backup slot could be taken by a late run; delete-then-rename could destroy a complete backup | One folder per run (UTC stamp); an existing backup is never touched |
+| R2/R10 | The grader ran even when the backup failed, crashed or was missing | The grader runs only after the backup's success line; otherwise "GRADER SKIPPED" and an outcomes failure (grading is idempotent) |
+| R3 | A health save error swallowed the ALERT line | Save and lock errors are reported, never swallow the line; health stderr goes to the day log |
+| R4 | `log_shadow_signals` appended headerless rows to a 0-byte ledger | Uses the header-aware `append_row` |
+| R5 | `trade_log.csv` was not backed up | Added |
+| R7 | New files were created 0600 | Created with umask permissions (0644) |
+| R8 | A symlinked ledger took a different sidecar lock | The sidecar is derived from the realpath |
+| R9 | Four hand-written migration copies | One `ledger_io.migrate_header` |
+
+**Decision for the owner (Phase 3 merge review).** Should
+`session_context_log.csv` be append-only (built here), or should it keep a
+rolling window with pruned rows moved to an archive file?
