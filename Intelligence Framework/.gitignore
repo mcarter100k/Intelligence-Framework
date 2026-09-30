@@ -15,3 +15,6 @@ pre_trade_journal.csv
 trades.csv
 studies/data_cache/
 *.orphaned-*
+backups/
+.*.lock
+.*.tmp

@@ -40,6 +40,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from exclusions import excluder
+from ledger_io import atomic_write_rows, locked
 
 from regime_detection import (
     _detect_structure, _compute_adx, compute_atr_series, PAIRS,
@@ -263,11 +264,11 @@ def check_shadow_signals(instrument: str, ctx: Optional[Dict] = None) -> List[Di
 
 # ── Logging (dedup by candidate+instrument+timestamp) ───────────────────────────
 def _ensure_file():
-    if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w", newline="") as f:
-            csv.DictWriter(f, fieldnames=_FIELDS).writeheader()
-        return
-    _migrate_header()
+    with locked(LOG_FILE):
+        if not os.path.exists(LOG_FILE):
+            atomic_write_rows(LOG_FILE, _FIELDS, [])
+            return
+        _migrate_header()
 
 
 def _migrate_header():
@@ -278,41 +279,44 @@ def _migrate_header():
     the logger maintaining its own schema, never an edit of recorded
     values. MUST run before any append, or a 19-field row lands under an
     18-column header."""
-    try:
-        with open(LOG_FILE, newline="") as f:
-            reader = csv.DictReader(f)
-            if reader.fieldnames is None or list(reader.fieldnames) == _FIELDS:
-                return
-            rows = list(reader)
-    except Exception:
-        return                              # unreadable: leave it alone
-    with open(LOG_FILE, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=_FIELDS)
-        w.writeheader()
-        for r in rows:
-            w.writerow({k: r.get(k, "") for k in _FIELDS})
+    with locked(LOG_FILE):
+        try:
+            with open(LOG_FILE, newline="") as f:
+                reader = csv.DictReader(f)
+                if reader.fieldnames is None or list(reader.fieldnames) == _FIELDS:
+                    return
+                rows = list(reader)
+        except Exception:
+            return                          # unreadable: leave it alone
+        atomic_write_rows(LOG_FILE, _FIELDS,
+                          [{k: r.get(k, "") for k in _FIELDS} for r in rows])
 
 
 def log_shadow_signals(signals: List[Dict]) -> int:
     if not signals:
         return 0
-    _ensure_file()
-    seen = set()
-    with open(LOG_FILE, newline="") as f:
-        for row in csv.DictReader(f):
-            seen.add((row["candidate_id"], row["instrument"], row["timestamp"]))
-    written = 0
-    with open(LOG_FILE, "a", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=_FIELDS)
-        for s in signals:
-            key = (s["candidate_id"], s["instrument"], s["timestamp"])
-            if key in seen:
-                continue
-            row = {k: "" for k in _FIELDS}
-            row.update(s)
-            row["outcome_filled"] = False
-            w.writerow(row)
-            seen.add(key); written += 1
+    # One lock across the dedupe read and the append: two runs logging the
+    # same fire at once can no longer both pass the dedupe (ledger_io).
+    with locked(LOG_FILE):
+        _ensure_file()
+        seen = set()
+        with open(LOG_FILE, newline="") as f:
+            for row in csv.DictReader(f):
+                seen.add((row["candidate_id"], row["instrument"], row["timestamp"]))
+        written = 0
+        with open(LOG_FILE, "a", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=_FIELDS)
+            for s in signals:
+                key = (s["candidate_id"], s["instrument"], s["timestamp"])
+                if key in seen:
+                    continue
+                row = {k: "" for k in _FIELDS}
+                row.update(s)
+                row["outcome_filled"] = False
+                w.writerow(row)
+                seen.add(key); written += 1
+            f.flush()
+            os.fsync(f.fileno())
     return written
 
 
@@ -530,40 +534,41 @@ def backfill_loss_species(instrument: str) -> int:
     ts_to_idx = {t: i for i, t in enumerate(T)}
 
     _migrate_header()
-    with open(LOG_FILE, newline="") as f:
-        rows = list(csv.DictReader(f))
-    changed = 0
-    for r in rows:
-        if r["instrument"] != instrument or str(r.get("outcome_filled")) != "True":
-            continue
-        if r.get("loss_species") or is_invalid_spec(r):
-            continue
-        try:
-            r_mult = float(r["r_multiple"])
-        except (TypeError, ValueError):
-            continue
-        if r_mult >= 0:
-            continue                       # wins are not autopsied
-        ei = ts_to_idx.get(r["timestamp"])
-        if ei is None or ei + HORIZON >= len(C):
-            continue
-        entry = float(r["entry"]); stop = float(r["stop"])
-        risk = abs(entry - stop) or 1e-9
-        fut_h = H[ei + 1:ei + 1 + HORIZON]; fut_l = L[ei + 1:ei + 1 + HORIZON]
-        mfe_price = float(r["mfe_pips"]) * pip
-        species = _classify_loss(
-            r["direction"], entry, stop, risk, r.get("extra", ""),
-            str(r.get("hit_stop")) == "True", mfe_price, fut_h, fut_l,
-            ei, C, float(r.get("atr") or 0.0))
-        if species:
-            r["loss_species"] = species
-            changed += 1
-    if changed:
-        with open(LOG_FILE, "w", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=_FIELDS)
-            w.writeheader()
-            w.writerows([{k: r.get(k, "") for k in _FIELDS} for r in rows])
-    return changed
+    # Lock from the ledger read to the write (ledger_io); the H4 fetch
+    # above stays outside it, so no network call ever holds the lock.
+    with locked(LOG_FILE):
+        with open(LOG_FILE, newline="") as f:
+            rows = list(csv.DictReader(f))
+        changed = 0
+        for r in rows:
+            if r["instrument"] != instrument or str(r.get("outcome_filled")) != "True":
+                continue
+            if r.get("loss_species") or is_invalid_spec(r):
+                continue
+            try:
+                r_mult = float(r["r_multiple"])
+            except (TypeError, ValueError):
+                continue
+            if r_mult >= 0:
+                continue                       # wins are not autopsied
+            ei = ts_to_idx.get(r["timestamp"])
+            if ei is None or ei + HORIZON >= len(C):
+                continue
+            entry = float(r["entry"]); stop = float(r["stop"])
+            risk = abs(entry - stop) or 1e-9
+            fut_h = H[ei + 1:ei + 1 + HORIZON]; fut_l = L[ei + 1:ei + 1 + HORIZON]
+            mfe_price = float(r["mfe_pips"]) * pip
+            species = _classify_loss(
+                r["direction"], entry, stop, risk, r.get("extra", ""),
+                str(r.get("hit_stop")) == "True", mfe_price, fut_h, fut_l,
+                ei, C, float(r.get("atr") or 0.0))
+            if species:
+                r["loss_species"] = species
+                changed += 1
+        if changed:
+            atomic_write_rows(LOG_FILE, _FIELDS,
+                              [{k: r.get(k, "") for k in _FIELDS} for r in rows])
+        return changed
 
 
 # ── Grading (called by run_outcome_check) ───────────────────────────────────────
@@ -585,59 +590,60 @@ def grade_pending_shadow(instrument: str) -> int:
     pip = PAIRS[instrument].pip_size if instrument in PAIRS else 0.0001
     ts_to_idx = {t: i for i, t in enumerate(T)}
 
-    with open(LOG_FILE, newline="") as f:
-        rows = list(csv.DictReader(f))
-    # Excluded rows are never graded (exclusions.py). `rows` is written back
-    # below, so they are skipped here rather than filtered out of the list —
-    # filtering would delete them from an append-only ledger.
-    is_excluded = excluder("shadow_signal_log.csv")
-    filled = skipped_invalid = 0
-    for r in rows:
-        if r["instrument"] != instrument or str(r.get("outcome_filled")) == "True":
-            continue
-        if is_invalid_spec(r):
-            skipped_invalid += 1           # never scored as R (see is_invalid_spec)
-            continue
-        if is_excluded(r):
-            continue                       # registry exclusion (exclusions.py)
-        ei = ts_to_idx.get(r["timestamp"])
-        if ei is None or ei + HORIZON >= len(C):
-            continue                                         # window not elapsed / not in fetch
-        entry = float(r["entry"]); stop = float(r["stop"]); direction = r["direction"]
-        fut_h = H[ei + 1:ei + 1 + HORIZON]; fut_l = L[ei + 1:ei + 1 + HORIZON]
-        exit_c = C[ei + HORIZON]
-        risk = abs(entry - stop) or 1e-9
-        if direction == "LONG":
-            mfe = (max(fut_h) - entry) / pip
-            mae = (entry - min(fut_l)) / pip
-            hit = min(fut_l) <= stop
-            net = (exit_c - entry) / pip
-        else:
-            mfe = (entry - min(fut_l)) / pip
-            mae = (max(fut_h) - entry) / pip
-            hit = max(fut_h) >= stop
-            net = (entry - exit_c) / pip
-        r_mult = -1.0 if hit else round((net * pip) / risk, 2)
-        r.update({
-            "outcome_filled": True, "bars_elapsed": HORIZON,
-            "mfe_pips": round(mfe, 1), "mae_pips": round(mae, 1),
-            "net_30bars_pips": round(net, 1), "hit_stop": hit, "r_multiple": r_mult,
-        })
-        # Loss autopsy at the grading seam (docs/specs/loss_autopsy_spec.md):
-        # everything needed is in scope; wins stay unclassified.
-        if r_mult < 0:
-            r["loss_species"] = _classify_loss(
-                direction, entry, stop, risk, r.get("extra", ""), hit,
-                mfe * pip, fut_h, fut_l, ei, C, float(r.get("atr") or 0.0))
-        filled += 1
-    if skipped_invalid:
-        print(f"{instrument}: {skipped_invalid} invalid_spec shadow row(s) "
-              f"skipped — unscoreable by construction, never scored as R")
-    if filled:
-        with open(LOG_FILE, "w", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=_FIELDS)
-            w.writeheader(); w.writerows(rows)
-    return filled
+    # Lock from the ledger read to the write (ledger_io); the H4 fetch
+    # above stays outside it, so no network call ever holds the lock.
+    with locked(LOG_FILE):
+        with open(LOG_FILE, newline="") as f:
+            rows = list(csv.DictReader(f))
+        # Excluded rows are never graded (exclusions.py). `rows` is written back
+        # below, so they are skipped here rather than filtered out of the list —
+        # filtering would delete them from an append-only ledger.
+        is_excluded = excluder("shadow_signal_log.csv")
+        filled = skipped_invalid = 0
+        for r in rows:
+            if r["instrument"] != instrument or str(r.get("outcome_filled")) == "True":
+                continue
+            if is_invalid_spec(r):
+                skipped_invalid += 1           # never scored as R (see is_invalid_spec)
+                continue
+            if is_excluded(r):
+                continue                       # registry exclusion (exclusions.py)
+            ei = ts_to_idx.get(r["timestamp"])
+            if ei is None or ei + HORIZON >= len(C):
+                continue                                         # window not elapsed / not in fetch
+            entry = float(r["entry"]); stop = float(r["stop"]); direction = r["direction"]
+            fut_h = H[ei + 1:ei + 1 + HORIZON]; fut_l = L[ei + 1:ei + 1 + HORIZON]
+            exit_c = C[ei + HORIZON]
+            risk = abs(entry - stop) or 1e-9
+            if direction == "LONG":
+                mfe = (max(fut_h) - entry) / pip
+                mae = (entry - min(fut_l)) / pip
+                hit = min(fut_l) <= stop
+                net = (exit_c - entry) / pip
+            else:
+                mfe = (entry - min(fut_l)) / pip
+                mae = (max(fut_h) - entry) / pip
+                hit = max(fut_h) >= stop
+                net = (entry - exit_c) / pip
+            r_mult = -1.0 if hit else round((net * pip) / risk, 2)
+            r.update({
+                "outcome_filled": True, "bars_elapsed": HORIZON,
+                "mfe_pips": round(mfe, 1), "mae_pips": round(mae, 1),
+                "net_30bars_pips": round(net, 1), "hit_stop": hit, "r_multiple": r_mult,
+            })
+            # Loss autopsy at the grading seam (docs/specs/loss_autopsy_spec.md):
+            # everything needed is in scope; wins stay unclassified.
+            if r_mult < 0:
+                r["loss_species"] = _classify_loss(
+                    direction, entry, stop, risk, r.get("extra", ""), hit,
+                    mfe * pip, fut_h, fut_l, ei, C, float(r.get("atr") or 0.0))
+            filled += 1
+        if skipped_invalid:
+            print(f"{instrument}: {skipped_invalid} invalid_spec shadow row(s) "
+                  f"skipped — unscoreable by construction, never scored as R")
+        if filled:
+            atomic_write_rows(LOG_FILE, _FIELDS, rows)
+        return filled
 
 
 # ── Brief integration ───────────────────────────────────────────────────────────

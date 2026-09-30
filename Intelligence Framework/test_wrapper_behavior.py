@@ -46,6 +46,9 @@ def _project(tmp_path, brief=STAND_ASIDE, outcome="print('graded 0')",
     (proj / "logs").mkdir(parents=True)
     shutil.copytree(os.path.join(_ROOT, "scripts"), proj / "scripts",
                     ignore=shutil.ignore_patterns("__pycache__", "launchd"))
+    # scripts/health_state.py and backup_ledgers.py import the root-level
+    # ledger_io (docs/specs/safe_ledger_writes_spec.md)
+    shutil.copy(os.path.join(_ROOT, "ledger_io.py"), proj / "ledger_io.py")
     now = time.time()
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 3600))
     for name in _LEDGERS:
@@ -288,3 +291,27 @@ def test_f9_heartbeat_surfaces_an_unhealthy_job_by_name(tmp_path):
     _run(tmp_path, proj, "weekly_heartbeat.sh")
     notes = _notes(tmp_path)
     assert "NEEDS ATTENTION" in notes and "outcomes: UNHEALTHY" in notes
+
+
+# ── Phase 3: nightly backup (docs/specs/safe_ledger_writes_spec.md) ───────────
+
+def test_the_backup_runs_before_the_grader_rewrites_anything(tmp_path):
+    proj = _project(tmp_path, outcome="print('GRADER RAN')")
+    _run(tmp_path, proj, "scheduled_outcome_check.sh")
+    log = _log(proj, "outcomes")
+    b = log.index("all sha256 verified -> backups/")
+    assert b < log.index("GRADER RAN")
+    days = [d for d in os.listdir(proj / "backups") if not d.startswith(".")]
+    assert len(days) == 1
+    day = proj / "backups" / days[0]
+    assert (day / "regime_classification_log.csv").read_text() == \
+        (proj / "regime_classification_log.csv").read_text()
+
+
+def test_a_failed_backup_is_an_outcomes_failure(tmp_path):
+    proj = _project(tmp_path)
+    (proj / "backups").write_text("a FILE where the backups folder must go")
+    _run(tmp_path, proj, "scheduled_outcome_check.sh")
+    reason = _jobs(proj)["outcomes"]["last_failure_reason"]
+    assert reason.startswith("BACKUP FAILED")
+    assert "BACKUP FAILED" in _log(proj, "outcomes")

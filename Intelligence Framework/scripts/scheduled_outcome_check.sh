@@ -27,6 +27,12 @@ LOG="logs/outcomes_${DATE}.log"
 live_guard "$LOG"
 . "$PROJ/scripts/crash.sh"
 
+# Back up every evidence file BEFORE the grader rewrites anything
+# (docs/specs/safe_ledger_writes_spec.md): a bad grader write is always
+# recoverable from today's hash-verified copy in backups/<date>/.
+BACKUP="$(python3 scripts/backup_ledgers.py 2>&1)"
+echo "$BACKUP" >> "$LOG"
+
 # stdout and stderr captured SEPARATELY: the crash reason must come from
 # stderr (scripts/crash.sh). Both go to the day log.
 ERRTMP="$(mktemp)"
@@ -45,6 +51,8 @@ rm -f "$ERRTMP"
 # grader early-exit marker, unconfigured feed, no data, or empty output.
 if [ -n "$CRASH" ]; then
     HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$CRASH")"
+elif printf '%s\n' "$BACKUP" | grep -q '^BACKUP FAILED'; then
+    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$(printf '%s\n' "$BACKUP" | grep -m1 '^BACKUP FAILED' | cut -c1-160)")"
 elif [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -qE 'GRADER EARLY EXIT|not configured|no data from OANDA'; then
     HREASON="$(printf '%s\n' "$OUT" | grep -oE 'GRADER EARLY EXIT[^(]*|[A-Z_]+: no data from OANDA' | head -1)"
     [ -z "$HREASON" ] && HREASON="outcome check produced no output"
