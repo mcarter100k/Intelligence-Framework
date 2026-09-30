@@ -30,7 +30,7 @@ LOG="logs/brief_${DATE}.log"
 # the AUTO-FETCHER before the brief (docs/specs/calendar_autofetch_spec.md —
 # this is the mid-week retry path; the weekly primary is the Sunday launchd
 # job). calendar_fetch.py keeps the existing file on any failure; the brief's
-# stale-calendar note is the backstop. Manual fallback: update_calendar.py.
+# stale-calendar note is the backstop.
 # Failures are logged and never fatal (exit 0 discipline).
 if [ ! -f calendar.csv ] || [ -n "$(find calendar.csv -mmin +1440 2>/dev/null)" ]; then
     {

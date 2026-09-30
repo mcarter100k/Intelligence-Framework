@@ -77,7 +77,6 @@ def test_every_ledger_in_the_repo_is_covered():
     not_ledgers = {
         "calendar.csv",     # fetched feed, schema owned by calendar_fetch
         "trade_log.csv",    # frozen April-era historical evidence
-        "cot_cache.json",
     }
     covered = {l[0] for l in LEDGERS} | not_ledgers
     on_disk = {f for f in os.listdir(_ROOT)

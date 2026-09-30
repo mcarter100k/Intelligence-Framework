@@ -234,7 +234,7 @@ def test_read_side_inventory_pinned():
 SUPPORT_FILES = [
     "scripts/artifact_freshness.py", "scripts/health_state.py",
     "scripts/latest_view.py", "scripts/daily_digest.py",
-    "trade_logger.py", "trade_management.py", "update_calendar.py",
+    "trade_logger.py", "trade_management.py",
 ]
 
 # Orphans that are CORRECT. A bare name is not allowed here — every entry

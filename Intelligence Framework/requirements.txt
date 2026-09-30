@@ -1,8 +1,4 @@
-beautifulsoup4>=4.12
 requests>=2.31
 pandas>=2.0
 numpy>=1.26
-yfinance>=0.2.37
-ratelimit>=2.2.1
-urllib3>=2.0
-lxml>=4.9          # faster BS4 parser (optional but recommended)
+pytest>=8.0

@@ -3,8 +3,8 @@ calendar_fetch.py
 ─────────────────
 Weekly automatic economic-calendar feed (spec:
 docs/specs/calendar_autofetch_spec.md, team approved 2026-07-31).
-Primary source for calendar.csv; the manual-entry workflow
-(update_calendar.py) remains as fallback. No shadow/ imports.
+Sole writer of calendar.csv (the manual update_calendar.py was removed
+in the 2026-09-29 audit). No shadow/ imports.
 
 SOURCE (selected + verified live 2026-07-31):
     https://nfs.faireconomy.media/ff_calendar_thisweek.json
@@ -27,7 +27,7 @@ closed: the existing calendar.csv is kept untouched and the stale-calendar
 honest note in the brief is the designed backstop — a failed fetch degrades
 to a visible warning, never a silent wrong calendar.
 
-Output schema (exactly what news_gate.py / update_calendar.py read):
+Output schema (exactly what news_gate.py reads):
     time,currency,event,actual,forecast,previous,impact
     with time as naive-UTC "YYYY-MM-DD HH:MM".
 
