@@ -122,7 +122,7 @@ restoring either requires team review and a concrete evidence path.
      unless review needs them remote. `main` is never the testing ground.
 
 2. **Suite green before any commit.** Full run: `python -m pytest -q`
-   (currently 593 passed on the live checkout — 2026-09-29). `conftest.py` isolates EVERY test:
+   (currently 641 passed on the live checkout — 2026-09-29). `conftest.py` isolates EVERY test:
    each runs in its own tmp_path (relative ledger paths land there), the
    absolute-path writers are redirected, unit tests cannot reach the network
    (mark real-network tests `@pytest.mark.integration`), and the session

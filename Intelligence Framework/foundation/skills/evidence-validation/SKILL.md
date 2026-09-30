@@ -60,6 +60,14 @@ reported as success until someone asked for the evidence.
    changed.
 3. Run the test: it must FAIL.
 4. Revert, and confirm the revert (`grep -c MUTANT` returns 0).
+5. **Clear bytecode caches and re-run the test: it must PASS again.**
+   Python decides whether a cached `.pyc` is stale from the source's size
+   and a one-second timestamp. A mutant the same length as the original,
+   reverted within the same second, leaves Python running the MUTANT, while
+   the source diff says everything is clean. Run mutations with
+   `PYTHONDONTWRITEBYTECODE=1`, or `find . -name __pycache__ -prune -exec
+   rm -rf {} +` after each revert. A source diff alone does not prove the
+   revert.
 
 **Controlled comparison, when changing a test:** run the old and new
 versions against the same mutant. This proves the new one catches what the
@@ -132,3 +140,4 @@ the earlier claim.
 | "The guard protects the ledgers" | It missed writes to `logs/` and new files | A planted violation passed the old guard |
 | "No leaked processes" | The old test leaked 1 orphan per run; a count masked it | A PID-set diff, old vs new |
 | "The new assertions catch crashes" | Unproven until a mutant crashed the brief | Mutant A: new tests 3 failed, old tests 3 passed |
+| "Mutant reverted cleanly" (source diff was empty) | Python kept running the 54-char mutant's cached bytecode, which was the same size as the original and reverted in the same second | A later full run failed 3/3 with no probe. Clearing `__pycache__` restored 635/635 |

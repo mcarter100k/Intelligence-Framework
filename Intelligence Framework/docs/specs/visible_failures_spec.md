@@ -106,3 +106,22 @@ The raw output is in the Phase 2 entry of validation_log.md.
   - The first scheduled brief and grader runs after merge record per-job
     health.
   - The first real storylines `DUE:` line appears in the Sunday heartbeat.
+
+## Addendum (2026-09-29): `/code-review` findings, verified before fixing
+
+The review was run on this branch after the build. Its ten findings were
+reported unverified, so each was reproduced on the branch first
+(AGENTS.md rule 11).
+
+| # | Finding | Verdict | Fix |
+|---|---|---|---|
+| F1 | The grader's crash reason could name buffered stdout | NOT REPRODUCED (the reason was correct) | Defensive: stderr is captured separately, and the reason is parsed only from it (`scripts/crash.sh`) |
+| F2 | An empty response left `last_error` from another fetch | CONFIRMED ("timed out (H4 GBP_AUD)" reported for an empty GBP_JPY D1) | Every return path records its own cause |
+| F3 | The brief cut the reason at 60 chars and labelled a 401 "unreachable" | CONFIRMED | Short classification first; the reason is kept to 200 chars; the prefix is "OANDA data unavailable" |
+| F4 | Retries on every fetch during an outage | CONFIRMED (about 33s per fetch, about 8 min per brief) | Outage breaker: 1 attempt per fetch for 120s after a fetch exhausts its retries |
+| F5 | A mistyped job name was folded into `brief` | CONFIRMED | Any job name is its own job; only the legacy reason-only call maps to `brief` |
+| F6 | A header-only ledger fell back to mtime | CONFIRMED (read fresh at 0h) | No timestamped rows means STALE |
+| F7 | The heartbeat said "STALE (>7d)" inside the 216h cadence | CONFIRMED (code) | A DUE reminder at 216h |
+| F8 | `{"brief": null}` silenced health tracking permanently | CONFIRMED (no output after 2 failures) | Malformed job entries are treated as zero state |
+| F9 | The heartbeat had no behavioral test | CONFIRMED | Four heartbeat tests execute the real script |
+| F10 | Crash parsing was duplicated | CONFIRMED (code) | One helper, `scripts/crash.sh` |
