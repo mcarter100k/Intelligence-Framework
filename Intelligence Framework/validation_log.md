@@ -3059,3 +3059,41 @@ below.
 Rule 10 added as directed. Rule 9 stays per ruling 1. `exclusions.py`
 joins the PROTECTED list (19 → 20).
 
+
+---
+
+## 2026-09-29 — Full audit + owner-approved removals (branch `chore/audit-cleanup`)
+
+Six review passes, recorded in full in `docs/audit_2026-09-29.md` (verdict,
+scorecard, ranked defects, removal manifest, roadmap). The owner approved
+the removals in session. Nothing in this entry changes a ledger.
+
+**Removed (all recoverable from git history):**
+- `shadow/`: 9,016 LOC and 868 tests. 0 comparisons ever logged.
+- `legacy_validators/`: invalidated 2026-06-29.
+- `studies/verify_shadow_path.py`
+- `update_calendar.py`: superseded by `calendar_fetch.py`.
+- About 300 LOC of unreferenced functions and constants in live modules, plus 18 unused imports.
+- `intraday_context.py` cut from 544 to 113 lines. Only the Asian range was ever consumed. The removed fakeout logic encoded a premise this log had already refuted.
+- `test_decision_invariants.py` keeps the 3 live-module invariants that previously sat under `shadow/`.
+
+**Fixed:** `scripts/weekly_heartbeat.sh` never ran under launchd, because
+`/bin/bash` 3.2 could not parse an apostrophe inside the heredoc at line 35.
+Three Sunday heartbeats were lost (09-13, 09-20, 09-27). The 2026-09-09
+Gate 2 had run under Homebrew bash 5. New guard: `test_shell_syntax.py`.
+`uninstall.sh` now covers the heartbeat plist.
+
+**Evidence-integrity findings, logged here and NOT yet fixed** (see the audit for the full list):
+- `current_price` is the previous closed D1 bar. `_get_bars` drops the forming candle, so `_split_live_bar` never splits. `trade_signal_log.price_at_signal` and `regime_classification_log.price_at_log` therefore carry prices up to about 24h stale.
+- The regime-accuracy tally is not evidence:
+  - MR_WIN measures against the outcome window's own mean.
+  - VOL_EXPANSION is near-impossible to pass.
+  - The "independent" N is inflated about 2x.
+- `shadow_signals.episode_count` treats 30 H4 bars as 120 clock hours (true: about 168h). It also counts ungraded rows.
+- Candidates are evaluated only on the H4 bar that is latest at brief time, so about half of all bars are never checked.
+- The integration tests (`-m integration`) write synthetic rows to the real ledgers. This is the likely origin of the unexplained 2026-07-29T04:23:31Z row.
+- The trade_signal row 2026-06-28T21:39:15Z (exactly +150.0 pips) and the regime row 2026-06-28T23:19:58Z_GBP_AUD carry synthetic signatures. **They are candidates for the exclusion registry and are pending an owner ruling.**
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+
+- First Sunday heartbeat actually delivered under launchd (after merge).

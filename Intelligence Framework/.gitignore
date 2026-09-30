@@ -5,9 +5,6 @@ __pycache__/
 .env
 venv/
 logs/
-cot_cache.json
-last_run.json
-debug_calendar.html
 regime_classification_log.csv
 trade_signal_log.csv
 session_context_log.csv
@@ -15,5 +12,6 @@ shadow_signal_log.csv
 trade_log.csv
 calendar.csv
 pre_trade_journal.csv
-pending_trades.json
 trades.csv
+studies/data_cache/
+*.orphaned-*
