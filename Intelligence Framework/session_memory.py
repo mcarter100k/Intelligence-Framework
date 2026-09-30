@@ -24,6 +24,7 @@ import os
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, List
 
+from exclusions import filter_rows
 from regime_detection import _ADX_TRANSITION_HIGH, _ADX_RANGING_THRESHOLD, PAIRS
 
 LOG_FILE = "session_context_log.csv"
@@ -314,12 +315,7 @@ def _get_today_rows(instrument: str) -> List[Dict]:
     # made the next honest run render "conditions deteriorated" and fire an
     # alert for a flip that never happened. This read feeds comparisons
     # only — nothing is written back — so filtering here is safe.
-    try:
-        from exclusions import filter_rows
-        rows = filter_rows(rows, "session_context_log.csv")
-    except Exception:
-        pass
-    return rows
+    return filter_rows(rows, "session_context_log.csv")
 
 
 def _append_row(row: dict) -> None:

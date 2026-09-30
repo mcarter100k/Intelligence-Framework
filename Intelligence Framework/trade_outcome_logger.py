@@ -15,6 +15,8 @@ import os
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
+from exclusions import excluder
+
 _LOG_FILE = "trade_signal_log.csv"
 
 _FIELDS = [
@@ -230,11 +232,7 @@ def check_pending_trade_outcomes(
     # Excluded rows are never graded (exclusions.py). `rows` is written back
     # below, so they are skipped here rather than filtered out of the list —
     # filtering would delete them from an append-only ledger.
-    try:
-        from exclusions import excluded_ids, is_excluded as _is_excl
-        _excl = excluded_ids("trade_signal_log.csv")
-    except Exception:
-        _excl, _is_excl = set(), None
+    is_excluded = excluder("trade_signal_log.csv")
 
     filled = 0
     for row in rows:
@@ -242,8 +240,7 @@ def check_pending_trade_outcomes(
             continue
         if row.get("direction") not in ("LONG", "SHORT"):
             continue  # nothing directional to grade
-        if _excl and _is_excl is not None and \
-                _is_excl(row, "trade_signal_log.csv", _excl):
+        if is_excluded(row):
             continue
 
         try:
@@ -291,11 +288,7 @@ def get_accuracy_by_regime(
     if not os.path.exists(_LOG_FILE):
         return {}
 
-    try:
-        from exclusions import excluded_ids, is_excluded as _is_excl
-        _excl = excluded_ids("trade_signal_log.csv")
-    except Exception:
-        _excl, _is_excl = set(), None
+    is_excluded = excluder("trade_signal_log.csv")
 
     groups: Dict[str, list] = {}
     with open(_LOG_FILE, newline="") as f:
@@ -304,8 +297,7 @@ def get_accuracy_by_regime(
                 continue
             if instrument and row["instrument"] != instrument:
                 continue
-            if _excl and _is_excl is not None and \
-                    _is_excl(row, "trade_signal_log.csv", _excl):
+            if is_excluded(row):
                 continue    # never reaches a tally (exclusions.py)
             regime = row["regime_d1"]
             groups.setdefault(regime, []).append(row)
