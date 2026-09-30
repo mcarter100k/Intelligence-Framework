@@ -3417,3 +3417,117 @@ This was NOT CHECKED in the Phase 3 report. It is now measured with `scripts/tra
 ### Gate 3 — PENDING
 - The first scheduled briefs after merge show live prices within 3 pips of the mid.
 - The first real Sunday-open and Friday-close boundaries after 2026-11-01 are handled correctly.
+
+---
+
+## 2026-09-30 — Phase 5: decision logic (per docs/specs/decision_logic_spec.md). Merge HELD
+
+**Method (AGENTS.md rule 11).** Each defect was reproduced on main (6471072)
+with controls (`scratchpad/p5/measure.py`), then re-measured with the same
+script.
+
+| # | Defect | BEFORE (main) | AFTER (branch) |
+|---|---|---|---|
+| D1 | GBP/JPY H4 exhaustion traded as a pullback | LONG, conviction 70, **grade A**, size 0.75 | NO TRADE: "exhaustion move — fade, don't follow" |
+| D2 | ADX ≥ 32 trend from slope alone | ADX 33 + TRANSITIONAL → TRENDING_DOWN | VOLATILE / UNCONFIRMED_TREND. Control: ADX 33 + DOWNTREND is still a trend |
+| D3 | The conflict hard block could never fire | Stopped only by the fallthrough | The named block "Opposite trend conflict…" |
+| D4 | Filter allows, then official vetoes | 3 RANGING cells | 0 |
+| D5a | Uncovered calendar reads all-clear | `active=True, note=''` | inactive, stale note |
+| D5b | Gate drops at the release | 5 min after: not gating | gating until +30 min. Control: 60 min before, gating |
+| D6 | Missing levels loosen the trigger | `entry_ready=True` | `entry_ready=False` (H1 confirmed: the trigger sits at the edge) |
+| D7 | Grade C shown as a trade (the real 2026-09-25 row) | SHORT, 30, C, size 0.75 | NO TRADE |
+
+**Owner decisions (2026-09-30):** floor changes authorized; exhaustion →
+stand aside; ADX ≥ 32 needs structure; grade C = no trade.
+
+### Gate 1
+- **Full suite:** 751 passed (worktree, clean cache). Audit-hook probe: 0
+  network lookups; the only write is `/dev/null`, which the probe's own
+  positive control also shows. The control catches a planted project write
+  and a DNS lookup.
+- **Invariant sweep:** 36,864 cells (regime × regime × structure × weekly ×
+  ATR × pair × exhaustion …) run through main's and the branch's code.
+  - Filter/official disagreements: main **6,912** → branch **0**.
+  - Grade-C trades: main **5,472** → branch **0**.
+  - 8,016 cells changed, **all** trade → NO TRADE, each explained by the
+    exhaustion or grade-C rule. **0** cells go blocked → trade.
+- **History replay** (the same cached OANDA candles through both codes; live
+  price and news gate pinned; 825 days with H4 data × 2 pairs):
+
+  | Pair | Trades (main → branch) | Grade-C trades (main → branch) | Filter/official disagreements (main → branch) |
+  |---|---|---|---|
+  | GBP/AUD | 144 → 74 | 60 → 0 | 171 → 0 |
+  | GBP/JPY | 95 → 55 | 24 → 0 | 154 → 0 |
+
+  - Every changed day was attributed to D1/D2/D3/D4/D7, or to a reason text
+    now made accurate (the filter gets the real ADX).
+  - **One newly-permitted trade:** GBP/JPY 2026-01-26. D2 on the H4 (ADX
+    32.4, TRANSITIONAL): LONG B. Disclosed in the spec addendum; N=1
+    outcome +262 at 5 bars, −48 at 20.
+- **New tests:** 43, of which 37 fail on main's code. 23 of those fail on
+  behavior; 14 fail because the new API is absent on main. The 6 that pass
+  are the controls and the case main already got right.
+- **Mutations:** 24 mutants (M01–M17, V1–V6b), each applied, failing, reverted
+  (hash-verified), caches cleared. **0 survivors**; the full suite passes
+  after all reverts.
+- **One unexplained suite failure (OPEN).** One full run just before the
+  docs commit reported "1 failed, 750 passed". Its output was not captured
+  (only the tail line), so the failing test is **NOT KNOWN**.
+  - It did not reproduce in the next **31 consecutive full runs**: 6 plus 20
+    serial, and 5 with all 8 cores saturated by busy loops. Every failure
+    output was captured.
+  - The timing-sensitive tests I read synchronize correctly: the lock tests
+    wait on a "held" handshake, and the concurrency tests pass in either
+    order.
+  - **Standing instruction:** every future suite run keeps full `-rf` output,
+    so a recurrence is identified, not re-guessed.
+- **`/code-review`:** 10 findings, all reproduced on the branch before
+  fixing, then re-measured fixed (spec addendum V1–V10).
+  - **Instrument correction:** my first AFTER run of the repro script omitted
+    the new `filter_block` key, which `get_regime` supplies. So V3/V5 read
+    unfixed.
+  - The live path was then verified: `get_regime` returns the filter's block
+    and reason (test), and a full `get_decision_brief` REASON shows the
+    grade-C reason (test).
+  - The corrected script shows all five fixed.
+
+### Gate 2 (REALITY)
+- **`reality_run brief` with the branch code against the live ledgers:** exit 0,
+  project UNCHANGED (hash).
+  - The regime and session copies migrated additively: 116 + 162 old rows,
+    **0 field differences** (3,132 + 1,458 fields). The trade copy had 0
+    differences with no new row (no trade today, and `log_signal` runs only
+    on a trade).
+  - The checker's positive control found 1 of 1 planted changes. **Its first
+    run reported 0:** the control wrote through an unclosed file. It was
+    fixed and re-run.
+- **Controlled comparison, same live data (2026-09-30 ~09:47 UTC):** both
+  pairs STAND ASIDE on both codes.
+  - **GBP/JPY on main** logged `filter_allowed=True` while its brief said
+    "Reduced Momentum … no signal met conviction threshold". That is D4
+    contaminating the live session ledger today.
+  - **The branch** logs False, with "exhaustion move" and `logic_version`.
+- **`reality_run grader`:** exit 0, project UNCHANGED. The shadow-ledger copy
+  is byte-identical to main's grader run on the same data.
+- **The real wrappers on a project copy with the branch code** (a bare
+  environment, `/bin/bash`):
+  - brief wrapper: exit 0, both ledgers migrated, and the new rows carry
+    `p5-2026-09-30`;
+  - grader wrapper: exit 0, "backup … all sha256 verified" (independently
+    9/9) before grading;
+  - LIVE BRANCH alert fired as designed (the copy has no .git).
+- **The branch news gate against the real calendar.csv:** active, not gating,
+  covered through 2026-10-04 03:59 UTC. Note: `reality_run --code <worktree>`
+  reads the worktree's (absent) calendar, so its brief showed "calendar
+  missing". That is an instrument limit, not a defect.
+
+### Merge preconditions — see the spec ("Merge preconditions")
+The Gate-3 checks for Phases 2/3/4; owner approval; the controlled ledger
+migration immediately after the merge, outside the job windows.
+
+### Gate 3 — PENDING
+- The first scheduled briefs under `p5-2026-09-30`: record the decisions,
+  and compare them with main's code on the same inputs.
+- The first real post-release window: the gate holds 30 min after the event.
+- The first Monday with last week's calendar, if the Sunday fetch fails: the
+  note, not an all-clear.

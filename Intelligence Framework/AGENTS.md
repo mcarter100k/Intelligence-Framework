@@ -67,8 +67,9 @@ review + validation. Precedent: the counter-trend override was reviewed, met
 all five conditions, fired 2026-05-15, and lost on a 280-pip rally.
 Additionally (2026-09-09): **RANGING is overloaded** — the label covers both
 a quiet market (ADX < 18) and the GBP/JPY exhaustion state (ADX ≥ 35: violent
-one-way move, fade don't follow; surfaced as `regime_*_subtype="EXHAUSTION"`,
-display-only). **PRECONDITION: promoting EXHAUSTION to a first-class regime —
+one-way move, fade don't follow; surfaced as `regime_*_subtype="EXHAUSTION"`;
+since 2026-09-30 also a decision input — `apply_filter` stands aside on it,
+docs/specs/decision_logic_spec.md D1). **PRECONDITION: promoting EXHAUSTION to a first-class regime —
 classifier, composite table, conflict logic, tests — is REQUIRED before
 `RANGE_TRADING_ENABLED` may ever be set True.** A range-trading gate keyed on
 `RANGING` would otherwise fade 60-ADX exhaustion moves as if they were quiet
@@ -140,6 +141,14 @@ restoring either requires team review and a concrete evidence path.
      output stays plain-English: no ADX / pivot / HH-HL / LH-LL / ATR-ratio
    - the **stand-down consistency matrix** (`test_regime_detection_p1.py`,
      T34–T41) — `apply_filter` is the single stand-down authority
+   Floor changes happen only with the owner's explicit authorization, each
+   documented old → new in the test and its spec. The one so far:
+   2026-09-30 (docs/specs/decision_logic_spec.md). T10/T11/T12/T15 now
+   require agreeing structure at ADX ≥ 32. T37 feeds the emitted conflict
+   type instead of a phantom token. The single-authority rule is now exact:
+   `apply_filter` runs the official decision and allows **iff** it trades
+   (grade C and no-direction included), swept over 36,864 cells in
+   `test_decision_logic.py`.
 
 3. **Evidence honesty.** No VALIDATED label without non-overlapping N. Every
    study reports honest N (flag N<20 as INSUFFICIENT). No shadow candidate is

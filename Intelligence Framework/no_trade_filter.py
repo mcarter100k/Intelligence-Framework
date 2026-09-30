@@ -53,6 +53,10 @@ class FilterResult:
     reason:              str
     override_fired:      bool = False
     override_conditions: str  = ""
+    # Which rule blocked, for renderers that must not re-narrate the cause
+    # (decision_logic_spec review V1/V5): "exhaustion", "conflict" or
+    # "decision" (the official decision would not trade). "" otherwise.
+    block:               str  = ""
 
 
 # Weekly contexts that have defined directional bias
@@ -157,11 +161,9 @@ def apply_filter(regime: dict) -> FilterResult:
     # via get_regime) so this decision is deterministic from the input dict.
     _ng = regime.get("news_gate") or {}
     if _ng.get("gating"):
-        from news_gate import when_phrase
-        _when = when_phrase(_ng.get("minutes_until"))
-        _lead = "" if _when.startswith("released") else "in "
         # local-time parenthetical (display_timezone_spec) — display only
         from display_time import to_display
+        from news_gate import gate_reason
         _evt = to_display(_ng.get('event_time_utc'), style='time')
         _at_local = f" (at {_evt})" if _evt else ""
         return FilterResult(
@@ -169,11 +171,7 @@ def apply_filter(regime: dict) -> FilterResult:
             execution_mode="STAND_DOWN",
             size_mult=0.0,
             confidence="NONE",
-            reason=(f"Major economic event{'' if _lead == '' else ' ahead'} — "
-                    f"{_ng.get('event') or 'high-impact release'} {_lead}{_when}"
-                    f"{_at_local}. "
-                    f"Markets reprice violently around releases; standing "
-                    f"aside until after."),
+            reason=gate_reason(_ng, _at_local),
         )
 
     # Weekly trend data unavailable (docs/specs/data_at_source_spec.md P3).
@@ -215,6 +213,7 @@ def apply_filter(regime: dict) -> FilterResult:
             confidence="NONE",
             reason=("The market is in an exhaustion move — fade, don't "
                     "follow. Standing aside."),
+            block="exhaustion",
         )
 
     # Opposite-trend conflict — structural disagreement. Compared on the
@@ -228,6 +227,7 @@ def apply_filter(regime: dict) -> FilterResult:
             confidence="NONE",
             reason=("Opposite trend conflict — the daily and 4-hour trends "
                     "point in opposite directions. No edge; standing aside."),
+            block="conflict",
         )
 
     # Extreme ATR spike
@@ -269,16 +269,22 @@ def apply_filter(regime: dict) -> FilterResult:
         if override_result:
             return _confirm_with_decision(regime, override_result)
         # Override not eligible — stand-down holds. Distinguish WHY D1 is
-        # VOLATILE so the reason does not lie: ADX 25-32 with unconfirmed pivot
+        # VOLATILE so the reason does not lie: ADX 25+ with unconfirmed pivot
         # structure is the "trending band, structure not confirmed" gate
-        # (Problem 2); ADX 18-25 is the genuine no-edge transition zone. (Zone
-        # boundaries mirror regime_detection; kept local to avoid a circular
-        # import, since regime_detection imports this module.)
+        # (Problem 2; 32+ joined it with decision_logic_spec D2); ADX 25+ with
+        # confirmed structure against the recent direction is a disagreement;
+        # ADX 18-25 is the genuine no-edge transition zone. (Zone boundaries
+        # mirror regime_detection; kept local to avoid a circular import,
+        # since regime_detection imports this module.)
         d1_adx = float(regime.get("adx", 0.0) or 0.0)
-        if 25.0 <= d1_adx < 32.0 and structure not in ("UPTREND", "DOWNTREND"):
+        if d1_adx >= 25.0 and structure not in ("UPTREND", "DOWNTREND"):
             _reason = (f"D1 ADX {d1_adx:.1f} is in the trending band but pivot "
                        f"structure has not confirmed (no clean HH/HL or LH/LL) "
                        f"— trend unconfirmed, standing aside.")
+        elif d1_adx >= 25.0:
+            _reason = (f"D1 ADX {d1_adx:.1f} is in the trending band but the "
+                       f"recent direction disagrees with the {structure.lower()} "
+                       f"structure — trend unconfirmed, standing aside.")
         elif 18.0 <= d1_adx < 25.0:
             _reason = (f"D1 in transition zone (ADX {d1_adx:.1f}) — "
                        f"no statistical edge.")
@@ -378,6 +384,7 @@ def _confirm_with_decision(regime: dict, provisional: FilterResult) -> FilterRes
         size_mult=0.0,
         confidence="NONE",
         reason=d["reason"],
+        block="decision",
     )
 
 

@@ -128,3 +128,73 @@ trend, and the news gate is up 60 minutes before a release.
 - **Gate 3 (PENDING):** the first scheduled briefs under the new logic.
   Record the actual decisions and compare them with what the old logic
   would have said on the same inputs.
+
+## Addendum (2026-09-30): what the build changed beyond the plan, and `/code-review` findings
+
+**Beyond the plan (found while building).**
+- **The live filter call got only a subset of its inputs.** `get_regime` did
+  not pass `adx`, `confidence`, `instrument`, the subtypes or
+  `range_position` to `apply_filter`; they reached only the official path.
+  One side effect: the filter's "trending band, structure unconfirmed"
+  reason could never fire live (the ADX read as 0). All of these are passed
+  now. The range bounds are computed before the call.
+- **D2 applies to both timeframes.** `_classify_ex` is shared, so a slope-only
+  4-hour trend at ADX ≥ 32 is now also VOLATILE. That accounts for the
+  override and A+→B changes in the history replay, and for the one
+  newly-permitted trade (below).
+- **The direction-NONE reason was split.** "Range mid-zone…" is kept for
+  FADE_EXTREMES. A daily chart with no trend under a trending 4-hour chart
+  reads "The daily chart gives no trend direction to follow".
+- **The D5 note text.** An uncovered calendar keeps the existing pinned note
+  "news calendar stale — event risk unchecked". It is accurate (the file is
+  stale for today), and the brief and setup_check already render it as
+  "The news calendar is out of date or missing". The spec's "calendar does
+  not cover today" wording was not adopted (review V10).
+- **`minutes_until` is negative after a release.** Every renderer handles it:
+  `news_gate.gate_reason` for the filter and the brief fallback;
+  `_build_narrative`; `setup_check._minutes_phrase`.
+
+**Findings.** Each was reproduced on the branch before fixing
+(`scratchpad/p5/repro_review.py`), then re-measured fixed with the same
+script. Each fix has a regression test (`test_decision_logic.py`, `v*`)
+and a mutant that the test kills.
+
+| # | Finding | Fix |
+|---|---|---|
+| V1 | The brief's "Cause 2" blamed exhaustion for an ADX ≥ 32 VOLATILE daily, which since D2 means unconfirmed structure | Cause 2 removed (GBP/JPY exhaustion classifies RANGING, never VOLATILE) |
+| V2 | The filter's unconfirmed-structure reason was limited to 25 ≤ ADX < 32 | ADX ≥ 25. A confirmed structure against the slope now gets its own "disagrees" reason (filter and brief) |
+| V3 | The brief's opposite-trend branch still matched the phantom tokens | Compares the regimes; named blocks show the filter's reason (V5) |
+| V4 | The gate reported the most negative event, so a release 29 min ago hid one due in 2 | The nearest by distance either side; control: a release 5 min ago beats an event 90 min away |
+| V5 | The brief re-narrated the new blocks (grade C, exhaustion) as a daily-chart cause | `FilterResult.block` (`exhaustion` / `conflict` / `decision`) → `regime["filter_block"]`; `_build_reason` shows the filter's reason for these. Verified end to end through `get_decision_brief` |
+| V6 | The frozen shadow `news_window` stamp would silently gain the 30-min buffer | The gate reports `pre_release` (exactly the old definition); the stamp uses it |
+| V7 | The loggers migrate a header on the next append, so a scheduled run after the merge would migrate the live ledgers before the controlled step | **Procedure** (merge preconditions below): the controlled migration runs immediately after the merge, outside every job window. The automatic migration is lossless (tested), but it takes no verified backup |
+| V8 | Post-release wording was duplicated | One builder, `news_gate.gate_reason`, for the filter and the brief fallback. The narrative and setup_check keep their own established styles |
+| V9 | A stale "never a decision input" comment; the duplicated exhaustion expression | The comment and AGENTS.md updated; `adx_exhaustion_note` reuses `_adx_exhaustion` |
+| V10 | Spec note text | See "The D5 note text" above |
+
+**The one newly-permitted trade (disclosed for the owner).**
+- In the history replay (825 days × 2 pairs), exactly one day that main
+  stood aside now trades: GBP/JPY 2026-01-26.
+- H4 ADX was 32.4 with TRANSITIONAL H4 structure. Main called H4
+  TRENDING_DOWN from slope alone, which manufactured a D1/H4
+  "structural disagreement". Under D2 the H4 is VOLATILE, so D1 confirmed
+  up with a weekly pullback-in-uptrend gives REDUCED_MOMENTUM LONG, B, 55.
+- An H4 at ADX 31.9 with the same structure would already have traded on
+  main. The rule is now the same on both sides of 32.
+- Outcome: +262 pips at 5 D1 bars, −48 at 20. N=1, no evidence either way.
+
+## Merge preconditions (owner)
+1. The Phase 2/3/4 Gate-3 checks (the scheduled brief and the 15:15 grader)
+   pass.
+2. The owner approves this branch.
+3. **The controlled ledger migration, run immediately after the merge**,
+   outside every job window (not within 30 min of 02:30, 07:30, 15:15 or
+   18:00 PDT):
+   - a verified backup (sha256 manifest) of `regime_classification_log.csv`,
+     `trade_signal_log.csv` and `session_context_log.csv`;
+   - then each logger's own `migrate_header` (FIELDNAMES + `logic_version`);
+   - then a field-by-field comparison against the backup that must show 0
+     differences, with a planted-change positive control.
+4. After the migration, the full suite on the live checkout, with the count
+   recorded in AGENTS.md rule 2. The `test_ledger_headers` checks that skip in
+   a worktree run there and must pass.

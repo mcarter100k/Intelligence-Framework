@@ -28,7 +28,8 @@ import regime_detection as rd
 import regime_classifier_logger as rcl
 import session_memory as sm
 import trade_outcome_logger as tol
-from news_gate import check_news_gate, covered_through, when_phrase
+import decision_brief as db
+from news_gate import check_news_gate, covered_through, gate_reason
 from no_trade_filter import apply_filter
 from official_decision import LOGIC_VERSION, decide, get_official_decision
 from regime_detection import _detect_conflict, get_composite_regime
@@ -243,10 +244,119 @@ def test_post_release_reason_reads_released_ago():
     assert "-5" not in fr.reason and "ahead" not in fr.reason
 
 
-def test_when_phrase():
-    assert when_phrase(90) == "90 minutes"
-    assert when_phrase(-12) == "released 12 minutes ago"
-    assert when_phrase(None) == "under 2 hours"
+def test_gate_reason_pre_release_wording_unchanged():
+    """Byte-identical to the pre-Phase-5 filter reason (pinned elsewhere too)."""
+    assert gate_reason({"event": "UK CPI", "minutes_until": 90}, " (at 4:00 AM)") == (
+        "Major economic event ahead — UK CPI in 90 minutes (at 4:00 AM). "
+        "Markets reprice violently around releases; standing aside until after.")
+    assert "in under 2 hours" in gate_reason({"event": "X", "minutes_until": None})
+
+
+def test_gate_reason_after_release():
+    r = gate_reason({"event": "UK CPI", "minutes_until": -12})
+    assert r.startswith("Major economic event — UK CPI released 12 minutes ago")
+    assert "30 minutes after" in r
+
+
+# ── code-review findings (decision_logic_spec addendum), each reproduced first ─
+
+def _cal_now(tmp_path, rows, hh, mm):
+    path = _cal(tmp_path, *rows)
+    return check_news_gate("GBP_AUD", calendar_path=path,
+                           now=datetime(2026, 9, 30, hh, mm, tzinfo=timezone.utc))
+
+
+def test_v4_imminent_event_outranks_one_released_29_min_ago(tmp_path):
+    g = _cal_now(tmp_path, [("2026-09-30 11:31", "GBP", "A"),
+                            ("2026-09-30 12:02", "GBP", "B")], 12, 0)
+    assert (g["event"], g["minutes_until"]) == ("B", 2)
+
+
+def test_v4_control_fresh_release_outranks_one_90_min_away(tmp_path):
+    g = _cal_now(tmp_path, [("2026-09-30 11:55", "GBP", "A"),
+                            ("2026-09-30 13:30", "GBP", "B")], 12, 0)
+    assert (g["event"], g["minutes_until"]) == ("A", -5)
+
+
+@pytest.mark.parametrize("rows,pre", [
+    ([("2026-09-30 11:50", "GBP", "A")], False),                     # post-release only
+    ([("2026-09-30 11:50", "GBP", "A"), ("2026-09-30 13:00", "GBP", "B")], True),
+    ([("2026-09-30 12:30", "GBP", "B")], True),                      # pre-release only
+])
+def test_v6_pre_release_is_the_old_gating_definition(tmp_path, rows, pre):
+    g = _cal_now(tmp_path, rows, 12, 0)
+    assert g["gating"] is True
+    assert g["pre_release"] is pre
+
+
+def test_v6_shadow_stamp_ignores_the_post_release_buffer(monkeypatch):
+    import news_gate
+    import shadow_signals as ss
+    monkeypatch.setattr(news_gate, "check_news_gate",
+                        lambda *a, **k: {"active": True, "gating": True,
+                                         "event": "UK CPI", "minutes_until": -10,
+                                         "pre_release": False})
+    ctx = {"O": [217.0] * 40, "H": [217.5] * 40, "L": [216.5] * 40,
+           "C": [217.0] * 40,
+           "T": [datetime(2026, 7, 30, 12, 0, tzinfo=timezone.utc)] * 40,
+           "atr": [0.5] * 40, "pip": 0.01, "adx": 20.0, "adx_slope": 0.0,
+           "struct": "UPTREND", "sd": {"latest_sl": 216.0, "latest_sh": 218.0}}
+    signals = ss.check_shadow_signals("GBP_JPY", ctx)
+    assert len(signals) == 1
+    assert "news_window=true" not in (signals[0].get("extra") or "")
+
+
+def _brief_reason(r):
+    fr, od = _chain(r)
+    r = dict(r, filter_allowed=fr.allowed, filter_reason=fr.reason,
+             filter_block=fr.block, stand_down=not fr.allowed,
+             stand_down_reason="" if fr.allowed else fr.reason)
+    return fr, db._build_reason(r, od, "STAND DOWN" if not fr.allowed
+                                else od["direction"], fr.override_fired)
+
+
+def test_v1_v2_late_trend_unconfirmed_is_not_called_exhaustion():
+    lab = rd._classify_ex(33, 1.0, 0.01, "GBP_AUD", rd.PAIRS["GBP_AUD"], "TRANSITIONAL")
+    assert lab == ("VOLATILE", "UNCONFIRMED_TREND")
+    fr, why = _brief_reason(_regime(lab[0], "RANGING", adx=33.0, structure="TRANSITIONAL",
+                                    adx_exhaustion=True, regime_d1_subtype=lab[1],
+                                    atr_spike_multiplier=1.5))
+    assert "trending band" in fr.reason and "not confirmed" in fr.reason   # V2
+    assert "exhaustion" not in why.lower() and "trending band" in why     # V1
+
+
+def test_v2_confirmed_structure_against_the_slope_says_so():
+    fr, why = _brief_reason(_regime("VOLATILE", "RANGING", adx=33.0, structure="UPTREND",
+                                    atr_spike_multiplier=1.5))
+    assert "disagrees" in fr.reason and "disagrees" in why
+    assert "transition zone" not in why
+
+
+def test_v3_conflict_brief_shows_the_named_block():
+    fr, why = _brief_reason(_regime("TRENDING_UP", "TRENDING_DOWN"))
+    assert why == fr.reason and why.startswith("Opposite trend conflict")
+
+
+def test_v3_conflict_fallback_without_block_code_is_specific():
+    """A dict without filter_block (older callers) still gets the specific
+    opposite-directions wording — the dead phantom-token branch is live."""
+    r = _regime("TRENDING_UP", "TRENDING_DOWN")
+    why = db._build_reason(dict(r, stand_down_reason="x"), {}, "STAND DOWN", False)
+    assert "opposite directions" in why
+
+
+@pytest.mark.parametrize("r", [
+    _regime("VOLATILE", "TRENDING_UP", adx=21.0, structure="DOWNTREND",
+            weekly_context="ESTABLISHED_UPTREND", lt_trend="UPTREND",
+            atr_spike_multiplier=1.5),                                 # grade-C override
+    _regime("VOLATILE", "RANGING", adx=21.0, adx_h4=40.0, instrument="GBP_JPY",
+            regime_h4_subtype="EXHAUSTION", atr_spike_multiplier=1.5),  # H4 exhaustion
+], ids=["grade_c_override", "h4_exhaustion"])
+def test_v5_new_blocks_are_not_renarrated_as_the_daily_cause(r):
+    fr, why = _brief_reason(r)
+    assert fr.allowed is False and fr.block in ("decision", "exhaustion")
+    assert why == fr.reason
+    assert "transition zone" not in why
 
 
 # ── the live wiring: get_regime gives the filter what decide() reads ───────────
@@ -265,7 +375,9 @@ def test_get_regime_passes_the_decision_inputs_to_the_filter():
 
     def spy(r):
         seen.append(dict(r))
-        return real(r)
+        out = real(r)
+        seen.append(out)
+        return out
 
     d1 = _bars(220, "B", 0.0015, "2025-01-01")
     h4 = _bars(200, "4h", 0.0004, "2025-09-01")
@@ -277,11 +389,14 @@ def test_get_regime_passes_the_decision_inputs_to_the_filter():
          mock.patch("regime_detection._oanda_weekly_bars", lambda *a, count=110, **k: wk.tail(count).copy()):
         regime = rd.get_regime("GBP_AUD")
 
-    assert len(seen) == 1
+    assert len(seen) == 2
     for k in ("instrument", "adx", "confidence", "adx_exhaustion",
               "range_position", "regime_d1_subtype", "regime_h4_subtype"):
         assert k in seen[0], k
         assert seen[0][k] == regime[k], k
+    # the filter's own verdict is what the regime (and so the brief) carries
+    assert regime["filter_block"] == seen[1].block
+    assert regime["filter_reason"] == seen[1].reason
     # and the regime's own answer obeys the invariant
     od = get_official_decision(regime)
     assert regime["filter_allowed"] is (od["direction"] in _TRADES)
@@ -343,3 +458,23 @@ def test_session_append_migrates_an_old_header_first(tmp_path, monkeypatch):
     assert rows[0]["structure_d1"] == "KEEP" and rows[0]["logic_version"] == ""
     assert rows[1]["logic_version"] == LOGIC_VERSION
     assert rows[1]["instrument"] == "GBP_AUD"          # not shifted a column
+
+
+def test_v5_full_brief_reason_is_the_filter_reason(monkeypatch):
+    """End to end through get_decision_brief (incl. _plain and the exhaustion
+    pass): a grade-C block renders the filter's reason, not a daily-chart
+    re-narration. get_regime is replaced by the same chain the live one runs."""
+    r = _regime("VOLATILE", "TRENDING_UP", adx=21.0, structure="DOWNTREND",
+                weekly_context="ESTABLISHED_UPTREND", lt_trend="UPTREND",
+                atr_spike_multiplier=1.5, market_open=False, error=None,
+                current_price=1.88, price_basis="live")
+    fr = apply_filter(r)
+    r.update(filter_allowed=fr.allowed, filter_mode=fr.execution_mode,
+             filter_size_mult=fr.size_mult, filter_reason=fr.reason,
+             filter_block=fr.block, override_fired=fr.override_fired,
+             stand_down=not fr.allowed, stand_down_reason=fr.reason)
+    assert fr.block == "decision" and "grades C" in fr.reason
+    monkeypatch.setattr(db, "get_regime", lambda inst: dict(r))
+    brief = db.get_decision_brief("GBP_AUD")
+    assert brief.decision == "STAND DOWN"
+    assert "grades C" in brief.reason and "transition zone" not in brief.reason

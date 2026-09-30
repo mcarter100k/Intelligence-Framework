@@ -513,13 +513,18 @@ def _build_reason(regime: dict, decision: dict,
     if decision_str == "STAND DOWN" and _ng.get("gating"):
         if stand_rsn:
             return stand_rsn
-        from news_gate import when_phrase
-        _when = when_phrase(_ng.get("minutes_until"))
-        _lead = "" if _when.startswith("released") else "in "
-        return (f"Major economic event{'' if _lead == '' else ' ahead'} — "
-                f"{_ng.get('event') or 'high-impact release'} {_lead}{_when}. "
-                f"Markets reprice violently around releases; standing aside "
-                f"until after.")
+        from news_gate import gate_reason
+        return gate_reason(_ng)
+
+    # Exhaustion, opposite-trend conflict and "the official decision would
+    # not trade" (grade C, no direction, disabled range trade) are named
+    # filter blocks: their reason IS the story. The regime branches below
+    # would otherwise re-narrate the cause from the daily chart — a grade-C
+    # override read as "transition zone" (decision_logic_spec review V5).
+    if (decision_str == "STAND DOWN" and stand_rsn
+            and regime.get("filter_block") in ("exhaustion", "conflict",
+                                               "decision")):
+        return stand_rsn
 
     if atr_comp:
         return (f"GBP/JPY ATR compression ({regime.get('atr_vs_avg', 0):.2f}x) "
@@ -531,10 +536,10 @@ def _build_reason(regime: dict, decision: dict,
 
     if conflict:
         conflict_t = regime.get("conflict_type", "")
-        if any(x in conflict_t for x in (
-            "TRENDING_UP__TRENDING_DOWN",
-            "TRENDING_DOWN__TRENDING_UP"
-        )):
+        # Compared on the regimes, as the filter does (decision_logic_spec
+        # D3): conflict_type never carried these regime tokens.
+        if {regime.get("regime_d1"), regime.get("regime_h4")} == \
+                {"TRENDING_UP", "TRENDING_DOWN"}:
             return (f"D1 and H4 trending in opposite directions "
                     f"({d1} vs {h4}) — structural disagreement, no edge.")
         elif "RANGING" in conflict_t and "VOLATILE" in conflict_t:
@@ -558,24 +563,12 @@ def _build_reason(regime: dict, decision: dict,
                 f"for reliable signals regardless of trend strength."
             )
 
-        # Cause 2: ADX exhaustion triggered VOLATILE
-        from regime_detection import (
-            _ADX_EXHAUSTION_THRESHOLD,
-            _ADX_JPY_EXHAUSTION,
-        )
-        jpy = "JPY" in regime.get("instrument", "")
-        exhaustion_thresh = (
-            _ADX_JPY_EXHAUSTION if jpy
-            else _ADX_EXHAUSTION_THRESHOLD
-        )
-        if adx_d1 >= exhaustion_thresh:
-            return (
-                f"ADX {adx_d1} in exhaustion zone (>={exhaustion_thresh}) "
-                f"— trend is late-stage, mean reversion probability "
-                f"elevated. Do not chase."
-            )
+        # (Former "Cause 2: ADX exhaustion" removed with decision_logic_spec
+        # D2: a VOLATILE daily at ADX >= 32 now always means the structure
+        # rule below — GBP/JPY exhaustion classifies RANGING, never VOLATILE
+        # — so blaming exhaustion here told the trader the wrong cause.)
 
-        # Cause 3a: ADX 25-32 — in the trending band, but pivot structure has
+        # Cause 3a: ADX 25+ — in the trending band, but pivot structure has
         # not confirmed a direction (Problem 2 gate). This is NOT the 18-25
         # transition zone; say so precisely or the brief lies about the cause.
         from regime_detection import _ADX_TRANSITION_HIGH  # 25
@@ -587,6 +580,13 @@ def _build_reason(regime: dict, decision: dict,
                 f"direction yet (no clean stair-step pattern of higher highs and "
                 f"higher lows, or lower highs and lower lows). 4-hour chart {h4}. "
                 f"Standing aside until structure confirms."
+            )
+        if float(adx_d1 or 0) >= _ADX_TRANSITION_HIGH:
+            return (
+                f"Daily chart trend strength is {float(adx_d1):.0f}/100 — in the "
+                f"trending band — but the recent direction disagrees with the "
+                f"price structure. 4-hour chart {h4}. Standing aside until they "
+                f"agree."
             )
 
         # Cause 3b: ADX 18-25 — genuine no-edge transition zone

@@ -1243,8 +1243,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         # ── Multi-timeframe (D1 + H4) ─────────────────────────────────────────
         "regime_d1":          d1_regime,
         "regime_h4":          h4_regime,
-        # display-honesty subtypes (docs/specs/exhaustion_subtype_display_spec.md)
-        # — metadata for wording only, never a decision input
+        # display-honesty subtypes (docs/specs/exhaustion_subtype_display_spec.md).
+        # EXHAUSTION is ALSO a decision input since decision_logic_spec D1: the
+        # filter stands aside on it (passed to apply_filter above).
         "regime_d1_subtype":  d1_subtype,
         "regime_h4_subtype":  h4_subtype,
         "structure_h4":       h4_structure,
@@ -1296,9 +1297,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "adx_exhaustion_note": (
             f"ADX {current_adx} — late trend warning. "
             f"Mean reversion probability elevated. Size down, do not chase."
-            if (current_adx >= _ADX_EXHAUSTION_THRESHOLD or
-                (pair.instrument == "GBP_JPY" and current_adx >= _ADX_JPY_EXHAUSTION))
-            else ""
+            if _adx_exhaustion else ""
         ),
         "atr_compression":      _atr_compression,
         "atr_compression_note": _atr_compression_note,
@@ -1310,6 +1309,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "filter_mode":         _fr.execution_mode,
         "filter_size_mult":    _fr.size_mult,
         "filter_reason":       _fr.reason,
+        "filter_block":        _fr.block,
         "override_fired":      _fr.override_fired,
         "override_conditions": _fr.override_conditions,
         "filter_summary":      _fr_summary,
