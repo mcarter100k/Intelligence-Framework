@@ -252,3 +252,20 @@ def test_backup_main_reports_failure_and_exits_zero(tmp_path, monkeypatch, capsy
     monkeypatch.setattr(bl, "backup", lambda *a, **k: (_ for _ in ()).throw(OSError("no space")))
     assert bl.main(["x"]) == 0
     assert capsys.readouterr().out.startswith("BACKUP FAILED: OSError: no space")
+
+
+def test_a_corrupted_copy_fails_the_backup(tmp_path, monkeypatch):
+    """The hash check must actually reject a bad copy; without this test the
+    verification step could be deleted and every other backup test pass."""
+    bl = _backup_module()
+    proj = _evidence_project(tmp_path)
+    real = bl.shutil.copy2
+
+    def corrupting(src, dst):
+        real(src, dst)
+        with open(dst, "ab") as f:
+            f.write(b"CORRUPTED")
+    monkeypatch.setattr(bl.shutil, "copy2", corrupting)
+    with pytest.raises(RuntimeError, match="hash mismatch"):
+        bl.backup(str(proj), date="2026-09-30")
+    assert not (proj / "backups" / "2026-09-30").exists()
