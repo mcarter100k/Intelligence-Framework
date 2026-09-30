@@ -20,6 +20,9 @@ fi
 
 DATE="$(date +%F)"
 LOG="logs/outcomes_${DATE}.log"
+# The live checkout must be on main (scripts/live_guard.sh).
+. "$PROJ/scripts/live_guard.sh"
+live_guard "$LOG"
 
 OUT="$(python3 run_outcome_check.py 2>&1)"
 { echo "===== $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
