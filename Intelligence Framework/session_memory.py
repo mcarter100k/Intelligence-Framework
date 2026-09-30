@@ -300,9 +300,16 @@ def _build_summary(
                     f"framework moved to stand aside.")
 
     if regime_changed:
+        # Name each timeframe that actually changed (regime_change_message_
+        # spec): regime_changed is D1 OR H4, but the message used to print the
+        # D1 pair only — an H4-only change read "no clear direction → no
+        # clear direction". Raw tokens; the brief's _plain() translates them.
+        parts = [f"{label}: {previous[key]} → {current[key]}"
+                 for label, key in (("daily chart", "regime_d1"),
+                                    ("4-hour chart", "regime_h4"))
+                 if current[key] != previous[key]]
         return (f"Since {time_str}: Regime changed "
-                f"({previous['regime_d1']} → {current['regime_d1']}). "
-                f"Re-evaluate.")
+                f"({'; '.join(parts)}). Re-evaluate.")
 
     # No regime change — surface the most notable delta
     if adx_trend != "STABLE":
