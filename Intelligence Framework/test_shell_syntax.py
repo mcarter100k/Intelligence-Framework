@@ -15,7 +15,8 @@ import pytest
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS = sorted(glob.glob(os.path.join(ROOT, "scripts", "*.sh"))
-                 + glob.glob(os.path.join(ROOT, "scripts", "launchd", "*.sh")))
+                 + glob.glob(os.path.join(ROOT, "scripts", "launchd", "*.sh"))
+                 + glob.glob(os.path.join(ROOT, "foundation", "*.sh")))
 
 
 @pytest.mark.skipif(not os.path.exists("/bin/bash"), reason="no /bin/bash")

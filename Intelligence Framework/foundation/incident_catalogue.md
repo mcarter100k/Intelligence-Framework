@@ -1,0 +1,53 @@
+# Incident catalogue — silent failures and contamination
+
+Every time the system lied quietly. Read before building anything that writes evidence or runs unattended.
+
+> Citations: `VL:n` = `validation_log.md` line n; `AUDIT §n` = `docs/audit_2026-09-29.md`; other paths are repo files. Line numbers are as of the 2026-09-29 audit (commit efd293e) — search by content if they have drifted.
+
+| # | Incident | Dates / duration | What happened | How detected | Lesson / control |
+|---|---|---|---|---|---|
+| I1 | GBP/JPY fetched GBP/AUD data | Found 2026-06-25 | `_oanda_daily_bars` ignored the instrument | Live-data validation (a mock hid it) | M17: live Gate 2 is mandatory |
+| I2 | Hard-coded pip math | 2026-06-25 | `*10000`: JPY ATR read ~12,300 pips | Live validation | Use `pair.pip_size` |
+| I3 | Synthetic test data in the regime log | 2026-06-28 | "TRENDING_DOWN 0%" was injected in Test 7; "log cleaned" | Self-noted | The audit suspects the lone trade_signal row (+150.0 pips, 2026-06-28) is synthetic too (AUDIT §2 #5). Never write fixtures to real ledgers |
+| I4 | JPY pip bug in outcome measurement | 2026-06-29 | VOL_EXPANSION used `*0.0001`: 100x wrong, so a JPY quiet market scored "always True" | Audit Item 3 | 0 JPY outcomes were corrupted (fixed first) |
+| I5 | Silent instrument fallback | 2026-06-29 | "", None, EUR_USD and garbage all analyzed as GBP_AUD | FM-1 corruption tests | Return an error, never default silently |
+| I6 | Output paralysis | 2026-06-29 | The brief always said NO TRADE at conviction 10 (regime-only input) | FM-7 test | — |
+| I7 | Override unreachable; the test certified it | 2026-06-29 | A `<=45` bound was satisfied by 0 | Verification of Audit Item 1 | M19 |
+| I8 | Forming bar in indicators | Fixed 2026-07-03 | ADX/ATR/structure used a partial D1 bar | Audit Item 4 | Later overcorrected: `_get_bars` already drops incomplete bars, so `_split_live_bar` never splits and **`current_price` is the previous D1 close, up to ~24h stale**. Three GBP/JPY rows on 2026-09-25 all carry 209.984 against a real 209.2–209.6. A 2026-07-29 note flagged `_split_live_bar` as "vestigial" but deferred it (VL:1185-1190; AUDIT §2 #1) |
+| I9 | Latency measured on the closed-market path | 2026-07-11 | The <0.01s figure was meaningless | Self-review (FIX B) | Label measurement conditions |
+| I10 | Closed-market decision path bypassed the single decision function | 2026-07-11 | Hand-built dict | FIX A | Single-path guarantee |
+| I11 | Mislabel "transition zone" and false D1 staleness alarms | 2026-07-29 | Sent the team after a phantom threshold bug; alarm every weekday morning | Brief-honesty pass | M33 |
+| I12 | Synthetic session row (ADX 100/100, filter True) | 2026-07-29T04:23:31Z, until pruned 2026-09-09 | Test-fixture signature in the live ledger | 2026-09-08 audit | The audit traces it to integration tests writing real ledgers (`test_signal_acceptance.py:120`, `test_brief_display.py:157`) (AUDIT §2 #6). session_context_log is a **30-day rolling window**, not append-only (VL:1654-1672) |
+| I13 | Official-vs-shadow comparison logged **0 rows** | Whole life until 2026-07-29 | `build_market_report` was never scheduled: "structurally incapable" of accumulating | Reachability audit | Show the evidence path accumulates before trusting it (`shadow/README.md`) |
+| I14 | **39-day credentials outage** | **2026-07-31 → 2026-09-08** | launchd's bare env had no OANDA vars; `.env` was never loaded. **250/256 briefs were the error page; 42/42 grader runs exited early.** ~5 weeks of candidate evaluation lost (including the GBP/AUD 1.9035 break, week of 08-24). First grading came 34 days late | 2026-09-08 audit | M32: the heartbeat and loud grader exit. Unrecoverable (no backfill) |
+| I15 | EM v1 wrong-side stops | 2026-07-29/30 rows; found 2026-09-08 | Guaranteed −1R rows | First grading | M15, and v2 |
+| I16 | Win = net > 0 | Until 2026-09-09 | A −1R stopped trade counted as a win | Review ruling | M14 |
+| I17 | trade_logger could not run | Found 2026-07-31 | It imported the deleted `trade_receiver` | Build of setup_check | Repaired: a two-row `trades.csv` |
+| I18 | **log_regime never wired from the live path** | 2026-07-29 → 2026-09-10 (~6 weeks) | The only caller was the quarantined `market_brain`. 25 rows, all from manual bursts. Every scheduled classification went unrecorded | Found 2026-09-09 while building the subtype column; traced 2026-09-10 through a REASON inversion on a live SHORT | M24, M28. No backfill. **Audit:** the regime-accuracy metric itself measures nothing (MR_WIN tests against the window's own mean; VOL_EXPANSION 0/12; N inflated ~2x) |
+| I19 | Two clocks in one launchd fleet; Pacific vs Eastern | July → 2026-09-10 | Jobs kept their load-time zone. A grader at 19:15 UTC would grade stale bars | Observed fire times vs plists | §2b: pin TZ and check the first fire after any reboot |
+| I20 | **THRUST_PULLBACK can't-fire** | **2026-07-29 → 2026-09-10** | `atr[b]` indexed with a bar index raised IndexError on every call, swallowed into "no signal" | Diagnostic reproduction (n=300, len(atr)=286) | M20. Errors now print `##ALERT## SHADOW CANDIDATE ERROR` and record a health failure; one broken candidate never silences the others |
+| I21 | Impossible 2025 headers | Written ~June; fixed 2026-09-11 | 12 entries | git dates vs headers | M38 |
+| I22 | **last_run.json**, 98 days stale; **GBP/JPY entry path dead** | Frozen 2026-06-10; found 2026-09-16 | A single-pair AUD level file was trusted by the entry check. The nearest JPY distance ≈ 207.0 vs a 0.25 tolerance, so `m15_trigger` / `entry_ready` **could never be True on GBP/JPY**. The Asian range was also never pair-keyed (JPY got AUD-scale levels) | Team code review, then independent reproduction | M31, M28. The file was renamed `last_run.json.orphaned-2026-09-16` |
+| I23 | **trade_signal_log empty** | Last write 2026-06-28; found 2026-09-16 (80 days) | `log_signal`'s only caller was quarantined, while the grader graded the file nightly. **The first live SHORT (GBP/AUD, 2026-09-10 18:04 PDT, 1.8879, grade B, 50%) was never recorded** | Step 2 integration inventory | M24, M28. The window 2026-06-28 → 09-16 is UNOBSERVED |
+| I24 | Schema drift | Unknown → 2026-09-16 | trade_signal_log header was 2 columns behind the code | Found during migration | M30 |
+| I25 | **2026-09-16 Gate-2 contamination** | 09:08:08Z rows | session row `filter_allowed=True` (real: False); regime row `execution_mode=NORMAL`, `stand_down=False` (real: STAND_DOWN/True). A **false ##ALERT##** followed | Self-reported (commit `0d5607a`) | M26, M27: the exclusion registry. **Audit:** the session log's 30-day pruning will delete the excluded row around 2026-10-16 |
+| I26 | trades.csv test spill | 2026-09-11 (and a def-time default-arg bug 2026-07-31 that briefly wrote a test artifact) | A test wrote to the real ledger | Noticed | Rule 10 precedent |
+| I27 | Weekly heartbeat never ran | Since install; 3 Sundays lost (found 2026-09-29) | bash 3.2 can't parse an apostrophe at `weekly_heartbeat.sh:35` | Audit | The watchdog needs its own Gate 3. Fixed on `chore/audit-cleanup` |
+| I28 | Audit-found live-logic defects (lessons only) | Found 2026-09-29 | **H4 exhaustion → grade-A pullback LONG:** the RANGING overload is live via the table. **Failed weekly fetch** silently disables the 20-week gate. **ADX ≥32** calls a trend from slope alone. The **conflict hard block** checks a token never emitted. `apply_filter` is not the single stand-down authority. **Fail-open gates:** news staleness, missing levels loosen the trigger, OANDA errors → None. **Health channel flaps daily.** The **outcome wrapper records a traceback as success.** **Scheduled jobs run the unmerged branch** checked out since 2026-09-16. **No file locking;** graders rewrite whole files | Adversarial audit | "Fix the class of bug with a test, not another standing rule." Run launchd from a `main` worktree. Use atomic writes and backups (AUDIT §2, §5 item 8) |
+| I29 | Security | Found 2026-09-29 | A GitHub PAT in plaintext (`.claude/settings.local.json`, `~/.zsh_history`). The git root is `$HOME`. The OANDA key has full trading scope and defaults to the live environment | Audit | Rotate the token. `chmod 600 .env`. Split out the repo (AUDIT §2 #21-24) |
+
+**Near-misses from Step 2 (2026-09-16), recorded as regression tests.**
+- An alias-resolved import nearly declared `apply_filter` dead.
+- List dispatch nearly declared all three candidates dead.
+- Both were caught by hand-verifying every claim against source (VL:2600-2617).
+
+**What reality has still not performed (Gate 3 open, VL:1447-1515, VL:3046-3055).**
+- A genuine filter flip.
+- The first real `trade_signal_log` row.
+- The degraded-pass branch.
+- The first GBP/JPY `m15_trigger = True`.
+- The first real `setup_check` use before a trade.
+- A real session through the circuit breaker.
+- **Update from the ledger:** EARLY_MOMENTUM_v2 has fired (2026-09-18 onward), which covers the "first v2 fire" item.
+
+---

@@ -82,6 +82,9 @@ restoring either requires team review and a concrete evidence path.
   deleted, never imported by the live path)
 - `scripts/` — automation wrappers and launchd config
 - Tests (new tests are always welcome; see the two floors below)
+- `foundation/` — the curated "what is proven good" knowledge base and the
+  source of the `trading-foundation` skill (`foundation/build_skill.sh`).
+  Add new findings, incidents and rules here with citations.
 - Docs (`*.md`), this file included — but `validation_log.md` is append-only
 
 ---
