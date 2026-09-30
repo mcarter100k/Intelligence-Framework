@@ -34,9 +34,16 @@ def test_cadence_table_pinned():
 
 
 def _touch(path, age_hours, now):
-    with open(path, "w") as f:
-        f.write("x")
+    """An artifact `age_hours` old. Live ledgers are aged by their newest
+    row (visible_failures_spec D6/F6), so they get a real timestamped row at
+    that age. Other files are aged by mtime."""
     mtime = now - age_hours * 3600
+    with open(path, "w") as f:
+        if os.path.basename(path) in af.ROW_TIMESTAMPED:
+            stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(mtime))
+            f.write(f"timestamp,x\n{stamp},1\n")
+        else:
+            f.write("x")
     os.utime(path, (mtime, mtime))
 
 
@@ -126,11 +133,23 @@ def test_newest_row_not_last_line_decides(tmp_path):
     assert line.startswith("fresh:")
 
 
-def test_unparseable_rows_fall_back_to_file_time(tmp_path):
+def test_f6_a_ledger_with_no_timestamped_rows_is_stale_not_file_time(tmp_path):
+    """Review F6: falling back to mtime let a grader rewrite of a header-only
+    ledger read as fresh, the hole D6 closed."""
     now = time.time()
-    _touch(os.path.join(str(tmp_path), "session_context_log.csv"), 5, now)
+    p = os.path.join(str(tmp_path), "trade_signal_log.csv")
+    with open(p, "w") as f:
+        f.write("timestamp,x\n")                  # header only, mtime = now
     line = [ln for ln in af.check(now=now, proj=str(tmp_path))
-            if "session_context" in ln][0]
+            if "trade_signal" in ln][0]
+    assert line.startswith("STALE:") and "no timestamped rows" in line
+
+
+def test_non_ledger_files_still_use_file_time(tmp_path):
+    now = time.time()
+    _touch(os.path.join(str(tmp_path), "calendar.csv"), 5, now)
+    line = [ln for ln in af.check(now=now, proj=str(tmp_path))
+            if "calendar" in ln][0]
     assert line.startswith("fresh:") and "file time" in line
 
 

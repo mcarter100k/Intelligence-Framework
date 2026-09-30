@@ -153,8 +153,12 @@ def _age_hours(path: str, rel: str, now: float) -> tuple[float, str]:
     mtime = os.path.getmtime(path)
     if rel in ROW_TIMESTAMPED:
         t = _newest_row_epoch(path)
-        if t is not None:
-            return (now - t) / 3600.0, "newest row"
+        if t is None:
+            # Review F6: no parseable row means no live writer has proven
+            # anything. Falling back to mtime would let a grader rewrite of a
+            # header-only file read as fresh, the hole D6 closed.
+            return float("inf"), "no timestamped rows"
+        return (now - t) / 3600.0, "newest row"
     return (now - mtime) / 3600.0, "file time"
 
 
@@ -177,6 +181,10 @@ def check(now: float | None = None, proj: str | None = None) -> list[str]:
             lines.append(f"DUE: {rel} — last written {age_h:.0f}h ago, your "
                          f"cadence is {cadence_h}h (a reminder, never a run "
                          f"failure)")
+        elif basis == "no timestamped rows":
+            lines.append(f"STALE: {rel} — no timestamped rows (a rewrite "
+                         f"cannot prove a live writer), expected within "
+                         f"{cadence_h}h")
         elif age_h > cadence_h:
             lines.append(f"STALE: {rel} — last write {age_h:.0f}h ago "
                          f"({basis}), expected within {cadence_h}h")

@@ -1184,7 +1184,9 @@ def _error_brief(instrument: str, timestamp: str,
         price=0.0,
         atr_pips=0.0,
         decision="STAND DOWN",
-        reason=f"Framework error — do not trade: {error[:60]}",
+        # 200, not 60 (visible_failures_spec review F3): at 60 the OANDA
+        # classification was cut mid-word ("...OANDA rejected the ").
+        reason=f"Framework error — do not trade: {error[:200]}",
         conviction=0,
         grade="C",
         size_pct=0,

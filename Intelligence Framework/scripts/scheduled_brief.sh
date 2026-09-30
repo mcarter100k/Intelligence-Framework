@@ -30,6 +30,7 @@ LOG="logs/brief_${DATE}.log"
 # The live checkout must be on main (scripts/live_guard.sh).
 . "$PROJ/scripts/live_guard.sh"
 live_guard "$LOG"
+. "$PROJ/scripts/crash.sh"
 
 # News-calendar refresh: when calendar.csv is missing or older than 24h, run
 # the AUTO-FETCHER before the brief (docs/specs/calendar_autofetch_spec.md —
@@ -63,10 +64,7 @@ ALERTS="$(grep '^##ALERT## ' "$ERRTMP" | sed 's/^##ALERT## //')"
 SHADOW_ERR="$(grep -m1 'SHADOW CANDIDATE ERROR' "$ERRTMP" | sed 's/^##ALERT## //')"
 # A crash is a FAILED run whatever else happened (D3): nonzero exit or a
 # Python traceback. Reason = the exception line, so the alert says what broke.
-CRASH=""
-if [ "$BRC" -ne 0 ] || grep -q 'Traceback (most recent call last)' "$ERRTMP"; then
-    CRASH="brief crashed (exit $BRC): $(grep -v '^[[:space:]]' "$ERRTMP" | grep -v '^Traceback' | tail -1 | cut -c1-160)"
-fi
+CRASH="$(crash_reason brief "$BRC" "$ERRTMP")"
 rm -f "$ERRTMP"
 
 # Health tracking (docs/specs/heartbeat_spec.md item 1): an error brief or

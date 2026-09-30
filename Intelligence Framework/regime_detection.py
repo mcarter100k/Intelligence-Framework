@@ -802,7 +802,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     raw = _oanda_daily_bars(pair=oanda_pair, count=220)
     if raw is None or raw.empty:
         from oanda_feed import last_error
-        return _error_result(f"OANDA unreachable for {pair.display_name}: "
+        return _error_result(f"OANDA data unavailable for {pair.display_name}: "
                              f"{last_error() or 'no candles returned'}")
     if len(raw) < _ADX_PERIOD * 3:
         return _error_result("Not enough data to calculate regime indicators")

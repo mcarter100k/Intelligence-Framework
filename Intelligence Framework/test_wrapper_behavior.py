@@ -220,3 +220,71 @@ def test_no_graded_shadow_outcome_sends_no_shadow_notification(tmp_path):
     proj = _project(tmp_path, outcome="print('GBP_JPY: 0 trade-signal outcomes filled')")
     _run(tmp_path, proj, "scheduled_outcome_check.sh")
     assert "SHADOW" not in _notes(tmp_path)
+
+
+# ── code-review findings (visible_failures_spec addendum) ─────────────────────
+
+def test_f1_grader_crash_reason_comes_from_stderr_not_stdout(tmp_path):
+    """stdout printed before the crash, flushed only at exit, must never be
+    named as the cause."""
+    proj = _project(tmp_path, outcome="""
+        import sys
+        print('GBP_AUD: 3 regime outcomes filled')
+        raise KeyError('instrument')
+    """)
+    _run(tmp_path, proj, "scheduled_outcome_check.sh")
+    reason = _jobs(proj)["outcomes"]["last_failure_reason"]
+    assert reason == "grader crashed (exit 1): KeyError: 'instrument'"
+    log = _log(proj, "outcomes")
+    assert "GBP_AUD: 3 regime outcomes filled" in log and "KeyError" in log
+
+
+def _yesterday():
+    return subprocess.run(["/bin/bash", "-c",
+                           "date -v-1d +%F 2>/dev/null || date -d yesterday +%F"],
+                          capture_output=True, text=True).stdout.strip()
+
+
+def _heartbeat_project(tmp_path, storylines_age_h=1, health=None):
+    proj = _project(tmp_path, storylines_age_h=storylines_age_h)
+    y = _yesterday()
+    for kind in ("brief", "outcomes"):
+        (proj / "logs" / f"{kind}_{y}.log").write_text("===== run =====\nok\n")
+    if health is not None:
+        (proj / "logs" / "health_state.json").write_text(json.dumps(health))
+    return proj
+
+
+def test_f9_heartbeat_always_notifies_and_reports_healthy(tmp_path):
+    proj = _heartbeat_project(tmp_path)
+    _run(tmp_path, proj, "weekly_heartbeat.sh")
+    notes = _notes(tmp_path)
+    assert 'subtitle "HEARTBEAT"' in notes and "healthy |" in notes
+    assert "NEEDS ATTENTION" not in notes
+
+
+def test_f7_an_eight_day_old_storylines_is_not_needs_attention(tmp_path):
+    """Old heartbeat: 'STALE (>7d)' tripped NEEDS ATTENTION at 8 days, inside
+    the owner's 216h cadence."""
+    proj = _heartbeat_project(tmp_path, storylines_age_h=8 * 24)
+    _run(tmp_path, proj, "weekly_heartbeat.sh")
+    assert "NEEDS ATTENTION" not in _notes(tmp_path)
+    assert "STALE" not in _log(proj, "heartbeat")
+
+
+def test_f7_a_past_due_storylines_is_a_due_reminder_not_attention(tmp_path):
+    proj = _heartbeat_project(tmp_path, storylines_age_h=20 * 24)
+    _run(tmp_path, proj, "weekly_heartbeat.sh")
+    log = _log(proj, "heartbeat")
+    assert "DUE (your 9-day cadence; a reminder)" in log
+    assert "NEEDS ATTENTION" not in _notes(tmp_path)
+
+
+def test_f9_heartbeat_surfaces_an_unhealthy_job_by_name(tmp_path):
+    proj = _heartbeat_project(tmp_path, health={"jobs": {
+        "brief": {"consecutive_failures": 0},
+        "outcomes": {"consecutive_failures": 3,
+                     "last_failure_reason": "grader crashed (exit 1): KeyError"}}})
+    _run(tmp_path, proj, "weekly_heartbeat.sh")
+    notes = _notes(tmp_path)
+    assert "NEEDS ATTENTION" in notes and "outcomes: UNHEALTHY" in notes

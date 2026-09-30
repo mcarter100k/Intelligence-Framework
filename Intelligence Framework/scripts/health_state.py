@@ -54,6 +54,11 @@ def _load() -> dict:
     if "jobs" not in d or not isinstance(d.get("jobs"), dict):
         legacy = {k: d[k] for k in _FLAT_KEYS if k in d}
         d = {"jobs": {"brief": legacy} if legacy else {}}
+    # A malformed job entry (partial write, hand edit) is zero state for that
+    # job. Before (review F8), {"brief": null} made every call raise inside
+    # main's bare except, so health tracking went silent permanently.
+    d["jobs"] = {k: (v if isinstance(v, dict) else {})
+                 for k, v in d["jobs"].items() if isinstance(k, str)}
     return d
 
 
@@ -140,14 +145,17 @@ def main(argv) -> int:
     try:
         cmd = argv[1] if len(argv) > 1 else ""
         rest = argv[2:]
-        # Legacy form (no job): count toward `brief`, whose streak it was.
-        job = rest[0] if rest and rest[0] in JOBS else "brief"
-        if rest and rest[0] in JOBS:
-            rest = rest[1:]
+        # New form: <job> [reason]. Legacy form (reason only, no job) counts
+        # toward `brief`, whose streak it was. Any job name is its OWN job:
+        # before (review F5), a typo such as "outcome" was folded into the
+        # brief's streak and could raise a false BRIEF UNHEALTHY.
         if cmd == "record-failure":
-            line = record_failure(job, rest[0] if rest else "unknown failure")
+            if len(rest) >= 2:
+                line = record_failure(rest[0], rest[1])
+            else:
+                line = record_failure("brief", rest[0] if rest else "unknown failure")
         elif cmd == "record-success":
-            line = record_success(job)
+            line = record_success(rest[0] if rest else "brief")
         elif cmd == "status":
             line = status()
         else:

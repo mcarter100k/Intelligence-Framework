@@ -185,6 +185,14 @@ def get_hourly_bars(pair: str = "GBPAUD", count: int = 72,
 _RETRY_WAITS = (1.0, 2.0)          # seconds before retry 1 and retry 2
 _last_error: Optional[str] = None
 
+# Outage breaker (review finding F4). Without it, every fetch in a run pays
+# the full retry cost during an outage: about 15 fetches x (3 attempts x the
+# timeout + 3s of waits) is about 8 minutes at a 10s timeout. Once one fetch
+# has exhausted its retries on a transient failure, later fetches in the
+# same process make ONE attempt each until the breaker closes.
+_BREAKER_SECONDS = 120.0
+_breaker_open_until = 0.0
+
 
 def last_error() -> Optional[str]:
     """Plain-English classification of the most recent failed fetch, or
@@ -197,17 +205,17 @@ def _classify(exc: Exception) -> tuple:
     if isinstance(exc, requests.HTTPError):
         code = getattr(getattr(exc, "response", None), "status_code", None)
         if code in (401, 403):
-            return (f"HTTP {code}: OANDA rejected the credentials (key revoked, "
-                    f"expired, or for the wrong environment)", False)
+            return (f"credentials rejected (HTTP {code}): key revoked, expired, "
+                    f"or for the wrong environment", False)
         if code == 429:
-            return ("HTTP 429: rate limited by OANDA", True)
+            return ("rate limited (HTTP 429)", True)
         if code is not None and code >= 500:
-            return (f"HTTP {code}: OANDA server error", True)
-        return (f"HTTP {code}: request rejected by OANDA", False)
+            return (f"OANDA server error (HTTP {code})", True)
+        return (f"request rejected (HTTP {code})", False)
     if isinstance(exc, requests.Timeout):
         return ("request timed out", True)
     if isinstance(exc, requests.ConnectionError):
-        return ("connection failed (network down or OANDA unreachable)", True)
+        return ("connection failed: network down or OANDA unreachable", True)
     if isinstance(exc, ValueError) and "environment variable" in str(exc):
         return (f"credentials missing: {exc}", False)
     return (f"{type(exc).__name__}: {exc}", False)
@@ -216,7 +224,7 @@ def _classify(exc: Exception) -> tuple:
 def _get_bars(pair: str, granularity: str, count: int,
               timeout: int) -> Optional[pd.DataFrame]:
     """Internal: fetch OHLCV candles from OANDA instruments endpoint."""
-    global _last_error
+    global _last_error, _breaker_open_until
     try:
         instrument = _pair(pair)
         url = f"{_base_url()}/v3/instruments/{instrument}/candles"
@@ -226,24 +234,31 @@ def _get_bars(pair: str, granularity: str, count: int,
             "price":       "M",  # mid prices
         }
 
-        for attempt in range(len(_RETRY_WAITS) + 1):
+        waits = () if time.monotonic() < _breaker_open_until else _RETRY_WAITS
+        for attempt in range(len(waits) + 1):
             try:
                 resp = requests.get(url, headers=_headers(), params=params,
                                     timeout=timeout)
                 resp.raise_for_status()
+                _breaker_open_until = 0.0
                 break
             except Exception as exc:
                 msg, transient = _classify(exc)
-                if not transient or attempt == len(_RETRY_WAITS):
+                if not transient or attempt == len(waits):
+                    if transient:
+                        _breaker_open_until = time.monotonic() + _BREAKER_SECONDS
                     tries = attempt + 1
                     _last_error = (f"{msg} ({granularity} {instrument}, "
                                    f"{tries} attempt{'s' if tries > 1 else ''})")
                     return None
-                time.sleep(_RETRY_WAITS[attempt])
+                time.sleep(waits[attempt])
         data = resp.json()
 
         candles = data.get("candles", [])
         if not candles:
+            # Review finding F2: every return path records its own cause, so
+            # last_error() never reports an older failure from another fetch.
+            _last_error = f"no candles returned ({granularity} {instrument})"
             return None
 
         rows = []
@@ -265,6 +280,7 @@ def _get_bars(pair: str, granularity: str, count: int,
                 continue
 
         if not rows:
+            _last_error = f"no complete candles returned ({granularity} {instrument})"
             return None
 
         df = pd.DataFrame(rows)

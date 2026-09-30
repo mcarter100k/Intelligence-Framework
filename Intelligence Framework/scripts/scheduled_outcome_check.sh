@@ -25,18 +25,26 @@ LOG="logs/outcomes_${DATE}.log"
 # The live checkout must be on main (scripts/live_guard.sh).
 . "$PROJ/scripts/live_guard.sh"
 live_guard "$LOG"
+. "$PROJ/scripts/crash.sh"
 
-OUT="$(python3 run_outcome_check.py 2>&1)"
+# stdout and stderr captured SEPARATELY: the crash reason must come from
+# stderr (scripts/crash.sh). Both go to the day log.
+ERRTMP="$(mktemp)"
+OUT="$(python3 run_outcome_check.py 2>"$ERRTMP")"
 ORC=$?
 { echo "===== $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
+if [ -s "$ERRTMP" ]; then
+    { echo "----- stderr (exit $ORC) -----"; cat "$ERRTMP"; echo; } >> "$LOG"
+fi
+CRASH="$(crash_reason grader "$ORC" "$ERRTMP")"
+rm -f "$ERRTMP"
 
 # Health tracking (docs/specs/heartbeat_spec.md item 1). Failure signature:
 # a crash (nonzero exit or a Python traceback; visible_failures_spec D1 —
 # before, a traceback matched none of the patterns and counted as SUCCESS),
 # grader early-exit marker, unconfigured feed, no data, or empty output.
-if [ "$ORC" -ne 0 ] || printf '%s\n' "$OUT" | grep -q 'Traceback (most recent call last)'; then
-    HREASON="grader crashed (exit $ORC): $(printf '%s\n' "$OUT" | grep -v '^[[:space:]]' | grep -v '^Traceback' | tail -1 | cut -c1-160)"
-    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$HREASON")"
+if [ -n "$CRASH" ]; then
+    HEALTH="$(python3 scripts/health_state.py record-failure outcomes "$CRASH")"
 elif [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -qE 'GRADER EARLY EXIT|not configured|no data from OANDA'; then
     HREASON="$(printf '%s\n' "$OUT" | grep -oE 'GRADER EARLY EXIT[^(]*|[A-Z_]+: no data from OANDA' | head -1)"
     [ -z "$HREASON" ] && HREASON="outcome check produced no output"

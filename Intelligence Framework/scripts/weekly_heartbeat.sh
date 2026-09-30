@@ -80,8 +80,12 @@ try:
     head = open("storylines.md", errors="replace").readline().strip()
     age_d = (datetime.now(timezone.utc).timestamp()
              - os.path.getmtime("storylines.md")) / 86400
-    stale = " — STALE (>7d)" if age_d > 7 else ""
-    lines.append(f"storylines: {age_d:.0f}d old{stale} | {head[:70]}")
+    # Written by the owner, not a live job: past its 216h (9-day) cadence it
+    # is a DUE reminder, never STALE (visible_failures_spec D5, review F7;
+    # the old "STALE (>7d)" disagreed with the cadence and tripped
+    # NEEDS ATTENTION on a normal week).
+    due = " — DUE (your 9-day cadence; a reminder)" if age_d * 24 > 216 else ""
+    lines.append(f"storylines: {age_d:.0f}d old{due} | {head[:70]}")
 except Exception:
     lines.append("storylines: MISSING")
 

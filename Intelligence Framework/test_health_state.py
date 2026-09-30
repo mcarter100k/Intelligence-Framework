@@ -129,6 +129,23 @@ def test_cli_with_a_job(state, capsys):
     assert capsys.readouterr().out.startswith("ALERT:OUTCOMES UNHEALTHY — Traceback")
 
 
+def test_f5_an_unknown_job_is_its_own_job_never_the_brief(state):
+    hs.main(["health_state.py", "record-failure", "outcome", "Traceback"])   # typo
+    hs.main(["health_state.py", "record-failure", "outcome", "Traceback"])
+    d = json.loads(state.read_text())
+    assert "brief" not in d["jobs"] or d["jobs"]["brief"].get("consecutive_failures", 0) == 0
+    assert d["jobs"]["outcome"]["consecutive_failures"] == 2
+    assert "outcome: UNHEALTHY" in hs.status()     # the typo is visible, not hidden
+
+
+def test_f8_a_malformed_job_entry_is_zero_state_not_silence(state, capsys):
+    state.write_text('{"jobs": {"brief": null, "outcomes": 7}}')
+    hs.main(["health_state.py", "record-failure", "brief", "a"])
+    hs.main(["health_state.py", "record-failure", "brief", "a"])
+    assert capsys.readouterr().out.startswith("ALERT:BRIEF UNHEALTHY — a")
+    assert "outcomes: healthy" in hs.status()
+
+
 def test_grader_early_exit_is_loud(monkeypatch, capsys):
     """run_outcome_check must never exit quietly when unconfigured (item 2)."""
     import oanda_feed
