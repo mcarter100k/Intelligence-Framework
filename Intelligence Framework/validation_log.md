@@ -3097,3 +3097,43 @@ Gate 2 had run under Homebrew bash 5. New guard: `test_shell_syntax.py`.
 ### Gate 3 — PENDING LIVE CONFIRMATION
 
 - First Sunday heartbeat actually delivered under launchd (after merge).
+
+---
+
+## 2026-09-29 — Exclusion registry fixes (per docs/specs/exclusion_registry_fixes_spec.md; Phase 0)
+
+The code review found three defects in the registry merged earlier today.
+
+**D1. A malformed or missing registry disabled every exclusion silently.**
+- **Fix.** `_load()` now catches every read error. A bad row is skipped on its own and the valid rows still apply.
+- **Alerting.** Every failure prints one line per process, prefixed `##ALERT## EXCLUSION REGISTRY`. The prefix is what the brief wrapper keeps from stderr, so the alert reaches the log.
+- **Call sites.** One helper, `exclusions.excluder()`, replaces 7 copy-pasted `try/except → set()` guards that swallowed every error. The two `filter_rows` sites lose their `except: pass` blocks.
+
+**D2. `grade_pending_shadow` and `latest_pending_signal` ignored the registry.** Both now skip excluded rows. The grader writes them back untouched.
+
+**D3. Two tests passed with exclusion switched off.**
+- The regime test now also pins `n_raw` and `correct`.
+- The session test now freezes its clock.
+
+### Gate 1
+- The suite is green: 572 passed.
+- **Against the old code:** all 9 new D1/D2 tests fail, each for its target reason.
+- **With exclusion disabled on the new code:** both fixed D3 tests fail. They can now detect the failure they claim to guard.
+
+### Gate 2 (REALITY)
+Real OANDA runs of `run_outcome_check.py` and `decision_brief.py` from a temp working directory, on copies of the real ledgers. The project hashes were identical before and after (rule 10).
+
+**Healthy registry:**
+- Both runs exited 0.
+- No registry alerts.
+- `2026-09-16T09:08:08Z_GBP_AUD` is still `outcome_filled=False` after a real grader pass.
+- **Honest limit:** that row is about 10 D1 bars old against a 20-bar window, so it was not yet gradeable regardless.
+
+**Corrupted copy of the registry** (the review's short-row repro), actual output:
+```
+##ALERT## EXCLUSION REGISTRY: line 4 is malformed and was SKIPPED (other rows still apply): {'log_id': 'JUST_AN_ID', 'ledger': None, ...}
+```
+The valid exclusion still held: the row stayed ungraded.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+- A scheduled 15:15 grader run, after the row's 20-bar window has elapsed, leaves `2026-09-16T09:08:08Z_GBP_AUD` ungraded. This carries over from the 2026-09-16 entry.

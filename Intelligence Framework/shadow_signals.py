@@ -39,6 +39,8 @@ import sys
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from exclusions import excluder
+
 from regime_detection import (
     _detect_structure, _compute_adx, compute_atr_series, PAIRS,
 )
@@ -345,11 +347,7 @@ def get_shadow_tally(candidate_id: str, instrument: Optional[str] = None) -> Dic
         return {"logged": 0, "graded": 0, "wins": 0, "avg_net": 0.0}
     logged = graded = wins = 0
     nets = []
-    try:
-        from exclusions import excluded_ids, is_excluded as _is_excl
-        _excl = excluded_ids("shadow_signal_log.csv")
-    except Exception:
-        _excl, _is_excl = set(), None
+    is_excluded = excluder("shadow_signal_log.csv")
     with open(LOG_FILE, newline="") as f:
         for r in csv.DictReader(f):
             if r["candidate_id"] != candidate_id:
@@ -358,8 +356,7 @@ def get_shadow_tally(candidate_id: str, instrument: Optional[str] = None) -> Dic
                 continue
             if is_invalid_spec(r):
                 continue                   # unscoreable by construction
-            if _excl and _is_excl is not None and \
-                    _is_excl(r, "shadow_signal_log.csv", _excl):
+            if is_excluded(r):
                 continue                   # registry exclusion (exclusions.py)
             logged += 1
             if str(r.get("outcome_filled")) == "True":
@@ -392,12 +389,15 @@ def latest_pending_signal(instrument: str) -> Optional[Dict]:
     if not os.path.exists(LOG_FILE):
         return None
     latest = None
+    is_excluded = excluder("shadow_signal_log.csv")
     with open(LOG_FILE, newline="") as f:
         for r in csv.DictReader(f):
             if r["instrument"] != instrument or str(r.get("outcome_filled")) == "True":
                 continue
             if is_invalid_spec(r):
                 continue                   # never surfaced to the brief
+            if is_excluded(r):
+                continue                   # registry exclusion (exclusions.py)
             latest = r                      # append order → last ungraded = newest
     if not latest:
         return None
@@ -418,11 +418,7 @@ def episode_count(candidate_id: str, instrument: Optional[str] = None) -> int:
     if not os.path.exists(LOG_FILE):
         return 0
     from collections import defaultdict
-    try:
-        from exclusions import excluded_ids, is_excluded as _is_excl
-        _excl = excluded_ids("shadow_signal_log.csv")
-    except Exception:
-        _excl, _is_excl = set(), None
+    is_excluded = excluder("shadow_signal_log.csv")
     by_inst = defaultdict(list)
     with open(LOG_FILE, newline="") as f:
         for r in csv.DictReader(f):
@@ -432,8 +428,7 @@ def episode_count(candidate_id: str, instrument: Optional[str] = None) -> int:
                 continue
             if is_invalid_spec(r):
                 continue                   # not evidence — excluded before collapse
-            if _excl and _is_excl is not None and \
-                    _is_excl(r, "shadow_signal_log.csv", _excl):
+            if is_excluded(r):
                 continue                   # registry exclusion (exclusions.py)
             try:
                 by_inst[r["instrument"]].append(
@@ -592,6 +587,10 @@ def grade_pending_shadow(instrument: str) -> int:
 
     with open(LOG_FILE, newline="") as f:
         rows = list(csv.DictReader(f))
+    # Excluded rows are never graded (exclusions.py). `rows` is written back
+    # below, so they are skipped here rather than filtered out of the list —
+    # filtering would delete them from an append-only ledger.
+    is_excluded = excluder("shadow_signal_log.csv")
     filled = skipped_invalid = 0
     for r in rows:
         if r["instrument"] != instrument or str(r.get("outcome_filled")) == "True":
@@ -599,6 +598,8 @@ def grade_pending_shadow(instrument: str) -> int:
         if is_invalid_spec(r):
             skipped_invalid += 1           # never scored as R (see is_invalid_spec)
             continue
+        if is_excluded(r):
+            continue                       # registry exclusion (exclusions.py)
         ei = ts_to_idx.get(r["timestamp"])
         if ei is None or ei + HORIZON >= len(C):
             continue                                         # window not elapsed / not in fetch

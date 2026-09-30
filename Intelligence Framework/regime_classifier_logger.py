@@ -29,6 +29,8 @@ import os
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Tuple
 
+from exclusions import excluder, filter_rows
+
 LOG_FILE = "regime_classification_log.csv"
 
 # Minimum accuracy threshold — below this a regime is underperforming
@@ -202,11 +204,7 @@ def check_pending_outcomes(
     # Excluded rows are never graded (exclusions.py). They are passed through
     # to `updated` untouched — the ledger is append-only, so an excluded row
     # stays in the record; it simply never earns an outcome or a tally.
-    try:
-        from exclusions import excluded_ids, is_excluded
-        _excl = excluded_ids("regime_classification_log.csv")
-    except Exception:
-        _excl, is_excluded = set(), None
+    is_excluded = excluder("regime_classification_log.csv")
 
     updated = []
     for row in rows:
@@ -215,8 +213,7 @@ def check_pending_outcomes(
             updated.append(row)
             continue
 
-        if _excl and is_excluded is not None and \
-                is_excluded(row, "regime_classification_log.csv", _excl):
+        if is_excluded(row):
             updated.append(row)
             continue
 
@@ -293,11 +290,7 @@ def get_regime_accuracy(
     rows = _read_all()
     # Contaminated/withdrawn rows never reach a tally (exclusions.py). The
     # ledger keeps them; the accuracy N does not count them.
-    try:
-        from exclusions import filter_rows
-        rows = filter_rows(rows, "regime_classification_log.csv")
-    except Exception:
-        pass
+    rows = filter_rows(rows, "regime_classification_log.csv")
     filled = [r for r in rows
               if r.get("outcome_filled") == "True"
               and (instrument is None or r["instrument"] == instrument)]

@@ -42,7 +42,7 @@ from __future__ import annotations
 import csv
 import os
 import sys
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Callable, Dict, Iterable, List, Optional, Set
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 REGISTRY_FILE = os.path.join(_DIR, "excluded_rows.csv")
@@ -59,25 +59,83 @@ _ID_FIELD = {
 }
 
 
+_warned: Set[str] = set()
+
+
+def _alert(msg: str) -> None:
+    """One ##ALERT## line per distinct message per process.
+
+    The ##ALERT## prefix is load-bearing: the brief wrapper keeps ONLY
+    ##ALERT## lines from stderr, so a plain warning would be discarded and
+    the failure would be silent again (exclusion_registry_fixes_spec D1).
+    """
+    if msg in _warned:
+        return
+    _warned.add(msg)
+    print(f"##ALERT## EXCLUSION REGISTRY: {msg}", file=sys.stderr)
+
+
 def _load() -> List[Dict]:
-    """Every registry row. Fails OPEN and LOUD — never silently excludes."""
+    """Every VALID registry row. Fails OPEN and LOUD — never silently excludes.
+
+    Any read failure (missing file, OS error, bad encoding, CSV error, wrong
+    header) excludes nothing and alerts. A malformed ROW is skipped on its
+    own, with an alert, and every valid row still applies — one bad
+    hand-edit must not switch off the whole registry.
+    """
     if not os.path.exists(REGISTRY_FILE):
+        _alert(f"{REGISTRY_FILE} not found — NOTHING excluded this run; "
+               f"tallies may include contaminated rows")
         return []
     try:
         with open(REGISTRY_FILE, newline="", encoding="utf-8") as f:
-            return [r for r in csv.DictReader(f) if r.get("log_id")]
-    except OSError as exc:
-        print(f"exclusion registry unreadable ({exc}) — NOTHING excluded "
-              f"this run; tallies may include contaminated rows",
-              file=sys.stderr)
+            reader = csv.DictReader(f)
+            header = reader.fieldnames or []
+            if "log_id" not in header or "ledger" not in header:
+                _alert(f"header {header} lacks log_id/ledger — NOTHING "
+                       f"excluded this run")
+                return []
+            raw = list(reader)
+    except Exception as exc:     # OSError, UnicodeDecodeError, csv.Error, ...
+        _alert(f"unreadable ({type(exc).__name__}: {exc}) — NOTHING "
+               f"excluded this run; tallies may include contaminated rows")
         return []
+    rows = []
+    for n, r in enumerate(raw, start=2):          # line 1 is the header
+        log_id, ledger = r.get("log_id"), r.get("ledger")
+        if not isinstance(log_id, str) or not isinstance(ledger, str) \
+                or not log_id.strip() or not ledger.strip():
+            _alert(f"line {n} is malformed and was SKIPPED (other rows "
+                   f"still apply): {r}")
+            continue
+        rows.append(r)
+    return rows
 
 
 def excluded_ids(ledger: str) -> Set[str]:
     """The excluded identifiers for one ledger. Call once per tally, not
     once per row."""
     return {r["log_id"].strip() for r in _load()
-            if r.get("ledger", "").strip() == ledger}
+            if r["ledger"].strip() == ledger}
+
+
+def excluder(ledger: str) -> Callable[[Dict], bool]:
+    """A predicate `row -> True if excluded` for one ledger. Never raises.
+
+    The single way call sites consult the registry. It replaces seven
+    copy-pasted try/import/except blocks that each turned a registry error
+    into a silent empty set. The registry is read once, here; a failure
+    anywhere inside alerts and fails open.
+    """
+    try:
+        ids = excluded_ids(ledger)
+    except Exception as exc:
+        _alert(f"lookup failed for {ledger} ({type(exc).__name__}: {exc}) "
+               f"— NOTHING excluded this run")
+        ids = set()
+    if not ids:
+        return lambda row: False
+    return lambda row: bool(_row_identities(row, ledger) & ids)
 
 
 def _row_identities(row: Dict, ledger: str) -> Set[str]:
@@ -116,10 +174,8 @@ def filter_rows(rows: Iterable[Dict], ledger: str) -> List[Dict]:
     Never use this on rows that will be written back — that would delete
     them from the ledger. Filter what you count, not what you read.
     """
-    ids = excluded_ids(ledger)
-    if not ids:
-        return list(rows)
-    return [r for r in rows if not (_row_identities(r, ledger) & ids)]
+    excluded = excluder(ledger)
+    return [r for r in rows if not excluded(r)]
 
 
 def append_exclusion(log_id: str, ledger: str, date: str, reason: str,
