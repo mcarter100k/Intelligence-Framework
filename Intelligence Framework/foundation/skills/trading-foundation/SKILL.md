@@ -83,6 +83,12 @@ Pre-register the following before looking at results (details in
   0.15R gate had 16–36% power and let zero-edge strategies pass 17–28% of the
   time. If the required N is unreachable, say so plainly and suggest more
   instruments, more history, or a larger-effect hypothesis.
+  The frozen code still runs `FLAG_N = 30` and `REVIEW_N = 60`
+  (`shadow_signals.py:50-51`, recorded in `candidates.md`), while M10's audit
+  correction holds N=60 at 0.15R to be a coin flip. Treat the code's N=30
+  flag as an attention trigger, not a validity verdict; per M10, validity
+  requires the pre-registered lower-confidence-bound test at the N that
+  power demands.
 - **Success criteria as numbers:** a lower confidence bound on avg R above 0,
   median R beside avg R, avg R after removing the best episode, max drawdown
   in R, and a correction when testing several candidate/pair cells.
@@ -128,6 +134,10 @@ Use the exact rules in `risk_and_execution.md`:
   0.5R behind price.
 
 Note that these are INFORMED PRIORS that no real trade has exercised yet.
+They are also UNENFORCED: `risk_config.py` and `session_guard.py` have no
+live caller (`risk_and_execution.md`; AUDIT §4), so nothing on the live path
+caps risk, daily loss or open positions today. Never describe a limit as
+active.
 Where a tool contradicts them (for example, a brief showing grade C with
 75% size), flag it rather than pick one silently.
 

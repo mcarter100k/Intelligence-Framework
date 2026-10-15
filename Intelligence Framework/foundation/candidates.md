@@ -1,5 +1,7 @@
 # Frozen shadow candidates — specs and evidence
 
+> **AS OF 2026-09-29 (ledger read at the audit).** Every count, N, R value and status below is a snapshot of that read, not a current figure. Re-read `shadow_signal_log.csv` before quoting any of them.
+
 Exact definitions of the pre-registered candidates and what the ledger shows.
 
 > Citations: `VL:n` = `validation_log.md` line n; `AUDIT §n` = `docs/audit_2026-09-29.md`; other paths are repo files. Line numbers are as of the 2026-09-29 audit (commit efd293e) — search by content if they have drifted.

@@ -25,7 +25,12 @@ for skill_dir in "$SRC"/skills/*/; do
             [ "$(basename "$f")" = "README.md" ] && continue
             cp "$f" "$out.tmp/references/"
         done
-        cp "$SRC"/tools/*.py "$out.tmp/scripts/"
+        for f in "$SRC"/tools/*.py; do
+            # skill_trigger_eval.py evaluates the skill system itself; it is not
+            # a trading tool and writes results next to itself, so it stays here.
+            [ "$(basename "$f")" = "skill_trigger_eval.py" ] && continue
+            cp "$f" "$out.tmp/scripts/"
+        done
     fi
     rm -rf "$out"
     mv "$out.tmp" "$out"

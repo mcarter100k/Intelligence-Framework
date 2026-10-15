@@ -3629,3 +3629,67 @@ The first live brief after a single-timeframe regime change.
 
 ### Open owner decision
 Whether a counter-trend exception is wanted at all. It has never been active.
+
+---
+
+## 2026-10-15 — Foundation skill repair: the honest-number instruments were themselves unverified (foundation/ free zone)
+
+**Defect class.** The instruments that produce the framework's honest numbers (`foundation/tools/power_check.py`, `episodes.py`) had no tests, and both failed silently rather than loudly. That is I5 ("return an error, never default silently") and M19 (a check that cannot fail proves nothing), turned on the instruments themselves.
+
+**BEFORE (main 7d46138, each reproduced on unmodified code before any fix):**
+- `power_check --rs`, "avg R without best episode":
+  - six −1R gave **+0.000** (every episode equal to the max was removed, then 0.0 was substituted);
+  - N=1 gave **+0.000**;
+  - `[-1,-1,-1,2.5,2.5]` gave **−1.000**, against a true **−0.125**.
+- The percentile-bootstrap lower bound printed from N=5.
+- `episodes.to_bar_index`:
+  - `…09:00:00Z` mapped to bar 2, but `…09:00:00+00:00` (the same instant) mapped to bar 1;
+  - fires in 2020 and 2030 were clamped onto bars 0 and 5 with no error;
+  - fires that existed nowhere on the bar index still produced a clean episode count.
+- `--graded-col` counted three "pending" rows as three episodes.
+
+**AFTER:**
+- Exactly one episode is removed (`sorted(rs)[:-1]`), and the line is omitted below N=2.
+- The bootstrap is kept as a percentile bootstrap (the honest minimum), gated at N≥20 (M3) and labelled as under-covering on skewed R.
+- Timestamps are parsed to UTC instants. A fire outside the bar index, or an unparseable or timezone-less stamp, raises an error naming the value.
+- Ungraded sentinels are dropped, and the drop count is printed.
+- New `--cells K`: a Sidak correction. Six cells at 0.05 each give a **26%** family-wise false-pass rate. A 0.15R edge at SD 1.2R needs **667** episodes, not 396.
+
+**Skill system:**
+- `test_skill_build.py` runs the real `build_skill.sh` and asserts that what ships equals what SKILL.md documents, in both directions.
+- It was red on main: `skill_trigger_eval.py` shipped undocumented. Owner decision: stop shipping it.
+- SKILL.md gained two lines: the risk limits are **unenforced** (no live caller, AUDIT §4); the code's FLAG_N=30 is an attention trigger, not a validity verdict (M10).
+- `candidates.md` has an as-of banner.
+- No evidence count, N, R value or status was changed.
+
+### Gate 1
+- **New tests:** `test_foundation_tools.py` (25) and `test_skill_build.py` (3).
+- **Shown able to fail:**
+  - 15/20 of the Phase 1 tests fail on the main tools;
+  - 4/5 of the Phase 3 tests fail on the Phase 1 tool;
+  - the build test is red on the main tree, and red on a planted `zz_unlisted.md`, a renamed reference and a planted tool.
+- **Mutants:** 17/17 killed (`PYTHONDONTWRITEBYTECODE=1`; caches cleared and hashes checked after each revert). These cover the tests that pin already-correct arithmetic.
+- **Controlled comparison:** the 2-decimal anchors alone let an `n−1` drift in `power_at_n` and `false_pass_rate` survive (both still round to 0.25 and 0.17). The added 4-decimal pins kill it.
+- **Full suite (worktree):** 809 passed, 6 skipped (the ledger-header tests skip because the worktree has no ledgers). The live project hash was unchanged across the run.
+
+### Gate 2
+- `build_skill.sh` was run into `~/.claude/skills`. In the installed tree, exactly 4 files changed by sha256: `trading-foundation/SKILL.md`, `references/candidates.md`, `scripts/power_check.py` and `scripts/episodes.py`.
+- evidence-validation is byte-identical, and `skill_trigger_eval.py` is absent.
+- The installed tools, run on the original reproductions, give −1.000, an omitted line, −0.125, and exit 2 naming the 2020 stamp.
+
+### Phase 4 — trigger rate on protected-path prompts (measured; no action taken)
+`skill_trigger_eval.py` was run with 3 new prompts × 3 runs: Cursor-bundled CLI v2.1.300, fresh headless sessions, scratch cwd, 2026-10-15 08:52–08:56Z.
+
+| Prompt | trading-foundation invoked |
+|---|---|
+| Thrust filter in entry_confirmation.py | 3/3 |
+| Grading-loop refactor in shadow_signals.py | 3/3 |
+| "The regime logger is missing a column" | **0/3** |
+| **Protected-path total** | **6/9** |
+| Controls: original should-trigger prompts | 18/18 |
+| Controls: nulls | 9/9 silent |
+
+- Both skills were listed at startup in 36/36 runs.
+- The standing claim "nothing triggers on a protected-module edit" is therefore **not true as stated**: prompts carrying trading or grading vocabulary trigger; a plain schema edit does not.
+- **Limits:** the sessions ran outside the repo (no AGENTS.md loaded), with N=3 per prompt.
+- **The owner decides** between a new skill and a description edit.
