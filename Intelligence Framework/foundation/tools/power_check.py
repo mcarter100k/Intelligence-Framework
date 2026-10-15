@@ -47,7 +47,12 @@ def false_pass_rate(threshold: float, sd: float, n: int) -> float:
 
 def bootstrap_lower_bound(rs: list[float], conf: float = 0.90,
                           iters: int = 10_000, seed: int = 7) -> float:
-    """One-sided lower confidence bound on mean R by percentile bootstrap."""
+    """One-sided lower confidence bound on mean R by PERCENTILE bootstrap.
+
+    R is hard-bounded at -1 with a long right tail, and the percentile
+    bootstrap under-covers on exactly that skew (the bound sits too high).
+    Treat it as optimistic; it is reported only from N >= 20 (M3).
+    """
     rng = random.Random(seed)
     n = len(rs)
     means = sorted(mean(rng.choices(rs, k=n)) for _ in range(iters))
@@ -60,13 +65,13 @@ def _report_observed(rs: list[float]) -> None:
     print(f"avg R / median R              : {mean(rs):+.3f} / {median(rs):+.3f}")
     if n >= 2:
         print(f"SD of R                       : {stdev(rs):.3f}")
-    best = max(rs)
-    rest = [r for r in rs if r != best] or [0.0]
-    print(f"avg R without best episode    : {mean(rest):+.3f}"
-          + ("   <- outlier-driven" if mean(rs) > 0 >= mean(rest) else ""))
-    if n >= 5:
+    if n >= 2:
+        rest = sorted(rs)[:-1]  # exactly one episode removed, ties included
+        print(f"avg R without best episode    : {mean(rest):+.3f}"
+              + ("   <- outlier-driven" if mean(rs) > 0 >= mean(rest) else ""))
+    if n >= 20:
         print(f"90% one-sided lower bound     : {bootstrap_lower_bound(rs):+.3f}"
-              "   (edge claimed only if > 0)")
+              "   (percentile bootstrap, under-covers on skewed R; edge claimed only if > 0)")
 
 
 def main() -> None:
