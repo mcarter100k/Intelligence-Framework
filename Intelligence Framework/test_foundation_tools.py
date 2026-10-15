@@ -201,3 +201,44 @@ def test_cli_unmappable_fires_fail_loudly(tmp_path):
     assert r.returncode == 2
     assert "2020-01-01T00:00:00Z" in r.stderr
     assert "independent episodes" not in r.stdout
+
+
+# ── power_check: multiple cells (Sidak) ─────────────────────────────────────
+
+def _power_cli(*args):
+    r = subprocess.run([sys.executable, os.path.join(TOOLS, "power_check.py"), *args],
+                       capture_output=True, text=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+    assert r.returncode == 0, r.stderr
+    return r.stdout.splitlines()
+
+
+def test_family_wise_rate_six_cells_is_26_percent():
+    # Three candidates x two pairs at one-sided alpha 0.05 per cell.
+    assert round(pc.family_wise_rate(0.05, 6), 4) == 0.2649
+
+
+def test_sidak_alpha_six_cells_holds_family_at_alpha():
+    assert round(pc.sidak_alpha(0.05, 6), 6) == 0.008512
+    assert round(pc.family_wise_rate(pc.sidak_alpha(0.05, 6), 6), 12) == 0.05
+
+
+def test_cli_cells_adjusts_n_required_and_prints_family_rate():
+    assert _power_cli("--edge", "0.15", "--sd", "1.2", "--power", "0.8", "--cells", "6") == [
+        "Cells: 6. Family-wise false-pass at alpha 0.05 per cell: 26%; Sidak per-cell alpha 0.0085 "
+        "holds it at 5%. Figures below use the Sidak alpha.",
+        "N required: 667 independent episodes (edge +0.15R, SD 1.2R, power 80%, alpha 0.008512)",
+    ]
+
+
+def test_cli_cells_adjusts_power_and_min_edge_and_false_pass():
+    out = _power_cli("--edge", "0.15", "--sd", "1.2", "--n", "60", "--threshold", "0.15", "--cells", "6")
+    assert out[1:] == ["Power: 8% (edge +0.15R, SD 1.2R, N=60, alpha 0.008512)",
+                       "Zero-edge false-pass rate at avg R >= +0.15: 17% per cell, "
+                       "66% family-wise across 6 cells"]
+    assert _power_cli("--sd", "1.2", "--n", "60", "--cells", "6")[1] == \
+        "Smallest edge detectable at 80% power: +0.50R (SD 1.2R, N=60, alpha 0.008512)"
+
+
+def test_cli_one_cell_is_unadjusted():
+    assert _power_cli("--edge", "0.15", "--sd", "1.2", "--power", "0.8") == [
+        "N required: 396 independent episodes (edge +0.15R, SD 1.2R, power 80%, alpha 0.05)"]

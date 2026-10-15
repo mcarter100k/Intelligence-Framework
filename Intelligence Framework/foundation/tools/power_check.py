@@ -11,8 +11,11 @@ Usage:
   python power_check.py --edge 0.15 --sd 1.2 --power 0.8   # N required
   python power_check.py --sd 1.2 --n 60                    # smallest detectable edge
   python power_check.py --rs -1 -1 2.3 -0.5 1.1 ...        # bootstrap CI on observed R
+  python power_check.py --edge 0.15 --power 0.8 --cells 6  # Sidak-adjusted for 6 cells
 
 One-sided test, normal approximation. Standard library only.
+It uses z, not t, and a normal approximation to the mean: at N=20-30 with
+skewed R that understates the N actually required.
 """
 from __future__ import annotations
 
@@ -43,6 +46,16 @@ def min_detectable_edge(sd: float, n: int, power: float = 0.8, alpha: float = 0.
 def false_pass_rate(threshold: float, sd: float, n: int) -> float:
     """P(observed avg R >= threshold) when the true edge is ZERO."""
     return 1 - _Z.cdf(threshold / (sd / math.sqrt(n)))
+
+
+def sidak_alpha(alpha: float, cells: int) -> float:
+    """Per-cell alpha that holds the family-wise false-pass rate at `alpha`."""
+    return 1 - (1 - alpha) ** (1 / cells)
+
+
+def family_wise_rate(per_cell: float, cells: int) -> float:
+    """P(at least one of `cells` independent zero-edge cells passes)."""
+    return 1 - (1 - per_cell) ** cells
 
 
 def bootstrap_lower_bound(rs: list[float], conf: float = 0.90,
@@ -83,23 +96,34 @@ def main() -> None:
     ap.add_argument("--alpha", type=float, default=0.05)
     ap.add_argument("--threshold", type=float, help="pass threshold on avg R, for false-pass rate")
     ap.add_argument("--rs", type=float, nargs="+", help="observed per-episode R values")
+    ap.add_argument("--cells", type=int, default=1,
+                    help="candidate x pair cells tested together (Sidak-adjusts alpha)")
     a = ap.parse_args()
+    if a.cells < 1:
+        ap.error("--cells must be >= 1")
+    alpha = sidak_alpha(a.alpha, a.cells)
 
     if a.rs:
         _report_observed(a.rs)
         return
+    if a.cells > 1:
+        print(f"Cells: {a.cells}. Family-wise false-pass at alpha {a.alpha} per cell: "
+              f"{family_wise_rate(a.alpha, a.cells):.0%}; Sidak per-cell alpha {alpha:.4f} "
+              f"holds it at {a.alpha:.0%}. Figures below use the Sidak alpha.")
     if a.edge and a.power:
-        print(f"N required: {n_required(a.edge, a.sd, a.power, a.alpha)} independent episodes "
-              f"(edge {a.edge:+}R, SD {a.sd}R, power {a.power:.0%}, alpha {a.alpha})")
+        print(f"N required: {n_required(a.edge, a.sd, a.power, alpha)} independent episodes "
+              f"(edge {a.edge:+}R, SD {a.sd}R, power {a.power:.0%}, alpha {alpha:.4g})")
     elif a.edge and a.n:
-        print(f"Power: {power_at_n(a.edge, a.sd, a.n, a.alpha):.0%} "
-              f"(edge {a.edge:+}R, SD {a.sd}R, N={a.n})")
+        print(f"Power: {power_at_n(a.edge, a.sd, a.n, alpha):.0%} "
+              f"(edge {a.edge:+}R, SD {a.sd}R, N={a.n}, alpha {alpha:.4g})")
     elif a.n:
-        print(f"Smallest edge detectable at 80% power: {min_detectable_edge(a.sd, a.n):+.2f}R "
-              f"(SD {a.sd}R, N={a.n})")
+        print(f"Smallest edge detectable at 80% power: {min_detectable_edge(a.sd, a.n, alpha=alpha):+.2f}R "
+              f"(SD {a.sd}R, N={a.n}, alpha {alpha:.4g})")
     if a.threshold is not None and a.n:
-        print(f"Zero-edge false-pass rate at avg R >= {a.threshold:+}: "
-              f"{false_pass_rate(a.threshold, a.sd, a.n):.0%}")
+        fp = false_pass_rate(a.threshold, a.sd, a.n)
+        print(f"Zero-edge false-pass rate at avg R >= {a.threshold:+}: {fp:.0%} per cell"
+              + (f", {family_wise_rate(fp, a.cells):.0%} family-wise across {a.cells} cells"
+                 if a.cells > 1 else ""))
 
 
 if __name__ == "__main__":
