@@ -3943,3 +3943,21 @@ This needs its own spec.
 **Found:**
 - **`reality_run --code <worktree>` runs the brief without the news calendar.** `news_gate` reads `calendar.csv` from beside its own module, and a worktree has none. Every Gate 2 run from a worktree has exercised a brief with the news gate inactive ("news calendar missing"). Recorded, not fixed.
 - **`git grep` with `\b` in a basic pattern matched nothing, silently.** Two searches in this review returned false zeros until they were redone with a positive control. Searches that back a deletion must carry a control.
+
+## 2026-10-18 — Team review of the code-hygiene work: decisions; a known Gate 2 blind spot recorded
+
+**Decisions** (recorded in full in docs/specs/code_hygiene_spec.md §D):
+- **1A, comment-only edits to 12 protected modules: approved and merged.** The AST of each module, docstrings removed, was re-proven identical to main at merge time.
+- **1B, code removals: approved, held until after Sunday's 18:00 PDT run.** The `_split_live_bar` removal will merge as its own commit closing I8.
+- **Renames: deferred.** methodology.md, incident_catalogue.md and this log cite modules by name and line.
+- **Circuit breaker: keep, do not wire.** It is now a prerequisite before the first real-money trade (AGENTS.md). Until then the risk limits are unenforced.
+- **The 10 `gbpaud_*` studies: commit them as they are,** each with a citation-integrity header.
+
+**Known Gate 2 blind spot (record only; fix queued for after Sunday).**
+- `scripts/reality_run.py --code <worktree>` runs the brief with **no news calendar**. `news_gate` reads `calendar.csv` from beside its own module, and a worktree has none (`.gitignore`).
+- Observed 2026-10-18: the same unchanged code printed "news calendar stale" when run from the live checkout and "news calendar missing" when run from a worktree.
+- So no Gate 2 run from a worktree has ever exercised the news gate. It matters more than it looks: I28 found that news staleness **fails open**. The gate is unexercised and fail-open at the same time.
+- The verification tooling is deliberately left unchanged right before a verification window. Until the fix lands, read any worktree Gate 2 as "news gate not tested".
+
+**For Gate 3 triage.** A 56-file test reorganization (c483c5b) and these comment-only edits merged on the night of 2026-10-17. Neither touches what the scheduled jobs execute: the tests are not on the live path, and the comments are AST-identical. If a scheduled run misbehaves, rule both out first.
+

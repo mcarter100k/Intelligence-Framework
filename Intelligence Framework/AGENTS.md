@@ -243,6 +243,9 @@ Automation: `scripts/scheduled_brief.sh`, `scripts/scheduled_outcome_check.sh`,
 plists in `scripts/launchd/`; launchd runs `/bin/bash` 3.2 — see
 `test_shell_syntax.py`), plus the test suite.
 Anything not reachable from these is research (`studies/`) or a manual tool
-(`setup_check.py`, `trade_logger.py`, `trade_management.py`). Note:
-`session_guard.py` and `risk_config.py` are protected but have NO live
-caller (2026-09-29 audit) — wire them or delete them.
+(`setup_check.py`, `trade_logger.py`, `trade_management.py`).
+
+**Circuit-breaker prerequisite (team review 2026-10-18).** Before the first
+real-money trade, `session_guard.py` and `risk_config.py` must be wired to
+the live path and exercised. Until then the stated risk limits are
+unenforced and must never be described as active.

@@ -50,7 +50,7 @@ verification tool copies root-level ledgers only.
 - `trade_management.py`: stop and target math, used by both tools above.
 
 **Dormant** (protected, but nothing calls them yet)
-- `session_guard.py`, `risk_config.py`: the daily-loss circuit breaker and risk rules. They must be wired in or deleted; that is an owner decision.
+- `session_guard.py`, `risk_config.py`: the daily-loss circuit breaker and risk rules. Kept, not wired: they must be wired to the live path and exercised before the first real-money trade (AGENTS.md). Until then the risk limits are **not enforced**.
 
 `trade_log.csv` is frozen historical evidence with no writer.
 
