@@ -41,6 +41,7 @@ HEADER_RE = re.compile(r"^===== (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) ([A-Z]{3,4
 INST_RE = re.compile(r"^  (GBP/AUD|GBP/JPY)  \|")
 DECISION_RE = re.compile(r"^  DECISION +(LONG|SHORT|STAND ASIDE)\b")
 ERROR_RE = re.compile(r"^  REASON +Framework error")
+PRICE_RE = re.compile(r"^  Price: ([0-9.]+)")
 
 
 def to_utc(stamp: str, tz: str) -> datetime:
@@ -56,8 +57,10 @@ def iso(t: datetime) -> str:
 
 # ── parsing ─────────────────────────────────────────────────────────────────
 
-def parse_runs(logs_dir: str) -> list[dict]:
-    """One dict per run header. Instrument status per the spec's table."""
+def parse_runs(logs_dir: str, concurrent_as_error: bool = False) -> list[dict]:
+    """One dict per run header. Instrument status per the spec's table.
+    concurrent_as_error: the B4 sensitivity handling (week-of-10/17 fix set),
+    every concurrent same-stamp group counted as RUN ERRORED."""
     runs, by_stamp = [], {}
     for path in sorted(glob.glob(os.path.join(logs_dir, "brief_*.log"))):
         cur = None
@@ -84,6 +87,10 @@ def parse_runs(logs_dir: str) -> list[dict]:
     for r in runs:
         try:
             r["inst"] = classify_run(r.pop("lines"), r["concurrent"])
+            if concurrent_as_error and r["concurrent"] > 1:
+                r["inst"] = {i: {"status": "RUN ERRORED", "decision": None,
+                                 "cause": "concurrent group counted as error (B4)"}
+                             for i in INSTRUMENTS}
         except ValueError as e:
             raise ValueError(f"{r['file']} run {r['local']}: {e}") from None
     runs.sort(key=lambda r: r["t"])
@@ -147,8 +154,9 @@ def classify_run(lines: list[str], concurrent: int = 1) -> dict:
         else:
             closed = any(CLOSED_BANNER in ln for ln in b)
             d = decisions[0]
+            prices = sorted({float(m[1]) for m in map(PRICE_RE.match, b) if m})
             out[inst] = {"status": "MARKET CLOSED" if closed else d,
-                         "decision": d, "closed": closed,
+                         "decision": d, "closed": closed, "prices": prices,
                          "not_live_price": any(fl in ln for ln in b for fl in NOT_LIVE_FLAGS)}
     return out
 
