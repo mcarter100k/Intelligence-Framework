@@ -19,6 +19,18 @@ refuses to run inside the project.
 | `decision_channel_followups.py` | `decision_channel_followups_report.md` | Every open-market directional decision; episode count under both concurrent-run handlings |
 | `long_side_diagnosis.py` | `long_side_diagnosis_report.md` | Why all 16 open-market decisions were SHORT: the funnel, plus a mirror test of the decision path |
 
+## GBP/AUD profile series (prior-session; committed 2026-10-18 for citation integrity, not re-verified)
+
+foundation/ cites these about 20 times. They were committed exactly as found, each with a two-line header saying so.
+
+| Script | Report |
+|---|---|
+| `gbpaud_personality_profile.py` | `gbpaud_personality_profile_report.md` |
+| `gbpaud_profile_followup.py` | `gbpaud_profile_followup_report.md` |
+| `gbpaud_scouting_verify.py` | `gbpaud_scouting_verify_report.md` |
+| `gbpaud_secondplay_scouting.py` | `gbpaud_secondplay_scouting_report.md` |
+| `gbpaud_weekly_opportunity.py` | `gbpaud_weekly_opportunity_report.md` |
+
 ## Data and feed
 
 | Script | Report | Question |
