@@ -28,7 +28,11 @@ def build_digest(text: str) -> str:
         for i, (name, start) in enumerate(pairs):
             end = pairs[i + 1][1] if i + 1 < len(pairs) else len(text)
             block = text[start:end]
-            dm = re.search(r"DECISION\s+([A-Z][A-Z ]*?)(?:\s+—|\s*$)",
+            # The decision vocabulary, matched by word: the brief renders
+            # "LONG  ▲ — …" / "SHORT ▼ — …", and the old pattern (wanting "—"
+            # right after the word) digested every directional day as "?".
+            # Anything else stays "?", never a guessed word.
+            dm = re.search(r"^\s*DECISION\s+(LONG|SHORT|STAND ASIDE)\b",
                            block, re.M)
             decisions.append(f"{name} {dm.group(1).strip()}" if dm
                              else f"{name} ?")

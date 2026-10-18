@@ -138,9 +138,18 @@ if [ -n "$CATEGORY" ]; then
     if [ -n "$ALERTS" ]; then
         SUMMARY="$(printf '%s\n' "$ALERTS" | paste -sd '|' - | cut -c1-180)"
     else
-        SUMMARY="$(printf '%s\n' "$OUT_GATED" \
-            | grep -E 'DECISION +(LONG|SHORT)|EARLY_MOMENTUM|THRUST_PULLBACK|MOMENTUM_JOIN' \
-            | sed -E 's/^ *//; s/  +/ /g' | paste -sd '|' - | cut -c1-180)"
+        # Each decision names its pair ("GBP/AUD LONG · GBP/JPY SHORT"): the
+        # old line read "DECISION LONG ▲ — look for buy entries" and never
+        # said which instrument. Shadow lines follow, as before.
+        SUMMARY="$( { printf '%s\n' "$OUT_GATED" | awk '
+                /^ *[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { pair = $1 }
+                /DECISION +(LONG|SHORT)/ {
+                    d = ($0 ~ /DECISION +LONG/) ? "LONG" : "SHORT"
+                    print (pair != "" ? pair " " : "") d }'
+              printf '%s\n' "$OUT_GATED" \
+                | grep -E 'EARLY_MOMENTUM|THRUST_PULLBACK|MOMENTUM_JOIN' \
+                | sed -E 's/^ *//; s/  +/ /g'; } \
+            | paste -sd '|' - | sed 's/|/ · /g' | cut -c1-180)"
     fi
     [ -z "$SUMMARY" ] && SUMMARY="Signal — see $LOG"
     notify "$CATEGORY" "$SUMMARY" "$LOG"

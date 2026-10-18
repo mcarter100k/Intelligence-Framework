@@ -10,6 +10,8 @@ Run: pytest test_daily_digest.py
 import importlib.util
 import os
 
+import pytest
+
 _PROJ = os.path.dirname(os.path.abspath(__file__))
 
 def _load(name):
@@ -72,6 +74,58 @@ def test_digest_long_short_decisions():
     text = _BRIEF.replace("DECISION     STAND ASIDE — conditions not right to trade",
                           "DECISION     LONG", 1)
     assert dd.build_digest(text).startswith("GBP/AUD LONG · GBP/JPY STAND ASIDE")
+
+# ── directional decisions as the brief REALLY renders them (2026-10-18) ──────
+# The test above hand-types "DECISION     LONG". The brief renders
+# "LONG  ▲ — …" / "SHORT ▼ — …", and the parser wanted "—" straight after
+# the word, so every directional morning digested as "?". The fixtures are
+# the real 07:30 digest runs' stdout, copied from the day logs.
+
+_FIX = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_fixtures")
+
+
+def _fixture(name):
+    with open(os.path.join(_FIX, name), encoding="utf-8") as f:
+        return f.read()
+
+
+def test_real_2026_10_12_digest_names_the_gbpjpy_short():
+    line = dd.build_digest(_fixture("brief_2026-10-12_digest_run.txt"))
+    assert line.startswith("GBP/AUD STAND ASIDE · GBP/JPY SHORT — watch: "), line
+
+
+def test_real_2026_10_17_digest_names_the_gbpaud_long():
+    line = dd.build_digest(_fixture("brief_2026-10-17_digest_run.txt"))
+    assert line.startswith("GBP/AUD LONG · GBP/JPY STAND ASIDE — watch: "), line
+
+
+@pytest.mark.parametrize("decision,shown", [
+    ("LONG", "LONG"), ("SHORT", "SHORT"), ("STAND DOWN", "STAND ASIDE")])
+def test_the_renderers_exact_decision_line_is_parsed(decision, shown):
+    """Rendered by the real DecisionBrief.format, so a glyph or spacing
+    change in the brief fails here instead of silently reverting to '?'."""
+    import decision_brief as db
+    trade = decision != "STAND DOWN"
+    text = db.DecisionBrief(
+        instrument="GBP_AUD", timestamp="t", price=1.9189, atr_pips=100.9,
+        decision=decision, reason="r", conviction=45 if trade else 0,
+        grade="B" if trade else "C", size_pct=35 if trade else 0, market_state="m",
+        invalidation="i", regime_log="l", stand_down=not trade, override_fired=False,
+        execution_mode="X", adx_d1=19.0, adx_h4=33.0, weekly_context="W", error=None,
+        entry_line="level 1.9189" if trade else "",
+        target_line="set your own" if trade else "").format()
+    rendered = {"LONG": "DECISION     LONG  ▲ — look for buy entries",
+                "SHORT": "DECISION     SHORT ▼ — look for sell entries",
+                "STAND DOWN": "DECISION     STAND ASIDE — conditions not right to trade"}
+    assert rendered[decision] in text            # the exact string being parsed
+    assert dd.build_digest(text).startswith(f"GBP/AUD {shown}")
+
+
+def test_an_unrecognised_decision_word_still_shows_a_question_mark():
+    text = _BRIEF.replace("DECISION     STAND ASIDE — conditions not right to trade",
+                          "DECISION     MAYBE — who knows", 1)
+    assert dd.build_digest(text).startswith("GBP/AUD ? · GBP/JPY STAND ASIDE")
+
 
 def test_digest_failed_run():
     assert dd.build_digest("... Framework error — do not trade ...") == \
