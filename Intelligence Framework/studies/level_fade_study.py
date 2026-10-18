@@ -10,7 +10,7 @@ extremes, expiring 1.0 ATR beyond), detect touches, then rejection triggers,
 and measure spread-adjusted outcomes over a 30-bar horizon. Controls isolate
 what the trigger, the D1 alignment, and the touch-number contribute.
 """
-import os as _os, sys as _sys  # studies path bootstrap (root + shadow)
+import os as _os, sys as _sys  # studies path bootstrap (project root)
 _ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
 for _p in (_ROOT, _os.path.join(_ROOT, "shadow")):
     if _p not in _sys.path:
