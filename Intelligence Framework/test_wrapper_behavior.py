@@ -256,7 +256,7 @@ def test_g2_an_open_market_decision_still_notifies(tmp_path):
     proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
     _run(tmp_path, proj, "scheduled_brief.sh")
     notes = _notes(tmp_path)
-    assert 'subtitle "DECISION"' in notes and "DECISION LONG" in notes
+    assert 'subtitle "DECISION"' in notes and "GBP/AUD LONG" in notes
     assert "suppressed" not in _log(proj, "brief")
 
 
@@ -266,7 +266,7 @@ def test_g3_the_gate_is_per_instrument_and_keeps_closed_lines_out_of_the_summary
     _run(tmp_path, proj, "scheduled_brief.sh")
     notes = _notes(tmp_path)
     assert 'subtitle "DECISION"' in notes
-    assert "DECISION SHORT" in notes and "DECISION LONG" not in notes
+    assert "GBP/JPY SHORT" in notes and "LONG" not in notes.split("→")[0]
 
 
 def test_g4_a_flip_alert_still_fires_when_closed(tmp_path):
@@ -295,7 +295,7 @@ def test_g6_a_shadow_signal_still_fires_when_closed_without_the_decision(tmp_pat
     _run(tmp_path, proj, "scheduled_brief.sh")
     notes = _notes(tmp_path)
     assert 'subtitle "SHADOW"' in notes and "MOMENTUM_JOIN" in notes
-    assert "DECISION LONG" not in notes
+    assert "GBP/AUD LONG" not in notes and "DECISION LONG" not in notes
 
 
 def test_g7_the_heartbeat_still_fires_after_a_closed_market_brief(tmp_path):
@@ -313,6 +313,31 @@ def test_g8_the_digest_still_fires_when_closed(tmp_path):
     _run(tmp_path, proj, "scheduled_brief.sh", "digest")
     notes = _notes(tmp_path)
     assert 'subtitle "DIGEST"' in notes and 'subtitle "DECISION"' not in notes
+
+
+def test_g10_a_decision_notification_names_its_pair(tmp_path):
+    """The summary said a decision was issued but not for which pair."""
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, _rendered("GBP_JPY", "SHORT", _WED)))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    msg = _notes(tmp_path).split('display notification "', 1)[1].split(" → ")[0]
+    assert msg == "GBP/JPY SHORT", msg
+
+
+def test_g11_decisions_on_both_pairs_name_both(tmp_path):
+    text = _rendered("GBP_AUD", "LONG", _WED) + _rendered("GBP_JPY", "SHORT", _WED)
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    msg = _notes(tmp_path).split('display notification "', 1)[1].split(" → ")[0]
+    assert msg == "GBP/AUD LONG · GBP/JPY SHORT", msg
+
+
+def test_g12_shadow_lines_still_follow_the_named_decisions(tmp_path):
+    text = (_rendered("GBP_JPY", "SHORT", _WED)
+            + "\nSHADOW SIGNALS\n  MOMENTUM_JOIN   SHORT   fired\n")
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    msg = _notes(tmp_path).split('display notification "', 1)[1].split(" → ")[0]
+    assert msg == "GBP/JPY SHORT · MOMENTUM_JOIN SHORT fired", msg
 
 
 def test_g9_the_wrapper_marker_is_the_producers_banner():

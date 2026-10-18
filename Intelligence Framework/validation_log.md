@@ -1520,6 +1520,15 @@ evidence (log line / ledger row / notification) is cited here.
       and sends no DECISION notification. A later open-market directional
       run must still notify. Proven so far on replayed real text and one
       live brief, not on a scheduled run.
+- [ ] **Scheduled heartbeat reports expected vs on-time runs** (added
+      2026-10-18) — the Sunday 12:30 PM launchd heartbeat writes the
+      `runs (last 7d, launchd schedule): …` line, and a real gap raises
+      `runs: SHORTFALL`. Proven on real logs replayed at past dates and on
+      a scratch copy, not yet on a scheduled run.
+- [ ] **First row in notification_log.csv from a scheduled run** (added
+      2026-10-18) — blocked on team review of
+      docs/specs/notification_ledger_spec.md (branch
+      feat/notification-review, unmerged).
 - [x] **First shadow grading** — run_outcome_check grades the first shadow
       ledger rows when their 30-bar horizons elapse (~2026-08-05 for the
       2026-07-29 EARLY_MOMENTUM fires).
@@ -3800,3 +3809,88 @@ This needs its own spec.
   - This log's 2026-06-28 note records synthetic data injected that day.
   - The row predates the first day log (2026-07-29), so no brief run produced it, and it carries round values: price 1.91, ATR 95.0.
 - **Observed.** `excluder("trade_signal_log.csv")` on the real row returned False before the append and True after. A tally through `filter_rows` keeps 12 of 13 rows. The registry diff is 1 line added, 0 removed.
+
+## 2026-10-18 — The notification channel was never tested for whether it should reach the owner; week-of-10/17 fix set
+
+**Defect class.** The suite had 820 tests, and every one asked whether a DECISION was correct. None asked whether a notification should reach the owner's phone: market status, an unchanged state, actionability. That was true for the framework's entire life. It is why 6 closed-market DECISION notifications went out in the week of 10/11 and no test caught it. The owner found it by reading his own week's notifications on a Saturday. Proposed rule 12 (AGENTS.md, team review) makes this a merge condition.
+
+### Merged to main (free zone; suite green on a Saturday clock at each merge)
+- **A1 `88a5046`: weekend-proof data-at-source tests.** The 4 tests that read the real clock now get an open-market time through `_market_status(_now=…)`, as test_v8 already did. No assertion changed.
+  - Before, on the real Saturday clock (02:54Z): 4 failed, 33 passed.
+  - After: 37 passed on the real Saturday clock, and 37 passed with the clock pinned to a Wednesday.
+  - Live checkout after the merge: 815 passed.
+- **A2 `6fa0326`: Phase 0 merged alone (9283552).** Live checkout: 824 passed.
+- **C1 `3415303`: the heartbeat reports EXPECTED vs ON-TIME runs** (`scripts/run_count.py`). Expected slots come from the installed launchd plists, in the system zone.
+  - **The first version (a plain run count) failed on real data.** launchd's three catch-up runs at wake (09-14 09:16) repaid the slots slept through, so the 09-12 → 09-14 gap read 21/21 at the 09-20 heartbeat. Slots are now met only by a run within 60 min after them, one run per slot. The 60 min is an operational threshold taken from the measured lateness of 246 runs: 223 within 15 min, 16 at 60+ min.
+  - On the real logs, replayed at each Sunday:
+
+    | Heartbeat | Brief slots on time / expected |
+    |---|---|
+    | 09-14 (the late heartbeat) | 14/21 |
+    | 09-20 | 18/21 |
+    | 10-11 | 15/21 |
+    | 09-27, 10-04, 10-18 | 21/21 (no false alarm) |
+
+  - Scratch copy with 2 days of logs removed: NEEDS ATTENTION | SHORTFALL. Mutants: 8/8 killed.
+- **C2 `1e399d2`: reality_run detects a failure, not a mention of one.** Failures are now anchored line shapes: the brief's error REASON line, `GRADER EARLY EXIT — ` at line start, and a column-0 Traceback on stderr. The bare "not configured" marker was dropped.
+  - Before: a report quoting the outage text exited 3.
+  - After, on real runs: the inventory study (4 quoted error lines) exits 0; a real brief with `--no-env` (genuine error page) exits 3.
+  - Mutants: 6/6 killed.
+- **Phase B `6bd6c37`.**
+  - **B1:** replay harness committed as `studies/decision_gate_replay.py`. It reproduces 12 → 6 and 28 → 16.
+  - **B2:** the 2026-06-28 row was excluded (entry above).
+  - **B3:** `studies/decision_channel_followups_report.md` lists the 16 open-market directional decisions. All are SHORT: 3 GBP/AUD on 09-10/09-11, 13 GBP/JPY. Rows 1–7 predate the live-price merge `6471072` (2026-09-30T08:54Z), so the price those briefs printed was the previous daily close.
+  - **B4:** see the finding below.
+
+### Findings recorded, not fixed
+- **B4: the post-hoc concurrent-run rule changed the gradeable count, not the episode count.** There are 5 independent episodes under either handling. The gradeable bound is 3 with merged-if-agreeing and 2 with counted-as-error (GBP/JPY's 09-11 episode becomes NEVER ACTIONABLE). The stop decision (< 10) is unaffected.
+- **Measurement A spec gap.** The spec's PRICE NOT OBSERVED rule keys on the brief's not-live flag, which did not exist before `6471072`. So pre-09-30 briefs printed a stale close with no flag, and 3 of the 3 "eligible" episodes predate it. The spec is frozen, so any run of Measurement A needs a v2 that treats pre-`6471072` prices as not observed.
+- **The 07:30 DIGEST renders every directional decision as "?".** `daily_digest.py` expects "—" right after the word, but directional lines read `LONG  ▲ —` / `SHORT ▼ —`.
+  - Observed on the real 10/12 run (`GBP/JPY ?`) and tonight's run (`GBP/AUD ?`).
+  - 8 morning runs in the record carried a directional decision.
+  - This is a notification-content defect of exactly the class above; it needs its own fix.
+- **The DECISION notification text does not name the pair** (`DECISION LONG ▲ — look for buy entries`).
+- **The conftest evidence guard worked as a positive control.** When the notification ledger was wired, `test_notify_helper.py` (which pointed PROJ at the repo root) wrote rows into the worktree's project root. The session failed with "TEST RUN CHANGED REAL EVIDENCE FILES". The live project was untouched, and the test now runs in a temp project.
+
+### Held for team review (branch `feat/notification-review`, not merged)
+- **D3:** `docs/specs/notification_ledger_spec.md` plus the build. Mutants: 8/8 killed. Gate 2: real brief text through the real wrappers gave 3 notifications sent and 3 rows; the closed-market DECISION gave no row; an error page records ERROR.
+- **D1:** AGENTS.md rule 12. The task called it "rule 11", but rule 11 already exists, so it is numbered 12.
+- **D2:** a trader_review §4 step recording MATERIAL / TOTAL. It depends on D3.
+
+## 2026-10-18 — I8 live-path confirmation: three GBP/AUD rows printed the previous daily close (note only; I8 not fixed)
+
+- **The rows.** The three GBP/AUD SHORT runs on 2026-09-10 18:04, 09-11 02:38 and 09-11 07:32 PDT (01:04Z, 09:38Z, 14:32Z) all printed 1.8879.
+- **Source of the price.** That is the close of the OANDA D1 bar that opened 2026-09-09T21:00Z (1.88794).
+- **The real price.** It was 1.8866, 1.8842 and 1.8861 (H1 closes of the hours containing each run). The printed price lay outside each hour's traded range (highs 1.88737, 1.88525, 1.88639).
+- **What this adds.** Next to I8's three GBP/JPY rows of 2026-09-25 (209.984), this is the same defect on a second pair, observed on the live path.
+- **Premise note for whoever weighs I8.** The data-at-source merge `6471072` (2026-09-30) made the displayed price OANDA's live mid, and later briefs print varying prices (studies/decision_channel_followups_report.md rows 8–16). So I8's stale-price consequence appears closed since 09-30; its "`_split_live_bar` vestigial" part was not examined here.
+
+## 2026-10-18 — Long-side diagnosis: no mechanical directional defect; the long side was lost at the daily classification (studies/long_side_diagnosis_report.md)
+
+- **Finding that prompted it.** All 16 open-market directional decisions in 81 days were SHORT.
+- **Funnel (3B).** Over 179 market-open classifications (registry applied at use), daily TRENDING_UP occurred **0 times on either pair**, against 14 TRENDING_DOWN on GBP/AUD and 22 on GBP/JPY.
+  - When daily structure confirmed UPTREND (21 GBP/AUD rows, 9 GBP/JPY rows), daily ADX was below the 25 that TRENDING_UP needs in 20 of 21 and 9 of 9.
+  - From 2026-09-25, GBP/AUD's daily ADX with UPTREND structure never exceeded 19.3.
+  - The day logs agree: "Daily chart: trending up" never appears in any open-market run.
+- **Symmetry (3A).** The full path was read, and three asymmetries were found; none changes a decision:
+  1. The weekly label table, `regime_detection.py:607-614`. It has a display effect: "strong downtrend on all timeframes" is shown while the 4-week trend is flat.
+  2. A latent tie in the structure slope fallback, `:398`.
+  3. An unused moving-average tie, `:650-651`.
+- **Mirror test on real bars.** Bars reflected about their mean through the real `get_regime` and official decision gave 0 direction mismatches in 600 as-of points.
+  - A planted one-sided rule was detected by the same test (3 and 8 direction mismatches). It was reverted, and the project hash was unchanged throughout.
+  - On ~3 years of real bars the same code gives 16 LONG / 5 SHORT (GBP/AUD) and 18 / 3 (GBP/JPY) at sampled points.
+- **Verdict.** A window artifact. The window held falls with daily ADX ≥ 25 and confirmed structure, and a slow rally that never reached that bar. It is not a code defect.
+- **Hypothesis recorded, not tested.** A symmetric ADX gate may pass fewer grinding rallies than sharp falls.
+
+## 2026-10-18 — Notification content: the digest names directional decisions; DECISION notifications name the pair (merged 3b00341)
+
+- **`daily_digest.py` (`4f6e046`).**
+  - Before: on the real 10/12 and 10/17 07:30 runs it printed "GBP/JPY ?" and "GBP/AUD ?".
+  - After: "GBP/JPY SHORT" and "GBP/AUD LONG".
+  - Over every real 07:xx run: 8 of 8 directional mornings showed "?" before the fix and 0 after; the 60 other digests are unchanged.
+  - Pinned on the real fixtures and on the exact lines `DecisionBrief.format` renders. A glyph mutant (▲ → △, reverted) fails the pin.
+- **`scheduled_brief.sh` (`122bb87`).**
+  - The summary now reads "GBP/AUD LONG", or "GBP/AUD LONG · GBP/JPY SHORT" when both pairs carry a decision.
+  - The new tests g10–g12 failed on the old format. Mutants killed: pair dropped, pair set once, ungated source.
+  - On the real 10/12 run the notification reads "GBP/JPY SHORT · …"; the two real closed-market LONG briefs send nothing.
+- **Still open, not fixed.** The shadow line appended to a DECISION summary is a truncated fragment that does not name its pair ("EARLY_MOMENTUM_v2 candidate: LONG entered at").
