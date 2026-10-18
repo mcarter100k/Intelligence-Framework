@@ -395,7 +395,7 @@ def test_d3_a_sent_decision_writes_one_row_with_pairs_and_state(tmp_path):
     r = rows[0]
     assert r["category"] == "DECISION" and r["pairs"] == "GBP_AUD GBP_JPY"
     assert r["decision_state"] == "GBP_AUD=LONG/open;GBP_JPY=STAND ASIDE/open"
-    assert r["summary"].startswith("DECISION LONG") and "→ logs/brief_" in r["summary"]
+    assert r["summary"].startswith("GBP/AUD LONG → logs/brief_"), r["summary"]   # pair-named summary (122bb87)
     t = datetime.strptime(r["timestamp_utc"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
     assert abs(datetime.now(timezone.utc) - t) < timedelta(minutes=5)
 
