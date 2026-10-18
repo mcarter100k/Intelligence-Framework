@@ -931,19 +931,15 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if current_adx == 0.0 and n < _ADX_PERIOD * 2:
         return _error_result("Insufficient data for ADX calculation")
 
-    # ── Volatility level ──────────────────────────────────────────────────────
+    # ── Volatility level (daily ATR as a % of price) ──────────────────────────
     if atr_pct > 0.8:
         volatility = "EXTREME"
-        vol_note   = "Extremely wide daily ranges — significant risk, size down"
     elif atr_pct > 0.5:
         volatility = "HIGH"
-        vol_note   = "Above-average volatility — widen your stops"
     elif atr_pct > 0.25:
         volatility = "NORMAL"
-        vol_note   = "Normal volatility for GBP/AUD"
     else:
         volatility = "LOW"
-        vol_note   = "Quiet market — moves may be small and slow"
 
     # ── Structure detection (replaces slope) ──────────────────────────────────
     structure_data = _detect_structure(highs, lows, closes)
@@ -1070,101 +1066,6 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     price_vs_ma50  = _mac["price_vs_ma50"]
     price_vs_ma200 = _mac["price_vs_ma200"]
 
-    is_exhaustion = (
-        current_adx >= _ADX_EXHAUSTION_THRESHOLD or
-        (pair.instrument == "GBP_JPY" and current_adx >= _ADX_JPY_EXHAUSTION)
-    )
-
-    if regime == "TRENDING_UP":
-        if is_exhaustion:
-            regime_label  = "Late uptrend — ADX in exhaustion zone, size down"
-            trade_guidance = (
-                f"Uptrend is in late stage (ADX {current_adx}). "
-                "Mean reversion probability is elevated. "
-                "Do not chase — wait for a pullback or sit out. "
-                "If holding a long, consider reducing position."
-            )
-        else:
-            regime_label  = "Uptrend in progress — HTF structure confirmation required"
-            trade_guidance = (
-                "Market trending UP. ADX 25-32 shows momentum but degrades fast. "
-                "Wait for pullbacks to key support. "
-                "Require higher timeframe structure confirmation before entering. "
-                "Do not fight the trend with short trades."
-            )
-    elif regime == "TRENDING_DOWN":
-        if is_exhaustion:
-            regime_label  = "Late downtrend — ADX in exhaustion zone, size down"
-            trade_guidance = (
-                f"Downtrend is in late stage (ADX {current_adx}). "
-                "Mean reversion probability is elevated. "
-                "Do not chase — wait for a rally or sit out. "
-                "If holding a short, consider reducing position."
-            )
-        else:
-            regime_label  = "Downtrend in progress — HTF structure confirmation required"
-            trade_guidance = (
-                "Market trending DOWN. ADX 25-32 shows momentum but degrades fast. "
-                "Wait for rallies to key resistance. "
-                "Require higher timeframe structure confirmation before entering. "
-                "Do not fight the trend with long trades."
-            )
-    elif regime == "VOLATILE":
-        regime_label  = "Transition zone — no statistical edge (ADX 18-25)"
-        trade_guidance = (
-            f"ADX {current_adx} is in the transition zone (18-25). "
-            "No consistent momentum or mean-reversion edge. "
-            "Wait for structural confirmation before entering. "
-            "Size down significantly if you trade."
-        )
-    else:  # RANGING
-        if is_exhaustion:
-            regime_label  = "Trend exhausted — mean reversion elevated"
-            trade_guidance = (
-                f"ADX {current_adx} — trend has exhausted. "
-                "Mean reversion probability very high. "
-                "Fade extended moves from structural extremes. "
-                "Do not enter trend trades at this ADX level."
-            )
-        elif atr_ratio > pair.atr_spike_multiplier:
-            regime_label  = "Choppy and volatile — no clear direction"
-            trade_guidance = (
-                "Market volatile with no clear trend. "
-                "Reduce position size — moves are unpredictable. "
-                "Use tight stops and take profit quickly if you trade at all. "
-                "This is the hardest regime — consider waiting for a clearer setup."
-            )
-        else:
-            regime_label  = "Ranging market — mean reversion dominant"
-            trade_guidance = (
-                f"Market has no strong trend (ADX {current_adx}). "
-                "Best strategy: trade only from the edges of the range. "
-                "Buy near range lows, sell near range highs. "
-                "Take profit quickly — do not hold for large moves. "
-                "Avoid entering in the middle of the range."
-            )
-
-    # ── Daily fuel calculation ────────────────────────────────────────────────
-    # Use live bar's H/L for fuel; fall back to last closed bar on weekends.
-    if live_bar_d1 is not None:
-        today_high = float(live_bar_d1["High"])
-        today_low  = float(live_bar_d1["Low"])
-    else:
-        today_high = highs[-1]
-        today_low  = lows[-1]
-    range_used   = round((today_high - today_low) / pair.pip_size)
-    range_remain = round(max(0, atr_pips - range_used))
-    fuel_pct     = min(100, round(range_used / atr_pips * 100)) if atr_pips > 0 else 0
-
-    if fuel_pct < 25:
-        fuel_label = "FULL TANK  -  day is young, plenty of range left"
-    elif fuel_pct < 50:
-        fuel_label = "HALF TANK  -  good range remaining"
-    elif fuel_pct < 75:
-        fuel_label = "RUNNING LOW  -  limited range left today"
-    else:
-        fuel_label = "NEAR EMPTY  -  most of today's range already used"
-
     # ── Pre-compute fields needed by no_trade_filter before return ───────────
     _atr_compression = (
         pair.atr_compression_min > 0 and
@@ -1204,7 +1105,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     # (decision_logic_spec D4), so it gets every input that decision reads —
     # formerly adx, confidence, instrument, the subtypes and range_position
     # were missing here and only reached the official path afterwards.
-    from no_trade_filter import apply_filter as _apply_filter, get_filter_summary as _get_filter_summary
+    from no_trade_filter import apply_filter as _apply_filter
     _fr = _apply_filter({
         "instrument":           pair.instrument,
         "adx":                  current_adx,
@@ -1230,34 +1131,22 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "resolution_note":      resolution_note,
         "news_gate":            _news_gate,
     })
-    _fr_summary       = _get_filter_summary(_fr)
     stand_down        = not _fr.allowed
     stand_down_reason = _fr.reason if not _fr.allowed else ""
 
     return {
         "regime":          regime,
-        "range_high":      round(_rng_hi, 4),
-        "range_low":       round(_rng_lo, 4),
         "range_position":  round(_rng_pos, 3),
-        "regime_label":    regime_label,
         "adx":             current_adx,
         "atr":             round(current_atr, 5),
         "atr_pips":        atr_pips,
         "atr_pct":         atr_pct,
         "atr_vs_avg":      atr_ratio,
         "volatility":      volatility,
-        "vol_note":        vol_note,
-        "trade_guidance":  trade_guidance,
         "current_price":   round(current_price, 4),
         "weekly_available": weekly_available,
         "price_basis":     price_basis,
         "last_close":      round(last_close, 5),
-        "today_high":      round(today_high, 4),
-        "today_low":       round(today_low, 4),
-        "range_used":      range_used,
-        "range_remaining": range_remain,
-        "fuel_pct":        fuel_pct,
-        "fuel_label":      fuel_label,
         "pair":            pair.display_name,
         "instrument":      pair.instrument,
         # ── Multi-timeframe (D1 + H4) ─────────────────────────────────────────
@@ -1314,15 +1203,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "pivot_count_high": structure_data["pivot_count_high"],
         "pivot_count_low":  structure_data["pivot_count_low"],
         "adx_exhaustion": _adx_exhaustion,
-        "adx_exhaustion_note": (
-            f"ADX {current_adx} — late trend warning. "
-            f"Mean reversion probability elevated. Size down, do not chase."
-            if _adx_exhaustion else ""
-        ),
         "atr_compression":      _atr_compression,
         "atr_compression_note": _atr_compression_note,
         "atr_spike_multiplier": pair.atr_spike_multiplier,
-        "atr_compression_min":  pair.atr_compression_min,
         # ── No-trade filter (Problem 8) ───────────────────────────────────────
         "filter_allowed":      _fr.allowed,
         "news_gate":           _news_gate,
@@ -1331,8 +1214,6 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "filter_reason":       _fr.reason,
         "filter_block":        _fr.block,
         "override_fired":      _fr.override_fired,
-        "override_conditions": _fr.override_conditions,
-        "filter_summary":      _fr_summary,
         "logic_version":       _logic_version(),
         # ── Bar freshness (audit item 4) ──────────────────────────────────────
         "last_closed_bar_age_hours": round(live_bar_age_d1, 1),
@@ -1347,25 +1228,16 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
 def _error_result(msg: str) -> Dict:
     return {
         "regime":         "UNKNOWN",
-        "regime_label":   "Could not determine regime",
         "adx":            0.0,
         "atr":            0.0,
         "atr_pips":       0.0,
         "atr_pct":        0.0,
         "atr_vs_avg":     1.0,
         "volatility":     "UNKNOWN",
-        "vol_note":       msg,
-        "trade_guidance": "Regime data unavailable — proceed with caution.",
         "current_price":  None,
         "price_basis":    "",
         "weekly_available": False,
         "error":          msg,
-        "today_high":     None,
-        "today_low":      None,
-        "range_used":     None,
-        "range_remaining":None,
-        "fuel_pct":       None,
-        "fuel_label":          "unavailable",
         "pair":                "",
         "instrument":          "UNKNOWN",
         "regime_d1":           "UNKNOWN",
@@ -1381,19 +1253,15 @@ def _error_result(msg: str) -> Dict:
         "signal_bias":         "NONE",
         "resolution_note":     "",
         "adx_exhaustion":      False,
-        "adx_exhaustion_note": "",
         "atr_compression":     False,
         "atr_compression_note": "",
         "atr_spike_multiplier": 1.5,
-        "atr_compression_min": 0.0,
         "filter_allowed":      False,
         "filter_mode":         "STAND_DOWN",
         "filter_size_mult":    0.0,
         "filter_reason":       "",
         "filter_block":        "",
         "override_fired":      False,
-        "override_conditions": "",
-        "filter_summary":      "",
         "logic_version":       _logic_version(),
         "structure":           "TRANSITIONAL",
         "confirmed_highs":     [],
@@ -1427,9 +1295,9 @@ if __name__ == "__main__":
     if data["error"]:
         print(f"Error: {data['error']}")
     else:
-        print(f"Regime      : {data['regime_label']}")
-        print(f"ADX         : {data['adx']}  (>25 trending | 20-25 developing | <20 ranging)")
+        print(f"Regime      : {data['regime']}  (daily {data['regime_d1']}, 4-hour {data['regime_h4']})")
+        print(f"ADX         : {data['adx']}  (<18 sideways | 18-25 no edge | 25+ trend if structure agrees)")
         print(f"ATR         : {data['atr_pips']} pips  ({data['atr_pct']}% of price)")
-        print(f"ATR vs avg  : {data['atr_vs_avg']}x  (>1.3 = expanding volatility)")
-        print(f"Volatility  : {data['volatility']}  — {data['vol_note']}")
-        print(f"\nGuidance: {data['trade_guidance']}")
+        print(f"ATR vs avg  : {data['atr_vs_avg']}x  (spike threshold {data['atr_spike_multiplier']}x)")
+        print(f"Volatility  : {data['volatility']}")
+        print(f"Stand aside : {data['stand_down']}  {data['stand_down_reason']}")

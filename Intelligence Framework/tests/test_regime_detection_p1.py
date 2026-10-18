@@ -150,16 +150,17 @@ def test_default_pair():
 # SECTION 3 — get_regime() output contract (mocked OHLC, no live API)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Schema contract (outside the T34-T41 floor). 2026-10-18: the keys nothing
+# read were removed (regime_label, trade_guidance, vol_note, the fuel/range
+# block, adx_exhaustion_note); docs/specs/code_hygiene_spec.md B2.
 REQUIRED_KEYS = {
-    "regime": str, "regime_label": str, "regime_d1": str, "regime_h4": str,
+    "regime": str, "regime_d1": str, "regime_h4": str,
     "timeframe_conflict": bool, "conflict_type": str, "stand_down": bool,
-    "stand_down_reason": str, "trade_guidance": str, "adx": float,
+    "stand_down_reason": str, "adx": float,
     "adx_h4": float, "atr": float, "atr_pips": float, "atr_pct": float,
-    "atr_vs_avg": float, "volatility": str, "vol_note": str,
-    "current_price": float, "today_high": float, "today_low": float,
-    "range_used": (int, float), "range_remaining": (int, float),
-    "fuel_pct": (int, float), "fuel_label": str, "pair": str,
-    "instrument": str, "adx_exhaustion": bool, "adx_exhaustion_note": str,
+    "atr_vs_avg": float, "volatility": str,
+    "current_price": float, "pair": str,
+    "instrument": str, "adx_exhaustion": bool,
     "error": type(None),
 }
 

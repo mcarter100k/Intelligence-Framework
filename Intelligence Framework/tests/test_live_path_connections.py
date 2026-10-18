@@ -365,13 +365,13 @@ def test_every_allowlist_entry_carries_a_reason():
 def test_alias_resolution_is_live_not_orphan():
     """REGRESSION PIN — false positive #1 from the Step 2 pass.
 
-    regime_detection.py:1104 imports apply_filter and get_filter_summary
-    under aliases. A call-only, alias-blind scan reports both as dead —
-    and apply_filter is one of the two suite floors.
+    regime_detection imports apply_filter under an alias. A call-only,
+    alias-blind scan reports it as dead, and apply_filter is one of the two
+    suite floors. (get_filter_summary, once pinned here too, was removed
+    2026-10-18: its only output was a key nothing read.)
     """
     referenced = _referenced_names(_live_corpus())
     assert "apply_filter" in referenced
-    assert "get_filter_summary" in referenced
 
 
 def test_indirect_dispatch_is_live_not_orphan():
