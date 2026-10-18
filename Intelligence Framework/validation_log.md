@@ -3856,3 +3856,41 @@ This needs its own spec.
 - **D3:** `docs/specs/notification_ledger_spec.md` plus the build. Mutants: 8/8 killed. Gate 2: real brief text through the real wrappers gave 3 notifications sent and 3 rows; the closed-market DECISION gave no row; an error page records ERROR.
 - **D1:** AGENTS.md rule 12. The task called it "rule 11", but rule 11 already exists, so it is numbered 12.
 - **D2:** a trader_review §4 step recording MATERIAL / TOTAL. It depends on D3.
+
+## 2026-10-18 — I8 live-path confirmation: three GBP/AUD rows printed the previous daily close (note only; I8 not fixed)
+
+- **The rows.** The three GBP/AUD SHORT runs on 2026-09-10 18:04, 09-11 02:38 and 09-11 07:32 PDT (01:04Z, 09:38Z, 14:32Z) all printed 1.8879.
+- **Source of the price.** That is the close of the OANDA D1 bar that opened 2026-09-09T21:00Z (1.88794).
+- **The real price.** It was 1.8866, 1.8842 and 1.8861 (H1 closes of the hours containing each run). The printed price lay outside each hour's traded range (highs 1.88737, 1.88525, 1.88639).
+- **What this adds.** Next to I8's three GBP/JPY rows of 2026-09-25 (209.984), this is the same defect on a second pair, observed on the live path.
+- **Premise note for whoever weighs I8.** The data-at-source merge `6471072` (2026-09-30) made the displayed price OANDA's live mid, and later briefs print varying prices (studies/decision_channel_followups_report.md rows 8–16). So I8's stale-price consequence appears closed since 09-30; its "`_split_live_bar` vestigial" part was not examined here.
+
+## 2026-10-18 — Long-side diagnosis: no mechanical directional defect; the long side was lost at the daily classification (studies/long_side_diagnosis_report.md)
+
+- **Finding that prompted it.** All 16 open-market directional decisions in 81 days were SHORT.
+- **Funnel (3B).** Over 179 market-open classifications (registry applied at use), daily TRENDING_UP occurred **0 times on either pair**, against 14 TRENDING_DOWN on GBP/AUD and 22 on GBP/JPY.
+  - When daily structure confirmed UPTREND (21 GBP/AUD rows, 9 GBP/JPY rows), daily ADX was below the 25 that TRENDING_UP needs in 20 of 21 and 9 of 9.
+  - From 2026-09-25, GBP/AUD's daily ADX with UPTREND structure never exceeded 19.3.
+  - The day logs agree: "Daily chart: trending up" never appears in any open-market run.
+- **Symmetry (3A).** The full path was read, and three asymmetries were found; none changes a decision:
+  1. The weekly label table, `regime_detection.py:607-614`. It has a display effect: "strong downtrend on all timeframes" is shown while the 4-week trend is flat.
+  2. A latent tie in the structure slope fallback, `:398`.
+  3. An unused moving-average tie, `:650-651`.
+- **Mirror test on real bars.** Bars reflected about their mean through the real `get_regime` and official decision gave 0 direction mismatches in 600 as-of points.
+  - A planted one-sided rule was detected by the same test (3 and 8 direction mismatches). It was reverted, and the project hash was unchanged throughout.
+  - On ~3 years of real bars the same code gives 16 LONG / 5 SHORT (GBP/AUD) and 18 / 3 (GBP/JPY) at sampled points.
+- **Verdict.** A window artifact. The window held falls with daily ADX ≥ 25 and confirmed structure, and a slow rally that never reached that bar. It is not a code defect.
+- **Hypothesis recorded, not tested.** A symmetric ADX gate may pass fewer grinding rallies than sharp falls.
+
+## 2026-10-18 — Notification content: the digest names directional decisions; DECISION notifications name the pair (merged 3b00341)
+
+- **`daily_digest.py` (`4f6e046`).**
+  - Before: on the real 10/12 and 10/17 07:30 runs it printed "GBP/JPY ?" and "GBP/AUD ?".
+  - After: "GBP/JPY SHORT" and "GBP/AUD LONG".
+  - Over every real 07:xx run: 8 of 8 directional mornings showed "?" before the fix and 0 after; the 60 other digests are unchanged.
+  - Pinned on the real fixtures and on the exact lines `DecisionBrief.format` renders. A glyph mutant (▲ → △, reverted) fails the pin.
+- **`scheduled_brief.sh` (`122bb87`).**
+  - The summary now reads "GBP/AUD LONG", or "GBP/AUD LONG · GBP/JPY SHORT" when both pairs carry a decision.
+  - The new tests g10–g12 failed on the old format. Mutants killed: pair dropped, pair set once, ungated source.
+  - On the real 10/12 run the notification reads "GBP/JPY SHORT · …"; the two real closed-market LONG briefs send nothing.
+- **Still open, not fixed.** The shadow line appended to a DECISION summary is a truncated fragment that does not name its pair ("EARLY_MOMENTUM_v2 candidate: LONG entered at").
