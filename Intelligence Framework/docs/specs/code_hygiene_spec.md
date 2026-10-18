@@ -103,3 +103,13 @@ pairs unchanged).
 - **Episode counting.** `shadow_signals.episode_count` counts clock hours and ungraded rows (audit item 3). Fixing it is a methodology correction with its own spec.
 - **`trade_management.py`.** The protected `setup_check` imports it, so it is on the execution boundary: protect it, or record why not.
 - **`oanda_feed.get_live_price`'s silent paths.** Its no-quote path records no reason, and its closeout path keeps a stale error. Fixing them is a small behaviour change.
+
+## D. Team review (2026-10-18)
+
+- **A (comments): approved and merged.** The AST-equality proof was accepted as sufficient.
+- **B (code removals): approved in substance, held until after Sunday 2026-10-18's 18:00 PDT run.** The Gate 3 window must not have an ambiguous cause. It merges Monday without further work. The `_split_live_bar` removal merges as **its own commit closing incident I8**, with a dated validation_log entry and the incident_catalogue row closed, so the reason it went away stays on record.
+- **Renames: DEFERRED, not rejected.** `trade_signal_ledger` does describe it better. But methodology.md, incident_catalogue.md and validation_log.md cite these modules by name and line, and those files already warn that citations drift. A rename would break the evidence trail for a cosmetic gain. The proposed names stay in section C. Revisit when something else forces a rewrite of those reference files.
+- **Circuit breaker: CLOSED (answered, not pending).** Keep, do not wire, and make it a gate. The rules are sound, and they are the only risk-of-ruin control in the project. With zero real trades there is nothing to protect yet, and wiring is a protected-path change. AGENTS.md now says: before the first real-money trade, `session_guard.py` and `risk_config.py` must be wired to the live path and exercised; until then the risk limits are unenforced and are never described as active.
+- **`reality_run --code` news-calendar gap: queued for after Sunday.** Verification tooling does not change right before a verification window (validation_log 2026-10-18).
+- Still open from section C: the pip-size helper, the episode-count methodology, `trade_management.py`'s protection, and `get_live_price`'s silent paths.
+
