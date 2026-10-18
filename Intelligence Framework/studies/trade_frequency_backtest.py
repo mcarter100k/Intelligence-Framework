@@ -10,9 +10,9 @@ per iteration, no logic re-implemented.
 Usage: python scripts/trade_frequency_backtest.py
 """
 
-import os as _os, sys as _sys  # studies path bootstrap (root + shadow)
+import os as _os, sys as _sys  # studies path bootstrap (project root)
 _ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
-for _p in (_ROOT, _os.path.join(_ROOT, 'shadow')):
+for _p in (_ROOT,):
     if _p not in _sys.path:
         _sys.path.insert(0, _p)
 import os
