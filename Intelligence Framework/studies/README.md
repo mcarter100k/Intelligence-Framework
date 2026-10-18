@@ -1,22 +1,54 @@
-# studies/ — research & methodology record
+# studies/: the research and methodology record
 
-Methodology record cited by `validation_log.md`. **Never delete — reproducibility.**
+Standalone research scripts and their reports. They are run by hand, are
+never imported by the live code, and are **never deleted**: validation_log.md
+and foundation/ cite them by file name. Each one adds the project root to
+`sys.path` so it can import the live modules read-only.
 
-These are standalone research scripts (run by hand, not imported by the live
-system). They document how the framework's premises were tested — including the
-three refuted at honest N (compression, fakeout-then-go, structural precursor)
-and the ADX head-to-head. Each adds the project root (and `shadow/`) to
-`sys.path` at startup so it can import the core modules from here.
+Any study that calls OANDA or runs the real brief must run through
+`scripts/reality_run.py script studies/<name>.py`. That runs it in a temp
+directory and fails if the project changed. `historical_scenario_replay.py`
+refuses to run inside the project.
 
-Contents:
-- `precursor_study.py` — reverse-methodology precursor analysis (the negative result)
-- `structure_engine_study.py` — v2 box/breakout detector sweep + acid test
-- `structure_primary_headtohead.py` — ADX-primary vs structure-primary P&L
-- `trade_frequency_backtest.py` — signal-frequency backtest
-- `validate_thresholds_v2.py` — non-overlapping-window threshold re-validation (current)
-- `validate_h4_thresholds.py`, `validate_confluence_weights.py` — further validators
-- `hypothesis_volatile_entries.py` — volatile-entry hypothesis study
-- `historical_scenario_replay.py` — known-event replay harness (imported by the studies above)
-- `verify_shadow_path.py` — shadow-path verification (references the quarantined stack)
+## Decision channel (2026-10-17 onward)
 
-For the *invalidated* v1 validators, see `legacy_validators/`.
+| Script | Report | Question |
+|---|---|---|
+| `decision_channel_inventory.py` | `decision_channel_inventory_report.md` | What decision history exists, and how many independent episodes can be graded? (pre-registered: docs/specs/decision_channel_measurement_spec.md) |
+| `decision_gate_replay.py` | `decision_gate_replay_report.md` | How many DECISION notifications the market-closed gate removes, replayed on real day-log text |
+| `decision_channel_followups.py` | `decision_channel_followups_report.md` | Every open-market directional decision; episode count under both concurrent-run handlings |
+| `long_side_diagnosis.py` | `long_side_diagnosis_report.md` | Why all 16 open-market decisions were SHORT: the funnel, plus a mirror test of the decision path |
+
+## Data and feed
+
+| Script | Report | Question |
+|---|---|---|
+| `stage2_source_convert_gate.py` | `stage2_gate_report.md` | Stage 2 of docs/specs/data_map_spec.md: source conversion and the feed-overlap gate |
+
+## Premises tested (most were refuted at honest N; see foundation/research_findings.md)
+
+| Script | Question |
+|---|---|
+| `precursor_study.py` | Do structural precursors come before the big moves? (reverse methodology; negative result) |
+| `structure_engine_study.py` | Does consolidation followed by breakout have an edge on H4? (v2 detector) |
+| `structure_primary_headtohead.py` | Does the framework need trend strength (ADX) for confirmation, or is structure enough? |
+| `level_fade_study.py` | Are turns knowable by location (key levels) even when their timing is not? |
+| `hypothesis_volatile_entries.py` | Is a "no clear direction" daily chart a better or worse place to enter? |
+| `trade_frequency_backtest.py` | How often does the framework actually issue a tradeable signal? |
+
+## Threshold validation
+
+| Script | Question |
+|---|---|
+| `validate_thresholds_v2.py` | Daily trend-strength thresholds, re-validated with non-overlapping windows (the current method) |
+| `validate_h4_thresholds.py` | The same audit for the 4-hour thresholds |
+| `validate_confluence_weights.py` | Weight updates read from trade_signal_log.csv |
+
+## Harness
+
+| Script | Note |
+|---|---|
+| `historical_scenario_replay.py` | Replays known market events through the brief. Only the D1/H4/weekly bars are historical, so its output is not evidence. Other studies import its `_fetch_historical` |
+
+The invalidated v1 validators (overlapping windows) were removed on
+2026-09-29 and survive only in git history: `git show 4eb9241^:"Intelligence Framework/legacy_validators/README.md"`.

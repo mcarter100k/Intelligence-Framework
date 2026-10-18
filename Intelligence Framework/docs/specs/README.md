@@ -1,0 +1,39 @@
+# docs/specs/: one spec per protected-path change
+
+Each spec was committed **before** the change it describes was built (AGENTS.md).
+Spec bodies are frozen historical records and are never rewritten; this index
+carries the lifecycle. A later change gets its own spec.
+
+| Spec | What it covers | Committed | Lifecycle |
+|---|---|---|---|
+| [alert_expansion_spec.md](alert_expansion_spec.md) | alert expansion — watched-condition flips to phone (team approved 2026-07-31) | f829cd5 2026-07-31 | Built; validation_log cites it 2x |
+| [calendar_autofetch_spec.md](calendar_autofetch_spec.md) | weekly automatic calendar feed (team approved 2026-07-31) | f691f5a 2026-07-31 | Built; validation_log cites it 1x |
+| [circuit_breaker_promotion_spec.md](circuit_breaker_promotion_spec.md) | circuit-breaker promotion (Spec B of the 2026-09-09 post-audit directive) | 23107bc 2026-09-09 | Promoted to protected; **not wired**: nothing on the live path calls `session_guard`/`risk_config` (owner decision: wire or delete) |
+| [daily_digest_spec.md](daily_digest_spec.md) | daily DIGEST notification (final before freeze, 2026-09-09) | 23669df 2026-09-09 | Built; validation_log cites it 1x |
+| [data_at_source_spec.md](data_at_source_spec.md) | fix the data at the source (Phase 4 of the 2026-09-29 audit plan) | 586a582 2026-09-30 | Built; validation_log cites it 1x |
+| [data_map_spec.md](data_map_spec.md) | data map — pre-registered partition of all GBP_AUD / GBP_JPY history (Stage 1) | f5eea4f 2026-09-11 | Built; validation_log cites it 2x |
+| [decision_channel_measurement_spec.md](decision_channel_measurement_spec.md) | Decision-channel measurement — pre-registration (2026-10-17) | c151e3c 2026-10-17 | Phase 0 built; Measurement A not run (stop rule: at most 3 gradeable episodes, 10 needed); B and C are spec only |
+| [decision_logic_spec.md](decision_logic_spec.md) | fix the decision logic (Phase 5 of the 2026-09-29 audit plan) | 549d299 2026-09-30 | Built; validation_log cites it 1x |
+| [display_timezone_spec.md](display_timezone_spec.md) | display timezone (freeze exception, display-layer only, 2026-09-10) | f96e4ce 2026-09-10 | Built; validation_log cites it 1x |
+| [early_momentum_v2_spec.md](early_momentum_v2_spec.md) | EARLY_MOMENTUM_v2 (Branch 2 of the 2026-09-09 post-audit directive) | f513dc9 2026-09-09 | Built; validation_log cites it 2x |
+| [evidence_loop_repair_spec.md](evidence_loop_repair_spec.md) | evidence-loop repair (2026-09-16 team ruling, three parts) | 3e94f16 2026-09-16 | Built; validation_log cites it 1x |
+| [exclusion_registry_fixes_spec.md](exclusion_registry_fixes_spec.md) | exclusion registry fixes (Phase 0 of the 2026-09-29 audit plan) | 375397e 2026-09-29 | Built; validation_log cites it 1x |
+| [exclusion_registry_spec.md](exclusion_registry_spec.md) | exclusion registry, header check, and two standing rules | 2bc5246 2026-09-16 | Built; validation_log cites it 1x |
+| [exhaustion_subtype_display_spec.md](exhaustion_subtype_display_spec.md) | exhaustion subtype display (display-honesty class, 2026-09-09) | 23d3abb 2026-09-09 | Built; validation_log cites it 1x |
+| [heartbeat_spec.md](heartbeat_spec.md) | heartbeat — the system must be unable to die silently (Spec A, Branch 3) | b9c4dd5 2026-09-09 | Built; validation_log cites it 2x |
+| [honesty_repairs_spec.md](honesty_repairs_spec.md) | honesty repairs (Branch 1 of the 2026-09-09 post-audit directive) | 8cd739b 2026-09-09 | Built; validation_log cites it 1x |
+| [level_source_repair_spec.md](level_source_repair_spec.md) | level-source repair (R1–R5 of the 2026-09-16 team ruling) | aaac3e3 2026-09-16 | Built; validation_log cites it 2x |
+| [loss_autopsy_spec.md](loss_autopsy_spec.md) | loss autopsy (Spec C of the 2026-09-09 post-audit directive) | 6319017 2026-09-09 | Built; validation_log cites it 1x |
+| [news_gate_spec.md](news_gate_spec.md) | pre-news stand-down gate (team approved 2026-07-29) | f10611f 2026-07-30 | Built. Its §3 refresh path (`update_calendar.py`) is superseded by calendar_autofetch_spec.md |
+| [notify_click_through_spec.md](notify_click_through_spec.md) | notification click-through (amended for macOS 13 — no brew, no Xcode) | d0f9971 2026-09-09 | Built; validation_log cites it 1x |
+| [regime_change_message_spec.md](regime_change_message_spec.md) | the regime-change message names the timeframe that changed (issue 4, 2026-09-30) | f792781 2026-09-30 | Built; validation_log cites it 1x |
+| [regime_log_restore_narrative_truth_spec.md](regime_log_restore_narrative_truth_spec.md) | regime-log restore + narrative truth (team-directed, safety class) | 513f5ee 2026-09-10 | Built; validation_log cites it 2x |
+| [safe_ledger_writes_spec.md](safe_ledger_writes_spec.md) | safe ledger writes (Phase 3 of the 2026-09-29 audit plan) | 748c482 2026-09-29 | Built; validation_log cites it 1x |
+| [setup_check_plain_english_spec.md](setup_check_plain_english_spec.md) | setup_check plain-English rewrite (display layer only) | 3d7bf11 2026-09-09 | Built; validation_log cites it 1x |
+| [setup_check_spec.md](setup_check_spec.md) | setup_check — pre-trade evidence stack tool (team approved 2026-07-31) | 3a10200 2026-07-31 | Built; validation_log cites it 1x |
+| [state_dependent_labels_spec.md](state_dependent_labels_spec.md) | state-dependent labels (freeze exception — label honesty, 2026-09-10) | 19a295a 2026-09-10 | Built; validation_log cites it 1x |
+| [trade_logger_repair_spec.md](trade_logger_repair_spec.md) | trade_logger repair (team approved 2026-07-31, amended same day) | 94e6add 2026-07-31 | Built; validation_log cites it 2x |
+| [unconfirmed_trend_display_spec.md](unconfirmed_trend_display_spec.md) | unconfirmed-trend display subtype (display-layer only) | a831cef 2026-09-09 | Built; validation_log cites it 1x |
+| [unresolved_direction_polish_spec.md](unresolved_direction_polish_spec.md) | unresolved-direction polish (follow-up ruling, 2026-09-09) | d718094 2026-09-09 | Built; validation_log cites it 1x |
+| [visible_failures_spec.md](visible_failures_spec.md) | make failures visible (Phase 2 of the 2026-09-29 audit plan) | bfe9430 2026-09-29 | Built; validation_log cites it 1x |
+| [weekly_alignment_wording_spec.md](weekly_alignment_wording_spec.md) | plain wording for the 20-week alignment block (Phase 5 review 2, item R2b; 2026-09-30) | a3c2a4a 2026-09-30 | Built; validation_log cites it 1x |
