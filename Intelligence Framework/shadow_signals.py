@@ -90,8 +90,6 @@ def _load_ctx(instrument: str, count: int = 300) -> Optional[Dict]:
     df = get_h4_bars(pair=instrument.replace("_", ""), count=count)
     if df is None or len(df) < 60:
         return None
-    if hasattr(df.columns, "levels"):
-        df.columns = df.columns.get_level_values(0)
     O = [float(v) for v in df["Open"].values]
     H = [float(v) for v in df["High"].values]
     L = [float(v) for v in df["Low"].values]
@@ -503,8 +501,6 @@ def backfill_loss_species(instrument: str) -> int:
     df = get_h4_bars(pair=instrument.replace("_", ""), count=500)
     if df is None or df.empty:
         return 0
-    if hasattr(df.columns, "levels"):
-        df.columns = df.columns.get_level_values(0)
     H = [float(v) for v in df["High"].values]
     L = [float(v) for v in df["Low"].values]
     C = [float(v) for v in df["Close"].values]
@@ -566,8 +562,6 @@ def grade_pending_shadow(instrument: str) -> int:
     df = get_h4_bars(pair=instrument.replace("_", ""), count=500)
     if df is None or df.empty:
         return 0
-    if hasattr(df.columns, "levels"):
-        df.columns = df.columns.get_level_values(0)
     H = [float(v) for v in df["High"].values]
     L = [float(v) for v in df["Low"].values]
     C = [float(v) for v in df["Close"].values]

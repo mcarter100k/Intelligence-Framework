@@ -119,8 +119,6 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
         h1_adx         = 0.0
 
         if raw_h1 is not None and not raw_h1.empty:
-            if hasattr(raw_h1.columns, "levels"):
-                raw_h1.columns = raw_h1.columns.get_level_values(0)
             h1h = [float(v) for v in raw_h1["High"].dropna().values]
             h1l = [float(v) for v in raw_h1["Low"].dropna().values]
             h1c = [float(v) for v in raw_h1["Close"].dropna().values]
@@ -157,8 +155,6 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
         _eng = {"detected": False, "direction": "", "pattern": ""}
 
         if raw_m15 is not None and not raw_m15.empty:
-            if hasattr(raw_m15.columns, "levels"):
-                raw_m15.columns = raw_m15.columns.get_level_values(0)
             m15h = [float(v) for v in raw_m15["High"].dropna().values]
             m15l = [float(v) for v in raw_m15["Low"].dropna().values]
             m15c = [float(v) for v in raw_m15["Close"].dropna().values]

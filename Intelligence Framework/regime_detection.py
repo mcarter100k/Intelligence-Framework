@@ -851,8 +851,6 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if len(raw) < _ADX_PERIOD * 3:
         return _error_result("Not enough data to calculate regime indicators")
 
-    if hasattr(raw.columns, "levels"):
-        raw.columns = raw.columns.get_level_values(0)
 
     # Closed bars only: the feed already drops the candle still forming.
     live_bar_age_d1 = _closed_bar_age_hours(raw)
@@ -969,8 +967,6 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         raw_h4 = None
 
     if raw_h4 is not None and not raw_h4.empty:
-        if hasattr(raw_h4.columns, "levels"):
-            raw_h4.columns = raw_h4.columns.get_level_values(0)
         h4h = [float(v) for v in raw_h4["High"].dropna().values]
         h4l = [float(v) for v in raw_h4["Low"].dropna().values]
         h4c = [float(v) for v in raw_h4["Close"].dropna().values]
@@ -1033,8 +1029,6 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         raw_w = None
 
     if raw_w is not None and not raw_w.empty and len(raw_w) >= _WEEKLY_MIN_BARS:
-        if hasattr(raw_w.columns, "levels"):
-            raw_w.columns = raw_w.columns.get_level_values(0)
         wh = [float(v) for v in raw_w["High"].dropna().values]
         wl = [float(v) for v in raw_w["Low"].dropna().values]
         wc = [float(v) for v in raw_w["Close"].dropna().values]

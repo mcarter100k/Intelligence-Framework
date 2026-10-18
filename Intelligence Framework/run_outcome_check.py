@@ -38,8 +38,6 @@ def main() -> None:
         if raw is None or raw.empty:
             print(f"{instrument}: no data from OANDA")
             continue
-        if hasattr(raw.columns, "levels"):
-            raw.columns = raw.columns.get_level_values(0)
 
         closes = [float(v) for v in raw["Close"].dropna().values]
         highs  = [float(v) for v in raw["High"].dropna().values]
