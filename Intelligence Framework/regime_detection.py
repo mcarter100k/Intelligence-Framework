@@ -808,28 +808,17 @@ def _market_status(*, _now=None) -> dict:
                      to_display(next_open, style="day_time") + ".")}
 
 
-def _split_live_bar(df, threshold_hours: float = 24.0) -> tuple:
-    """
-    Split an OANDA dataframe into (closed_df, live_bar_row,
-    live_bar_age_hours).
-    OANDA returns the forming bar as the last row. A daily bar is
-    complete when its timestamp date is before today (UTC) —
-    OANDA D bars are stamped at bar OPEN.
-    Returns (df_without_live_bar, last_row_or_None, age_hours).
-    If the last bar is already complete (e.g. weekend — market
-    closed, last bar is Friday's close), returns (df, None, age).
-    """
+def _closed_bar_age_hours(df) -> float:
+    """Hours since the newest bar OPENED (OANDA stamps bars at their open).
+    The feed returns closed bars only, so this is the newest closed bar; the
+    brief's stale-feed warning reads it."""
     from datetime import datetime, timezone
     if df is None or df.empty:
-        return df, None, 0.0
+        return 0.0
     last_ts = df.index[-1]
     if last_ts.tzinfo is None:
         last_ts = last_ts.tz_localize("UTC")
-    now = datetime.now(timezone.utc)
-    age_hours = (now - last_ts).total_seconds() / 3600.0
-    if age_hours < threshold_hours:
-        return df.iloc[:-1].copy(), df.iloc[-1], age_hours
-    return df, None, age_hours
+    return (datetime.now(timezone.utc) - last_ts).total_seconds() / 3600.0
 
 
 def get_regime(ticker: str = "GBP_AUD") -> Dict:
@@ -865,12 +854,12 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if hasattr(raw.columns, "levels"):
         raw.columns = raw.columns.get_level_values(0)
 
-    # Split forming bar — ADX/ATR/structure/MA calcs use closed bars only.
-    raw_closed, live_bar_d1, live_bar_age_d1 = _split_live_bar(raw)
+    # Closed bars only: the feed already drops the candle still forming.
+    live_bar_age_d1 = _closed_bar_age_hours(raw)
 
-    highs  = [float(v) for v in raw_closed["High"].dropna().values]
-    lows   = [float(v) for v in raw_closed["Low"].dropna().values]
-    closes = [float(v) for v in raw_closed["Close"].dropna().values]
+    highs  = [float(v) for v in raw["High"].dropna().values]
+    lows   = [float(v) for v in raw["Low"].dropna().values]
+    closes = [float(v) for v in raw["Close"].dropna().values]
 
     n = min(len(highs), len(lows), len(closes))
     highs, lows, closes = highs[:n], lows[:n], closes[:n]
@@ -982,10 +971,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if raw_h4 is not None and not raw_h4.empty:
         if hasattr(raw_h4.columns, "levels"):
             raw_h4.columns = raw_h4.columns.get_level_values(0)
-        raw_h4_closed, _, _ = _split_live_bar(raw_h4, threshold_hours=4.0)
-        h4h = [float(v) for v in raw_h4_closed["High"].dropna().values]
-        h4l = [float(v) for v in raw_h4_closed["Low"].dropna().values]
-        h4c = [float(v) for v in raw_h4_closed["Close"].dropna().values]
+        h4h = [float(v) for v in raw_h4["High"].dropna().values]
+        h4l = [float(v) for v in raw_h4["Low"].dropna().values]
+        h4c = [float(v) for v in raw_h4["Close"].dropna().values]
         nh4 = min(len(h4h), len(h4l), len(h4c))
         h4h, h4l, h4c = h4h[:nh4], h4l[:nh4], h4c[:nh4]
 
@@ -1047,11 +1035,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if raw_w is not None and not raw_w.empty and len(raw_w) >= _WEEKLY_MIN_BARS:
         if hasattr(raw_w.columns, "levels"):
             raw_w.columns = raw_w.columns.get_level_values(0)
-        raw_w_closed, _, _ = _split_live_bar(raw_w, threshold_hours=168.0)
-        raw_w_work = raw_w_closed if len(raw_w_closed) >= _WEEKLY_MIN_BARS else raw_w
-        wh = [float(v) for v in raw_w_work["High"].dropna().values]
-        wl = [float(v) for v in raw_w_work["Low"].dropna().values]
-        wc = [float(v) for v in raw_w_work["Close"].dropna().values]
+        wh = [float(v) for v in raw_w["High"].dropna().values]
+        wl = [float(v) for v in raw_w["Low"].dropna().values]
+        wc = [float(v) for v in raw_w["Close"].dropna().values]
         if len(wc) >= _WEEKLY_MIN_BARS:
             _wctx        = _compute_weekly_context(wh, wl, wc)
             lt_trend     = _wctx["lt_trend"]
@@ -1217,7 +1203,6 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "logic_version":       _logic_version(),
         # ── Bar freshness (audit item 4) ──────────────────────────────────────
         "last_closed_bar_age_hours": round(live_bar_age_d1, 1),
-        "live_bar_in_progress":      live_bar_d1 is not None,
         # ── Market hours (audit item 5) ───────────────────────────────────────
         "market_open":   _ms["open"],
         "market_note":   _ms["note"],
@@ -1284,7 +1269,6 @@ def _error_result(msg: str) -> Dict:
         "price_vs_ma50":       "unknown",
         "price_vs_ma200":      "unknown",
         "last_closed_bar_age_hours": None,
-        "live_bar_in_progress":      False,
         "market_open":               True,
         "market_note":               "",
     }

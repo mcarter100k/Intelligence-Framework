@@ -63,7 +63,6 @@ class DecisionBrief:
     error:                Optional[str]
     session_delta:        Optional[Dict]  = None
     live_bar_age:         Optional[float] = None
-    live_bar_in_progress: Optional[bool]  = None
     market_open:          bool            = True
     market_note:          str             = ""
     narrative:            str             = ""   # THE FULL PICTURE section
@@ -124,23 +123,19 @@ class DecisionBrief:
         if not self.market_open and self.market_note:
             lines.insert(3, f"  {self.market_note}")
         elif self.market_open and self.live_bar_age is not None:
-            if self.live_bar_in_progress:
-                lines.insert(3, f"  Daily bar in progress — analysis "
-                                f"uses last closed bar")
-            else:
-                # Warn only when the newest complete daily bar is over 6h
-                # behind its expected close (weekends and holidays excluded):
-                # a real feed problem, not the normal overnight gap.
-                from datetime import datetime, timezone, timedelta
-                _now       = datetime.now(timezone.utc)
-                _last_open = _now - timedelta(hours=self.live_bar_age)
-                _last_close = _last_open + timedelta(hours=24)
-                _expected  = _last_expected_d1_close(_now, _last_open.hour)
-                if _last_close < _expected - timedelta(hours=6):
-                    _lag = (_expected - _last_close).total_seconds() / 3600.0
-                    lines.insert(3, f"  ⚠ D1 feed looks stale — newest complete "
-                                    f"bar is ~{_lag:.0f}h behind the expected "
-                                    f"close. Check the data feed.")
+            # Warn only when the newest complete daily bar is over 6h behind
+            # its expected close (weekends and holidays excluded): a real feed
+            # problem, not the normal overnight gap.
+            from datetime import datetime, timezone, timedelta
+            _now       = datetime.now(timezone.utc)
+            _last_open = _now - timedelta(hours=self.live_bar_age)
+            _last_close = _last_open + timedelta(hours=24)
+            _expected  = _last_expected_d1_close(_now, _last_open.hour)
+            if _last_close < _expected - timedelta(hours=6):
+                _lag = (_expected - _last_close).total_seconds() / 3600.0
+                lines.insert(3, f"  ⚠ D1 feed looks stale — newest complete "
+                                f"bar is ~{_lag:.0f}h behind the expected "
+                                f"close. Check the data feed.")
 
         # News-calendar honesty line — the gate never pretends coverage it
         # doesn't have: stale/missing calendar = event risk UNCHECKED, no gating.
@@ -436,7 +431,6 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             error=None,
             session_delta=session_delta,
             live_bar_age=regime.get("last_closed_bar_age_hours"),
-            live_bar_in_progress=regime.get("live_bar_in_progress"),
             market_open=regime.get("market_open", True),
             market_note=regime.get("market_note", ""),
             narrative=narrative,
