@@ -33,8 +33,8 @@ _ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_ROOT, "scripts"))
 import artifact_freshness as af
 
-# The PROTECTED live core, per AGENTS.md. Kept in sync by
-# test_live_core_list_is_accurate below.
+# The PROTECTED live core: exactly AGENTS.md's protected list, enforced by
+# test_live_core_is_exactly_the_agents_md_protected_list below.
 LIVE_CORE = [
     "decision_brief.py", "run_outcome_check.py", "regime_detection.py",
     "official_decision.py", "no_trade_filter.py",
@@ -44,6 +44,7 @@ LIVE_CORE = [
     "news_gate.py", "calendar_fetch.py", "setup_check.py",
     "session_guard.py", "risk_config.py", "display_time.py",
     "exclusions.py",          # added 2026-09-16, exclusion_registry_spec.md
+    "ledger_io.py",           # protected 2026-09-30; missing here until 2026-10-18
 ]
 
 # Artifacts a live module only ever WRITES — nothing on the live path
@@ -107,6 +108,19 @@ def test_live_core_list_is_accurate():
                if not os.path.exists(os.path.join(_ROOT, m))]
     assert not missing, f"LIVE_CORE names modules that do not exist: {missing}"
     assert len(LIVE_CORE) == len(set(LIVE_CORE))
+
+
+def _agents_protected_block():
+    """The module names in AGENTS.md's PROTECTED code block."""
+    text = open(os.path.join(_ROOT, "AGENTS.md"), encoding="utf-8").read()
+    block = text.split("## PROTECTED", 1)[1].split("```", 2)[1]
+    return set(re.findall(r"\b[a-z_]+\.py\b", block))
+
+
+def test_live_core_is_exactly_the_agents_md_protected_list():
+    """LIVE_CORE is what the guards scan; AGENTS.md is what review protects.
+    They drifted once: ledger_io.py was protected but never scanned."""
+    assert set(LIVE_CORE) == _agents_protected_block()
 
 
 def test_no_live_module_touches_quarantine():
