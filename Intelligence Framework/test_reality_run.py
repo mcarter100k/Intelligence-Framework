@@ -88,6 +88,64 @@ def test_an_error_page_is_not_a_reality_run(tmp_path, capsys):
     assert "NOT a valid REALITY GATE" in out
 
 
+# ── a failure is detected; a document discussing one is not (2026-10-17) ─────
+# The decision-channel inventory quoted the outage's error text in its report
+# and the old substring match exited 3 on a run that fetched and wrote fine.
+
+def test_a_report_quoting_the_error_text_is_not_a_failure(tmp_path, capsys):
+    proj = _project(tmp_path)
+    target = _script(tmp_path, """
+        print("| RUN ERRORED | 08-01 -> 09-09 | Framework error — do not trade: "
+              "OANDA not configured — set OANDA_API_KEY ×117 | 118 run(s) |")
+        print("The brief printed REASON Framework error — do not trade: on 118 runs.")
+        print("The grader logged GRADER EARLY EXIT — OANDA not configured; and a")
+        print("crash shows Traceback (most recent call last): at the top.")
+    """)
+    rc = rr.reality_run(str(proj), [target], python=sys.executable)
+    assert rc == 0, capsys.readouterr().out
+
+
+def test_a_grader_early_exit_is_a_failure(tmp_path, capsys):
+    proj = _project(tmp_path)
+    target = _script(tmp_path, """
+        print("GRADER EARLY EXIT — OANDA not configured (set OANDA_API_KEY and "
+              "OANDA_ACCOUNT_ID) — nothing graded this run")
+    """)
+    assert rr.reality_run(str(proj), [target], python=sys.executable) == 3
+
+
+def test_a_caught_traceback_on_stderr_is_a_failure_even_with_exit_0(tmp_path, capsys):
+    proj = _project(tmp_path)
+    target = _script(tmp_path, """
+        import traceback
+        try:
+            1 / 0
+        except ZeroDivisionError:
+            traceback.print_exc()
+    """)
+    assert rr.reality_run(str(proj), [target], python=sys.executable) == 3
+
+
+def test_the_real_brief_error_page_is_a_failure(tmp_path, capsys):
+    """Rendered by the real producer, not hand-typed."""
+    import decision_brief as db
+    page = db.DecisionBrief(
+        instrument="GBP_AUD", timestamp="t", price=0.0, atr_pips=0.0,
+        decision="STAND DOWN", reason="Framework error — do not trade: OANDA not "
+        "configured — set OANDA_API_KEY and OANDA_ACCOUNT_ID", conviction=0, grade="C",
+        size_pct=0, market_state="Unavailable", invalidation="i", regime_log="l",
+        stand_down=True, override_fired=False, execution_mode="X", adx_d1=0.0,
+        adx_h4=0.0, weekly_context="W", error="OANDA not configured").format()
+    src = tmp_path / "page.txt"
+    src.write_text(page, encoding="utf-8")
+    proj = _project(tmp_path)
+    target = _script(tmp_path, f"""
+        import sys
+        sys.stdout.write(open({str(src)!r}, encoding="utf-8").read())
+    """)
+    assert rr.reality_run(str(proj), [target], python=sys.executable) == 3
+
+
 def test_a_missing_env_file_is_flagged(tmp_path, capsys):
     proj = _project(tmp_path)
     (proj / ".env").unlink()
