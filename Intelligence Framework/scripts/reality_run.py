@@ -35,6 +35,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -136,19 +137,28 @@ def reality_run(project: str, argv: list[str], code: str | None = None,
     return rc
 
 
-_FAILURE_MARKERS = ("Framework error", "Traceback (most recent call last)",
-                    "GRADER EARLY EXIT", "not configured")
+# A failure is the LINE a real failure prints, anchored where it prints it,
+# never a substring anywhere: on 2026-10-17 a report that quoted the outage's
+# error text ("Framework error — do not trade: OANDA not configured") made a
+# clean run exit 3. The bare "not configured" marker is gone: every real
+# failure that prints it also prints one of the lines below.
+_FAILURE_PATTERNS = (   # (stream, name, pattern)
+    ("stdout", "brief error page",
+     re.compile(r"^\s*REASON\s+Framework error — do not trade:", re.M)),
+    ("stdout", "GRADER EARLY EXIT", re.compile(r"^GRADER EARLY EXIT — ", re.M)),
+    ("stderr", "Traceback", re.compile(r"^Traceback \(most recent call last\):", re.M)),
+)
 
 
-def _failure_markers(*paths: str) -> str:
-    found = []
-    for path in paths:
+def _failure_markers(stdout_path: str, stderr_path: str) -> str:
+    texts = {}
+    for stream, path in (("stdout", stdout_path), ("stderr", stderr_path)):
         try:
-            text = open(path, errors="replace").read()
+            texts[stream] = open(path, errors="replace").read()
         except OSError:
-            continue
-        found += [m for m in _FAILURE_MARKERS if m in text and m not in found]
-    return ", ".join(found)
+            texts[stream] = ""
+    return ", ".join(name for stream, name, pat in _FAILURE_PATTERNS
+                     if pat.search(texts[stream]))
 
 
 def main() -> int:

@@ -50,6 +50,16 @@ for kind in ("brief", "outcomes"):
     lines.append(f"{kind} {yday}: {runs} run header(s), "
                  f"{'ERRORS PRESENT' if bad else 'no error markers'}")
 
+# 2b. EXPECTED vs ACTUAL runs over the week (scripts/run_count.py). Health
+# counts failed runs; a run that never happened fails nothing, so the
+# 09-12 -> 09-14 and 10-06 -> 10-08 gaps read "0 consecutive failures".
+try:
+    sys.path.insert(0, "scripts")
+    import run_count
+    lines.extend(run_count.report())
+except Exception as e:
+    lines.append(f"runs: RUN COUNT UNAVAILABLE ({e})")
+
 # 3. shadow rows graded per candidate (valid rows only, via the guard)
 try:
     from shadow_signals import get_shadow_tally, episode_count
@@ -105,9 +115,10 @@ PY
   echo "$REPORT"; echo; } >> "$LOG"
 
 # One-line summary for the notification: worst signal first.
-if printf '%s\n' "$REPORT" | grep -qE 'UNHEALTHY|NO LOG|ERRORS PRESENT|MISSING|STALE'; then
+ATTN='UNHEALTHY|NO LOG|ERRORS PRESENT|MISSING|STALE|SHORTFALL|RUN COUNT UNAVAILABLE'
+if printf '%s\n' "$REPORT" | grep -qE "$ATTN"; then
     SUMMARY="NEEDS ATTENTION | $(printf '%s\n' "$REPORT" \
-        | grep -E 'UNHEALTHY|NO LOG|ERRORS PRESENT|MISSING|STALE' | head -1)"
+        | grep -E "$ATTN" | head -1)"
 else
     SUMMARY="healthy | $(printf '%s\n' "$REPORT" | grep '^shadow:' | head -1)"
 fi
