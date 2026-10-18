@@ -1513,6 +1513,13 @@ evidence (log line / ledger row / notification) is cited here.
 - [ ] **First real session walked by the promoted circuit breaker** (added
       2026-09-09) — a day with live CLOSE rows in trades.csv exercises the
       R-curve and limits on real trading, not fixtures.
+- [ ] **First closed-market DECISION suppressed by a scheduled run** (added
+      2026-10-17) — after the Phase 0 gate merges, a launchd run while the
+      market is closed with a directional decision writes
+      `DECISION notification suppressed: market closed` to the day log
+      and sends no DECISION notification. A later open-market directional
+      run must still notify. Proven so far on replayed real text and one
+      live brief, not on a scheduled run.
 - [x] **First shadow grading** — run_outcome_check grades the first shadow
       ledger rows when their 30-bar horizons elapse (~2026-08-05 for the
       2026-07-29 EARLY_MOMENTUM fires).
@@ -3693,3 +3700,94 @@ Whether a counter-trend exception is wanted at all. It has never been active.
 - The standing claim "nothing triggers on a protected-module edit" is therefore **not true as stated**: prompts carrying trading or grading vocabulary trigger; a plain schema edit does not.
 - **Limits:** the sessions ran outside the repo (no AGENTS.md loaded), with N=3 per prompt.
 - **The owner decides** between a new skill and a description edit.
+
+## 2026-10-17 — The decision channel was never graded: Phase 0 market-status gate; measurement pre-registered; inventory stops below N=10
+
+**Finding.** The official DECISION channel (LONG / SHORT / STAND ASIDE) is the one the owner reads and acts on. It has had **no grader for the framework's entire life**:
+- shadow candidates have a grader;
+- regime classifications have one (audit-invalidated, I18);
+- `trade_signal_log.csv`, meant to hold this channel, sat empty for 80 days (I23).
+
+Nothing below grades decision accuracy; that effect is too small for the N available.
+
+### Phase 0 — closed-market DECISION notifications suppressed (commit 9283552, `scripts/` free zone)
+- **Change.** `scheduled_brief.sh` drops an instrument's DECISION line from the notification test and summary when that instrument's block carries the closed-market banner. ALERT, health, SHADOW, DIGEST and HEARTBEAT are not gated.
+- **Why the wrapper matches prose.** The brief has no machine-readable market flag, and adding one means editing protected `decision_brief.py`. The banner string is therefore pinned at both ends by tests g1–g9: the briefs are rendered by the real `DecisionBrief.format` with the real `_market_status` banner and run through the real wrapper under `/bin/bash` 3.2.
+- **Gate 1:**
+  - Before the fix: 6 of the 9 new tests failed (closed decisions notified).
+  - Mutants: 6/6 killed (no gate; blanket mute in the wrapper; blanket mute in `notify.sh`; banner reworded in `regime_detection`; no per-instrument reset; gate inverted).
+  - Every "still fires" test (ALERT, health ALERT, SHADOW, HEARTBEAT, DIGEST) failed under at least one over-broad mutant.
+  - After the reverts: 10/10 pass with caches cleared.
+- **Gate 2 (real text, same instrument before and after):** every real day-log run was replayed through the old wrapper (main) and the new one (branch), in sandboxes with stub notifiers.
+
+  | Runs replayed | DECISION notifications, old | new |
+  |---|---|---|
+  | Week of 10/11 | **12** | **6** |
+  | All 246 run blocks | **28** | **16** |
+
+  - In the week of 10/11, the six suppressed runs are exactly the six with the closed banner.
+  - The all-runs figures match the inventory parser's independently derived 28/16.
+  - A live brief (`reality_run.py brief --code <worktree>`, 2026-10-18T02:20Z, market closed, GBP/AUD LONG; project UNCHANGED by hash) notified DECISION through the old wrapper and nothing through the new one.
+- **Gate 3: PENDING.** A scheduled closed-market run after the merge (see the PENDING LIVE CONFIRMATION list).
+
+### Known defect left deliberately unfixed (Phase 0(b), one change at a time)
+The DECISION trigger tests a STATE, not an EDGE:
+- **Re-announcement.** An unchanged decision notifies again on every run. In the week of 10/11, the same GBP/JPY SHORT notified 8 times (replay: 2 of them closed-market, 6 open-market).
+- **Silent withdrawal.** A decision returning to STAND ASIDE notifies zero times. GBP/JPY went from SHORT to STAND ASIDE at 2026-10-13 18:00 PDT: the replay shows 0 notifications under both wrappers.
+
+This needs its own spec.
+
+### Pre-registration (M5, M11)
+- `docs/specs/decision_channel_measurement_spec.md` was committed as **c151e3c at 2026-10-18T02:13:07Z**.
+- The **first market-data pull** (H4 bar timestamps) was at **2026-10-18T02:19:07Z**, six minutes later.
+- The spec discloses what had been seen before it was written: the log format, and one full run, 2026-10-16 18:12 PDT.
+- One parser rule was added **after** the spec commit. It is a format rule, not a definition. Concurrent wrapper runs that share a header stamp merge into one observation, accepted only if every copy agrees and none is an error page; otherwise the group is RUN ERRORED. Three such groups exist: 09-09 00:32 EDT ×2, 09-14 09:16 PDT ×3, 10-08 10:03 PDT ×3.
+
+### Phase 2 inventory (counts and windows only) — `studies/decision_channel_inventory_report.md`
+**Sources:**
+- **Day logs:** 241 runs from 2026-07-29 02:33 PDT to 2026-10-17 18:06 PDT.
+- **trade_signal_log.csv:** 13 rows. 12 match a day-log run with the same direction. One row has no day-log run: `2026-06-28T21:39:15Z_GBP_AUD`. It predates the first day log and carries round values (price 1.91, ATR 95.0). It is not in the registry and has not been touched.
+
+**Run × instrument status:**
+
+| Instrument | LONG open | SHORT open | STAND ASIDE open | MARKET CLOSED (directional) | RUN ERRORED |
+|---|---|---|---|---|---|
+| GBP_AUD | 0 | 3 | 79 | 31 (6) | 128 |
+| GBP_JPY | 0 | 13 | 69 | 31 (8) | 128 |
+
+- **The framework has never issued a LONG while the market was open.** All 4 LONG lines are closed-market runs from 10/16 to 10/17.
+- The counts were cross-checked by grep:
+  - 262 error REASON lines (126 × 2 + 4 + 6 inside the merged groups);
+  - 62 closed banners;
+  - the directional lines agree once the 09-14 triple is merged.
+
+**Raw directional occurrences vs onsets vs independent episodes:**
+- GBP_AUD: 9 occurrences, 2 onsets, 2 episodes.
+- GBP_JPY: 21 occurrences, 3 onsets, 3 episodes.
+- `foundation/tools/episodes.py` agrees on every onset it can place: GBP_AUD 1 = 1, GBP_JPY 3 = 3.
+- Positive control on the real index: an added fire 29 bars after an onset was absorbed; one 30 bars after became a new episode.
+- `episodes.py` refuses the GBP_AUD LONG onset of 2026-10-17T01:12Z. It falls after the last bar's open (the weekend), so the tool fails loudly as designed (I5).
+
+**UNOBSERVED windows:**
+- everything before 2026-07-29;
+- RUN ERRORED, credentials: 07-29 (2 runs) and 07-30 → 07-31 (6 runs);
+- **RUN ERRORED, the outage: 08-01 → 09-09** (118 runs, "OANDA not configured");
+- RUN ERRORED, 09-16 18:01 ("Not enough data to calculate regime indicators");
+- RUN ERRORED, 10-08 10:03 (concurrent group with error pages);
+- SCHEDULER GAP 09-12 02:43 → 09-14 09:16 (54.6 h);
+- SCHEDULER GAP 10-06 07:32 → 10-08 10:03 (50.5 h).
+
+**Exclusion registry.** It has 2 entries (2026-09-16T09:08:08Z, authorized by the 2026-09-16 CORRECTION). Neither matches any day-log run.
+
+**Gradeable for Measurement A: at most 3 of 5.**
+- 1 is AWAITING OPEN: the GBP/AUD LONG of 10/16, first issued four hours after the weekly close; no open-market run has carried it yet.
+- 1 is ONSET-CENSORED: GBP/JPY 10-08, which follows the 50.5 h scheduler gap and an errored group.
+- Structure and leg-minimum checks could only lower the 3.
+
+**STOP RULE MET (< 10). Measurement A was not run.** No price statistic was computed. The script uses only the H4 bars' timestamps; their prices are fetched but never used. The owner decides whether to run or wait. At the observed onset rate (5 in about 81 days, of which about 40 days were unobserved), reaching 10 gradeable episodes takes months, not weeks.
+
+### Found along the way (recorded, not fixed)
+- **`reality_run.py` false positive.** It exits 3 on any stdout containing "Framework error … not configured", including a report that quotes the outage's error text. The inventory run fetched correctly (901 H4 bars per instrument) and the project hash was unchanged. Its exit 3 is the scanner matching the report's own content.
+- **`test_data_at_source.py` depends on the clock (pre-existing on main a3e070b).** 4 tests fail whenever the real market is closed, because `get_regime` reads the real clock and takes the `market_closed` price basis. Pinning only `_market_status` to a Wednesday gives 37/37. Branch suite on Saturday 2026-10-17: 820 passed, 4 failed (these four), 6 skipped. The rule-2 "green" condition is not met on a weekend for a reason unrelated to this change.
+- **Measurement C premise.** The task described TOLERANCE = 0.25 × ATR as "the existing near-level tolerance". The live tolerance is a fixed 25 pips (`entry_confirmation._M15_LEVEL_PROXIMITY_PIPS`). It is frozen as instructed, with the mismatch noted in the spec.
+- **Hypothesis for a future pre-registered run (not tested):** the scheduler gap is part of the channel's latency. GBP/JPY's 09-11 onset was first actionable at 09-14 09:16, after a 54.6 h gap with no runs.
