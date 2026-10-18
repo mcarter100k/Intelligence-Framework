@@ -13,6 +13,7 @@ and none of them could see the Phase 2 defects (docs/specs/visible_failures_spec
 D1-D5), each of which is pinned here by running the real script.
 """
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -379,14 +380,87 @@ def _yesterday():
                           capture_output=True, text=True).stdout.strip()
 
 
-def _heartbeat_project(tmp_path, storylines_age_h=1, health=None):
+# The schedule as installed (scripts/launchd), written out independently of
+# scripts/run_count.py so the heartbeat's expected-vs-actual line is checked
+# against a fixture it did not generate.
+_SLOTS = {"brief": ((2, 30), (7, 30), (18, 0)), "outcomes": ((15, 15),)}
+
+
+def _local_zone():
+    from zoneinfo import ZoneInfo
+    real = os.path.realpath("/etc/localtime")
+    return ZoneInfo(real.split("zoneinfo/", 1)[1])
+
+
+def _write_week_of_runs(proj, skip=lambda kind, t: False):
+    """One run header per scheduled slot over the last 8 days (UTC stamps);
+    `skip` drops slots to simulate a scheduler gap. Returns the dropped count."""
+    from datetime import datetime, timedelta, timezone
+    tz, now, dropped = _local_zone(), datetime.now(timezone.utc), 0
+    for back in range(8, -1, -1):
+        day = (now.astimezone(tz) - timedelta(days=back)).date()
+        for kind, hm in _SLOTS.items():
+            for h, m in hm:
+                t = datetime(day.year, day.month, day.day, h, m, tzinfo=tz).astimezone(timezone.utc)
+                if t > now:
+                    continue
+                if skip(kind, t):
+                    dropped += 1
+                    continue
+                p = proj / "logs" / f"{kind}_{day.isoformat()}.log"
+                with open(p, "a") as f:
+                    f.write(f"===== {t.strftime('%Y-%m-%d %H:%M:%S')} UTC =====\nok\n\n")
+    return dropped
+
+
+def _install_schedule(tmp_path):
+    agents = tmp_path / "home" / "Library" / "LaunchAgents"
+    agents.mkdir(parents=True, exist_ok=True)
+    for p in os.listdir(os.path.join(_ROOT, "scripts", "launchd")):
+        if p.endswith(".plist"):
+            shutil.copy(os.path.join(_ROOT, "scripts", "launchd", p), agents / p)
+
+
+def _heartbeat_project(tmp_path, storylines_age_h=1, health=None, skip=None):
     proj = _project(tmp_path, storylines_age_h=storylines_age_h)
-    y = _yesterday()
-    for kind in ("brief", "outcomes"):
-        (proj / "logs" / f"{kind}_{y}.log").write_text("===== run =====\nok\n")
+    _install_schedule(tmp_path)
+    _write_week_of_runs(proj, **({"skip": skip} if skip else {}))
     if health is not None:
         (proj / "logs" / "health_state.json").write_text(json.dumps(health))
     return proj
+
+
+def test_c1_the_heartbeat_reports_expected_vs_actual_runs(tmp_path):
+    proj = _heartbeat_project(tmp_path)
+    _run(tmp_path, proj, "weekly_heartbeat.sh")
+    log = _log(proj, "heartbeat")
+    assert re.search(r"runs \(last 7d, launchd schedule\): brief 21 expected / 21 on time / \d+ ran; "
+                     r"outcomes 7 expected / 7 on time / \d+ ran", log), log
+    assert "SHORTFALL" not in log
+    assert "NEEDS ATTENTION" not in _notes(tmp_path)
+
+
+def test_c1_a_scheduler_gap_is_a_shortfall_that_needs_attention(tmp_path):
+    """The 2026-09-12 -> 09-14 shape: two days with no runs at all, and zero
+    failures recorded, because nothing ran to fail."""
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(timezone.utc)
+    gap = (now - timedelta(days=4), now - timedelta(days=2))
+    proj = _heartbeat_project(tmp_path, skip=lambda k, t: gap[0] <= t < gap[1],
+                              health={"jobs": {"brief": {"consecutive_failures": 0},
+                                               "outcomes": {"consecutive_failures": 0}}})
+    _run(tmp_path, proj, "weekly_heartbeat.sh")
+    notes, log = _notes(tmp_path), _log(proj, "heartbeat")
+    assert "runs: SHORTFALL" in log and "brief 6 of 21 scheduled runs missing or over 60 min late" in log, log
+    assert "NEEDS ATTENTION" in notes and "SHORTFALL" in notes
+
+
+def test_c1_no_installed_schedule_is_loud_not_a_pass(tmp_path):
+    proj = _project(tmp_path)
+    _write_week_of_runs(proj)                  # runs present, no plists installed
+    _run(tmp_path, proj, "weekly_heartbeat.sh")
+    assert "schedule MISSING" in _log(proj, "heartbeat")
+    assert "NEEDS ATTENTION" in _notes(tmp_path)
 
 
 def test_f9_heartbeat_always_notifies_and_reports_healthy(tmp_path):
