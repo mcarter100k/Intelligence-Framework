@@ -201,6 +201,137 @@ def test_a_quiet_stand_aside_notifies_nothing(tmp_path):
     assert _notes(tmp_path) == ""
 
 
+# ── market-status gate on DECISION (docs/specs/decision_channel_measurement_spec.md, Phase 0) ──
+# Each brief here is RENDERED by the real producer (DecisionBrief.format with
+# regime_detection._market_status's banner), not hand-typed, so a change to
+# the banner wording or header layout fails these tests instead of silently
+# disabling the gate. Week of 2026-10-11: 6 of 12 DECISION notifications
+# fired with the market closed.
+
+_SAT = (2026, 10, 17, 1, 12)      # Fri 6:12 PM PDT = Sat 01:12 UTC: closed
+_WED = (2026, 10, 14, 15, 0)      # Wed 8:00 AM PDT: open
+
+
+def _rendered(instrument, decision, when):
+    from datetime import datetime, timezone
+    import decision_brief as db
+    from regime_detection import _market_status
+    st = _market_status(_now=datetime(*when, tzinfo=timezone.utc))
+    trade = decision in ("LONG", "SHORT")
+    return db.DecisionBrief(
+        instrument=instrument, timestamp="t", price=1.9189, atr_pips=100.9,
+        decision=decision, reason="r", conviction=45 if trade else 0,
+        grade="B" if trade else "C", size_pct=35 if trade else 0,
+        market_state="m", invalidation="i", regime_log="l",
+        stand_down=not trade, override_fired=False, execution_mode="X",
+        adx_d1=19.0, adx_h4=33.0, weekly_context="W", error=None,
+        market_open=st["open"], market_note=st["note"],
+        entry_line="level 1.9189" if trade else "",
+        target_line="set your own" if trade else "").format()
+
+
+def _brief_printing(tmp_path, text, extra=""):
+    """A stub decision_brief.py that prints `text` byte-for-byte (launchd's
+    python3 may run with an ASCII stdout; the banner has an em dash)."""
+    src = tmp_path / "rendered_brief.txt"
+    src.write_bytes(text.encode("utf-8"))
+    return (f"import sys\nsys.stdout.buffer.write(open({str(src)!r}, 'rb').read())\n"
+            f"sys.stdout.flush()\n{extra}")
+
+
+def test_g1_a_closed_market_decision_does_not_notify(tmp_path):
+    text = _rendered("GBP_AUD", "LONG", _SAT) + _rendered("GBP_JPY", "SHORT", _SAT)
+    assert "Market closed" in text and "DECISION     LONG" in text
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert _notes(tmp_path) == ""
+    assert "DECISION notification suppressed: market closed" in _log(proj, "brief")
+
+
+def test_g2_an_open_market_decision_still_notifies(tmp_path):
+    """Positive control: the gate is not a blanket mute."""
+    text = _rendered("GBP_AUD", "LONG", _WED)
+    assert "Market closed" not in text and "DECISION     LONG" in text
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    notes = _notes(tmp_path)
+    assert 'subtitle "DECISION"' in notes and "DECISION LONG" in notes
+    assert "suppressed" not in _log(proj, "brief")
+
+
+def test_g3_the_gate_is_per_instrument_and_keeps_closed_lines_out_of_the_summary(tmp_path):
+    text = _rendered("GBP_AUD", "LONG", _SAT) + _rendered("GBP_JPY", "SHORT", _WED)
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    notes = _notes(tmp_path)
+    assert 'subtitle "DECISION"' in notes
+    assert "DECISION SHORT" in notes and "DECISION LONG" not in notes
+
+
+def test_g4_a_flip_alert_still_fires_when_closed(tmp_path):
+    text = _rendered("GBP_AUD", "LONG", _SAT)
+    proj = _project(tmp_path, brief=_brief_printing(
+        tmp_path, text, "sys.stderr.write('##ALERT## GBP/AUD regime flipped\\n')\n"))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    notes = _notes(tmp_path)
+    assert 'subtitle "ALERT"' in notes and "regime flipped" in notes
+
+
+def test_g5_a_health_alert_still_fires_when_closed(tmp_path):
+    text = _rendered("GBP_AUD", "LONG", _SAT)
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    stale = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 30 * 86400))
+    (proj / "regime_classification_log.csv").write_text(f"timestamp,x\n{stale},1\n")
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    _run(tmp_path, proj, "scheduled_brief.sh")       # 2 consecutive failures notify
+    notes = _notes(tmp_path)
+    assert 'subtitle "ALERT"' in notes and 'subtitle "DECISION"' not in notes
+
+
+def test_g6_a_shadow_signal_still_fires_when_closed_without_the_decision(tmp_path):
+    text = _rendered("GBP_AUD", "LONG", _SAT) + "\nSHADOW SIGNALS\n  MOMENTUM_JOIN LONG\n"
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    notes = _notes(tmp_path)
+    assert 'subtitle "SHADOW"' in notes and "MOMENTUM_JOIN" in notes
+    assert "DECISION LONG" not in notes
+
+
+def test_g7_the_heartbeat_still_fires_after_a_closed_market_brief(tmp_path):
+    proj = _heartbeat_project(tmp_path)
+    text = _rendered("GBP_AUD", "LONG", _SAT)
+    (proj / "decision_brief.py").write_text(_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    _run(tmp_path, proj, "weekly_heartbeat.sh")
+    assert 'subtitle "HEARTBEAT"' in _notes(tmp_path)
+
+
+def test_g8_the_digest_still_fires_when_closed(tmp_path):
+    text = _rendered("GBP_AUD", "LONG", _SAT)
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    notes = _notes(tmp_path)
+    assert 'subtitle "DIGEST"' in notes and 'subtitle "DECISION"' not in notes
+
+
+def test_g9_the_wrapper_marker_is_the_producers_banner():
+    """The wrapper greps prose because the brief has no machine marker
+    (decision_brief.py is protected). Pin the exact string at both ends."""
+    import re
+    from datetime import datetime, timezone
+    from regime_detection import _market_status
+    src = open(os.path.join(_ROOT, "scripts", "scheduled_brief.sh"), encoding="utf-8").read()
+    m = re.search(r"^CLOSED_MARKER='([^']+)'$", src, re.M)
+    assert m, "scheduled_brief.sh must define CLOSED_MARKER='...'"
+    marker = m.group(1)
+    closed = _market_status(_now=datetime(*_SAT, tzinfo=timezone.utc))
+    opened = _market_status(_now=datetime(*_WED, tzinfo=timezone.utc))
+    assert closed["open"] is False and closed["note"].startswith(marker)
+    assert opened["open"] is True and marker not in opened["note"]
+    assert marker in _rendered("GBP_AUD", "LONG", _SAT)
+    assert marker not in _rendered("GBP_AUD", "LONG", _WED)
+
+
 def test_digest_is_sent_only_with_the_digest_argument(tmp_path):
     proj = _project(tmp_path)
     _run(tmp_path, proj, "scheduled_brief.sh")

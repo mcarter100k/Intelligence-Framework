@@ -104,12 +104,33 @@ if [ -n "$HEALTH" ]; then
     notify "$HCAT" "$(printf '%s' "$HEALTH" | sed 's/^ALERT://')" "$LOG"
 fi
 
+# Market-status gate on DECISION (docs/specs/decision_channel_measurement_spec.md,
+# Phase 0): a decision issued while the market is closed cannot be acted on,
+# so its line is dropped before the DECISION test and the summary. Only
+# DECISION is gated; ALERT, health, SHADOW and DIGEST fire as before. The
+# brief has no machine-readable market flag (decision_brief.py is protected),
+# so this is the banner regime_detection._market_status puts in a closed
+# instrument's header, pinned in test_wrapper_behavior.py (g1-g9) so a wording
+# change fails the suite rather than silently disabling the gate. Scoped per
+# instrument: each "XXX/YYY" header line starts a new block. No banner means
+# open, which is the old behavior.
+CLOSED_MARKER='Market closed — analysis based on last close.'
+OUT_GATED="$(printf '%s\n' "$OUT" | awk -v m="$CLOSED_MARKER" '
+    /^ *[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { closed = 0 }
+    index($0, m) { closed = 1 }
+    closed && /DECISION/ && !/STAND ASIDE/ { next }
+    { print }')"
+if printf '%s\n' "$OUT" | grep 'DECISION' | grep -qv 'STAND ASIDE' \
+   && ! printf '%s\n' "$OUT_GATED" | grep 'DECISION' | grep -qv 'STAND ASIDE'; then
+    echo "DECISION notification suppressed: market closed" >> "$LOG"
+fi
+
 # Notify if: a real decision (non STAND ASIDE), a shadow signal, OR a flip.
 # Category priority mirrors the old summary preference: flips first, then the
 # decision, then shadow (docs/specs/notify_click_through_spec.md).
 CATEGORY=""
 if printf '%s\n' "$OUT" | grep -q 'SHADOW SIGNALS'; then CATEGORY="SHADOW"; fi
-if printf '%s\n' "$OUT" | grep 'DECISION' | grep -qv 'STAND ASIDE'; then CATEGORY="DECISION"; fi
+if printf '%s\n' "$OUT_GATED" | grep 'DECISION' | grep -qv 'STAND ASIDE'; then CATEGORY="DECISION"; fi
 if [ -n "$ALERTS" ]; then CATEGORY="ALERT"; fi
 
 if [ -n "$CATEGORY" ]; then
@@ -117,7 +138,7 @@ if [ -n "$CATEGORY" ]; then
     if [ -n "$ALERTS" ]; then
         SUMMARY="$(printf '%s\n' "$ALERTS" | paste -sd '|' - | cut -c1-180)"
     else
-        SUMMARY="$(printf '%s\n' "$OUT" \
+        SUMMARY="$(printf '%s\n' "$OUT_GATED" \
             | grep -E 'DECISION +(LONG|SHORT)|EARLY_MOMENTUM|THRUST_PULLBACK|MOMENTUM_JOIN' \
             | sed -E 's/^ *//; s/  +/ /g' | paste -sd '|' - | cut -c1-180)"
     fi
