@@ -15,28 +15,26 @@ import re
 import sys
 
 
+def pair_decisions(text: str) -> list:
+    """Each pair's decision in one brief run, e.g. ["GBP/AUD LONG",
+    "GBP/JPY STAND ASIDE"]. The one parser shared by the digest and the
+    latest view. A pair's section runs from its header to the next pair's.
+    The decision is matched by word because the brief renders "LONG  ▲ — …"
+    and "SHORT ▼ — …"; anything else shows "?", never a guessed word."""
+    starts = [(m.group(1), m.start()) for m in re.finditer(r"(GBP/[A-Z]{3})\s+\|", text)]
+    out = []
+    for i, (name, start) in enumerate(starts):
+        end = starts[i + 1][1] if i + 1 < len(starts) else len(text)
+        dm = re.search(r"^\s*DECISION\s+(LONG|SHORT|STAND ASIDE)\b", text[start:end], re.M)
+        out.append(f"{name} {dm.group(1)}" if dm else f"{name} ?")
+    return out
+
+
 def build_digest(text: str) -> str:
     try:
         if "Framework error" in text or not text.strip():
             return "run failed — see the log"
-
-        # per-pair decision: pair header then its DECISION line
-        pairs = []
-        for m in re.finditer(r"(GBP/[A-Z]{3})\s+\|", text):
-            pairs.append((m.group(1), m.start()))
-        decisions = []
-        for i, (name, start) in enumerate(pairs):
-            end = pairs[i + 1][1] if i + 1 < len(pairs) else len(text)
-            block = text[start:end]
-            # The decision vocabulary, matched by word: the brief renders
-            # "LONG  ▲ — …" / "SHORT ▼ — …", and the old pattern (wanting "—"
-            # right after the word) digested every directional day as "?".
-            # Anything else stays "?", never a guessed word.
-            dm = re.search(r"^\s*DECISION\s+(LONG|SHORT|STAND ASIDE)\b",
-                           block, re.M)
-            decisions.append(f"{name} {dm.group(1).strip()}" if dm
-                             else f"{name} ?")
-        head = " · ".join(decisions) if decisions else "no pairs rendered"
+        head = " · ".join(pair_decisions(text)) or "no pairs rendered"
 
         # watch condition from EXIT IF sections (unwrap the rendered lines)
         watches = []
