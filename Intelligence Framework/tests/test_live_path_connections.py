@@ -267,10 +267,6 @@ ORPHAN_ALLOWLIST = {
                         "Deliberately NOT called by any grader — a grader "
                         "that could write its own exclusions is the whole "
                         "failure mode this registry exists to prevent.",
-    "backfill_loss_species": "manual one-time path by design — its own "
-                             "docstring (shadow_signals.py:502) says "
-                             "'scheduled runs classify at grading time'. "
-                             "Verified 2026-09-16.",
 }
 
 ARTIFACT_ALLOWLIST = {

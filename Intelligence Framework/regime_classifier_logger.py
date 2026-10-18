@@ -36,8 +36,6 @@ MIN_ACCURACY_THRESHOLD = 0.55
 MIN_SAMPLES_FLAG   = 60   # enough to notice a pattern — flag, watch closely
 MIN_SAMPLES_REVISE = 150  # enough to act on — triggers threshold re-validation
 
-# Legacy alias kept so run_outcome_check.py import doesn't break
-MIN_SAMPLES_FOR_REVIEW = MIN_SAMPLES_FLAG
 
 FIELDNAMES = [
     # Identity

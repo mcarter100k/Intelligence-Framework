@@ -33,18 +33,11 @@ from oanda_feed import (
 @dataclass
 class PairConfig:
     instrument:           str
-    ticker:               str
     pip_size:             float
     display_name:         str
     atr_spike_multiplier: float   # ATR ratio above which = volatile spike
     atr_compression_min:  float   # ATR ratio below which = compression stand-down
                                   # 0.0 = no compression filter (default)
-
-    def to_pips(self, price_move: float) -> float:
-        return round(price_move / self.pip_size, 1)
-
-    def from_pips(self, pips: float) -> float:
-        return pips * self.pip_size
 
 # INFORMED PRIOR — v1 validation invalidated by serial correlation (see validation_log 2026-06-29).
 # Direction supported by v2; N insufficient for VALIDATED status.
@@ -53,7 +46,6 @@ class PairConfig:
 PAIRS: Dict[str, PairConfig] = {
     "GBP_AUD": PairConfig(
         instrument="GBP_AUD",
-        ticker="GBPAUD=X",
         pip_size=0.0001,
         display_name="GBP/AUD",
         atr_spike_multiplier=1.2,   # informed prior — v1 N insufficient (see validation_log 2026-06-29)
@@ -61,15 +53,12 @@ PAIRS: Dict[str, PairConfig] = {
     ),
     "GBP_JPY": PairConfig(
         instrument="GBP_JPY",
-        ticker="GBPJPY=X",
         pip_size=0.01,
         display_name="GBP/JPY",
         atr_spike_multiplier=1.5,   # conservative default — spikes post-BoJ
         atr_compression_min=0.8,    # compression stand-down: pre-BoJ coil
     ),
 }
-
-_DEFAULT_PAIR = "GBP_AUD"
 
 _ATR_PERIOD  = 14
 _ADX_PERIOD  = 14

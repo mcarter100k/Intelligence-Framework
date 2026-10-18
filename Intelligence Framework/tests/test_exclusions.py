@@ -90,7 +90,7 @@ def test_id_column_ledger_matches_on_its_id(registry):
                         ENTRY)
     row = {"log_id": "2026-09-16T09:08:08Z_GBP_AUD",
            "timestamp": "2026-09-16T09:08:08Z", "instrument": "GBP_AUD"}
-    assert ex.is_excluded(row, "regime_classification_log.csv")
+    assert ex.excluder("regime_classification_log.csv")(row)
 
 
 def test_idless_ledger_matches_on_bare_timestamp(registry):
@@ -100,7 +100,7 @@ def test_idless_ledger_matches_on_bare_timestamp(registry):
     ex.append_exclusion("2026-09-16T09:08:08Z", "session_context_log.csv",
                         "2026-09-16", "r", ENTRY)
     row = {"timestamp": "2026-09-16T09:08:08Z", "instrument": "GBP_AUD"}
-    assert ex.is_excluded(row, "session_context_log.csv")
+    assert ex.excluder("session_context_log.csv")(row)
 
 
 def test_idless_ledger_also_matches_timestamp_instrument(registry):
@@ -108,15 +108,15 @@ def test_idless_ledger_also_matches_timestamp_instrument(registry):
                         "session_context_log.csv", "2026-09-16", "r", ENTRY)
     hit = {"timestamp": "2026-09-16T09:08:08Z", "instrument": "GBP_AUD"}
     miss = {"timestamp": "2026-09-16T09:08:08Z", "instrument": "GBP_JPY"}
-    assert ex.is_excluded(hit, "session_context_log.csv")
-    assert not ex.is_excluded(miss, "session_context_log.csv")
+    assert ex.excluder("session_context_log.csv")(hit)
+    assert not ex.excluder("session_context_log.csv")(miss)
 
 
 def test_unexcluded_rows_are_untouched(registry):
     ex.append_exclusion("2026-09-16T09:08:08Z", "session_context_log.csv",
                         "2026-09-16", "r", ENTRY)
     honest = {"timestamp": "2026-09-16T09:07:52Z", "instrument": "GBP_AUD"}
-    assert not ex.is_excluded(honest, "session_context_log.csv")
+    assert not ex.excluder("session_context_log.csv")(honest)
 
 
 # ── THE REQUIREMENT: an excluded row cannot reach any tally ───────────────────

@@ -24,7 +24,6 @@ import regime_detection as rd
 from regime_detection import (
     _classify,
     PAIRS,
-    _DEFAULT_PAIR,
     get_regime,
 )
 from no_trade_filter import apply_filter
@@ -121,29 +120,9 @@ def test_pip_size_jpy():
     assert PAIRS["GBP_JPY"].pip_size == pytest.approx(0.01)
 
 
-def test_to_pips_aud():
-    assert PAIRS["GBP_AUD"].to_pips(0.0050) == pytest.approx(50.0)
-
-
-def test_to_pips_jpy():
-    assert PAIRS["GBP_JPY"].to_pips(0.50) == pytest.approx(50.0)
-
-
-def test_from_pips_aud():
-    assert PAIRS["GBP_AUD"].from_pips(50) == pytest.approx(0.005)
-
-
-def test_from_pips_jpy():
-    assert PAIRS["GBP_JPY"].from_pips(50) == pytest.approx(0.50)
-
-
 def test_pairs_dict_keys():
     assert "GBP_AUD" in PAIRS
     assert "GBP_JPY" in PAIRS
-
-
-def test_default_pair():
-    assert _DEFAULT_PAIR == "GBP_AUD"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

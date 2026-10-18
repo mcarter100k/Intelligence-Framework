@@ -42,7 +42,7 @@ from __future__ import annotations
 import csv
 import os
 import sys
-from typing import Callable, Dict, Iterable, List, Optional, Set
+from typing import Callable, Dict, Iterable, List, Set
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 REGISTRY_FILE = os.path.join(_DIR, "excluded_rows.csv")
@@ -157,15 +157,6 @@ def _row_identities(row: Dict, ledger: str) -> Set[str]:
         if inst:
             out.add(f"{ts}_{inst}")
     return out
-
-
-def is_excluded(row: Dict, ledger: str,
-                excluded: Optional[Set[str]] = None) -> bool:
-    """True when this row is registered as excluded from tallies."""
-    ids = excluded if excluded is not None else excluded_ids(ledger)
-    if not ids:
-        return False
-    return bool(_row_identities(row, ledger) & ids)
 
 
 def filter_rows(rows: Iterable[Dict], ledger: str) -> List[Dict]:

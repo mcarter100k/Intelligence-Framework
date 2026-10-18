@@ -74,3 +74,5 @@ No parameter changes to any candidate; no stop-width tuning "informed" by
 species counts until a review gate (FLAG N=30 of GRADED outcomes per
 candidate) is reached — species tallies below that N are anecdotes, and
 the honest-N rules apply to autopsy conclusions exactly as to win rates.
+
+> **2026-10-18 note (code_hygiene_spec B5):** `backfill_loss_species` was removed after its one run on the live ledger (validation_log 2026-09-09). The nightly grader classifies every loss at grading time. The function survives in git history before this commit.

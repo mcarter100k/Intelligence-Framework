@@ -68,22 +68,17 @@ class EntryBrief:
     h1_confirmed:    bool   # H4 setup showing on H1
     h1_structure:    str    # UPTREND / DOWNTREND / TRANSITIONAL
     h1_entry_level:  float  # nearest H1 support (long) or resistance (short)
-    h1_adx:          float  # H1 ADX — unvalidated, logged only
 
     # M15 fields
     m15_trigger:  bool   # 15min entry trigger active
-    m15_signal:   str    # plain English: what to look for
-    m15_level:    float  # specific price level to enter at
 
     # Engulfing + level proximity (ported from entry_watcher)
     engulfing_detected: bool
     near_key_level:     bool
-    key_level_price:    Optional[float]
     trigger_basis:      str   # plain English: what fired and why
 
     # Combined
     entry_ready:  bool   # h1_confirmed AND m15_trigger
-    entry_note:   str    # one sentence on entry status
 
     # Formatted output
     precision_brief: str
@@ -272,16 +267,11 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
             h1_confirmed=h1_confirmed,
             h1_structure=h1_structure,
             h1_entry_level=h1_entry_level,
-            h1_adx=h1_adx,
             m15_trigger=m15_trigger,
-            m15_signal=m15_signal,
-            m15_level=m15_level,
             engulfing_detected=engulfing_detected,
             near_key_level=near_key_level,
-            key_level_price=key_level_price,
             trigger_basis=trigger_basis,
             entry_ready=entry_ready,
-            entry_note=entry_note,
             precision_brief=precision_brief,
         )
 
@@ -293,16 +283,11 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
             h1_confirmed=False,
             h1_structure="UNKNOWN",
             h1_entry_level=0.0,
-            h1_adx=0.0,
             m15_trigger=False,
-            m15_signal="",
-            m15_level=0.0,
             engulfing_detected=False,
             near_key_level=False,
-            key_level_price=None,
             trigger_basis="",
             entry_ready=False,
-            entry_note=f"Entry confirmation error: {str(e)[:60]}",
             precision_brief=precision_brief,
             error=str(e),
         )
