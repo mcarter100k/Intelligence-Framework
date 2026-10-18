@@ -3791,3 +3791,12 @@ This needs its own spec.
 - **`test_data_at_source.py` depends on the clock (pre-existing on main a3e070b).** 4 tests fail whenever the real market is closed, because `get_regime` reads the real clock and takes the `market_closed` price basis. Pinning only `_market_status` to a Wednesday gives 37/37. Branch suite on Saturday 2026-10-17: 820 passed, 4 failed (these four), 6 skipped. The rule-2 "green" condition is not met on a weekend for a reason unrelated to this change.
 - **Measurement C premise.** The task described TOLERANCE = 0.25 × ATR as "the existing near-level tolerance". The live tolerance is a fixed 25 pips (`entry_confirmation._M15_LEVEL_PROXIMITY_PIPS`). It is frozen as instructed, with the mismatch noted in the spec.
 - **Hypothesis for a future pre-registered run (not tested):** the scheduler gap is part of the channel's latency. GBP/JPY's 09-11 onset was first actionable at 09-14 09:16, after a 54.6 h gap with no runs.
+
+## 2026-10-18 — Week-of-10/17 fix set (B2): the 2026-06-28 trade_signal_log row excluded
+
+- **Row.** `2026-06-28T21:39:15Z_GBP_AUD` in `trade_signal_log.csv`. It is excluded from every tally through `exclusions.append_exclusion`. The row itself was not edited or deleted.
+- **Why.**
+  - `docs/audit_2026-09-29.md` §2 item 5 flags this row (the trade-signal grader's only graded row, exactly +150.0 pips) as looking synthetic.
+  - This log's 2026-06-28 note records synthetic data injected that day.
+  - The row predates the first day log (2026-07-29), so no brief run produced it, and it carries round values: price 1.91, ATR 95.0.
+- **Observed.** `excluder("trade_signal_log.csv")` on the real row returned False before the append and True after. A tally through `filter_rows` keeps 12 of 13 rows. The registry diff is 1 line added, 0 removed.
