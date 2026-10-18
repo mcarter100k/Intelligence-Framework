@@ -1,0 +1,6 @@
+instrument,onset_time,direction,episode,status
+GBP_AUD,2026-09-11T01:04:14Z,SHORT,True,ELIGIBLE (structure and leg-minimum not yet checked)
+GBP_AUD,2026-10-17T01:12:44Z,LONG,True,AWAITING OPEN
+GBP_JPY,2026-09-12T01:02:16Z,SHORT,True,ELIGIBLE (structure and leg-minimum not yet checked)
+GBP_JPY,2026-09-25T01:01:55Z,SHORT,True,ELIGIBLE (structure and leg-minimum not yet checked)
+GBP_JPY,2026-10-09T01:00:11Z,SHORT,True,ONSET-CENSORED
