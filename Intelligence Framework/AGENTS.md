@@ -137,9 +137,9 @@ restoring either requires team review and a concrete evidence path.
    FAILS if ANY file in the project (logs/ included; caches, venv/ and .git
    excepted) was created, changed or deleted. Never weaken these to make a
    test pass. Two floors that must never be weakened to make something pass:
-   - the **banned-token display test** (`test_brief_display.py`) — rendered
+   - the **banned-token display test** (`tests/test_brief_display.py`) — rendered
      output stays plain-English: no ADX / pivot / HH-HL / LH-LL / ATR-ratio
-   - the **stand-down consistency matrix** (`test_regime_detection_p1.py`,
+   - the **stand-down consistency matrix** (`tests/test_regime_detection_p1.py`,
      T34–T41) — `apply_filter` is the single stand-down authority
    Floor changes happen only with the owner's explicit authorization, each
    documented old → new in the test and its spec. The one so far:
