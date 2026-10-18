@@ -89,8 +89,6 @@ def test_delta_changed_case_reads_plainly():
                                  "(RANGING → VOLATILE). Re-evaluate.",
                       "minutes_ago": 100})
     assert "Since the last read 1h 40m ago:" in s["regime"]
-    assert "Regime" not in s["regime"].split("Since the last read")[1].split(".")[0] \
-        or True  # body wording checked by the banned-token sweep
     assert "since last run" not in s["regime"]
 
 def test_regime_quiet_sideways_wording():

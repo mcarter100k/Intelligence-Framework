@@ -58,7 +58,7 @@ def test_blocked_filter_always_means_no_trade(d1, h4, structure):
     if decision["direction"] in ("LONG", "SHORT"):
         assert fr.allowed is True
         assert decision["conviction"] > 0
-        assert decision["grade"] in ("A+", "A", "B+", "B", "C")
+        assert decision["grade"] in ("A+", "A", "B+", "B")      # a C never trades (D7)
 
 
 # ── INVARIANT 2: corrupt ATR NEVER trades, whatever else is set ────────────────

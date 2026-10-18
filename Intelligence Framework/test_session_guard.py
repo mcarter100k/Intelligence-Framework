@@ -20,10 +20,14 @@ from session_guard import (
     can_trade, count_leg_grouped_positions, get_session_status,
 )
 
-_FIELDS = ["row_type", "position_id", "timestamp_utc", "instrument",
-           "direction", "open_price", "stop", "target", "close_price",
-           "size", "pips", "outcome", "balance_open", "balance_close",
-           "return_pct", "stack_id", "rationale"]
+from trade_logger import FIELDS as _FIELDS      # the writer's schema, not a copy
+
+
+def test_the_breakers_required_columns_are_written_by_trade_logger():
+    """session_guard reads trades.csv that trade_logger writes; a column the
+    breaker needs but the writer dropped would fail closed on every read."""
+    import session_guard as sg
+    assert sg._REQUIRED_COLUMNS <= set(_FIELDS)
 
 
 def _today(hhmmss="10:00:00"):
