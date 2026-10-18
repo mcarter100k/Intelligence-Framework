@@ -19,6 +19,11 @@ HOW IT WORKS:
   4. Restores original feed bindings after each scenario
   5. Prints brief + what actually happened + judgment
 
+  Only the D1/H4/weekly bars are historical: the live price, levels and
+  entry feeds are not patched, so each brief mixes today's data with old
+  bars. Do not cite its output as evidence. Run it only through
+  scripts/reality_run.py; __main__ refuses to run inside the project.
+
 FX SESSION BOUNDARY:
   OANDA FX day bars open at 22:00 UTC (not midnight). The "Oct 26"
   bar opens at Oct 25 22:00Z. Using `to = end_date T22:00:00Z`
@@ -302,7 +307,25 @@ def replay_scenario(
 
 # ── Scenarios ─────────────────────────────────────────────────────────────────
 
+def _refuse_inside_project(cwd: str) -> Optional[str]:
+    """Every replay runs the real brief, which appends to the evidence
+    ledgers through relative paths. From anywhere inside the project that
+    writes synthetic historical rows into real ledgers (stamped with today's
+    time, so the nightly grader would grade them). Returns the refusal
+    message, or None when the working directory is outside the project."""
+    root = _os.path.realpath(_ROOT)
+    here = _os.path.realpath(cwd)
+    if here == root or here.startswith(root + _os.sep):
+        return ("Refusing to run inside the project: the replay would write into "
+                "the live ledgers. Run it through the side-effect-free harness:\n"
+                "  python3 scripts/reality_run.py script studies/historical_scenario_replay.py")
+    return None
+
+
 if __name__ == "__main__":
+    _refusal = _refuse_inside_project(_os.getcwd())
+    if _refusal:
+        _sys.exit(_refusal)
 
     replay_scenario(
         instrument="GBP_AUD",
