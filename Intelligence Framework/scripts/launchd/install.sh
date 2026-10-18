@@ -8,9 +8,7 @@ SRC="$PROJ/scripts/launchd"
 DEST="$HOME/Library/LaunchAgents"
 mkdir -p "$DEST"
 
-# wrappers must be executable
-chmod +x "$PROJ/scripts/scheduled_brief.sh" "$PROJ/scripts/scheduled_outcome_check.sh" \
-         "$PROJ/scripts/scheduled_calendar.sh"
+# The plists run each wrapper as "/bin/bash <script>", so no execute bit is needed.
 mkdir -p "$PROJ/logs"
 
 for p in "$SRC"/com.quis.intelligence.*.plist; do
@@ -23,4 +21,4 @@ done
 
 echo
 echo "Installed. Verify with:  launchctl list | grep com.quis.intelligence"
-echo "Schedule (local time): brief 02:30 / 07:30 / 18:00, outcomes 15:15, calendar Sun 12:00."
+echo "Schedule (local time): brief 02:30 / 07:30 / 18:00, outcomes 15:15, calendar Sun 12:00, heartbeat Sun 12:30."
