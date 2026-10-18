@@ -1,7 +1,7 @@
 """
 levels_context.py
 ─────────────────
-Computes all key GBP/AUD price levels from OANDA data.
+Computes the key price levels for either pair from OANDA data.
 Used by entry_confirmation (via levels_as_list) for the M15 level check.
 
 Levels returned:

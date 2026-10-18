@@ -6,7 +6,7 @@ into official_decision's tradeable path — this module only observes and record
 so that forward data can eventually give the first honestly-validated answer.
 
 Why this exists: three historical premises (compression-precedes-moves,
-fakeout-then-go, structural-precursor) were all refuted at honest N this session
+fakeout-then-go, structural-precursor) were all refuted at honest N by 2026-07-29
 (see validation_log.md / precursor_study.py). Every road through the PAST is
 exhausted. The evidence that remains is FORWARD. So we specify the two-to-three
 surviving "join momentum" candidates, freeze them, and log every fire with a
@@ -127,15 +127,11 @@ def _sig(cid, instrument, ctx, direction, entry, stop, extra=""):
 
 
 # ── Candidate 1: EARLY_MOMENTUM_v2 (GBP/JPY only) ───────────────────────────────
-# v1 RETIRED 2026-09-09 (validation_log 2026-09-09; docs/specs/
-# early_momentum_v2_spec.md). Defect: the stale-swing stop could land on the
-# NON-adverse side of entry (SHORT entered above the last swing high) —
-# unscoreable by construction, guaranteed -1.0R at entry. v1's ledger rows are
-# preserved under their original id; its one valid row is Episode 1 = -1.0R.
-# v2 = byte-identical trigger and parameters + ONE guard: when the swing
-# exists but gives no valid adverse-side stop, NO FIRE (no fallback
-# substitution — that ambiguous state is exactly what v1 mis-scored).
-# Frozen 2026-09-09; any further change starts EARLY_MOMENTUM_v3.
+# v2 = v1's trigger and parameters byte-for-byte + ONE guard: a swing that
+# gives no valid adverse-side stop means NO FIRE (no substitute stop). v1 was
+# retired 2026-09-09 for placing that stop on the wrong side of entry
+# (docs/specs/early_momentum_v2_spec.md). FROZEN 2026-09-09: any change
+# starts EARLY_MOMENTUM_v3.
 def check_early_momentum_v2(instrument: str, ctx: Dict) -> Optional[Dict]:
     if "JPY" not in instrument:
         return None
@@ -162,12 +158,9 @@ def check_early_momentum_v2(instrument: str, ctx: Dict) -> Optional[Dict]:
 def check_thrust_pullback(instrument: str, ctx: Dict) -> Optional[Dict]:
     H, L, C, O, atr = ctx["H"], ctx["L"], ctx["C"], ctx["O"], ctx["atr"]
     n = len(C)
-    # ATR/bar alignment (2026-09-10 fix): compute_atr_series returns
-    # n - period values — atr[i] is the ATR as of bar i + off, so the live
-    # feed (n=300, off=14) made atr[b] with a BAR index raise IndexError on
-    # every call from go-live, silently swallowed upstream into "no signal".
-    # _atr_at maps a bar index to its ATR. Alignment only — every spec
-    # parameter (frozen 2026-07-29) is UNCHANGED, so no new candidate id.
+    # atr[] is shorter than the bar list (it starts after the ATR period);
+    # _atr_at maps a bar index to its ATR. Alignment fix 2026-09-10, no
+    # parameter change, so no new candidate id.
     off = n - len(atr)
 
     def _atr_at(i: int) -> float:
@@ -232,13 +225,10 @@ def check_shadow_signals(instrument: str, ctx: Optional[Dict] = None) -> List[Di
         try:
             s = fn(instrument, ctx)
         except Exception as exc:
-            # A candidate error must NEVER render as "no signal" — that is
-            # how THRUST_PULLBACK logged a can't-fire as a no-setup from
-            # go-live to 2026-09-10. Loud path: machine ##ALERT## line on
-            # stderr; the wrapper routes it to the day log + a notification
-            # and records a health FAILURE, so the daily UNHEALTHY alert
-            # repeats until the candidate is fixed. The other candidates
-            # still run — one broken check never silences the rest.
+            # A crashing candidate must never read as "no signal": print an
+            # ##ALERT## line; the brief wrapper turns it into a health FAILURE
+            # that repeats until fixed. Other candidates still run
+            # (validation_log 2026-09-10).
             print(f"##ALERT## SHADOW CANDIDATE ERROR — "
                   f"{getattr(fn, '__name__', str(fn))} {instrument}: "
                   f"{type(exc).__name__}: {exc}", file=sys.stderr)
@@ -357,15 +347,9 @@ def get_shadow_tally(candidate_id: str, instrument: Optional[str] = None) -> Dic
             logged += 1
             if str(r.get("outcome_filled")) == "True":
                 graded += 1
-                # The definitive outcome is R-multiple — it respects the
-                # stop. hit_stop=True => LOSS, always: a stopped trade lost
-                # 1R no matter where price sat 30 bars later; counting its
-                # net-at-horizon as a win is clairvoyance, not performance
-                # (validation_log 2026-09-09, tally correction). The
-                # founding exhibit is exactly this shape: -1.0R with net
-                # +529. net_30bars_pips stays in the ledger as a DIAGNOSTIC
-                # (the loss autopsy needs it to spot noise-stops) but never
-                # determines win/loss.
+                # Win/loss is the R-multiple: a stop hit is always a loss,
+                # whatever price did by bar 30 (validation_log 2026-09-09).
+                # net_30bars_pips is kept only as a diagnostic.
                 try:
                     if float(r["r_multiple"]) > 0:
                         wins += 1
@@ -431,6 +415,9 @@ def episode_count(candidate_id: str, instrument: Optional[str] = None) -> int:
                     datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00")))
             except Exception:
                 continue
+    # KNOWN DEFECT (audit 2026-09-29 item 3): 120 clock hours, but 30 H4 bars
+    # span about 168h over a weekend, so this OVERCOUNTS episodes. It also
+    # counts ungraded rows. Fixing it is a methodology change with its own spec.
     span = HORIZON * 4 * 3600          # 30 H4 bars, in seconds
     total = 0
     for times in by_inst.values():
@@ -565,6 +552,12 @@ def backfill_loss_species(instrument: str) -> int:
 
 # ── Grading (called by run_outcome_check) ───────────────────────────────────────
 def grade_pending_shadow(instrument: str) -> int:
+    """Nightly: score every logged fire whose 30 four-hour bars have passed.
+    A bar touching the stop makes it -1R; otherwise R = (close at bar 30 -
+    entry) / risk. Records best/worst excursion and, for a loss, its type.
+    Skips invalid-stop and excluded rows. A fire older than the 500-bar fetch
+    (~83 trading days) is never graded. Rewrites the ledger atomically under
+    its lock. Returns the number of rows graded."""
     if not os.path.exists(LOG_FILE):
         return 0
     from oanda_feed import get_h4_bars, is_configured

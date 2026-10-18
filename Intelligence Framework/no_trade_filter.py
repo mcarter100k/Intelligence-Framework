@@ -1,27 +1,26 @@
 """
 no_trade_filter.py
 ──────────────────
-Single source of truth for all no-trade and stand-down decisions.
+The single authority on standing aside. It runs inside get_regime and its
+allowed flag is final: it allows a trade only if the official decision,
+run on the same input, would take it (docs/specs/decision_logic_spec.md).
 
-This module sits upstream of signal scoring. It reads the full
-regime output and returns a FilterResult that either:
-  - Allows trading (with execution parameters)
-  - Blocks trading (with reason)
-  - Overrides a stand-down in specific high-conviction conditions
-
-STAND-DOWN CONDITIONS (any one triggers NO TRADE):
-  1. D1 VOLATILE (ADX 18-25 transition zone) with no override eligible
-  2. Opposite-trend conflict (D1 up + H4 down or vice versa)
-  3. ATR compression (GBP/JPY pre-BoJ coil)
-  4. Extreme ATR spike (ratio >= 2.0x)
-  5. RANGING D1 + VOLATILE H4 (range breaking down)
-  6. Both timeframes VOLATILE
-  7. Exhaustion move on either timeframe (GBP/JPY RANGING/EXHAUSTION) —
-     fade, don't follow; stands aside until EXHAUSTION is validated
-  8. The official decision would not trade (no direction, disabled range
-     trade, grade C) — official_decision.decide() runs on every provisional
-     allow, so allowed == "the official decision trades"
-     (docs/specs/decision_logic_spec.md)
+Checks, in the order the code runs them; the first that fails decides:
+  1. volatility reading corrupt (ATR ratio not a positive number)
+  2. high-impact news for the pair, from 2 hours before to 30 min after
+  3. weekly data missing (the 20-week check cannot run)
+  4. GBP/JPY volatility compression (pre-BoJ coil)
+  5. exhaustion on either chart (GBP/JPY RANGING/EXHAUSTION): fade, don't follow
+  6. daily and 4-hour trends point opposite ways
+  7. volatility 2x normal or more
+  8. daily sideways + 4-hour unclear
+  9. both charts unclear
+ 10. daily unclear: stand aside unless the counter-trend override fires.
+     An override goes straight to the official decision and skips 11-12;
+     its own rule needs the 4-hour trend to agree with the weekly bias.
+ 11. a trade against the 20-week trend
+ 12. the resolution table says stand aside
+Anything that passes still needs the official decision to trade.
 
 COUNTER-TREND OVERRIDE (lifts D1 VOLATILE stand-down only):
   ALL of the following must be true:
@@ -157,7 +156,8 @@ def apply_filter(regime: dict) -> FilterResult:
         )
 
     # Pre-news stand-down gate (docs/specs/news_gate_spec.md) — a HIGH-impact
-    # event for the pair's own currencies inside the 2-hour window. Safety
+    # event for the pair's own currencies, from 2 hours before to 30 minutes
+    # after its release. Safety
     # infrastructure, same class as the market-closed gate: the framework
     # declines to present its reading as valid when its inputs are guaranteed
     # to be repriced. Gate state is computed upstream (news_gate.check_news_gate
@@ -220,9 +220,7 @@ def apply_filter(regime: dict) -> FilterResult:
             block="exhaustion",
         )
 
-    # Opposite-trend conflict — structural disagreement. Compared on the
-    # regimes themselves: the former string match looked for tokens
-    # _detect_conflict never emits, so this block could not fire (D3).
+    # Daily and 4-hour trending opposite ways: no edge (decision_logic_spec D3).
     if {d1, h4} == {"TRENDING_UP", "TRENDING_DOWN"}:
         return FilterResult(
             allowed=False,
@@ -299,28 +297,10 @@ def apply_filter(regime: dict) -> FilterResult:
             reason=_reason,
         )
 
-    # ── Weekly alignment gate ─────────────────────────────────────────────────
-    # Checks that the intended trade direction does not contradict
-    # the dominant 20-week trend (lt_trend).
-    #
-    # ALIGNMENT RULE: never trade against the 20-week trend.
-    #   SHORT against lt_trend=UPTREND is blocked.
-    #   LONG against lt_trend=DOWNTREND is blocked.
-    # The former "UNLESS" exceptions (short if COUNTER_TREND_BOUNCE, long if
-    # PULLBACK_IN_UPTREND) could never fire: _compute_weekly_context emits
-    # COUNTER_TREND_BOUNCE only when lt=DOWNTREND and PULLBACK_IN_UPTREND only
-    # when lt=UPTREND — proven over all 9 lt x st cases
-    # (test_weekly_alignment_wording.test_the_former_exceptions_are_unreachable;
-    # docs/specs/weekly_alignment_wording_spec.md addendum). Removed: no
-    # decision the classifier can produce changes. A hand-built dict pairing
-    # lt=UPTREND with COUNTER_TREND_BOUNCE (impossible from the classifier)
-    # used to allow the short and is now blocked — the stricter direction.
-    # Whether a counter-trend exception is wanted at all is an open owner
-    # decision, not an accident of dead code.
-    #
-    # Uses lt_trend (20-week) not weekly_context label —
-    # lt_trend is the clean directional read.
-    # If lt_trend is RANGING — no weekly bias, no gate.
+    # ── Weekly alignment gate: never trade against the 20-week trend ─────────
+    # SHORT is blocked when lt_trend=UPTREND, LONG when lt_trend=DOWNTREND;
+    # RANGING means no gate. The former exceptions were unreachable and were
+    # removed (weekly_alignment_wording_spec.md addendum).
 
     intended = _derive_direction(d1, exec_mode)
 

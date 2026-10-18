@@ -14,14 +14,10 @@ OUTCOME WINDOW: 20 bars for TRENDING/RANGING, 8 bars for VOLATILE
 MINIMUM ACCURACY: 55% — below this, thresholds need review
 
 USAGE:
-  from regime_classifier_logger import log_regime, check_pending_outcomes
-
-  # Log a regime classification (call after every get_regime())
   log_regime(regime_data, instrument)
-
-  # Check and fill outcomes for classifications old enough to measure
-  # Call this at the start of each framework run
-  check_pending_outcomes(instrument, current_bars_data)
+      called by decision_brief on every open-market run
+  check_pending_outcomes(instrument, closes, highs, lows, recent_index)
+      called nightly by run_outcome_check.py to grade old-enough rows
 """
 
 import csv
@@ -142,6 +138,9 @@ def log_regime(regime_data: Dict, instrument: str) -> str:
     if not _price_plausible(instrument, regime_data.get("current_price", 0.0)):
         return log_id
 
+    # get_regime's "regime" is the DAILY label, not the daily+4-hour composite.
+    # The ledger column is still named composite_regime: it cannot be renamed
+    # in an append-only ledger. Grading and accuracy buckets key on it.
     composite = regime_data.get("regime", "UNKNOWN")
     prediction_type, prediction_window = _get_prediction(composite)
 
@@ -464,11 +463,15 @@ def _measure_outcome(
     instrument:   str = "GBP_AUD",
 ) -> Tuple[bool, str]:
     """
-    Measure whether the prediction was correct.
+    Was the logged prediction right? (no costs, any amount counts)
 
-    MOMENTUM_WIN: price moved further in trend direction
-    MR_WIN:       price reverted toward the mean
-    VOL_EXPANSION: realized vol > 1.3x ATR at log time
+    MOMENTUM_WIN:  price at the outcome bar is beyond the logged price in the
+                   trend direction.
+    MR_WIN:        KNOWN DEFECT (audit 2026-09-29 item 2): "the mean" is the
+                   average of the 20 bars AFTER the log, so a steady trend
+                   also scores as correct.
+    VOL_EXPANSION: the average daily range over the last 8 bars of the
+                   window is at least 1.3x the logged ATR.
     """
     if not closes:
         return False, "No price data available"

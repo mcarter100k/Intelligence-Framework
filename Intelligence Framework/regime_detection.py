@@ -1,19 +1,20 @@
 """
-regime_detection.py
+regime_detection.py — reads the market for GBP/AUD and GBP/JPY.
 
-Detects the current market regime for GBP/AUD:
-  TRENDING_UP   : strong directional move higher
-  TRENDING_DOWN : strong directional move lower
-  RANGING       : price chopping sideways in a box
-  VOLATILE      : large unpredictable swings, no clear direction
+Labels the daily and 4-hour charts from OANDA closed bars:
+  TRENDING_UP / TRENDING_DOWN : a confirmed trend
+  RANGING                     : sideways (or, on GBP/JPY, an exhaustion move)
+  VOLATILE                    : no clear direction
 
-Indicators:
-  ATR (Average True Range) — how many pips GBP/AUD moves per day on average
-  ADX (Average Directional Index) — how strong the current trend is (0-100)
-    > 25 = trending | 20-25 = developing | < 20 = ranging/no trend
+Trend strength (ADX, 0-100): under 18 = sideways; 18-25 = no edge (stand
+aside); 25+ = a trend ONLY if price structure (higher highs and lows, or
+lower) agrees; GBP/JPY 35+ = exhaustion (fade, don't follow). A volatility
+spike (ATR against its 20-bar average), or on GBP/JPY a compression, overrides
+all of it.
+Every threshold is an INFORMED PRIOR (validation_log 2026-06-29).
 
-Both use Wilder's smoothing — fixed to avoid accumulation overflow.
-Data source: yfinance (free, no API key needed)
+get_regime() assembles everything the brief needs for one pair, and runs
+the no-trade filter, which runs the official decision.
 """
 
 from __future__ import annotations
@@ -83,7 +84,7 @@ _ADX_TRANSITION_HIGH      = 25    # 25-32: cautious trend, HTF confirmation requ
 _ADX_EXHAUSTION_THRESHOLD = 32    # above this: late-trend warning, reduce size
 _ADX_JPY_EXHAUSTION       = 35    # GBP/JPY specific: mean reversion accelerates here
 
-# Weekly context constants — sourced from htf_structure 5yr analysis
+# Weekly context constants: INFORMED PRIOR (their source module, htf_structure, no longer exists)
 _WEEKLY_LT_LOOKBACK = 20  # 20W long-term trend lookback (~5 months)
 _WEEKLY_ST_LOOKBACK = 4   # 4W short-term trend lookback (~1 month)
 # What _trend_dir actually needs for the 20-week read (3-bar averages on both
@@ -97,7 +98,7 @@ _MA_LONG_PERIOD     = 200 # 200-day moving average — long-term structural bias
 # Maps every (D1_regime, H4_regime) pair to a deterministic trading instruction.
 # All 16 combinations are explicitly defined — no implicit fallbacks inside the
 # table itself. Unknown combinations handled by get_composite_regime() default.
-# INFORMED PRIOR: Table design locked 2025-06-28 based on Problems 1-5. NOTE:
+# INFORMED PRIOR: Table design locked 2026-06-28 based on Problems 1-5. NOTE:
 # the P1/P3 ADX/ATR threshold findings it rests on were later DEMOTED from
 # VALIDATED to INFORMED PRIOR (serial correlation from overlapping windows
 # inflated N — see validation_log 2026-06-29). Treat cell assignments as
@@ -259,7 +260,7 @@ def get_composite_regime(d1_regime: str, h4_regime: str) -> Dict:
     All 16 possible combinations are explicitly handled.
     Unknown combinations default to VOLATILE/STAND_DOWN.
 
-    INFORMED PRIOR: Table design locked 2025-06-28 based on Problems 1-5,
+    INFORMED PRIOR: Table design locked 2026-06-28 based on Problems 1-5,
     whose P1/P3 threshold findings were later demoted VALIDATED → INFORMED
     PRIOR (validation_log 2026-06-29). Re-evaluate cells after 60+ outcomes
     per combination.
@@ -282,17 +283,20 @@ def _detect_structure(
     n: int = 3,
 ) -> Dict:
     """
-    Detect market structure via confirmed pivot highs and lows.
+    Is price making higher highs and lows (UPTREND), lower ones
+    (DOWNTREND), or neither (TRANSITIONAL)?
 
-    Replaces the 10-candle slope read which breaks at pullbacks.
+    A swing high is a bar whose high is the highest of the n bars on each
+    side (ties count), confirmed once a later close falls below it. Swing
+    lows mirror that. UPTREND = the latest swing high AND low are both above
+    the previous ones; DOWNTREND = both below.
 
-    A pivot high at index i requires:
-      highs[i] > highs[i-n..i-1] AND highs[i] > highs[i+1..i+n]
-      AND a subsequent close below highs[i] (close confirmation)
-
-    A pivot low at index i requires:
-      lows[i] < lows[i-n..i-1] AND lows[i] < lows[i+1..i+n]
-      AND a subsequent close above lows[i] (close confirmation)
+    Fallbacks: with fewer than 2 confirmed swings on EITHER side, the first
+    half of the bars is compared with the second half (pivot_count then
+    reads 2, but these are not real swings). Under 18 bars: first close vs
+    last close (slope_fallback=True). get_regime always passes 42+ bars, so
+    that last path is reachable only from entry_confirmation and
+    shadow_signals.
 
     Returns dict with:
       structure        : "UPTREND" | "DOWNTREND" | "TRANSITIONAL"
@@ -308,7 +312,7 @@ def _detect_structure(
       ll               : bool — latest swing low < prior swing low
       pivot_count_high : int — number of confirmed swing highs found
       pivot_count_low  : int — number of confirmed swing lows found
-      slope_fallback   : bool — True if insufficient pivots, fell back to slope
+      slope_fallback   : bool — True only on the under-18-bar path
       slope_direction  : 1 or -1 — slope direction used if fallback triggered
     """
     if not closes:
@@ -678,14 +682,15 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
 
     INFORMED PRIOR (v1 invalidated by serial correlation, see validation_log 2026-06-29):
     - ADX < 18: mean reversion dominant on both pairs — RANGING
-    - ADX 18-25: no consistent edge — TRANSITION (size down, require structure)
-    - ADX 25-32: narrow momentum window, degrades fast — TRENDING (cautious)
-    - ADX 32+ GBP/JPY: 82.7% mean reversion at 40+ — EXHAUSTION → RANGING
-    - ADX > 32 general: late-trend, not entry signal — flag in output;
+    - ADX 18-25: no consistent edge — VOLATILE/TRANSITION_ZONE (stand aside)
+    - ADX 25-32: narrow momentum window, degrades fast — a trend only with
+      agreeing structure
+    - ADX 35+ GBP/JPY: 82.7% mean reversion at 40+ — EXHAUSTION → RANGING
+    - ADX 32+ general: late trend, flagged (adx_exhaustion cuts conviction);
       a trend only with agreeing structure, like 25-32
 
-    ADX does NOT predict trend continuation. It measures trend strength
-    that already occurred. Use structure (Problem 2) for direction confirmation.
+    Trend strength measures a move that already happened; direction comes
+    from price structure.
     """
     # GBP/JPY compression stand-down (pre-BoJ coil)
     if pair and pair.atr_compression_min > 0:
@@ -710,8 +715,8 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
     # there are no slope-only trend calls. The late-trend warning is carried
     # by get_regime's adx_exhaustion flag, which cuts conviction.
 
-    # Validated transition zone — no statistical edge. Subtype is display
-    # metadata only (docs/specs/unresolved_direction_polish_spec.md).
+    # 18-25 trend strength: no edge either way (INFORMED PRIOR). Stand aside;
+    # the subtype is display metadata (unresolved_direction_polish_spec.md).
     if _ADX_RANGING_THRESHOLD <= adx < _ADX_TRANSITION_HIGH:
         return "VOLATILE", "TRANSITION_ZONE"
 
@@ -828,6 +833,12 @@ def _split_live_bar(df, threshold_hours: float = 24.0) -> tuple:
 
 
 def get_regime(ticker: str = "GBP_AUD") -> Dict:
+    """Everything the brief needs for one pair, from OANDA closed bars: the
+    daily and 4-hour regimes, the 20-week and 4-week trends, price structure,
+    volatility and the live price. Runs the news gate (reads calendar.csv)
+    and the no-trade filter, which runs the official decision, so stand_down
+    and filter_* here are final. Writes nothing. A missing 4-hour or weekly
+    fetch becomes a labelled stand-aside, never a silent default."""
     pair = PAIRS.get(ticker)
     if pair is None:
         return _error_result(
@@ -938,13 +949,14 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     structure_data = _detect_structure(highs, lows, closes)
     structure      = structure_data["structure"]
 
-    # Direction for _classify(): derived from structure, falls back to slope
+    # slope restates the structure (+1 up, -1 down). For TRANSITIONAL it is the
+    # 10-bar change, but _classify_ex never reads it there, so the
+    # STRUCTURE_DISAGREES subtype cannot come out of get_regime.
     if structure == "UPTREND":
         slope = 1.0
     elif structure == "DOWNTREND":
         slope = -1.0
     else:
-        # TRANSITIONAL: use slope as tiebreaker, reduce confidence
         slope = closes[-1] - closes[-10] if len(closes) >= 10 else 0
 
     # ── D1 regime classification ──────────────────────────────────────────────

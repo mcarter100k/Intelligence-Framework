@@ -128,12 +128,9 @@ class DecisionBrief:
                 lines.insert(3, f"  Daily bar in progress — analysis "
                                 f"uses last closed bar")
             else:
-                # Staleness measured from bar CLOSE (open + 24h for D1), not
-                # open. A completed daily bar's OPEN is always >24h old once the
-                # next session begins, so the old "age > 30h" test false-alarmed
-                # every weekday morning. We warn only when the newest complete
-                # bar is genuinely behind the most recent expected close (a real
-                # feed problem), accounting for weekends.
+                # Warn only when the newest complete daily bar is over 6h
+                # behind its expected close (weekends and holidays excluded):
+                # a real feed problem, not the normal overnight gap.
                 from datetime import datetime, timezone, timedelta
                 _now       = datetime.now(timezone.utc)
                 _last_open = _now - timedelta(hours=self.live_bar_age)
@@ -284,14 +281,15 @@ def _plain(text: str) -> str:
 
 def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
     """
-    Generate a trader-facing decision brief for the given instrument.
+    The trader-facing brief for one pair ("GBP_AUD" or "GBP_JPY"): reads
+    the market (get_regime), takes the official decision, and renders it in
+    plain English. Never raises: any error becomes a safe STAND DOWN brief.
 
-    Args:
-        instrument: "GBP_AUD" or "GBP_JPY"
-
-    Returns:
-        DecisionBrief dataclass with .format() method for display.
-        Never raises — returns safe STAND DOWN brief on any error.
+    SIDE EFFECTS (open market only; a closed market writes nothing): appends
+    to session_context_log.csv and regime_classification_log.csv, and to
+    trade_signal_log.csv for a LONG/SHORT. This script's __main__ also logs
+    shadow fires to shadow_signal_log.csv. Verification runs must use
+    scripts/reality_run.py (AGENTS.md rule 10).
     """
     # human-read header time in the display zone (display_timezone_spec)
     from display_time import to_display
@@ -311,13 +309,9 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
                              market_open=regime.get("market_open", True))
         session_delta = get_session_delta(instrument)
 
-        # ── 1c. Regime classification ledger (regime_log_restore spec) ───────
-        # Every live brief run logs its classification + prediction. The
-        # official path never called log_regime (its only caller was the
-        # shadow stack, quarantined 2026-07-29). Closed market is skipped —
-        # re-reading Friday's bars is not a new prediction. A logger failure
-        # is one stderr line (wrapper log), never silent, never fatal; the
-        # freshness check catches persistent failure.
+        # ── 1c. Log this classification for nightly grading (regime_log_restore
+        # spec). Closed market skipped (Friday's bars are not a new prediction);
+        # a logger failure is one stderr line, never fatal.
         if regime.get("market_open", True):
             try:
                 from regime_classifier_logger import log_regime
@@ -334,7 +328,8 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
         conviction = _official["conviction"]
         grade      = _official["grade"]
 
-        # decision dict used only for _build_reason() fallback
+        # Always {} on the live path: _build_reason's decision.get("reason")
+        # never supplies text, so its last resort is the exec-mode sentence.
         decision   = {}
         stand_down = regime.get("stand_down", True)
         exec_mode  = regime.get("execution_mode", "STAND_DOWN")
@@ -405,14 +400,9 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
                            "it must pay at least 1.5x what you risk after "
                            "the spread (the pre-trade check does the math)")
 
-            # ── Trade-signal ledger (evidence_loop_repair_spec.md Part 1) ──
-            # Every directional decision is logged. log_signal's only caller
-            # was shadow/market_brain.py, quarantined 2026-07-29, so nothing
-            # live had filled trade_signal_log.csv since 2026-06-28 while
-            # run_outcome_check graded it nightly — the first live SHORT in
-            # framework history (GBP/AUD 2026-09-10 18:04 PDT, B, 50%) was
-            # never recorded. Contract matches the log_regime restore:
-            # closed market skipped, loud on stderr, never fatal.
+            # ── Log every directional decision (evidence_loop_repair_spec.md
+            # Part 1). Closed market skipped; a failure is one stderr line,
+            # never fatal.
             if regime.get("market_open", True):
                 try:
                     from trade_outcome_logger import log_signal
@@ -568,10 +558,7 @@ def _build_reason(regime: dict, decision: dict,
                 f"for reliable signals regardless of trend strength."
             )
 
-        # (Former "Cause 2: ADX exhaustion" removed with decision_logic_spec
-        # D2: a VOLATILE daily at ADX >= 32 now always means the structure
-        # rule below — GBP/JPY exhaustion classifies RANGING, never VOLATILE
-        # — so blaming exhaustion here told the trader the wrong cause.)
+        # (Cause 2, exhaustion, removed: decision_logic_spec D2.)
 
         # Cause 3a: ADX 25+ — in the trending band, but pivot structure has
         # not confirmed a direction (Problem 2 gate). This is NOT the 18-25
@@ -781,6 +768,11 @@ def _build_regime_log(d1_regime: str, instrument: str) -> str:
     n 20-59 : percentage shown, labelled 'developing'
     n 60-149: 'flag threshold' — percentage shown, may have flag marker
     n 150+  : 'validated sample' — percentage shown, may have revise marker
+
+    KNOWN DEFECT (audit 2026-09-29 item 2): the accuracy behind this is not
+    evidence yet. MR_WIN is self-referential and N is about 2x inflated, so
+    even the 150+ label overstates it. Changing the label is a display
+    change for team review.
     """
     try:
         acc = get_regime_accuracy(instrument=instrument)
