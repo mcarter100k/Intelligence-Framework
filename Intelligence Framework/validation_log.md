@@ -1529,6 +1529,12 @@ evidence (log line / ledger row / notification) is cited here.
       2026-10-18) — blocked on team review of
       docs/specs/notification_ledger_spec.md (branch
       feat/notification-review, unmerged).
+- [ ] **Live-script cleanup merged and running** (added 2026-10-18) —
+      branch chore/live-scripts-cleanup (latest_view parser fix, wrapper
+      headers, install.sh) is held until Sunday 2026-10-18's 18:00 run
+      lands, so it cannot confound Gate 3 E1-E4. Cleared by the first
+      scheduled 07:30 DIGEST after the merge: logs/latest_brief.log names a
+      directional run's decision instead of a bare pair.
 - [x] **First shadow grading** — run_outcome_check grades the first shadow
       ledger rows when their 30-bar horizons elapse (~2026-08-05 for the
       2026-07-29 EARLY_MOMENTUM fires).
@@ -3894,3 +3900,46 @@ This needs its own spec.
   - The new tests g10–g12 failed on the old format. Mutants killed: pair dropped, pair set once, ungated source.
   - On the real 10/12 run the notification reads "GBP/JPY SHORT · …"; the two real closed-market LONG briefs send nothing.
 - **Still open, not fixed.** The shadow line appended to a DECISION summary is a truncated fragment that does not name its pair ("EARLY_MOMENTUM_v2 candidate: LONG entered at").
+
+## 2026-10-18 — Deep code review: five reviewers, each checked by an adversarial verifier; free-zone cleanup merged; protected cleanup held for review
+
+**Method.** Five read-only reviewers covered dead code, redundancy, structure and naming, free-zone hygiene, and comments. Each was followed by a skeptic told to refute every finding.
+- Results: 72 findings, 43 confirmed, 29 corrected, 0 refuted outright.
+- The corrections mattered:
+  - `session_context.py` is a previously used path, so it is unavailable as a new name.
+  - Folding `intraday_context` into `levels_context` would not remove its silent-failure path.
+  - `validate_h4_thresholds` is not superseded by v2.
+- The live project's 613 files were hash-identical before and after the review.
+
+**Merged to main (c483c5b, free zone):**
+- The 56 test files moved to `tests/`. Collected test ids are identical before and after (855). `tests/_paths.py` asserts the project root: a wrong root used to skip tests silently, and now fails collection.
+- LIVE_CORE gained `ledger_io.py`, and a test requires it to equal AGENTS.md's protected list. Dropping a name fails it.
+- `historical_scenario_replay` refuses to run inside the project. From the project root it would have written synthetic rows into the live ledgers.
+- Test hygiene:
+  - an `or True` assertion removed;
+  - invariant 1 no longer allows grade C (OBSERVED: the C rule itself is caught by the decision grid, not by this line);
+  - the `trades.csv` schema now comes from the writer.
+- Indexes: a root README (each module's job and ledger), plus `scripts/`, `studies/` and `docs/specs/`. Dead foundation citations now point to git history; the dead `shadow/` path was dropped from 9 studies.
+- Live checkout: 857 passed, 0 skipped. The installed skill was rebuilt; exactly the 3 edited reference files changed.
+
+**Held: `chore/protected-hygiene`.** Team review is required (docs/specs/code_hygiene_spec.md, committed first). 22 files, −643 / +398.
+- Comments and docstrings in 12 protected modules. The AST of every one, docstrings removed, is identical to main.
+- Unreachable code removed:
+  - `_split_live_bar`, which never split;
+  - 12 `get_regime` outputs nothing read, including about 90 lines of legacy prose and the fuel block;
+  - nine yfinance-era guards;
+  - dead members;
+  - the already-run loss backfill.
+- `calendar_fetch` writes through `ledger_io`.
+- **Gate 2:** with `reality_run`, branch against unchanged main run the same way, the real brief and the real grader have identical stdout, stderr and ledger copies (market closed, so prices are static). The mirror test on 600 points of real history is identical to main. Each new or changed check was shown to fail on a mutant.
+- **Not done, for the owner or team:** renames (names proposed in the spec), wiring or deleting `session_guard`/`risk_config`, a raising pip-size helper, the episode-count methodology, and protecting `trade_management.py`.
+
+**Held: `chore/live-scripts-cleanup`** (free zone, but on the scheduled path). It is held until the Gate 3 runs land.
+- `latest_view` now uses the digest's parser. On the real 10/12 and 10/13 views, "GBP/JPY" becomes "GBP/JPY SHORT".
+- The view is written atomically.
+- Wrapper headers now describe what each job does (comment-only, proven by a diff with comments removed).
+- `install.sh` loses a redundant chmod.
+
+**Found:**
+- **`reality_run --code <worktree>` runs the brief without the news calendar.** `news_gate` reads `calendar.csv` from beside its own module, and a worktree has none. Every Gate 2 run from a worktree has exercised a brief with the news gate inactive ("news calendar missing"). Recorded, not fixed.
+- **`git grep` with `\b` in a basic pattern matched nothing, silently.** Two searches in this review returned false zeros until they were redone with a positive control. Searches that back a deletion must carry a control.
