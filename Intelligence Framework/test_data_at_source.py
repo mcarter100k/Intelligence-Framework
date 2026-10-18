@@ -29,9 +29,21 @@ DOWN_D1 = _trend(100, timedelta(days=1), 1.95, -0.001)
 DOWN_H4 = _trend(120, timedelta(hours=4), 1.90, -0.0005)
 UP_W = _trend(110, timedelta(weeks=1), 1.60, +0.004)
 
+# The P1/V6 tests exercise the open-market live-price path. get_regime reads
+# the real clock through _market_status(), so on a weekend they took the
+# closed-market branch and failed (4 tests, every Fri 17:00 NY to Sun). The
+# clock is injected through _market_status's _now, as test_v8 already does.
+OPEN_NOW = datetime(2026, 10, 14, 15, 0, tzinfo=UTC)          # Wednesday, open
+
+
+def _open_market():
+    return mock.patch("regime_detection._market_status",
+                      return_value=rd._market_status(_now=OPEN_NOW))
+
 
 def _regime(weekly=UP_W, live=1.8512):
-    with mock.patch("regime_detection._oanda_ok", return_value=True), \
+    with _open_market(), \
+         mock.patch("regime_detection._oanda_ok", return_value=True), \
          mock.patch("regime_detection._oanda_daily_bars", return_value=DOWN_D1), \
          mock.patch("regime_detection._oanda_h4_bars", return_value=DOWN_H4), \
          mock.patch("regime_detection._oanda_weekly_bars", return_value=weekly), \
@@ -209,7 +221,8 @@ def test_v6_a_failed_live_price_says_why(monkeypatch, capsys):
     monkeypatch.setattr(oanda_feed.requests, "get", lambda *a, **k: _R())
     assert oanda_feed.get_live_price("GBPAUD") is None
     assert oanda_feed.last_error().startswith("live price: credentials rejected (HTTP 401)")
-    with mock.patch("regime_detection._oanda_ok", return_value=True), \
+    with _open_market(), \
+         mock.patch("regime_detection._oanda_ok", return_value=True), \
          mock.patch("regime_detection._oanda_daily_bars", return_value=DOWN_D1), \
          mock.patch("regime_detection._oanda_h4_bars", return_value=DOWN_H4), \
          mock.patch("regime_detection._oanda_weekly_bars", return_value=UP_W):
