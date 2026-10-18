@@ -39,10 +39,12 @@ _SESSIONS = {
 
 
 def _current_session(hour_utc: int) -> str:
-    if 7 <= hour_utc < 16:
-        return "London"
-    if 13 <= hour_utc < 22:
-        return "NY"
+    """London wins its overlap with NY. Hours in neither (00-07 and 22-24
+    UTC) count as Asian, so this cannot loop over all three windows."""
+    for name in ("London", "NY"):
+        start, end = _SESSIONS[name]
+        if start <= hour_utc < end:
+            return name
     return "Asian"
 
 

@@ -62,9 +62,8 @@ _ARTIFACT_LITERAL = re.compile(
 # A quarantine-zone reference that actually RESOLVES somewhere: the zone
 # followed by a real path segment. Deliberately does not match a bare
 # "shadow/" in prose — live modules legitimately explain the boundary
-# ("imports NOTHING from shadow/", "PROMOTED out of shadow/"), and
-# run_outcome_check prints a warning naming legacy_validators/ to steer
-# the reader AWAY from it. Flagging those would pressure authors to delete
+# ("imports NOTHING from shadow/", "PROMOTED out of shadow/"). Flagging
+# those would pressure authors to delete
 # exactly the documentation that keeps the boundary legible.
 _QUARANTINE_PATH = re.compile(
     r"(?:shadow|legacy_validators)/[A-Za-z0-9_-][A-Za-z0-9_./-]*")
