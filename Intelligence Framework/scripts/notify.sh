@@ -1,9 +1,13 @@
 # notify.sh — shared notification helper (docs/specs/notify_click_through_spec.md)
 # Sourced by the scheduled wrappers. Requires $PROJ to be set by the caller.
 #
-#   notify <SUBTITLE> <MESSAGE> <LOG-RELPATH>
+#   notify <SUBTITLE> <MESSAGE> <LOG-RELPATH> [PAIRS] [DECISION-STATE]
 #
 # SUBTITLE is the category (ALERT / RECOVERED / SHADOW / DECISION / HEARTBEAT).
+# Every notification actually sent (the send command exited 0) is recorded
+# in notification_log.csv with PAIRS and DECISION-STATE
+# (docs/specs/notification_ledger_spec.md). A failed ledger write is
+# appended to the day log, never dropped.
 # The message ALWAYS gets a "→ <log>" pointer appended, so the osascript
 # fallback (which cannot open anything on click) still says where to look.
 #
@@ -16,8 +20,15 @@
 TN_BIN="$HOME/Applications/terminal-notifier.app/Contents/MacOS/terminal-notifier"
 NOTIFY_WATCHDOG_SECS="${NOTIFY_WATCHDOG_SECS:-15}"
 
+_nt_record() {
+    _nt_err="$(python3 "$PROJ/scripts/notification_ledger.py" "$PROJ" "$_nt_sub" \
+               "$_nt_pairs" "$_nt_state" "$_nt_text" 2>&1 >/dev/null)" \
+        || printf 'NOTIFICATION LEDGER WRITE FAILED: %s\n' "$_nt_err" >> "$PROJ/$_nt_log"
+    return 0
+}
+
 notify() {
-    _nt_sub="$1"; _nt_msg="$2"; _nt_log="$3"
+    _nt_sub="$1"; _nt_msg="$2"; _nt_log="$3"; _nt_pairs="${4:-}"; _nt_state="${5:-}"
     _nt_text="$(printf '%s → %s' "$_nt_msg" "$_nt_log" | cut -c1-400)"
 
     if [ -x "$TN_BIN" ]; then
@@ -35,11 +46,12 @@ notify() {
         else
             wait "$_nt_pid"; _nt_ok=$?        # finished — fall back on nonzero
         fi
-        [ "$_nt_ok" -eq 0 ] && return 0
+        [ "$_nt_ok" -eq 0 ] && { _nt_record; return 0; }
     fi
 
     _nt_safe="$(printf '%s' "$_nt_text" | sed 's/"/\\"/g' | cut -c1-220)"
     _nt_subsafe="$(printf '%s' "$_nt_sub" | sed 's/"/\\"/g')"
-    osascript -e "display notification \"$_nt_safe\" with title \"Intelligence Framework\" subtitle \"$_nt_subsafe\"" >/dev/null 2>&1
+    osascript -e "display notification \"$_nt_safe\" with title \"Intelligence Framework\" subtitle \"$_nt_subsafe\"" >/dev/null 2>&1 \
+        && _nt_record
     return 0
 }

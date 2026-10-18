@@ -333,6 +333,107 @@ def test_g9_the_wrapper_marker_is_the_producers_banner():
     assert marker not in _rendered("GBP_AUD", "LONG", _WED)
 
 
+# ── notification ledger (docs/specs/notification_ledger_spec.md) ─────────────
+# One row per notification ACTUALLY sent. Before it, the week-of-10/11 recap
+# was rebuilt from day logs and delivery was inferred from wrapper code.
+
+_NL_FIELDS = ["timestamp_utc", "category", "pairs", "decision_state", "summary"]
+
+
+def _ledger(proj):
+    import csv
+    p = proj / "notification_log.csv"
+    if not p.exists():
+        return None, []
+    with open(p, newline="", encoding="utf-8") as f:
+        rows = list(csv.reader(f))
+    return rows[0], [dict(zip(rows[0], r)) for r in rows[1:]]
+
+
+def _error_page(instrument):
+    import decision_brief as db
+    return db.DecisionBrief(
+        instrument=instrument, timestamp="t", price=0.0, atr_pips=0.0,
+        decision="STAND DOWN", reason="Framework error — do not trade: OANDA not configured",
+        conviction=0, grade="C", size_pct=0, market_state="Unavailable", invalidation="i",
+        regime_log="l", stand_down=True, override_fired=False, execution_mode="X",
+        adx_d1=0.0, adx_h4=0.0, weekly_context="W", error="OANDA not configured").format()
+
+
+def test_d3_a_sent_decision_writes_one_row_with_pairs_and_state(tmp_path):
+    from datetime import datetime, timedelta, timezone
+    text = _rendered("GBP_AUD", "LONG", _WED) + _rendered("GBP_JPY", "STAND DOWN", _WED)
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    header, rows = _ledger(proj)
+    assert header == _NL_FIELDS and len(rows) == 1, (header, rows)
+    r = rows[0]
+    assert r["category"] == "DECISION" and r["pairs"] == "GBP_AUD GBP_JPY"
+    assert r["decision_state"] == "GBP_AUD=LONG/open;GBP_JPY=STAND ASIDE/open"
+    assert r["summary"].startswith("DECISION LONG") and "→ logs/brief_" in r["summary"]
+    t = datetime.strptime(r["timestamp_utc"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    assert abs(datetime.now(timezone.utc) - t) < timedelta(minutes=5)
+
+
+def test_d3_a_suppressed_closed_market_decision_writes_no_row(tmp_path):
+    text = _rendered("GBP_AUD", "LONG", _SAT) + _rendered("GBP_JPY", "STAND DOWN", _SAT)
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert _ledger(proj)[1] == [] and _notes(tmp_path) == ""
+
+
+def test_d3_a_failed_send_writes_no_row(tmp_path):
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, _rendered("GBP_AUD", "LONG", _WED)))
+    (tmp_path / "bin" / "osascript").write_text("#!/bin/bash\nexit 1\n")
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert _ledger(proj)[1] == []
+
+
+def test_d3_the_terminal_notifier_path_writes_a_row_too(tmp_path):
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, _rendered("GBP_AUD", "LONG", _WED)))
+    tn = tmp_path / "home" / "Applications" / "terminal-notifier.app" / "Contents" / "MacOS"
+    tn.mkdir(parents=True)
+    (tn / "terminal-notifier").write_text("#!/bin/bash\nexit 0\n")
+    (tn / "terminal-notifier").chmod(0o755)
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    rows = _ledger(proj)[1]
+    assert [r["category"] for r in rows] == ["DECISION"]
+    assert _notes(tmp_path) == ""                     # osascript fallback not used
+
+
+def test_d3_an_error_page_is_recorded_as_error_not_stand_aside(tmp_path):
+    text = _error_page("GBP_AUD") + _error_page("GBP_JPY")
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    rows = [r for r in _ledger(proj)[1] if r["category"] == "DIGEST"]
+    assert len(rows) == 1
+    assert rows[0]["decision_state"] == "GBP_AUD=ERROR/open;GBP_JPY=ERROR/open"
+
+
+def test_d3_a_closed_market_digest_records_the_closed_state(tmp_path):
+    text = _rendered("GBP_AUD", "LONG", _SAT) + _rendered("GBP_JPY", "STAND DOWN", _SAT)
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    rows = _ledger(proj)[1]
+    assert [r["category"] for r in rows] == ["DIGEST"]       # the DECISION was gated
+    assert rows[0]["decision_state"] == "GBP_AUD=LONG/closed;GBP_JPY=STAND ASIDE/closed"
+
+
+def test_d3_the_heartbeat_row_carries_no_pairs(tmp_path):
+    proj = _heartbeat_project(tmp_path)
+    _run(tmp_path, proj, "weekly_heartbeat.sh")
+    rows = _ledger(proj)[1]
+    assert [(r["category"], r["pairs"], r["decision_state"]) for r in rows] == [("HEARTBEAT", "", "")]
+
+
+def test_d3_a_failed_ledger_write_is_in_the_day_log_and_the_notification_still_goes(tmp_path):
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, _rendered("GBP_AUD", "LONG", _WED)))
+    (proj / "notification_log.csv").mkdir()           # unwritable as a file
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert 'subtitle "DECISION"' in _notes(tmp_path)
+    assert "NOTIFICATION LEDGER WRITE FAILED" in _log(proj, "brief")
+
+
 def test_digest_is_sent_only_with_the_digest_argument(tmp_path):
     proj = _project(tmp_path)
     _run(tmp_path, proj, "scheduled_brief.sh")

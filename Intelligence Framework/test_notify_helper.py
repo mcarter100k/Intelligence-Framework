@@ -15,8 +15,22 @@ import subprocess
 
 import pytest
 
-_PROJ = os.path.dirname(os.path.abspath(__file__))
-_HELPER = os.path.join(_PROJ, "scripts", "notify.sh")
+_ROOT = os.path.dirname(os.path.abspath(__file__))
+_HELPER = os.path.join(_ROOT, "scripts", "notify.sh")
+
+
+def _proj(tmp_path):
+    """A throwaway PROJ. notify() now writes notification_log.csv under $PROJ
+    (docs/specs/notification_ledger_spec.md); pointing PROJ at the repo wrote
+    rows into a real project (caught by conftest, 2026-10-18). The space in
+    the name keeps the %20 click-URL check meaningful."""
+    proj = tmp_path / "proj dir"
+    (proj / "scripts").mkdir(parents=True)
+    (proj / "logs").mkdir()
+    for rel in ("ledger_io.py", os.path.join("scripts", "notification_ledger.py")):
+        with open(os.path.join(_ROOT, rel)) as src, open(proj / rel, "w") as dst:
+            dst.write(src.read())
+    return proj
 
 
 def _run(tmp_path, tn_body=None, watchdog="2",
@@ -43,17 +57,18 @@ def _run(tmp_path, tn_body=None, watchdog="2",
     env = dict(os.environ, HOME=str(home),
                PATH=f"{stub_bin}:/usr/bin:/bin",
                NOTIFY_WATCHDOG_SECS=watchdog)
-    script = f'PROJ="{_PROJ}"; . "{_HELPER}"; {call}'
+    proj = _proj(tmp_path)
+    script = f'PROJ="{proj}"; . "{_HELPER}"; {call}'
     r = subprocess.run(["bash", "-c", script], env=env,
                        capture_output=True, text=True, timeout=30)
     assert r.returncode == 0                       # exit-0 discipline, always
     tn_argv = tn_log.read_text().splitlines() if tn_log.exists() else None
     osa_argv = osa_log.read_text() if osa_log.exists() else None
-    return tn_argv, osa_argv
+    return tn_argv, osa_argv, proj
 
 
 def test_terminal_notifier_invocation_pinned(tmp_path):
-    tn, osa = _run(tmp_path, tn_body="exit 0")
+    tn, osa, proj = _run(tmp_path, tn_body="exit 0")
     assert osa is None                             # no fallback on success
     args = dict(zip(tn[0::2], tn[1::2]))
     assert args["-title"] == "Intelligence Framework"
@@ -61,16 +76,16 @@ def test_terminal_notifier_invocation_pinned(tmp_path):
     assert args["-message"] == "hello world → logs/brief_2026-09-09.log"
     # click target: absolute file URL, space %20-encoded, pointing at the log
     assert args["-open"] == (
-        "file://" + _PROJ.replace(" ", "%20") + "/logs/brief_2026-09-09.log")
+        "file://" + str(proj).replace(" ", "%20") + "/logs/brief_2026-09-09.log")
 
 def test_pointer_always_appended(tmp_path):
-    tn, _ = _run(tmp_path, tn_body="exit 0",
+    tn, _, _ = _run(tmp_path, tn_body="exit 0",
                  call='notify "HEARTBEAT" "healthy" "logs/heartbeat_x.log"')
     args = dict(zip(tn[0::2], tn[1::2]))
     assert args["-message"].endswith("→ logs/heartbeat_x.log")
 
 def test_missing_binary_falls_back_to_osascript_with_pointer(tmp_path):
-    tn, osa = _run(tmp_path, tn_body=None)
+    tn, osa, _ = _run(tmp_path, tn_body=None)
     assert tn is None
     assert "hello world → logs/brief_2026-09-09.log" in osa
     assert "Intelligence Framework" in osa and "SHADOW" in osa
@@ -82,7 +97,7 @@ def test_hung_binary_watchdog_fires_fallback(tmp_path):
     # watchdog killed the script and orphaned the sleep, one leaked process
     # per test run (found 2026-09-29: two orphans alive after two runs).
     pidfile = tmp_path / "tn.pid"
-    tn, osa = _run(tmp_path, watchdog="1",
+    tn, osa, _ = _run(tmp_path, watchdog="1",
                    tn_body=f'echo $$ > "{pidfile}"; exec sleep 300')
     assert osa is not None                         # message not lost
     assert "hello world" in osa
@@ -99,10 +114,10 @@ def test_hung_binary_watchdog_fires_fallback(tmp_path):
         raise AssertionError(f"hung notifier process {pid} survived the watchdog")
 
 def test_nonzero_exit_falls_back(tmp_path):
-    tn, osa = _run(tmp_path, tn_body="exit 3")
+    tn, osa, _ = _run(tmp_path, tn_body="exit 3")
     assert osa is not None
     assert "hello world" in osa
 
 def test_success_does_not_double_notify(tmp_path):
-    tn, osa = _run(tmp_path, tn_body="exit 0")
+    tn, osa, _ = _run(tmp_path, tn_body="exit 0")
     assert tn is not None and osa is None
