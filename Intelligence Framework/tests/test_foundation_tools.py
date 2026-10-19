@@ -91,6 +91,43 @@ def test_bootstrap_present_at_20_and_labelled_percentile(capsys):
     assert "percentile bootstrap, under-covers on skewed R" in out
 
 
+# ── power_check: the upper bound (docs/specs/futility_rule_spec.md) ─────────
+
+UPPER_BOUND = "90% one-sided upper bound"
+LOSER20 = [-1.0] * 14 + [-0.5, -0.3, 0.2, 0.5, 1.0, 1.5]     # mean -0.48R
+EDGE20 = [-1.0] * 9 + [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 2.0, 1.0, 0.5, 2.5, 1.5]   # mean +0.75R
+
+
+def test_upper_bound_positive_control_retires_a_loser_and_keeps_an_edge():
+    """The futility test is 'upper bound < +0.15R'. A clear loser must fall
+    below it; a clear edge must not."""
+    assert pc.bootstrap_upper_bound(LOSER20) < 0.15
+    assert pc.bootstrap_upper_bound(EDGE20) > 0.15
+
+
+def test_upper_bound_sits_above_the_mean_and_the_lower_bound():
+    for rs in (RS20, LOSER20, EDGE20):
+        assert pc.bootstrap_lower_bound(rs) < sum(rs) / len(rs) < pc.bootstrap_upper_bound(rs)
+
+
+def test_upper_bound_suppressed_below_20(capsys):
+    out = _observed(capsys, LOSER20[:19])
+    assert _line(out, UPPER_BOUND) is None
+
+
+def test_upper_bound_present_at_20_with_the_futility_reading(capsys):
+    out = _observed(capsys, LOSER20)
+    assert float(_line(out, UPPER_BOUND)) < 0.15
+    line = next(l for l in out.splitlines() if l.startswith(UPPER_BOUND))
+    assert "under-covers on skewed R" in line and "futility: below +0.15R" in line
+    assert "FIRES at the N=20 checkpoint" in line
+
+
+def test_upper_bound_says_does_not_fire_for_an_edge(capsys):
+    line = next(l for l in _observed(capsys, EDGE20).splitlines() if l.startswith(UPPER_BOUND))
+    assert "does not fire" in line and "FIRES" not in line
+
+
 # ── power_check: arithmetic anchors (the coin-flip figures M10 cites) ───────
 
 def test_n_required_anchor():
