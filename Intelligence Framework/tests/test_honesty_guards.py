@@ -79,15 +79,29 @@ def test_tally_excludes_invalid_rows(tmp_path, monkeypatch):
     assert t["logged"] == 1          # not 3
     assert t["graded"] == 0
 
+def _grade_all(monkeypatch):
+    """Mark every row graded: since shadow_tally_spec (2026-10-19) only
+    graded rows form episodes, so the invalid-row guard is tested on them."""
+    import csv
+    rows = list(csv.DictReader(open(ss.LOG_FILE)))
+    for r in rows:
+        r.update(outcome_filled="True", r_multiple="-1.0")
+    with open(ss.LOG_FILE, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=ss._FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+
 def test_episode_count_excludes_invalid_rows(tmp_path, monkeypatch):
     _seed_mixed_ledger(tmp_path, monkeypatch)
-    assert ss.episode_count("EARLY_MOMENTUM", "GBP_JPY") == 1
+    _grade_all(monkeypatch)
+    assert ss.get_shadow_tally("EARLY_MOMENTUM", "GBP_JPY")["episodes"] == 1
 
 def test_all_invalid_candidate_counts_zero(tmp_path, monkeypatch):
     monkeypatch.setattr(ss, "LOG_FILE", str(tmp_path / "shadow.csv"))
     ss.log_shadow_signals([_row("SHORT", 218.352, 217.996)])
+    _grade_all(monkeypatch)
     assert ss.get_shadow_tally("EARLY_MOMENTUM", "GBP_JPY")["logged"] == 0
-    assert ss.episode_count("EARLY_MOMENTUM", "GBP_JPY") == 0
+    assert ss.get_shadow_tally("EARLY_MOMENTUM", "GBP_JPY")["episodes"] == 0
 
 def test_pending_display_skips_invalid_newest(tmp_path, monkeypatch):
     # newest pending row is invalid → the brief surfaces the older VALID one

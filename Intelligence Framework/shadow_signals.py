@@ -33,10 +33,12 @@ Candidates:
 """
 from __future__ import annotations
 
+import bisect
 import csv
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from statistics import mean, median
 from typing import Dict, List, Optional
 
 from exclusions import excluder
@@ -328,7 +330,8 @@ def is_invalid_spec(row: Dict) -> bool:
 # ── Tally for the brief ─────────────────────────────────────────────────────────
 def get_shadow_tally(candidate_id: str, instrument: Optional[str] = None) -> Dict:
     if not os.path.exists(LOG_FILE):
-        return {"logged": 0, "graded": 0, "wins": 0, "avg_net": 0.0}
+        return {"logged": 0, "graded": 0, "wins": 0, "avg_net": 0.0,
+                "episodes": 0, "episode_rs": []}
     logged = graded = wins = 0
     nets = []
     is_excluded = excluder("shadow_signal_log.csv")
@@ -357,8 +360,10 @@ def get_shadow_tally(candidate_id: str, instrument: Optional[str] = None) -> Dic
                     nets.append(float(r["net_30bars_pips"]))
                 except (ValueError, TypeError):
                     pass
+    episode_rs = [float(r["r_multiple"]) for r in graded_episodes(candidate_id, instrument)]
     return {"logged": logged, "graded": graded, "wins": wins,
-            "avg_net": round(sum(nets) / len(nets), 1) if nets else 0.0}
+            "avg_net": round(sum(nets) / len(nets), 1) if nets else 0.0,
+            "episodes": len(episode_rs), "episode_rs": episode_rs}
 
 
 def latest_pending_signal(instrument: str) -> Optional[Dict]:
@@ -387,46 +392,63 @@ def latest_pending_signal(instrument: str) -> Optional[Dict]:
         return None
 
 
-def episode_count(candidate_id: str, instrument: Optional[str] = None) -> int:
-    """Collapse fires whose 30-bar (HORIZON) outcome horizons OVERLAP into one
-    episode. The 30/60 review gates count independent EPISODES, not raw rows —
-    a candidate that fires on 8 consecutive H4 bars of the same move is one
-    piece of evidence, not eight. Counting methodology only; trigger/grading
-    specs are unchanged and remain frozen."""
+def _h4_bar_opens(start: datetime, end: datetime) -> List[datetime]:
+    """The H4 bar index between two UTC times, built from the trading
+    calendar: six bars per trading day from 17:00 New York, OANDA's
+    alignment. It matched OANDA's real H4 index bar for bar over 2023-04-30
+    to 2026-10-16 on both pairs (docs/specs/shadow_tally_spec.md). No
+    network call."""
+    from zoneinfo import ZoneInfo
+    from regime_detection import is_trading_day
+    ny = ZoneInfo("America/New_York")
+    day = (start.astimezone(ny) + timedelta(hours=7)).date() - timedelta(days=1)
+    last = (end.astimezone(ny) + timedelta(hours=7)).date() + timedelta(days=1)
+    opens = []
+    while day <= last:
+        if is_trading_day(day):
+            prev = day - timedelta(days=1)
+            first = datetime(prev.year, prev.month, prev.day, 17, 0, tzinfo=ny)
+            opens += [(first + timedelta(hours=4 * k)).astimezone(timezone.utc) for k in range(6)]
+        day += timedelta(days=1)
+    return sorted(t for t in opens if start <= t <= end)
+
+
+def graded_episodes(candidate_id: str, instrument: Optional[str] = None) -> List[Dict]:
+    """Independent episodes, one row each (its first fire, whose R is the
+    episode's R). Only graded, valid, non-excluded rows count: an open row
+    is not evidence yet (AUDIT §2 #3). Per instrument, a fire starts a new
+    episode once it is HORIZON (30) or more H4 bars after the current
+    episode's first fire, counted on the bar index, not the clock (M34; the
+    same rule as foundation/tools/episodes.py). The old 120-clock-hour rule
+    split episodes across weekends and overcounted."""
     if not os.path.exists(LOG_FILE):
-        return 0
+        return []
     from collections import defaultdict
     is_excluded = excluder("shadow_signal_log.csv")
     by_inst = defaultdict(list)
     with open(LOG_FILE, newline="") as f:
         for r in csv.DictReader(f):
-            if r["candidate_id"] != candidate_id:
+            if r["candidate_id"] != candidate_id or (instrument and r["instrument"] != instrument):
                 continue
-            if instrument and r["instrument"] != instrument:
+            if str(r.get("outcome_filled")) != "True" or is_invalid_spec(r) or is_excluded(r):
                 continue
-            if is_invalid_spec(r):
-                continue                   # not evidence — excluded before collapse
-            if is_excluded(r):
-                continue                   # registry exclusion (exclusions.py)
             try:
-                by_inst[r["instrument"]].append(
-                    datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00")))
-            except Exception:
+                t = datetime.fromisoformat(r["timestamp"].replace("Z", "+00:00"))
+                float(r["r_multiple"])
+            except (ValueError, TypeError, KeyError):
                 continue
-    # KNOWN DEFECT (audit 2026-09-29 item 3): 120 clock hours, but 30 H4 bars
-    # span about 168h over a weekend, so this OVERCOUNTS episodes. It also
-    # counts ungraded rows. Fixing it is a methodology change with its own spec.
-    span = HORIZON * 4 * 3600          # 30 H4 bars, in seconds
-    total = 0
-    for times in by_inst.values():
-        times.sort()
-        eps, start = 1, times[0]
-        for t in times[1:]:
-            if (t - start).total_seconds() >= span:
-                eps += 1
-                start = t
-        total += eps
-    return total
+            by_inst[r["instrument"]].append((t, r))
+    episodes = []
+    for fires in by_inst.values():
+        fires.sort(key=lambda x: x[0])
+        opens = _h4_bar_opens(fires[0][0], fires[-1][0])
+        start = None
+        for t, r in fires:
+            bar = bisect.bisect_right(opens, t) - 1
+            if start is None or bar - start >= HORIZON:
+                start = bar
+                episodes.append(r)
+    return sorted(episodes, key=lambda r: r["timestamp"])
 
 
 # ── Loss autopsy (docs/specs/loss_autopsy_spec.md) ──────────────────────────────
@@ -567,6 +589,31 @@ def grade_pending_shadow(instrument: str) -> int:
 
 
 # ── Brief integration ───────────────────────────────────────────────────────────
+_FUTILITY_N = 20   # docs/specs/futility_rule_spec.md
+
+
+def tally_lines(t: Dict) -> List[str]:
+    """The tally as the trader reads it: independent episodes and average R
+    first (median beside it, M8; without the best one, M9). Net pips is a
+    diagnostic (M14). No win count: without a breakeven rate beside it, it
+    says nothing about expectancy."""
+    still_open = t["logged"] - t["graded"]
+    gates = (f"(futility check at {_FUTILITY_N} episodes, flag at {FLAG_N}, "
+             f"review at {REVIEW_N})")
+    rs = t["episode_rs"]
+    if not rs:
+        return [f"no graded episodes yet ({t['logged']} rows logged, {still_open} still open)", gates]
+    per = f"per episode: avg {mean(rs):+.2f}R, median {median(rs):+.2f}R"
+    if len(rs) >= 2:
+        per += f", without the best one {mean(sorted(rs)[:-1]):+.2f}R"
+    eps = "episode" if len(rs) == 1 else "episodes"
+    rows = "row" if t["graded"] == 1 else "rows"
+    return [f"{len(rs)} independent {eps} from {t['graded']} graded {rows} ({still_open} still open)",
+            per,
+            f"diagnostic only: avg {t['avg_net']:+.0f} pips at bar 30 over the graded rows",
+            gates]
+
+
 def run_and_report(instrument: str) -> None:
     """Check + log today's shadow signals; print a clearly-marked section ONLY if
     something fired. Zero output otherwise."""
@@ -580,10 +627,7 @@ def run_and_report(instrument: str) -> None:
     print("  " + "─" * 51)
     for s in signals:
         t = get_shadow_tally(s["candidate_id"], instrument)
-        eps = episode_count(s["candidate_id"], instrument)
-        tally = (f"{t['logged']} rows / {eps} episodes, {t['graded']} graded, "
-                 f"{t['wins']} wins, {t['avg_net']:+.0f} avg pips" if t["graded"] else
-                 f"{t['logged']} rows / {eps} episodes, 0 graded yet")
         print(f"    {s['candidate_id']:<16} {s['direction']:<5} @ {s['entry']}  "
               f"stop {s['stop']}")
-        print(f"      tally: {tally}   (flag N={FLAG_N}, review N={REVIEW_N})")
+        for i, line in enumerate(tally_lines(t)):
+            print(("      tally: " if i == 0 else "             ") + line)

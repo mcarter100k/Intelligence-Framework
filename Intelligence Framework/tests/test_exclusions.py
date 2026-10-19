@@ -243,10 +243,12 @@ def test_excluded_row_cannot_reach_a_shadow_episode_count(
                             timestamp=ts, instrument="GBP_AUD",
                             direction="SHORT", entry="1.88", stop="1.89",
                             atr="80", adx="25", structure="DOWNTREND",
-                            outcome_filled="False"))
+                            # graded: since shadow_tally_spec (2026-10-19)
+                            # only graded rows form episodes
+                            outcome_filled="True", r_multiple="-1.0"))
     monkeypatch.setattr(ss, "LOG_FILE", str(ledger))
 
-    assert ss.episode_count("THRUST_PULLBACK", "GBP_AUD") == 1, (
+    assert ss.get_shadow_tally("THRUST_PULLBACK", "GBP_AUD")["episodes"] == 1, (
         "the excluded row was counted as an episode")
     assert ss.get_shadow_tally("THRUST_PULLBACK", "GBP_AUD")["logged"] == 1
 

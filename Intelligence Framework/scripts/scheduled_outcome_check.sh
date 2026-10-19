@@ -83,12 +83,14 @@ fi
 # Notify only if a shadow-signal outcome was graded this run.
 if printf '%s\n' "$OUT" | grep -q 'shadow-signal outcomes filled'; then
     TALLY="$(python3 - <<'PY'
-from shadow_signals import get_shadow_tally, episode_count
+from shadow_signals import get_shadow_tally
 parts = []
 for c in ("EARLY_MOMENTUM", "EARLY_MOMENTUM_v2", "THRUST_PULLBACK", "MOMENTUM_JOIN"):
     t = get_shadow_tally(c)
     if t["graded"] > 0:
-        parts.append(f"{c}: {t['graded']}/{episode_count(c)}ep {t['wins']}W {t['avg_net']:+.0f}p")
+        rs = t["episode_rs"]
+        avg = f" avg {sum(rs) / len(rs):+.2f}R" if rs else ""
+        parts.append(f"{c}: {t['episodes']}ep{avg} ({t['graded']} rows)")
 print(" | ".join(parts) if parts else "shadow outcomes graded")
 PY
 )"
