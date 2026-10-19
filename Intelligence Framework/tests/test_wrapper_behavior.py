@@ -460,8 +460,12 @@ def test_c1_the_heartbeat_reports_expected_vs_actual_runs(tmp_path):
     proj = _heartbeat_project(tmp_path)
     _run(tmp_path, proj, "weekly_heartbeat.sh")
     log = _log(proj, "heartbeat")
-    assert re.search(r"runs \(last 7d, launchd schedule\): brief 21 expected / 21 on time / \d+ ran; "
-                     r"outcomes 7 expected / 7 on time / \d+ ran", log), log
+    # 21 brief and 7 outcomes slots a week; a slot in its 30-minute grace
+    # window is not yet expected, so the count is one lower right after a slot.
+    m = re.search(r"runs \(last 7d, launchd schedule\): brief (\d+) expected / (\d+) on time / \d+ ran; "
+                  r"outcomes (\d+) expected / (\d+) on time / \d+ ran", log)
+    assert m, log
+    assert m[1] == m[2] and m[1] in ("20", "21") and m[3] == m[4] and m[3] in ("6", "7"), log
     assert "SHORTFALL" not in log
     assert "NEEDS ATTENTION" not in _notes(tmp_path)
 
@@ -477,7 +481,8 @@ def test_c1_a_scheduler_gap_is_a_shortfall_that_needs_attention(tmp_path):
                                                "outcomes": {"consecutive_failures": 0}}})
     _run(tmp_path, proj, "weekly_heartbeat.sh")
     notes, log = _notes(tmp_path), _log(proj, "heartbeat")
-    assert "runs: SHORTFALL" in log and "brief 6 of 21 scheduled runs missing or over 60 min late" in log, log
+    assert "runs: SHORTFALL" in log, log
+    assert re.search(r"brief 6 of 2[01] scheduled runs missing or over 60 min late", log), log
     assert "NEEDS ATTENTION" in notes and "SHORTFALL" in notes
 
 
