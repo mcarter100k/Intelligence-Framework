@@ -45,6 +45,12 @@ THRUST_PULLBACK, MOMENTUM_JOIN) are FROZEN. Parameter changes are NEVER edited
 in place: any change starts a **new candidate id** (e.g. `EARLY_MOMENTUM_v2`)
 with a **fresh ledger**. Review gates: FLAG at N=30 graded episodes, DECISION
 at N=60. Episodes = non-overlapping 30-bar horizons, not raw rows.
+**FUTILITY checkpoint (team review 2026-10-19,
+docs/specs/futility_rule_spec.md):** once, when a candidate first reaches
+N=20 graded independent episodes, compute the 90% one-sided upper bound on
+mean R (`power_check.bootstrap_upper_bound`, each episode's first-fire R).
+Below +0.15R → REFUTED and retired; otherwise it runs to N=30 as before. It
+applies to all three candidates and is never re-evaluated.
 
 **Data ledgers are evidence — append-only via the loggers, never by hand:**
 `shadow_signal_log.csv`, `regime_classification_log.csv`,
