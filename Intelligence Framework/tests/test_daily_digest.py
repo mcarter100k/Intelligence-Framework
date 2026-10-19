@@ -96,8 +96,12 @@ def test_real_2026_10_12_digest_names_the_gbpjpy_short():
 
 
 def test_real_2026_10_17_digest_names_the_gbpaud_long():
-    line = dd.build_digest(_fixture("brief_2026-10-17_digest_run.txt"))
-    assert line.startswith("GBP/AUD LONG · GBP/JPY STAND ASIDE — watch: "), line
+    # Old (to 2026-10-19): the digest read "GBP/AUD LONG · GBP/JPY STAND
+    # ASIDE". That run was on a closed market, so since shadow_tally_spec §3
+    # the long shows as the last read, not a call. The parser still finds it.
+    text = _fixture("brief_2026-10-17_digest_run.txt")
+    assert dd.pair_decisions(text) == ["GBP/AUD LONG", "GBP/JPY STAND ASIDE"]
+    assert "last read: GBP/AUD long, " in dd.build_digest(text)
 
 
 @pytest.mark.parametrize("decision,shown", [
@@ -218,3 +222,31 @@ def test_the_digest_and_the_view_share_one_parser():
     assert inspect.getsourcefile(lv.pair_decisions).endswith(os.path.join("scripts", "daily_digest.py"))
     src = open(os.path.join(_PROJ, "scripts", "latest_view.py"), encoding="utf-8").read()
     assert "DECISION" not in src.replace("pair_decisions", "")   # no second copy of the pattern
+
+
+# ── market gate (docs/specs/shadow_tally_spec.md §3) ──────────────────────────
+# Sat 2026-10-17 07:30 the market was closed and the digest sent
+# "GBP/AUD LONG", a direction that read as a live call.
+
+def test_a_closed_market_digest_says_so_and_makes_no_call():
+    line = dd.build_digest(_fixture("brief_2026-10-17_digest_run.txt"))
+    assert line.startswith("MARKET CLOSED until Sun 2:00 PM PDT — no live calls"
+                           " · last read: GBP/AUD long, GBP/JPY stand aside"), line
+    for call in ("GBP/AUD LONG", "GBP/JPY STAND ASIDE"):
+        assert call not in line
+
+
+def test_an_open_market_digest_is_unchanged():
+    line = dd.build_digest(_fixture("brief_2026-10-12_digest_run.txt"))
+    assert "MARKET CLOSED" not in line and "last read" not in line
+    assert line.startswith("GBP/AUD STAND ASIDE · GBP/JPY SHORT — watch: "), line
+
+
+def test_one_closed_pair_never_renders_as_a_bare_direction():
+    text = _fixture("brief_2026-10-12_digest_run.txt")
+    gbpjpy = text.index("GBP/JPY  |")
+    banner = "  Market closed — analysis based on last close. Next open Sun 2:00 PM PDT.\n"
+    eol = text.index("\n", text.index("Price:", gbpjpy)) + 1
+    line = dd.build_digest(text[:eol] + banner + text[eol:])
+    assert "GBP/JPY last read short (market closed)" in line, line
+    assert "GBP/JPY SHORT" not in line and line.startswith("GBP/AUD STAND ASIDE · "), line

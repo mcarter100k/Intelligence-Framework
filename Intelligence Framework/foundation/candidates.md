@@ -9,7 +9,7 @@ Exact definitions of the pre-registered candidates and what the ledger shows.
 ## 5a. Common rules for all candidates (`shadow_signals.py`)
 
 - Frozen 2026-07-29. `FLAG_N=30`, `REVIEW_N=60` graded episodes. `HORIZON=30` H4 bars.
-- Futility checkpoint (2026-10-19, docs/specs/futility_rule_spec.md): once, at N=20 graded independent episodes; if the 90% one-sided upper bound on mean R is below +0.15R, the candidate is REFUTED and retired. As of 2026-10-19: EM_v2 3 episodes, THRUST_PULLBACK 1, MOMENTUM_JOIN 1.
+- Futility checkpoint (2026-10-19, docs/specs/futility_rule_spec.md): once, at N=20 graded independent episodes; if the 90% one-sided upper bound on mean R is below +0.15R, the candidate is REFUTED and retired. As of 2026-10-19: EM_v2 3 episodes (R −0.55, −0.39, +0.34; avg −0.20R), THRUST_PULLBACK 1 (−0.33R), MOMENTUM_JOIN 1 (−1.00R).
 - **Context:** the last 300 **complete** H4 bars. ADX (Wilder 14), ATR series (n−14), and **structure from `_detect_structure` on H4 bars** (`:83-107`).
 - **Entry:** the last complete H4 close, stamped with that bar's **open** time.
 - **Grading** (`:575-639`)
@@ -21,7 +21,7 @@ Exact definitions of the pre-registered candidates and what the ledger shows.
 - **invalid_spec** rows (stop on the non-adverse side) are excluded from every tally.
 - **Dedup key:** candidate + instrument + timestamp.
 - **Not news-gated.** Fires inside a gate window get stamped `news_window=true`.
-- **Episode collapse:** 120h in code. The audit says this should be ~168h and ungraded rows should not count (AUDIT §2 #3).
+- **Episode collapse:** fixed 2026-10-19 (docs/specs/shadow_tally_spec.md). Graded rows only; a new episode starts 30+ H4 bars after the current one's first fire, on the bar index; the episode's R is its first fire's R. Before that it was 120 clock hours with ungraded rows counted (AUDIT §2 #3), which read EM_v2 as 4 episodes instead of 3 (I30).
 - **Cadence:** evaluated only at brief run times. The 01Z and 13Z H4 bars are never checked, which halves the firing rate and biases the sample by session (AUDIT §2 #4).
 
 **Loss species** (frozen 2026-09-09; first match wins; `:456-512`)

@@ -204,8 +204,18 @@ def test_episode_count_collapses_overlapping_horizons(tmp_path, monkeypatch):
                 "entry": 217.0, "stop": 216.0, "atr": 0.5,
                 "adx": 20.0, "adx_slope": 0.0, "structure": "UPTREND", "extra": ""}
 
-    # 3 fires within the 30-bar (120h) horizon of t0 → ONE episode; +200h → new
+    # 3 fires within 30 H4 bars of t0 → ONE episode; +200h (36 bars) → new.
+    # Since shadow_tally_spec (2026-10-19) episodes form from GRADED rows and
+    # are counted on the bar index, so the rows are graded here.
     ss.log_shadow_signals([sig(t0), sig(t0 + timedelta(hours=4)),
                            sig(t0 + timedelta(hours=8)), sig(t0 + timedelta(hours=200))])
-    assert ss.get_shadow_tally("EARLY_MOMENTUM", "GBP_JPY")["logged"] == 4   # rows
-    assert ss.episode_count("EARLY_MOMENTUM", "GBP_JPY") == 2                # episodes
+    import csv as _csv
+    rows = list(_csv.DictReader(open(ss.LOG_FILE)))
+    for r in rows:
+        r.update(outcome_filled="True", r_multiple="-1.0")
+    with open(ss.LOG_FILE, "w", newline="") as f:
+        w = _csv.DictWriter(f, fieldnames=ss._FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+    assert ss.get_shadow_tally("EARLY_MOMENTUM", "GBP_JPY")["logged"] == 4     # rows
+    assert ss.get_shadow_tally("EARLY_MOMENTUM", "GBP_JPY")["episodes"] == 2   # episodes

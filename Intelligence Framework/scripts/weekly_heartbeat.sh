@@ -62,14 +62,16 @@ except Exception as e:
 
 # 3. shadow rows graded per candidate (valid rows only, via the guard)
 try:
-    from shadow_signals import get_shadow_tally, episode_count
+    from shadow_signals import get_shadow_tally
     parts = []
     for c in ("EARLY_MOMENTUM", "EARLY_MOMENTUM_v2",
               "THRUST_PULLBACK", "MOMENTUM_JOIN"):
         t = get_shadow_tally(c)
         if t["logged"]:
-            parts.append(f"{c} {t['graded']}/{t['logged']} graded "
-                         f"({episode_count(c)} ep)")
+            rs = t["episode_rs"]
+            avg = f", avg {sum(rs) / len(rs):+.2f}R" if rs else ""
+            parts.append(f"{c} {t['episodes']} ep{avg} "
+                         f"({t['graded']}/{t['logged']} rows graded)")
     lines.append("shadow: " + ("; ".join(parts) if parts else "no valid rows"))
 except Exception as e:
     lines.append(f"shadow: tally unavailable ({e})")
