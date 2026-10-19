@@ -62,9 +62,8 @@ _ARTIFACT_LITERAL = re.compile(
 # A quarantine-zone reference that actually RESOLVES somewhere: the zone
 # followed by a real path segment. Deliberately does not match a bare
 # "shadow/" in prose — live modules legitimately explain the boundary
-# ("imports NOTHING from shadow/", "PROMOTED out of shadow/"), and
-# run_outcome_check prints a warning naming legacy_validators/ to steer
-# the reader AWAY from it. Flagging those would pressure authors to delete
+# ("imports NOTHING from shadow/", "PROMOTED out of shadow/"). Flagging
+# those would pressure authors to delete
 # exactly the documentation that keeps the boundary legible.
 _QUARANTINE_PATH = re.compile(
     r"(?:shadow|legacy_validators)/[A-Za-z0-9_-][A-Za-z0-9_./-]*")
@@ -267,10 +266,6 @@ ORPHAN_ALLOWLIST = {
                         "Deliberately NOT called by any grader — a grader "
                         "that could write its own exclusions is the whole "
                         "failure mode this registry exists to prevent.",
-    "backfill_loss_species": "manual one-time path by design — its own "
-                             "docstring (shadow_signals.py:502) says "
-                             "'scheduled runs classify at grading time'. "
-                             "Verified 2026-09-16.",
 }
 
 ARTIFACT_ALLOWLIST = {
@@ -365,13 +360,13 @@ def test_every_allowlist_entry_carries_a_reason():
 def test_alias_resolution_is_live_not_orphan():
     """REGRESSION PIN — false positive #1 from the Step 2 pass.
 
-    regime_detection.py:1104 imports apply_filter and get_filter_summary
-    under aliases. A call-only, alias-blind scan reports both as dead —
-    and apply_filter is one of the two suite floors.
+    regime_detection imports apply_filter under an alias. A call-only,
+    alias-blind scan reports it as dead, and apply_filter is one of the two
+    suite floors. (get_filter_summary, once pinned here too, was removed
+    2026-10-18: its only output was a key nothing read.)
     """
     referenced = _referenced_names(_live_corpus())
     assert "apply_filter" in referenced
-    assert "get_filter_summary" in referenced
 
 
 def test_indirect_dispatch_is_live_not_orphan():

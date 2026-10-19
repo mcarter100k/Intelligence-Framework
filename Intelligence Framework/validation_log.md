@@ -4004,3 +4004,24 @@ All four runs used main 733a63a: the gate, the run count, the digest fix and ton
   - Fixed test at 18:06, inside the window: 3 passed. Main's old version at the same time: 2 failed.
   - Still caught: a run count that never raises a shortfall, and one that is short by one.
 - **How it was missed.** Every earlier suite run happened to land outside a grace window. The original test was not exercised at the time-of-day boundary its own code defines.
+
+## 2026-10-18 — I8 closed: `_split_live_bar` removed (its own commit, per the 2026-10-18 team review)
+
+- **The two halves of I8.**
+  - **The stale price** was closed by the live-price merge `6471072` (2026-09-30). The brief now prints OANDA's live mid (data_at_source_spec P1).
+  - **The vestigial split** is removed in this commit. `oanda_feed._get_bars` drops the forming candle, and a complete candle is stamped at its open, so it is always at least one bar-length old. `age_hours < threshold_hours` could therefore never hold, and the split never happened.
+- **Live-path evidence for the stale half.**
+  - The three GBP/AUD SHORT runs on 2026-09-10 18:04, 09-11 02:38 and 09-11 07:32 PDT all printed 1.8879. That is the close of the D1 bar opened 2026-09-09T21:00Z (1.88794).
+  - The real prices at those times were 1.8866, 1.8842 and 1.8861, and 1.8879 lay outside each hour's traded range (validation_log 2026-10-18, "I8 live-path confirmation").
+  - The three GBP/JPY 2026-09-25 rows (209.984) were the first instance.
+- **What the commit removes.**
+  - `_split_live_bar` is replaced by `_closed_bar_age_hours`. The age it returns still feeds the brief's stale-feed warning.
+  - Removed: the `live_bar_d1` value, the `live_bar_in_progress` key and field, the unreachable "Daily bar in progress" line, and the weekly fallback that only existed for a split.
+  - It also removes the one case where the split could have fired: a 167-hour weekly candle in a spring-forward week, which would have wrongly dropped a completed weekly bar for about an hour after the Friday close (INFERRED from the code; never observed).
+- **Why remove it rather than keep it as a guard:** M31, delete a staleness class rather than watch it. This closes the backlog entries at data_at_source_spec "Out of scope" and this log's 2026-07-29 cleanup backlog.
+- **Evidence:**
+  - Full suite green.
+  - The real brief and grader via `reality_run`, branch against unchanged main run the same way: stdout, stderr and ledger copies identical.
+  - The mirror test on 600 real as-of points is identical to main.
+  - incident_catalogue.md I8 is marked CLOSED. The closure takes effect when this commit merges to main, after the 2026-10-18 18:00 PDT Gate 3 run.
+

@@ -90,8 +90,6 @@ def _load_ctx(instrument: str, count: int = 300) -> Optional[Dict]:
     df = get_h4_bars(pair=instrument.replace("_", ""), count=count)
     if df is None or len(df) < 60:
         return None
-    if hasattr(df.columns, "levels"):
-        df.columns = df.columns.get_level_values(0)
     O = [float(v) for v in df["Open"].values]
     H = [float(v) for v in df["High"].values]
     L = [float(v) for v in df["Low"].values]
@@ -490,67 +488,6 @@ def _classify_loss(direction: str, entry: float, stop: float, risk: float,
         return ""                          # never let autopsy break grading
 
 
-def backfill_loss_species(instrument: str) -> int:
-    """Classify already-graded VALID losing rows whose loss_species is
-    empty, via the same definitions (fresh H4 fetch; count=500 reaches ~83
-    days). Manual/one-time path — scheduled runs classify at grading time.
-    Returns rows classified."""
-    if not os.path.exists(LOG_FILE):
-        return 0
-    from oanda_feed import get_h4_bars, is_configured
-    if not is_configured():
-        return 0
-    df = get_h4_bars(pair=instrument.replace("_", ""), count=500)
-    if df is None or df.empty:
-        return 0
-    if hasattr(df.columns, "levels"):
-        df.columns = df.columns.get_level_values(0)
-    H = [float(v) for v in df["High"].values]
-    L = [float(v) for v in df["Low"].values]
-    C = [float(v) for v in df["Close"].values]
-    T = [t.strftime("%Y-%m-%dT%H:%M:%SZ") for t in df.index]
-    pip = PAIRS[instrument].pip_size if instrument in PAIRS else 0.0001
-    ts_to_idx = {t: i for i, t in enumerate(T)}
-
-    _migrate_header()
-    # Lock from the ledger read to the write (ledger_io); the H4 fetch
-    # above stays outside it, so no network call ever holds the lock.
-    with locked(LOG_FILE):
-        with open(LOG_FILE, newline="") as f:
-            rows = list(csv.DictReader(f))
-        changed = 0
-        for r in rows:
-            if r["instrument"] != instrument or str(r.get("outcome_filled")) != "True":
-                continue
-            if r.get("loss_species") or is_invalid_spec(r):
-                continue
-            try:
-                r_mult = float(r["r_multiple"])
-            except (TypeError, ValueError):
-                continue
-            if r_mult >= 0:
-                continue                       # wins are not autopsied
-            ei = ts_to_idx.get(r["timestamp"])
-            if ei is None or ei + HORIZON >= len(C):
-                continue
-            entry = float(r["entry"]); stop = float(r["stop"])
-            risk = abs(entry - stop) or 1e-9
-            fut_h = H[ei + 1:ei + 1 + HORIZON]; fut_l = L[ei + 1:ei + 1 + HORIZON]
-            mfe_price = float(r["mfe_pips"]) * pip
-            species = _classify_loss(
-                r["direction"], entry, stop, risk, r.get("extra", ""),
-                str(r.get("hit_stop")) == "True", mfe_price, fut_h, fut_l,
-                ei, C, float(r.get("atr") or 0.0))
-            if species:
-                r["loss_species"] = species
-                changed += 1
-        if changed:
-            atomic_write_rows(LOG_FILE, _FIELDS,
-                              [{k: r.get(k, "") for k in _FIELDS} for r in rows])
-        return changed
-
-
-# ── Grading (called by run_outcome_check) ───────────────────────────────────────
 def grade_pending_shadow(instrument: str) -> int:
     """Nightly: score every logged fire whose 30 four-hour bars have passed.
     A bar touching the stop makes it -1R; otherwise R = (close at bar 30 -
@@ -566,8 +503,6 @@ def grade_pending_shadow(instrument: str) -> int:
     df = get_h4_bars(pair=instrument.replace("_", ""), count=500)
     if df is None or df.empty:
         return 0
-    if hasattr(df.columns, "levels"):
-        df.columns = df.columns.get_level_values(0)
     H = [float(v) for v in df["High"].values]
     L = [float(v) for v in df["Low"].values]
     C = [float(v) for v in df["Close"].values]

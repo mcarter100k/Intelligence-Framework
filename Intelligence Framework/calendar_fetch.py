@@ -38,7 +38,6 @@ Any failure → keep the existing file, log loudly, exit 0.
 """
 from __future__ import annotations
 
-import csv
 import json
 import os
 import sys
@@ -154,20 +153,11 @@ def fetch_calendar(calendar_path: Optional[str] = None,
         return False
 
     rows.sort(key=lambda r: r["time"])
-    tmp = path + ".tmp"
     try:
-        with open(tmp, "w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=HEADERS)
-            w.writeheader()
-            w.writerows(rows)
-        os.replace(tmp, path)          # atomic — never a half-written file
+        from ledger_io import atomic_write_rows   # locked, fsynced, atomic
+        atomic_write_rows(path, HEADERS, rows)
     except Exception as exc:
         print(f"CALENDAR WRITE FAILED: {exc} — keeping existing calendar.csv.")
-        try:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-        except OSError:
-            pass
         return False
 
     print(f"calendar.csv updated: {len(rows)} high-impact GBP/AUD/JPY events "

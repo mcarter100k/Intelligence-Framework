@@ -105,3 +105,20 @@ def test_network_failure_exit0_and_loud_note(tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "CALENDAR FETCH FAILED" in out
     assert "stale-calendar note" in out
+
+
+def test_a_write_that_cannot_happen_keeps_the_old_file(tmp_path, capsys):
+    """Holds before and after the 2026-10-18 switch to ledger_io's atomic
+    write (code_hygiene_spec B6): a valid feed whose write fails leaves the
+    old calendar byte-identical and says so."""
+    import os
+    p = _old_file(tmp_path)
+    os.chmod(tmp_path, 0o555)                   # nothing new can be created here
+    try:
+        ok = fetch_calendar(calendar_path=str(p), now=NOW,
+                            fetcher=lambda: _feed([_event(20, "GBP")]))
+    finally:
+        os.chmod(tmp_path, 0o755)
+    assert ok is False
+    assert p.read_text() == _OLD_CONTENT
+    assert "CALENDAR WRITE FAILED" in capsys.readouterr().out

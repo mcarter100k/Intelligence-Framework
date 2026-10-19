@@ -38,8 +38,6 @@ def main() -> None:
         if raw is None or raw.empty:
             print(f"{instrument}: no data from OANDA")
             continue
-        if hasattr(raw.columns, "levels"):
-            raw.columns = raw.columns.get_level_values(0)
 
         closes = [float(v) for v in raw["Close"].dropna().values]
         highs  = [float(v) for v in raw["High"].dropna().values]
@@ -86,9 +84,9 @@ def main() -> None:
         print("REGIMES REQUIRING THRESHOLD REVIEW:")
         for line in review_needed:
             print(line)
-        print("Run validate_thresholds_v2.py for each flagged regime "
-              "(non-overlapping windows). Do NOT use the v1 validators in "
-              "legacy_validators/ — their output is INVALIDATED.")
+        print("Re-check each flagged regime with studies/validate_thresholds_v2.py "
+              "(non-overlapping windows) before changing any threshold, and "
+              "only through team review.")
         print("=" * 55)
 
 

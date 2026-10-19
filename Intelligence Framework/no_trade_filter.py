@@ -51,7 +51,6 @@ class FilterResult:
     confidence:          str
     reason:              str
     override_fired:      bool = False
-    override_conditions: str  = ""
     # Which rule blocked, set ONLY on blocks whose reason is plain English, so
     # renderers show it verbatim instead of re-narrating the cause from the
     # daily chart (decision_logic_spec review V5; review 2 R2/R8):
@@ -421,12 +420,6 @@ def _check_override(
 
     # All conditions met — override fires
     direction  = "long" if h4_bullish else "short"
-    conditions = (
-        f"H4 {h4} (ADX {adx_h4:.1f} >= {_OVERRIDE_MIN_H4_ADX}), "
-        f"weekly={weekly_ctx}, "
-        f"D1 structure={structure}, "
-        f"direction aligned={direction}"
-    )
 
     return FilterResult(
         allowed=True,
@@ -437,18 +430,4 @@ def _check_override(
                 f"aligned {direction}. Reduced size={_OVERRIDE_SIZE_MULT}x. "
                 f"Unvalidated — requires HTF level confirmation before entry."),
         override_fired=True,
-        override_conditions=conditions,
     )
-
-
-def get_filter_summary(result: FilterResult) -> str:
-    """Plain-English summary of filter decision."""
-    if not result.allowed:
-        return f"NO TRADE — {result.reason}"
-    if result.override_fired:
-        return (f"OVERRIDE ACTIVE — {result.execution_mode} "
-                f"at {result.size_mult}x size. "
-                f"Conditions: {result.override_conditions}")
-    return (f"TRADE ALLOWED — {result.execution_mode} "
-            f"at {result.size_mult}x size, "
-            f"confidence={result.confidence}")
