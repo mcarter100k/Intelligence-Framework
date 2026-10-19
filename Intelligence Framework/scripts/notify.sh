@@ -3,7 +3,7 @@
 #
 #   notify <SUBTITLE> <MESSAGE> <LOG-RELPATH> [PAIRS] [DECISION-STATE]
 #
-# SUBTITLE is the category (ALERT / RECOVERED / SHADOW / DECISION / HEARTBEAT).
+# SUBTITLE is the category (ALERT / RECOVERED / SHADOW / DECISION / DIGEST / HEARTBEAT).
 # Every notification actually sent (the send command exited 0) is recorded
 # in notification_log.csv with PAIRS and DECISION-STATE
 # (docs/specs/notification_ledger_spec.md). A failed ledger write is

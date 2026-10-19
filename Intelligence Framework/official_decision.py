@@ -1,17 +1,10 @@
 """
 official_decision.py
 ────────────────────
-The single official decision path for the framework.
-
-Derives direction, conviction, and grade deterministically from
-regime + filter output. No unvalidated signal weights.
-
-Every component of this decision is traceable to a validated
-source: regime classification (P1), structure (P2), ATR state (P3),
-resolution table (P6), no-trade filter (P8).
-
-The legacy signal-stack scorer (decision_engine.make_decision)
-runs in SHADOW MODE — logged for comparison, never traded.
+The one official LONG / SHORT / NO TRADE call, with its conviction and
+grade, computed deterministically from get_regime's output. Every input,
+including the conviction points below, is an INFORMED PRIOR, not a
+validated result (validation_log 2026-06-29).
 """
 
 from typing import Dict
@@ -131,8 +124,8 @@ def decide(regime: Dict, exec_mode: str, size_mult: float,
         return _no_trade("The daily chart gives no trend direction to follow "
                          "— no trade. Standing aside.")
 
-    # Conviction: deterministic from validated components
-    # Base by confidence tier (from resolution table, P6)
+    # Conviction: start from the resolution table's confidence tier, then add
+    # or subtract fixed points (all informed priors).
     base     = {"HIGH": 70, "MEDIUM": 55, "LOW": 40}.get(confidence, 30)
     jpy_note = ""
 
@@ -163,8 +156,8 @@ def decide(regime: Dict, exec_mode: str, size_mult: float,
         if regime.get("adx_exhaustion", False):
             base -= 15
 
-        # v2 empirical finding (2026-06-29): GBP/JPY at ATR ratio 1.0-1.2x shows
-        # 75% mean reversion — penalize trend conviction in that zone.
+        # GBP/JPY at 1.0-1.2x normal volatility snapped back 75% of the time
+        # (2026-06-29; N=16, below the N<20 INSUFFICIENT line): cut conviction.
         instrument = regime.get("instrument", "")
         atr_ratio  = float(regime.get("atr_vs_avg", 1.0) or 1.0)
         if ("JPY" in instrument
@@ -190,9 +183,8 @@ def decide(regime: Dict, exec_mode: str, size_mult: float,
     elif conviction >= 45: grade = "B"
     else:                  grade = "C"
 
-    # Grade C is never a trade (owner decision 2026-09-30; risk_config risks
-    # 0% on C). Formerly the brief showed a C as a direction at 75% size —
-    # the real 2026-09-25 GBP/JPY row.
+    # Grade C never trades (owner decision 2026-09-30; validation_log has the
+    # 2026-09-25 GBP/JPY row that showed a C as a direction).
     if grade == "C":
         return _no_trade(f"Setup grades C (conviction {conviction} of 100) — "
                          f"the risk rules never trade a C. Standing aside.")

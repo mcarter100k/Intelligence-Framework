@@ -149,31 +149,13 @@ def test_migration_is_additive_and_lossless(tmp_path, monkeypatch):
 
 # ── backfill honors the validity guard ─────────────────────────────────────────
 
-def test_backfill_classifies_valid_loss_and_skips_invalid(tmp_path, monkeypatch):
-    import pandas as pd
-    monkeypatch.setattr(ss, "LOG_FILE", str(tmp_path / "shadow.csv"))
-    valid_loss = ('EARLY_MOMENTUM,2026-07-29T05:00:00Z,GBP_JPY,SHORT,217.667,'
-                  '217.996,0.34431,20.0,7.8,DOWNTREND,x,True,30,809.2,102.1,'
-                  '529.1,True,-1.0')
-    invalid =    ('EARLY_MOMENTUM,2026-07-29T21:00:00Z,GBP_JPY,SHORT,218.352,'
-                  '217.996,0.37826,20.4,5.6,DOWNTREND,x,True,30,877.7,33.6,'
-                  '593.8,True,-1.0')
-    (tmp_path / "shadow.csv").write_text(
-        _OLD_HEADER + "\n" + valid_loss + "\n" + invalid + "\n")
 
-    idx = pd.date_range("2026-07-29T05:00:00Z", periods=40, freq="4h")
-    df = pd.DataFrame({
-        "Open":  [217.7] * 2 + [212.0] * 38,
-        "High":  [218.1] * 2 + [212.5] * 38,
-        "Low":   [217.3] * 2 + [209.6] * 38,
-        "Close": [217.6] * 2 + [212.0] * 38,
-    }, index=idx)
-    import oanda_feed
-    monkeypatch.setattr(oanda_feed, "is_configured", lambda: True)
-    monkeypatch.setattr(oanda_feed, "get_h4_bars", lambda pair, count=500: df)
-
-    assert ss.backfill_loss_species("GBP_JPY") == 1
-    with open(ss.LOG_FILE) as f:
-        rows = list(csv.DictReader(f))
-    assert rows[0]["loss_species"] == "stopped_then_reversed"
-    assert rows[1]["loss_species"] == ""      # invalid_spec: never autopsied
+def test_loss_species_names_every_type_the_classifier_returns():
+    """LOSS_SPECIES is the frozen species set (loss_autopsy_spec); nothing
+    else reads it, so pin it to what _classify_loss can actually return."""
+    import ast, inspect
+    src = ast.parse(inspect.getsource(ss._classify_loss))
+    returned = {n.value.value for n in ast.walk(src)
+                if isinstance(n, ast.Return) and isinstance(n.value, ast.Constant)
+                and isinstance(n.value.value, str) and n.value.value}
+    assert returned == set(ss.LOSS_SPECIES)

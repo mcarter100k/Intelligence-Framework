@@ -24,7 +24,6 @@ import regime_detection as rd
 from regime_detection import (
     _classify,
     PAIRS,
-    _DEFAULT_PAIR,
     get_regime,
 )
 from no_trade_filter import apply_filter
@@ -121,45 +120,26 @@ def test_pip_size_jpy():
     assert PAIRS["GBP_JPY"].pip_size == pytest.approx(0.01)
 
 
-def test_to_pips_aud():
-    assert PAIRS["GBP_AUD"].to_pips(0.0050) == pytest.approx(50.0)
-
-
-def test_to_pips_jpy():
-    assert PAIRS["GBP_JPY"].to_pips(0.50) == pytest.approx(50.0)
-
-
-def test_from_pips_aud():
-    assert PAIRS["GBP_AUD"].from_pips(50) == pytest.approx(0.005)
-
-
-def test_from_pips_jpy():
-    assert PAIRS["GBP_JPY"].from_pips(50) == pytest.approx(0.50)
-
-
 def test_pairs_dict_keys():
     assert "GBP_AUD" in PAIRS
     assert "GBP_JPY" in PAIRS
-
-
-def test_default_pair():
-    assert _DEFAULT_PAIR == "GBP_AUD"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 3 — get_regime() output contract (mocked OHLC, no live API)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Schema contract (outside the T34-T41 floor). 2026-10-18: the keys nothing
+# read were removed (regime_label, trade_guidance, vol_note, the fuel/range
+# block, adx_exhaustion_note); docs/specs/code_hygiene_spec.md B2.
 REQUIRED_KEYS = {
-    "regime": str, "regime_label": str, "regime_d1": str, "regime_h4": str,
+    "regime": str, "regime_d1": str, "regime_h4": str,
     "timeframe_conflict": bool, "conflict_type": str, "stand_down": bool,
-    "stand_down_reason": str, "trade_guidance": str, "adx": float,
+    "stand_down_reason": str, "adx": float,
     "adx_h4": float, "atr": float, "atr_pips": float, "atr_pct": float,
-    "atr_vs_avg": float, "volatility": str, "vol_note": str,
-    "current_price": float, "today_high": float, "today_low": float,
-    "range_used": (int, float), "range_remaining": (int, float),
-    "fuel_pct": (int, float), "fuel_label": str, "pair": str,
-    "instrument": str, "adx_exhaustion": bool, "adx_exhaustion_note": str,
+    "atr_vs_avg": float, "volatility": str,
+    "current_price": float, "pair": str,
+    "instrument": str, "adx_exhaustion": bool,
     "error": type(None),
 }
 

@@ -2,9 +2,14 @@
 # scheduled_brief.sh
 # ──────────────────
 # Scheduling + notification WRAPPER only. No decision or shadow logic lives here.
-# Runs the daily brief, appends full output to a dated log, and fires a macOS
-# notification ONLY when there is something to see (a tradeable decision, or a
-# shadow signal). Always exits 0 so launchd never enters an error state.
+# Refreshes calendar.csv when it is over 24h old, runs the brief for both pairs,
+# logs it, then checks ledger freshness. A crash, an error brief, a shadow
+# candidate error or a STALE ledger counts as a failed run.
+# Notifies on: health failure/recovery and the live-branch guard; then one of
+# ALERT (a watched condition flipped) > DECISION (open-market LONG/SHORT, named
+# by pair) > SHADOW (a candidate fired); plus the 07:30 DIGEST (only the
+# brief-ny plist passes "digest"; it also rewrites logs/latest_brief.log).
+# Always exits 0 so launchd never enters an error state.
 
 # INTEL_PROJ exists for the behavioral tests only; launchd sets nothing,
 # so production always uses the path below.

@@ -1520,15 +1520,33 @@ evidence (log line / ledger row / notification) is cited here.
       and sends no DECISION notification. A later open-market directional
       run must still notify. Proven so far on replayed real text and one
       live brief, not on a scheduled run.
+      **PARTLY CLEARED 2026-10-18 (closed half).** The scheduled runs at
+      02:30:07 and 07:30:09 PDT (main 733a63a) each logged GBP/AUD LONG
+      under the closed-market banner, followed by `DECISION notification
+      suppressed: market closed` (logs/brief_2026-10-18.log). **Still
+      open (open half):** the 18:00:08 PDT open-market run was STAND ASIDE
+      on both pairs, so an open-market directional notification has not
+      yet been observed on the scheduled path.
 - [ ] **Scheduled heartbeat reports expected vs on-time runs** (added
       2026-10-18) — the Sunday 12:30 PM launchd heartbeat writes the
       `runs (last 7d, launchd schedule): …` line, and a real gap raises
       `runs: SHORTFALL`. Proven on real logs replayed at past dates and on
       a scratch copy, not yet on a scheduled run.
+      **PARTLY CLEARED 2026-10-18 (reporting half).** The 12:30:05 PDT
+      launchd heartbeat wrote `runs (last 7d, launchd schedule): brief 21
+      expected / 21 on time / 21 ran; outcomes 7 expected / 7 on time / 7
+      ran` (logs/heartbeat_2026-10-18.log). **Still open:** a live
+      `runs: SHORTFALL`; this week had no gap.
 - [ ] **First row in notification_log.csv from a scheduled run** (added
       2026-10-18) — blocked on team review of
       docs/specs/notification_ledger_spec.md (branch
       feat/notification-review, unmerged).
+- [ ] **Live-script cleanup merged and running** (added 2026-10-18) —
+      branch chore/live-scripts-cleanup (latest_view parser fix, wrapper
+      headers, install.sh) is held until Sunday 2026-10-18's 18:00 run
+      lands, so it cannot confound Gate 3 E1-E4. Cleared by the first
+      scheduled 07:30 DIGEST after the merge: logs/latest_brief.log names a
+      directional run's decision instead of a bare pair.
 - [x] **First shadow grading** — run_outcome_check grades the first shadow
       ledger rows when their 30-bar horizons elapse (~2026-08-05 for the
       2026-07-29 EARLY_MOMENTUM fires).
@@ -3894,3 +3912,116 @@ This needs its own spec.
   - The new tests g10–g12 failed on the old format. Mutants killed: pair dropped, pair set once, ungated source.
   - On the real 10/12 run the notification reads "GBP/JPY SHORT · …"; the two real closed-market LONG briefs send nothing.
 - **Still open, not fixed.** The shadow line appended to a DECISION summary is a truncated fragment that does not name its pair ("EARLY_MOMENTUM_v2 candidate: LONG entered at").
+
+## 2026-10-18 — Deep code review: five reviewers, each checked by an adversarial verifier; free-zone cleanup merged; protected cleanup held for review
+
+**Method.** Five read-only reviewers covered dead code, redundancy, structure and naming, free-zone hygiene, and comments. Each was followed by a skeptic told to refute every finding.
+- Results: 72 findings, 43 confirmed, 29 corrected, 0 refuted outright.
+- The corrections mattered:
+  - `session_context.py` is a previously used path, so it is unavailable as a new name.
+  - Folding `intraday_context` into `levels_context` would not remove its silent-failure path.
+  - `validate_h4_thresholds` is not superseded by v2.
+- The live project's 613 files were hash-identical before and after the review.
+
+**Merged to main (c483c5b, free zone):**
+- The 56 test files moved to `tests/`. Collected test ids are identical before and after (855). `tests/_paths.py` asserts the project root: a wrong root used to skip tests silently, and now fails collection.
+- LIVE_CORE gained `ledger_io.py`, and a test requires it to equal AGENTS.md's protected list. Dropping a name fails it.
+- `historical_scenario_replay` refuses to run inside the project. From the project root it would have written synthetic rows into the live ledgers.
+- Test hygiene:
+  - an `or True` assertion removed;
+  - invariant 1 no longer allows grade C (OBSERVED: the C rule itself is caught by the decision grid, not by this line);
+  - the `trades.csv` schema now comes from the writer.
+- Indexes: a root README (each module's job and ledger), plus `scripts/`, `studies/` and `docs/specs/`. Dead foundation citations now point to git history; the dead `shadow/` path was dropped from 9 studies.
+- Live checkout: 857 passed, 0 skipped. The installed skill was rebuilt; exactly the 3 edited reference files changed.
+
+**Held: `chore/protected-hygiene`.** Team review is required (docs/specs/code_hygiene_spec.md, committed first). 22 files, −643 / +398.
+- Comments and docstrings in 12 protected modules. The AST of every one, docstrings removed, is identical to main.
+- Unreachable code removed:
+  - `_split_live_bar`, which never split;
+  - 12 `get_regime` outputs nothing read, including about 90 lines of legacy prose and the fuel block;
+  - nine yfinance-era guards;
+  - dead members;
+  - the already-run loss backfill.
+- `calendar_fetch` writes through `ledger_io`.
+- **Gate 2:** with `reality_run`, branch against unchanged main run the same way, the real brief and the real grader have identical stdout, stderr and ledger copies (market closed, so prices are static). The mirror test on 600 points of real history is identical to main. Each new or changed check was shown to fail on a mutant.
+- **Not done, for the owner or team:** renames (names proposed in the spec), wiring or deleting `session_guard`/`risk_config`, a raising pip-size helper, the episode-count methodology, and protecting `trade_management.py`.
+
+**Held: `chore/live-scripts-cleanup`** (free zone, but on the scheduled path). It is held until the Gate 3 runs land.
+- `latest_view` now uses the digest's parser. On the real 10/12 and 10/13 views, "GBP/JPY" becomes "GBP/JPY SHORT".
+- The view is written atomically.
+- Wrapper headers now describe what each job does (comment-only, proven by a diff with comments removed).
+- `install.sh` loses a redundant chmod.
+
+**Found:**
+- **`reality_run --code <worktree>` runs the brief without the news calendar.** `news_gate` reads `calendar.csv` from beside its own module, and a worktree has none. Every Gate 2 run from a worktree has exercised a brief with the news gate inactive ("news calendar missing"). Recorded, not fixed.
+- **`git grep` with `\b` in a basic pattern matched nothing, silently.** Two searches in this review returned false zeros until they were redone with a positive control. Searches that back a deletion must carry a control.
+
+## 2026-10-18 — Team review of the code-hygiene work: decisions; a known Gate 2 blind spot recorded
+
+**Decisions** (recorded in full in docs/specs/code_hygiene_spec.md §D):
+- **1A, comment-only edits to 12 protected modules: approved and merged.** The AST of each module, docstrings removed, was re-proven identical to main at merge time.
+- **1B, code removals: approved, held until after Sunday's 18:00 PDT run.** The `_split_live_bar` removal will merge as its own commit closing I8.
+- **Renames: deferred.** methodology.md, incident_catalogue.md and this log cite modules by name and line.
+- **Circuit breaker: keep, do not wire.** It is now a prerequisite before the first real-money trade (AGENTS.md). Until then the risk limits are unenforced.
+- **The 10 `gbpaud_*` studies: commit them as they are,** each with a citation-integrity header.
+
+**Known Gate 2 blind spot (record only; fix queued for after Sunday).**
+- `scripts/reality_run.py --code <worktree>` runs the brief with **no news calendar**. `news_gate` reads `calendar.csv` from beside its own module, and a worktree has none (`.gitignore`).
+- Observed 2026-10-18: the same unchanged code printed "news calendar stale" when run from the live checkout and "news calendar missing" when run from a worktree.
+- So no Gate 2 run from a worktree has ever exercised the news gate. It matters more than it looks: I28 found that news staleness **fails open**. The gate is unexercised and fail-open at the same time.
+- The verification tooling is deliberately left unchanged right before a verification window. Until the fix lands, read any worktree Gate 2 as "news gate not tested".
+
+**For Gate 3 triage.** A 56-file test reorganization (c483c5b) and these comment-only edits merged on the night of 2026-10-17. Neither touches what the scheduled jobs execute: the tests are not on the live path, and the comments are AST-identical. If a scheduled run misbehaves, rule both out first.
+
+## 2026-10-18 — Gate 3 window (Sunday): E1-E4 observed on the scheduled path; E5 blocked
+
+All four runs used main 733a63a: the gate, the run count, the digest fix and tonight's comment-only edits, but none of the held branches. Notification delivery is not recorded until the notification ledger merges, so "nothing sent" below rests on the wrapper's own record, not on a delivery record.
+
+**E1, 02:30:07 PDT (closed).** GBP/AUD LONG under the closed banner; GBP/JPY STAND ASIDE. The log has `DECISION notification suppressed: market closed`.
+- VERIFIED: the DECISION notification was suppressed (the gate's own line; its tests were shown able to fail).
+- OBSERVED: nothing else had a trigger (no health change, no ##ALERT##, no shadow signal).
+- The calendar auto-fetch also ran.
+
+**E2, 07:30:09 PDT (closed).** The same result as E1, with the suppression line.
+- The 07:30 DIGEST fired; it is not gated. Recomputed with main's daily_digest.py from this run's exact output, it read "GBP/AUD LONG · GBP/JPY STAND ASIDE — watch: …". The "?" fix is live. That text is recomputed; the wrapper does not log what was sent.
+- **Finding: the DIGEST conveys a closed-market directional decision with no market-closed note.** At 07:30 on a Sunday it sent "GBP/AUD LONG". This is the should-it-reach-the-owner class of proposed AGENTS rule 12. Recorded, not fixed.
+- logs/latest_brief.log showed the 02:30 run as "GBP/AUD · GBP/JPY STAND ASIDE", with no direction. That is the latest_view copy of the old parser, live-confirmed; the fix is on chore/live-scripts-cleanup.
+
+**E3, 12:30:05 PDT heartbeat: VERIFIED.** It reported `brief 21 expected / 21 on time / 21 ran; outcomes 7 expected / 7 on time / 7 ran`, healthy. A live SHORTFALL has not occurred; the detector was shown on replayed real gaps (14/21 and 15/21).
+
+**E4, 18:00:08 PDT (open; live prices GBP/AUD 1.9138, GBP/JPY 210.471): the case did not arise.** Both pairs were STAND ASIDE. An open-market directional notification remains unobserved on the scheduled path.
+
+**E5: blocked.** feat/notification-review (the notification ledger, AGENTS rule 12) has not had team review.
+
+**Decision-channel consequence (no statistic computed).** The GBP/AUD LONG issued Friday 2026-10-16 18:12 PDT, after the weekly close, became STAND ASIDE at the first open-market run. Under docs/specs/decision_channel_measurement_spec.md, that episode is **NEVER ACTIONABLE**. The reversal also notified nobody: that is known defect 0(b), the silent withdrawal, here harmless because the LONG had never been notified (the gate held it).
+
+
+## 2026-10-18 — CORRECTION: the heartbeat run-count test (C1, merged 3415303) failed for 30 minutes after every scheduled slot
+
+- **The claim, and why it was wrong.** It was reported VERIFIED on 2026-10-18. It hardcoded "21 expected", but `run_count` correctly leaves a slot out of the count for its first 30 minutes, since that run may still be going. So the suite went red from :00-:30 after every brief slot, and from :15-:45 after the grader's.
+- **Observed.** The heartbeat test failed at 18:06 PDT on main: 2 failed, the output showing "brief 20 expected". The code was right; the test was wrong.
+- **Fix.** The test now requires on-time = expected, with expected 21 (or 20 while a slot is in its grace window), and a SHORTFALL of exactly 6 missing.
+  - Fixed test at 18:06, inside the window: 3 passed. Main's old version at the same time: 2 failed.
+  - Still caught: a run count that never raises a shortfall, and one that is short by one.
+- **How it was missed.** Every earlier suite run happened to land outside a grace window. The original test was not exercised at the time-of-day boundary its own code defines.
+
+## 2026-10-18 — I8 closed: `_split_live_bar` removed (its own commit, per the 2026-10-18 team review)
+
+- **The two halves of I8.**
+  - **The stale price** was closed by the live-price merge `6471072` (2026-09-30). The brief now prints OANDA's live mid (data_at_source_spec P1).
+  - **The vestigial split** is removed in this commit. `oanda_feed._get_bars` drops the forming candle, and a complete candle is stamped at its open, so it is always at least one bar-length old. `age_hours < threshold_hours` could therefore never hold, and the split never happened.
+- **Live-path evidence for the stale half.**
+  - The three GBP/AUD SHORT runs on 2026-09-10 18:04, 09-11 02:38 and 09-11 07:32 PDT all printed 1.8879. That is the close of the D1 bar opened 2026-09-09T21:00Z (1.88794).
+  - The real prices at those times were 1.8866, 1.8842 and 1.8861, and 1.8879 lay outside each hour's traded range (validation_log 2026-10-18, "I8 live-path confirmation").
+  - The three GBP/JPY 2026-09-25 rows (209.984) were the first instance.
+- **What the commit removes.**
+  - `_split_live_bar` is replaced by `_closed_bar_age_hours`. The age it returns still feeds the brief's stale-feed warning.
+  - Removed: the `live_bar_d1` value, the `live_bar_in_progress` key and field, the unreachable "Daily bar in progress" line, and the weekly fallback that only existed for a split.
+  - It also removes the one case where the split could have fired: a 167-hour weekly candle in a spring-forward week, which would have wrongly dropped a completed weekly bar for about an hour after the Friday close (INFERRED from the code; never observed).
+- **Why remove it rather than keep it as a guard:** M31, delete a staleness class rather than watch it. This closes the backlog entries at data_at_source_spec "Out of scope" and this log's 2026-07-29 cleanup backlog.
+- **Evidence:**
+  - Full suite green.
+  - The real brief and grader via `reality_run`, branch against unchanged main run the same way: stdout, stderr and ledger copies identical.
+  - The mirror test on 600 real as-of points is identical to main.
+  - incident_catalogue.md I8 is marked CLOSED. The closure takes effect when this commit merges to main, after the 2026-10-18 18:00 PDT Gate 3 run.
+

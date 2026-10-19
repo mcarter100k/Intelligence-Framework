@@ -1,19 +1,20 @@
 """
-regime_detection.py
+regime_detection.py — reads the market for GBP/AUD and GBP/JPY.
 
-Detects the current market regime for GBP/AUD:
-  TRENDING_UP   : strong directional move higher
-  TRENDING_DOWN : strong directional move lower
-  RANGING       : price chopping sideways in a box
-  VOLATILE      : large unpredictable swings, no clear direction
+Labels the daily and 4-hour charts from OANDA closed bars:
+  TRENDING_UP / TRENDING_DOWN : a confirmed trend
+  RANGING                     : sideways (or, on GBP/JPY, an exhaustion move)
+  VOLATILE                    : no clear direction
 
-Indicators:
-  ATR (Average True Range) — how many pips GBP/AUD moves per day on average
-  ADX (Average Directional Index) — how strong the current trend is (0-100)
-    > 25 = trending | 20-25 = developing | < 20 = ranging/no trend
+Trend strength (ADX, 0-100): under 18 = sideways; 18-25 = no edge (stand
+aside); 25+ = a trend ONLY if price structure (higher highs and lows, or
+lower) agrees; GBP/JPY 35+ = exhaustion (fade, don't follow). A volatility
+spike (ATR against its 20-bar average), or on GBP/JPY a compression, overrides
+all of it.
+Every threshold is an INFORMED PRIOR (validation_log 2026-06-29).
 
-Both use Wilder's smoothing — fixed to avoid accumulation overflow.
-Data source: yfinance (free, no API key needed)
+get_regime() assembles everything the brief needs for one pair, and runs
+the no-trade filter, which runs the official decision.
 """
 
 from __future__ import annotations
@@ -32,18 +33,11 @@ from oanda_feed import (
 @dataclass
 class PairConfig:
     instrument:           str
-    ticker:               str
     pip_size:             float
     display_name:         str
     atr_spike_multiplier: float   # ATR ratio above which = volatile spike
     atr_compression_min:  float   # ATR ratio below which = compression stand-down
                                   # 0.0 = no compression filter (default)
-
-    def to_pips(self, price_move: float) -> float:
-        return round(price_move / self.pip_size, 1)
-
-    def from_pips(self, pips: float) -> float:
-        return pips * self.pip_size
 
 # INFORMED PRIOR — v1 validation invalidated by serial correlation (see validation_log 2026-06-29).
 # Direction supported by v2; N insufficient for VALIDATED status.
@@ -52,7 +46,6 @@ class PairConfig:
 PAIRS: Dict[str, PairConfig] = {
     "GBP_AUD": PairConfig(
         instrument="GBP_AUD",
-        ticker="GBPAUD=X",
         pip_size=0.0001,
         display_name="GBP/AUD",
         atr_spike_multiplier=1.2,   # informed prior — v1 N insufficient (see validation_log 2026-06-29)
@@ -60,15 +53,12 @@ PAIRS: Dict[str, PairConfig] = {
     ),
     "GBP_JPY": PairConfig(
         instrument="GBP_JPY",
-        ticker="GBPJPY=X",
         pip_size=0.01,
         display_name="GBP/JPY",
         atr_spike_multiplier=1.5,   # conservative default — spikes post-BoJ
         atr_compression_min=0.8,    # compression stand-down: pre-BoJ coil
     ),
 }
-
-_DEFAULT_PAIR = "GBP_AUD"
 
 _ATR_PERIOD  = 14
 _ADX_PERIOD  = 14
@@ -83,7 +73,7 @@ _ADX_TRANSITION_HIGH      = 25    # 25-32: cautious trend, HTF confirmation requ
 _ADX_EXHAUSTION_THRESHOLD = 32    # above this: late-trend warning, reduce size
 _ADX_JPY_EXHAUSTION       = 35    # GBP/JPY specific: mean reversion accelerates here
 
-# Weekly context constants — sourced from htf_structure 5yr analysis
+# Weekly context constants: INFORMED PRIOR (their source module, htf_structure, no longer exists)
 _WEEKLY_LT_LOOKBACK = 20  # 20W long-term trend lookback (~5 months)
 _WEEKLY_ST_LOOKBACK = 4   # 4W short-term trend lookback (~1 month)
 # What _trend_dir actually needs for the 20-week read (3-bar averages on both
@@ -97,7 +87,7 @@ _MA_LONG_PERIOD     = 200 # 200-day moving average — long-term structural bias
 # Maps every (D1_regime, H4_regime) pair to a deterministic trading instruction.
 # All 16 combinations are explicitly defined — no implicit fallbacks inside the
 # table itself. Unknown combinations handled by get_composite_regime() default.
-# INFORMED PRIOR: Table design locked 2025-06-28 based on Problems 1-5. NOTE:
+# INFORMED PRIOR: Table design locked 2026-06-28 based on Problems 1-5. NOTE:
 # the P1/P3 ADX/ATR threshold findings it rests on were later DEMOTED from
 # VALIDATED to INFORMED PRIOR (serial correlation from overlapping windows
 # inflated N — see validation_log 2026-06-29). Treat cell assignments as
@@ -259,7 +249,7 @@ def get_composite_regime(d1_regime: str, h4_regime: str) -> Dict:
     All 16 possible combinations are explicitly handled.
     Unknown combinations default to VOLATILE/STAND_DOWN.
 
-    INFORMED PRIOR: Table design locked 2025-06-28 based on Problems 1-5,
+    INFORMED PRIOR: Table design locked 2026-06-28 based on Problems 1-5,
     whose P1/P3 threshold findings were later demoted VALIDATED → INFORMED
     PRIOR (validation_log 2026-06-29). Re-evaluate cells after 60+ outcomes
     per combination.
@@ -282,17 +272,20 @@ def _detect_structure(
     n: int = 3,
 ) -> Dict:
     """
-    Detect market structure via confirmed pivot highs and lows.
+    Is price making higher highs and lows (UPTREND), lower ones
+    (DOWNTREND), or neither (TRANSITIONAL)?
 
-    Replaces the 10-candle slope read which breaks at pullbacks.
+    A swing high is a bar whose high is the highest of the n bars on each
+    side (ties count), confirmed once a later close falls below it. Swing
+    lows mirror that. UPTREND = the latest swing high AND low are both above
+    the previous ones; DOWNTREND = both below.
 
-    A pivot high at index i requires:
-      highs[i] > highs[i-n..i-1] AND highs[i] > highs[i+1..i+n]
-      AND a subsequent close below highs[i] (close confirmation)
-
-    A pivot low at index i requires:
-      lows[i] < lows[i-n..i-1] AND lows[i] < lows[i+1..i+n]
-      AND a subsequent close above lows[i] (close confirmation)
+    Fallbacks: with fewer than 2 confirmed swings on EITHER side, the first
+    half of the bars is compared with the second half (pivot_count then
+    reads 2, but these are not real swings). Under 18 bars: first close vs
+    last close (slope_fallback=True). get_regime always passes 42+ bars, so
+    that last path is reachable only from entry_confirmation and
+    shadow_signals.
 
     Returns dict with:
       structure        : "UPTREND" | "DOWNTREND" | "TRANSITIONAL"
@@ -308,7 +301,7 @@ def _detect_structure(
       ll               : bool — latest swing low < prior swing low
       pivot_count_high : int — number of confirmed swing highs found
       pivot_count_low  : int — number of confirmed swing lows found
-      slope_fallback   : bool — True if insufficient pivots, fell back to slope
+      slope_fallback   : bool — True only on the under-18-bar path
       slope_direction  : 1 or -1 — slope direction used if fallback triggered
     """
     if not closes:
@@ -678,14 +671,15 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
 
     INFORMED PRIOR (v1 invalidated by serial correlation, see validation_log 2026-06-29):
     - ADX < 18: mean reversion dominant on both pairs — RANGING
-    - ADX 18-25: no consistent edge — TRANSITION (size down, require structure)
-    - ADX 25-32: narrow momentum window, degrades fast — TRENDING (cautious)
-    - ADX 32+ GBP/JPY: 82.7% mean reversion at 40+ — EXHAUSTION → RANGING
-    - ADX > 32 general: late-trend, not entry signal — flag in output;
+    - ADX 18-25: no consistent edge — VOLATILE/TRANSITION_ZONE (stand aside)
+    - ADX 25-32: narrow momentum window, degrades fast — a trend only with
+      agreeing structure
+    - ADX 35+ GBP/JPY: 82.7% mean reversion at 40+ — EXHAUSTION → RANGING
+    - ADX 32+ general: late trend, flagged (adx_exhaustion cuts conviction);
       a trend only with agreeing structure, like 25-32
 
-    ADX does NOT predict trend continuation. It measures trend strength
-    that already occurred. Use structure (Problem 2) for direction confirmation.
+    Trend strength measures a move that already happened; direction comes
+    from price structure.
     """
     # GBP/JPY compression stand-down (pre-BoJ coil)
     if pair and pair.atr_compression_min > 0:
@@ -710,8 +704,8 @@ def _classify_ex(adx: float, atr_ratio: float, slope: float,
     # there are no slope-only trend calls. The late-trend warning is carried
     # by get_regime's adx_exhaustion flag, which cuts conviction.
 
-    # Validated transition zone — no statistical edge. Subtype is display
-    # metadata only (docs/specs/unresolved_direction_polish_spec.md).
+    # 18-25 trend strength: no edge either way (INFORMED PRIOR). Stand aside;
+    # the subtype is display metadata (unresolved_direction_polish_spec.md).
     if _ADX_RANGING_THRESHOLD <= adx < _ADX_TRANSITION_HIGH:
         return "VOLATILE", "TRANSITION_ZONE"
 
@@ -803,31 +797,26 @@ def _market_status(*, _now=None) -> dict:
                      to_display(next_open, style="day_time") + ".")}
 
 
-def _split_live_bar(df, threshold_hours: float = 24.0) -> tuple:
-    """
-    Split an OANDA dataframe into (closed_df, live_bar_row,
-    live_bar_age_hours).
-    OANDA returns the forming bar as the last row. A daily bar is
-    complete when its timestamp date is before today (UTC) —
-    OANDA D bars are stamped at bar OPEN.
-    Returns (df_without_live_bar, last_row_or_None, age_hours).
-    If the last bar is already complete (e.g. weekend — market
-    closed, last bar is Friday's close), returns (df, None, age).
-    """
+def _closed_bar_age_hours(df) -> float:
+    """Hours since the newest bar OPENED (OANDA stamps bars at their open).
+    The feed returns closed bars only, so this is the newest closed bar; the
+    brief's stale-feed warning reads it."""
     from datetime import datetime, timezone
     if df is None or df.empty:
-        return df, None, 0.0
+        return 0.0
     last_ts = df.index[-1]
     if last_ts.tzinfo is None:
         last_ts = last_ts.tz_localize("UTC")
-    now = datetime.now(timezone.utc)
-    age_hours = (now - last_ts).total_seconds() / 3600.0
-    if age_hours < threshold_hours:
-        return df.iloc[:-1].copy(), df.iloc[-1], age_hours
-    return df, None, age_hours
+    return (datetime.now(timezone.utc) - last_ts).total_seconds() / 3600.0
 
 
 def get_regime(ticker: str = "GBP_AUD") -> Dict:
+    """Everything the brief needs for one pair, from OANDA closed bars: the
+    daily and 4-hour regimes, the 20-week and 4-week trends, price structure,
+    volatility and the live price. Runs the news gate (reads calendar.csv)
+    and the no-trade filter, which runs the official decision, so stand_down
+    and filter_* here are final. Writes nothing. A missing 4-hour or weekly
+    fetch becomes a labelled stand-aside, never a silent default."""
     pair = PAIRS.get(ticker)
     if pair is None:
         return _error_result(
@@ -851,15 +840,13 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if len(raw) < _ADX_PERIOD * 3:
         return _error_result("Not enough data to calculate regime indicators")
 
-    if hasattr(raw.columns, "levels"):
-        raw.columns = raw.columns.get_level_values(0)
 
-    # Split forming bar — ADX/ATR/structure/MA calcs use closed bars only.
-    raw_closed, live_bar_d1, live_bar_age_d1 = _split_live_bar(raw)
+    # Closed bars only: the feed already drops the candle still forming.
+    live_bar_age_d1 = _closed_bar_age_hours(raw)
 
-    highs  = [float(v) for v in raw_closed["High"].dropna().values]
-    lows   = [float(v) for v in raw_closed["Low"].dropna().values]
-    closes = [float(v) for v in raw_closed["Close"].dropna().values]
+    highs  = [float(v) for v in raw["High"].dropna().values]
+    lows   = [float(v) for v in raw["Low"].dropna().values]
+    closes = [float(v) for v in raw["Close"].dropna().values]
 
     n = min(len(highs), len(lows), len(closes))
     highs, lows, closes = highs[:n], lows[:n], closes[:n]
@@ -920,31 +907,28 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     if current_adx == 0.0 and n < _ADX_PERIOD * 2:
         return _error_result("Insufficient data for ADX calculation")
 
-    # ── Volatility level ──────────────────────────────────────────────────────
+    # ── Volatility level (daily ATR as a % of price) ──────────────────────────
     if atr_pct > 0.8:
         volatility = "EXTREME"
-        vol_note   = "Extremely wide daily ranges — significant risk, size down"
     elif atr_pct > 0.5:
         volatility = "HIGH"
-        vol_note   = "Above-average volatility — widen your stops"
     elif atr_pct > 0.25:
         volatility = "NORMAL"
-        vol_note   = "Normal volatility for GBP/AUD"
     else:
         volatility = "LOW"
-        vol_note   = "Quiet market — moves may be small and slow"
 
     # ── Structure detection (replaces slope) ──────────────────────────────────
     structure_data = _detect_structure(highs, lows, closes)
     structure      = structure_data["structure"]
 
-    # Direction for _classify(): derived from structure, falls back to slope
+    # slope restates the structure (+1 up, -1 down). For TRANSITIONAL it is the
+    # 10-bar change, but _classify_ex never reads it there, so the
+    # STRUCTURE_DISAGREES subtype cannot come out of get_regime.
     if structure == "UPTREND":
         slope = 1.0
     elif structure == "DOWNTREND":
         slope = -1.0
     else:
-        # TRANSITIONAL: use slope as tiebreaker, reduce confidence
         slope = closes[-1] - closes[-10] if len(closes) >= 10 else 0
 
     # ── D1 regime classification ──────────────────────────────────────────────
@@ -972,12 +956,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         raw_h4 = None
 
     if raw_h4 is not None and not raw_h4.empty:
-        if hasattr(raw_h4.columns, "levels"):
-            raw_h4.columns = raw_h4.columns.get_level_values(0)
-        raw_h4_closed, _, _ = _split_live_bar(raw_h4, threshold_hours=4.0)
-        h4h = [float(v) for v in raw_h4_closed["High"].dropna().values]
-        h4l = [float(v) for v in raw_h4_closed["Low"].dropna().values]
-        h4c = [float(v) for v in raw_h4_closed["Close"].dropna().values]
+        h4h = [float(v) for v in raw_h4["High"].dropna().values]
+        h4l = [float(v) for v in raw_h4["Low"].dropna().values]
+        h4c = [float(v) for v in raw_h4["Close"].dropna().values]
         nh4 = min(len(h4h), len(h4l), len(h4c))
         h4h, h4l, h4c = h4h[:nh4], h4l[:nh4], h4c[:nh4]
 
@@ -1037,13 +1018,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         raw_w = None
 
     if raw_w is not None and not raw_w.empty and len(raw_w) >= _WEEKLY_MIN_BARS:
-        if hasattr(raw_w.columns, "levels"):
-            raw_w.columns = raw_w.columns.get_level_values(0)
-        raw_w_closed, _, _ = _split_live_bar(raw_w, threshold_hours=168.0)
-        raw_w_work = raw_w_closed if len(raw_w_closed) >= _WEEKLY_MIN_BARS else raw_w
-        wh = [float(v) for v in raw_w_work["High"].dropna().values]
-        wl = [float(v) for v in raw_w_work["Low"].dropna().values]
-        wc = [float(v) for v in raw_w_work["Close"].dropna().values]
+        wh = [float(v) for v in raw_w["High"].dropna().values]
+        wl = [float(v) for v in raw_w["Low"].dropna().values]
+        wc = [float(v) for v in raw_w["Close"].dropna().values]
         if len(wc) >= _WEEKLY_MIN_BARS:
             _wctx        = _compute_weekly_context(wh, wl, wc)
             lt_trend     = _wctx["lt_trend"]
@@ -1057,101 +1034,6 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     ma200          = _mac["ma200"]
     price_vs_ma50  = _mac["price_vs_ma50"]
     price_vs_ma200 = _mac["price_vs_ma200"]
-
-    is_exhaustion = (
-        current_adx >= _ADX_EXHAUSTION_THRESHOLD or
-        (pair.instrument == "GBP_JPY" and current_adx >= _ADX_JPY_EXHAUSTION)
-    )
-
-    if regime == "TRENDING_UP":
-        if is_exhaustion:
-            regime_label  = "Late uptrend — ADX in exhaustion zone, size down"
-            trade_guidance = (
-                f"Uptrend is in late stage (ADX {current_adx}). "
-                "Mean reversion probability is elevated. "
-                "Do not chase — wait for a pullback or sit out. "
-                "If holding a long, consider reducing position."
-            )
-        else:
-            regime_label  = "Uptrend in progress — HTF structure confirmation required"
-            trade_guidance = (
-                "Market trending UP. ADX 25-32 shows momentum but degrades fast. "
-                "Wait for pullbacks to key support. "
-                "Require higher timeframe structure confirmation before entering. "
-                "Do not fight the trend with short trades."
-            )
-    elif regime == "TRENDING_DOWN":
-        if is_exhaustion:
-            regime_label  = "Late downtrend — ADX in exhaustion zone, size down"
-            trade_guidance = (
-                f"Downtrend is in late stage (ADX {current_adx}). "
-                "Mean reversion probability is elevated. "
-                "Do not chase — wait for a rally or sit out. "
-                "If holding a short, consider reducing position."
-            )
-        else:
-            regime_label  = "Downtrend in progress — HTF structure confirmation required"
-            trade_guidance = (
-                "Market trending DOWN. ADX 25-32 shows momentum but degrades fast. "
-                "Wait for rallies to key resistance. "
-                "Require higher timeframe structure confirmation before entering. "
-                "Do not fight the trend with long trades."
-            )
-    elif regime == "VOLATILE":
-        regime_label  = "Transition zone — no statistical edge (ADX 18-25)"
-        trade_guidance = (
-            f"ADX {current_adx} is in the transition zone (18-25). "
-            "No consistent momentum or mean-reversion edge. "
-            "Wait for structural confirmation before entering. "
-            "Size down significantly if you trade."
-        )
-    else:  # RANGING
-        if is_exhaustion:
-            regime_label  = "Trend exhausted — mean reversion elevated"
-            trade_guidance = (
-                f"ADX {current_adx} — trend has exhausted. "
-                "Mean reversion probability very high. "
-                "Fade extended moves from structural extremes. "
-                "Do not enter trend trades at this ADX level."
-            )
-        elif atr_ratio > pair.atr_spike_multiplier:
-            regime_label  = "Choppy and volatile — no clear direction"
-            trade_guidance = (
-                "Market volatile with no clear trend. "
-                "Reduce position size — moves are unpredictable. "
-                "Use tight stops and take profit quickly if you trade at all. "
-                "This is the hardest regime — consider waiting for a clearer setup."
-            )
-        else:
-            regime_label  = "Ranging market — mean reversion dominant"
-            trade_guidance = (
-                f"Market has no strong trend (ADX {current_adx}). "
-                "Best strategy: trade only from the edges of the range. "
-                "Buy near range lows, sell near range highs. "
-                "Take profit quickly — do not hold for large moves. "
-                "Avoid entering in the middle of the range."
-            )
-
-    # ── Daily fuel calculation ────────────────────────────────────────────────
-    # Use live bar's H/L for fuel; fall back to last closed bar on weekends.
-    if live_bar_d1 is not None:
-        today_high = float(live_bar_d1["High"])
-        today_low  = float(live_bar_d1["Low"])
-    else:
-        today_high = highs[-1]
-        today_low  = lows[-1]
-    range_used   = round((today_high - today_low) / pair.pip_size)
-    range_remain = round(max(0, atr_pips - range_used))
-    fuel_pct     = min(100, round(range_used / atr_pips * 100)) if atr_pips > 0 else 0
-
-    if fuel_pct < 25:
-        fuel_label = "FULL TANK  -  day is young, plenty of range left"
-    elif fuel_pct < 50:
-        fuel_label = "HALF TANK  -  good range remaining"
-    elif fuel_pct < 75:
-        fuel_label = "RUNNING LOW  -  limited range left today"
-    else:
-        fuel_label = "NEAR EMPTY  -  most of today's range already used"
 
     # ── Pre-compute fields needed by no_trade_filter before return ───────────
     _atr_compression = (
@@ -1192,7 +1074,7 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
     # (decision_logic_spec D4), so it gets every input that decision reads —
     # formerly adx, confidence, instrument, the subtypes and range_position
     # were missing here and only reached the official path afterwards.
-    from no_trade_filter import apply_filter as _apply_filter, get_filter_summary as _get_filter_summary
+    from no_trade_filter import apply_filter as _apply_filter
     _fr = _apply_filter({
         "instrument":           pair.instrument,
         "adx":                  current_adx,
@@ -1218,34 +1100,22 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "resolution_note":      resolution_note,
         "news_gate":            _news_gate,
     })
-    _fr_summary       = _get_filter_summary(_fr)
     stand_down        = not _fr.allowed
     stand_down_reason = _fr.reason if not _fr.allowed else ""
 
     return {
         "regime":          regime,
-        "range_high":      round(_rng_hi, 4),
-        "range_low":       round(_rng_lo, 4),
         "range_position":  round(_rng_pos, 3),
-        "regime_label":    regime_label,
         "adx":             current_adx,
         "atr":             round(current_atr, 5),
         "atr_pips":        atr_pips,
         "atr_pct":         atr_pct,
         "atr_vs_avg":      atr_ratio,
         "volatility":      volatility,
-        "vol_note":        vol_note,
-        "trade_guidance":  trade_guidance,
         "current_price":   round(current_price, 4),
         "weekly_available": weekly_available,
         "price_basis":     price_basis,
         "last_close":      round(last_close, 5),
-        "today_high":      round(today_high, 4),
-        "today_low":       round(today_low, 4),
-        "range_used":      range_used,
-        "range_remaining": range_remain,
-        "fuel_pct":        fuel_pct,
-        "fuel_label":      fuel_label,
         "pair":            pair.display_name,
         "instrument":      pair.instrument,
         # ── Multi-timeframe (D1 + H4) ─────────────────────────────────────────
@@ -1302,15 +1172,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "pivot_count_high": structure_data["pivot_count_high"],
         "pivot_count_low":  structure_data["pivot_count_low"],
         "adx_exhaustion": _adx_exhaustion,
-        "adx_exhaustion_note": (
-            f"ADX {current_adx} — late trend warning. "
-            f"Mean reversion probability elevated. Size down, do not chase."
-            if _adx_exhaustion else ""
-        ),
         "atr_compression":      _atr_compression,
         "atr_compression_note": _atr_compression_note,
         "atr_spike_multiplier": pair.atr_spike_multiplier,
-        "atr_compression_min":  pair.atr_compression_min,
         # ── No-trade filter (Problem 8) ───────────────────────────────────────
         "filter_allowed":      _fr.allowed,
         "news_gate":           _news_gate,
@@ -1319,12 +1183,9 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
         "filter_reason":       _fr.reason,
         "filter_block":        _fr.block,
         "override_fired":      _fr.override_fired,
-        "override_conditions": _fr.override_conditions,
-        "filter_summary":      _fr_summary,
         "logic_version":       _logic_version(),
         # ── Bar freshness (audit item 4) ──────────────────────────────────────
         "last_closed_bar_age_hours": round(live_bar_age_d1, 1),
-        "live_bar_in_progress":      live_bar_d1 is not None,
         # ── Market hours (audit item 5) ───────────────────────────────────────
         "market_open":   _ms["open"],
         "market_note":   _ms["note"],
@@ -1335,25 +1196,16 @@ def get_regime(ticker: str = "GBP_AUD") -> Dict:
 def _error_result(msg: str) -> Dict:
     return {
         "regime":         "UNKNOWN",
-        "regime_label":   "Could not determine regime",
         "adx":            0.0,
         "atr":            0.0,
         "atr_pips":       0.0,
         "atr_pct":        0.0,
         "atr_vs_avg":     1.0,
         "volatility":     "UNKNOWN",
-        "vol_note":       msg,
-        "trade_guidance": "Regime data unavailable — proceed with caution.",
         "current_price":  None,
         "price_basis":    "",
         "weekly_available": False,
         "error":          msg,
-        "today_high":     None,
-        "today_low":      None,
-        "range_used":     None,
-        "range_remaining":None,
-        "fuel_pct":       None,
-        "fuel_label":          "unavailable",
         "pair":                "",
         "instrument":          "UNKNOWN",
         "regime_d1":           "UNKNOWN",
@@ -1369,19 +1221,15 @@ def _error_result(msg: str) -> Dict:
         "signal_bias":         "NONE",
         "resolution_note":     "",
         "adx_exhaustion":      False,
-        "adx_exhaustion_note": "",
         "atr_compression":     False,
         "atr_compression_note": "",
         "atr_spike_multiplier": 1.5,
-        "atr_compression_min": 0.0,
         "filter_allowed":      False,
         "filter_mode":         "STAND_DOWN",
         "filter_size_mult":    0.0,
         "filter_reason":       "",
         "filter_block":        "",
         "override_fired":      False,
-        "override_conditions": "",
-        "filter_summary":      "",
         "logic_version":       _logic_version(),
         "structure":           "TRANSITIONAL",
         "confirmed_highs":     [],
@@ -1404,7 +1252,6 @@ def _error_result(msg: str) -> Dict:
         "price_vs_ma50":       "unknown",
         "price_vs_ma200":      "unknown",
         "last_closed_bar_age_hours": None,
-        "live_bar_in_progress":      False,
         "market_open":               True,
         "market_note":               "",
     }
@@ -1415,9 +1262,9 @@ if __name__ == "__main__":
     if data["error"]:
         print(f"Error: {data['error']}")
     else:
-        print(f"Regime      : {data['regime_label']}")
-        print(f"ADX         : {data['adx']}  (>25 trending | 20-25 developing | <20 ranging)")
+        print(f"Regime      : {data['regime']}  (daily {data['regime_d1']}, 4-hour {data['regime_h4']})")
+        print(f"ADX         : {data['adx']}  (<18 sideways | 18-25 no edge | 25+ trend if structure agrees)")
         print(f"ATR         : {data['atr_pips']} pips  ({data['atr_pct']}% of price)")
-        print(f"ATR vs avg  : {data['atr_vs_avg']}x  (>1.3 = expanding volatility)")
-        print(f"Volatility  : {data['volatility']}  — {data['vol_note']}")
-        print(f"\nGuidance: {data['trade_guidance']}")
+        print(f"ATR vs avg  : {data['atr_vs_avg']}x  (spike threshold {data['atr_spike_multiplier']}x)")
+        print(f"Volatility  : {data['volatility']}")
+        print(f"Stand aside : {data['stand_down']}  {data['stand_down_reason']}")

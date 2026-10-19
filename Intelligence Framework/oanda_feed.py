@@ -1,35 +1,17 @@
 """
-oanda_feed.py
-─────────────
-Lightweight OANDA integration for the GBP/AUD framework.
+oanda_feed.py — the framework's only market-data source.
 
-Does exactly three things:
-  1. get_live_price()     — real-time mid-price for the NOW section
-  2. get_daily_bars()     — recent daily OHLCV as yfinance fallback
-  3. get_weekly_bars()    — recent weekly OHLCV as yfinance fallback
+Fetches OANDA mid-price candles (daily, weekly, 4-hour, hourly, 15-minute)
+and the live bid/ask mid. Returns COMPLETE bars only: the candle still
+forming is dropped (see _get_bars). There is no fallback source.
 
-No base classes. No config system. No caching layer. Just requests.
+Never raises. On failure a function returns None, and last_error() names
+the cause for bar fetches. The live price's no-quote path records no
+reason (see get_live_price).
 
-SETUP:
-  Set two environment variables (add to ~/.zshrc or ~/.bashrc):
-
-    export OANDA_API_KEY="your-live-api-key"
-    export OANDA_ACCOUNT_ID="your-account-id"
-
-  Your config.yaml shows environment: "live" so the live base URL is used.
-  If you want to use a practice account instead, set:
-    export OANDA_ENVIRONMENT="practice"
-
-HOW IT'S USED IN THE FRAMEWORK:
-  - liquidity_context.py calls get_live_price() to replace the last yfinance close
-  - htf_structure.py, regime_detection.py, liquidity_context.py call
-    get_daily_bars() / get_weekly_bars() as silent fallbacks when yfinance fails
-  - If OANDA is unavailable or not configured, all functions return None
-    and the framework falls back to yfinance silently
-
-SECURITY:
-  API key is read from environment variable only — never hardcoded.
-  Never commit your API key to git.
+Credentials come from the environment only: OANDA_API_KEY and
+OANDA_ACCOUNT_ID (the scheduled wrappers source .env).
+OANDA_ENVIRONMENT=practice switches to the practice host.
 """
 
 from __future__ import annotations
@@ -124,8 +106,10 @@ def get_live_price(pair: str = "GBPAUD", timeout: int = 5) -> Optional[float]:
         return None
 
     except Exception as exc:
-        # Never raises, but always records WHY (data_at_source review V6: a
-        # revoked key, a 429 and a timeout all used to read identically).
+        # Never raises; a failed request records why (a revoked key, a 429
+        # and a timeout used to read identically: data_at_source review V6).
+        # Not recorded: the no-quote return above, and a closeout-price
+        # success leaves any earlier error in place.
         _last_error = f"live price: {_classify(exc)[0]}"
         return None
 
@@ -138,8 +122,7 @@ def get_daily_bars(pair: str = "GBPAUD", count: int = 100,
     Fetch recent daily OHLCV bars from OANDA.
 
     Returns a DataFrame with columns: Open, High, Low, Close, Volume
-    with a DatetimeIndex (UTC), compatible with how yfinance data is used.
-    Returns None if unavailable.
+    with a DatetimeIndex (UTC). Returns None if unavailable.
     """
     return _get_bars(pair, granularity="D", count=count, timeout=timeout)
 
@@ -149,8 +132,7 @@ def get_weekly_bars(pair: str = "GBPAUD", count: int = 110,
     """
     Fetch recent weekly OHLCV bars from OANDA.
 
-    Returns a DataFrame matching yfinance format.
-    Returns None if unavailable.
+    Same columns as get_daily_bars. Returns None if unavailable.
     """
     return _get_bars(pair, granularity="W", count=count, timeout=timeout)
 
@@ -197,8 +179,8 @@ _breaker_open_until = 0.0
 
 
 def last_error() -> Optional[str]:
-    """Plain-English classification of the most recent failed fetch, or
-    None when the most recent fetch succeeded."""
+    """Plain-English cause of the most recent failed fetch; None after a
+    successful bar fetch or a bid/ask live price."""
     return _last_error
 
 

@@ -1,9 +1,11 @@
 #!/bin/bash
 # scheduled_outcome_check.sh
 # ──────────────────────────
-# Scheduling + notification WRAPPER only. Runs the daily outcome grader, appends
-# full output to a dated log, and fires a macOS notification ONLY when a SHADOW
-# outcome was graded this run (including the updated tally). Always exits 0.
+# Scheduling + notification WRAPPER only. Backs up every ledger, then (only if
+# the backup verified) runs the nightly grader and logs its output.
+# Notifies on: health failure/recovery (failed backup, crash, early exit, no
+# data), the live-branch guard, and SHADOW when a shadow outcome was graded.
+# Always exits 0.
 
 # INTEL_PROJ exists for the behavioral tests only; launchd sets nothing,
 # so production always uses the path below.
@@ -53,10 +55,9 @@ else
     echo "GRADER SKIPPED: no verified backup this run, so nothing is rewritten" >> "$LOG"
 fi
 
-# Health tracking (docs/specs/heartbeat_spec.md item 1). Failure signature:
-# a crash (nonzero exit or a Python traceback; visible_failures_spec D1 —
-# before, a traceback matched none of the patterns and counted as SUCCESS),
-# grader early-exit marker, unconfigured feed, no data, or empty output.
+# A run FAILS on: a failed backup, a crash (nonzero exit or a traceback), the
+# grader's early-exit marker, an unconfigured feed, no data, or empty output
+# (docs/specs/heartbeat_spec.md item 1; visible_failures_spec.md D1).
 if [ -z "$BACKUP_OK" ]; then
     BREASON="$(printf '%s\n' "$BACKUP" | grep -m1 '^BACKUP FAILED' | cut -c1-160)"
     [ -z "$BREASON" ] && BREASON="BACKUP FAILED: no success line ($(printf '%s' "$BACKUP" | tail -1 | cut -c1-120))"

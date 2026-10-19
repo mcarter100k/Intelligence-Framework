@@ -6,7 +6,7 @@ shows LONG or SHORT. Fetches H1 and M15 bars and checks whether
 the higher-timeframe setup is showing on the lower timeframes.
 
 THRESHOLDS (all unvalidated — logged for Phase 1 review):
-  H1 ADX trending threshold : 25 (matching D1 validated value)
+  H1 ADX trending threshold : 25 (same as the daily threshold, INFORMED PRIOR)
   H1 ATR spike threshold    : 1.5x (conservative)
   M15                       : structure confirmation only,
                               no ADX regime classification
@@ -68,22 +68,17 @@ class EntryBrief:
     h1_confirmed:    bool   # H4 setup showing on H1
     h1_structure:    str    # UPTREND / DOWNTREND / TRANSITIONAL
     h1_entry_level:  float  # nearest H1 support (long) or resistance (short)
-    h1_adx:          float  # H1 ADX — unvalidated, logged only
 
     # M15 fields
     m15_trigger:  bool   # 15min entry trigger active
-    m15_signal:   str    # plain English: what to look for
-    m15_level:    float  # specific price level to enter at
 
     # Engulfing + level proximity (ported from entry_watcher)
     engulfing_detected: bool
     near_key_level:     bool
-    key_level_price:    Optional[float]
     trigger_basis:      str   # plain English: what fired and why
 
     # Combined
     entry_ready:  bool   # h1_confirmed AND m15_trigger
-    entry_note:   str    # one sentence on entry status
 
     # Formatted output
     precision_brief: str
@@ -119,8 +114,6 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
         h1_adx         = 0.0
 
         if raw_h1 is not None and not raw_h1.empty:
-            if hasattr(raw_h1.columns, "levels"):
-                raw_h1.columns = raw_h1.columns.get_level_values(0)
             h1h = [float(v) for v in raw_h1["High"].dropna().values]
             h1l = [float(v) for v in raw_h1["Low"].dropna().values]
             h1c = [float(v) for v in raw_h1["Close"].dropna().values]
@@ -157,8 +150,6 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
         _eng = {"detected": False, "direction": "", "pattern": ""}
 
         if raw_m15 is not None and not raw_m15.empty:
-            if hasattr(raw_m15.columns, "levels"):
-                raw_m15.columns = raw_m15.columns.get_level_values(0)
             m15h = [float(v) for v in raw_m15["High"].dropna().values]
             m15l = [float(v) for v in raw_m15["Low"].dropna().values]
             m15c = [float(v) for v in raw_m15["Close"].dropna().values]
@@ -276,16 +267,11 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
             h1_confirmed=h1_confirmed,
             h1_structure=h1_structure,
             h1_entry_level=h1_entry_level,
-            h1_adx=h1_adx,
             m15_trigger=m15_trigger,
-            m15_signal=m15_signal,
-            m15_level=m15_level,
             engulfing_detected=engulfing_detected,
             near_key_level=near_key_level,
-            key_level_price=key_level_price,
             trigger_basis=trigger_basis,
             entry_ready=entry_ready,
-            entry_note=entry_note,
             precision_brief=precision_brief,
         )
 
@@ -297,16 +283,11 @@ def get_entry_brief(instrument: str, direction: str) -> EntryBrief:
             h1_confirmed=False,
             h1_structure="UNKNOWN",
             h1_entry_level=0.0,
-            h1_adx=0.0,
             m15_trigger=False,
-            m15_signal="",
-            m15_level=0.0,
             engulfing_detected=False,
             near_key_level=False,
-            key_level_price=None,
             trigger_basis="",
             entry_ready=False,
-            entry_note=f"Entry confirmation error: {str(e)[:60]}",
             precision_brief=precision_brief,
             error=str(e),
         )

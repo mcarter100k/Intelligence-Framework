@@ -1,11 +1,10 @@
 """
 run_outcome_check.py
 ─────────────────────
-Daily/weekly script to fill pending regime classification outcomes
-and report accuracy against the Problem 1 validation contract.
-
-Run this after the market closes each day (or weekly) to see if
-the framework's regime calls are statistically correct.
+The nightly grader (launchd 15:15 via scheduled_outcome_check.sh, after a
+verified ledger backup). For each pair it grades the regime calls, trade
+signals and shadow candidates that are now old enough, then prints accuracy
+and any regime due for review.
 
 Usage: python3 run_outcome_check.py
 """
@@ -39,8 +38,6 @@ def main() -> None:
         if raw is None or raw.empty:
             print(f"{instrument}: no data from OANDA")
             continue
-        if hasattr(raw.columns, "levels"):
-            raw.columns = raw.columns.get_level_values(0)
 
         closes = [float(v) for v in raw["Close"].dropna().values]
         highs  = [float(v) for v in raw["High"].dropna().values]
@@ -51,8 +48,7 @@ def main() -> None:
         print(f"\n{instrument}: {filled} regime outcomes filled")
         print(get_accuracy_report(instrument))
 
-        # Close the trade-signal feedback loop too (was previously never run —
-        # every signal row stayed outcome_filled=False forever).
+        # Grade trade signals (20 daily bars after each signal).
         from trade_outcome_logger import (
             check_pending_trade_outcomes, get_accuracy_by_regime,
         )
@@ -88,9 +84,9 @@ def main() -> None:
         print("REGIMES REQUIRING THRESHOLD REVIEW:")
         for line in review_needed:
             print(line)
-        print("Run validate_thresholds_v2.py for each flagged regime "
-              "(non-overlapping windows). Do NOT use the v1 validators in "
-              "legacy_validators/ — their output is INVALIDATED.")
+        print("Re-check each flagged regime with studies/validate_thresholds_v2.py "
+              "(non-overlapping windows) before changing any threshold, and "
+              "only through team review.")
         print("=" * 55)
 
 
