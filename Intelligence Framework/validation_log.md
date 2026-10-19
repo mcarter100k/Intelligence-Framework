@@ -1541,6 +1541,9 @@ evidence (log line / ledger row / notification) is cited here.
       2026-10-18) — blocked on team review of
       docs/specs/notification_ledger_spec.md (branch
       feat/notification-review, unmerged).
+      **UNBLOCKED 2026-10-19:** team review given; merged 42e15b8. Cleared
+      by the first row a real scheduled notification writes (at the latest,
+      Tuesday's 07:30 DIGEST).
 - [ ] **Live-script cleanup merged and running** (added 2026-10-18) —
       branch chore/live-scripts-cleanup (latest_view parser fix, wrapper
       headers, install.sh) is held until Sunday 2026-10-18's 18:00 run

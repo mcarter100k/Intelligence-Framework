@@ -1,4 +1,4 @@
-# Notification ledger (2026-10-18) — TEAM REVIEW REQUIRED before merge
+# Notification ledger (2026-10-18) — team review given 2026-10-19; merged 42e15b8
 
 **Why.** The owner's weekly review (foundation/trader_review.md §4, step 6)
 counts MATERIAL vs TOTAL notifications. Nothing records what was sent. The
