@@ -755,18 +755,12 @@ def _build_invalidation(regime: dict, decision_str: str) -> str:
 
 def _build_regime_log(d1_regime: str, instrument: str) -> str:
     """
-    Pull outcome count for current D1 regime from the logger.
-    Returns a plain-English sample count with calibration note.
-
-    n < 20 : count only — no percentage (not yet meaningful)
-    n 20-59 : percentage shown, labelled 'developing'
-    n 60-149: 'flag threshold' — percentage shown, may have flag marker
-    n 150+  : 'validated sample' — percentage shown, may have revise marker
-
-    KNOWN DEFECT (audit 2026-09-29 item 2): the accuracy behind this is not
-    evidence yet. MR_WIN is self-referential and N is about 2x inflated, so
-    even the 150+ label overstates it. Changing the label is a display
-    change for team review.
+    The DATA BASIS line: how many outcomes the current daily regime has.
+    It never shows an accuracy percentage, a tier or accuracy-driven advice
+    (docs/specs/accuracy_line_suppression_spec.md): the measure is known to
+    be invalid (audit 2026-09-29 item 2, I18; MR_WIN tests against its own
+    window, N is about 2x inflated), and "0% accuracy" read as "wrong every
+    time". The rows are still logged and graded; only the display hides it.
     """
     try:
         acc = get_regime_accuracy(instrument=instrument)
@@ -782,19 +776,9 @@ def _build_regime_log(d1_regime: str, instrument: str) -> str:
             if n < 20:
                 return (f"{label}: {n} outcomes logged "
                         f"(early data — accuracy not yet meaningful)")
-            pct = f"{data['accuracy']:.0%}"
-            if n < 60:
-                note = "developing"
-            elif n < 150:
-                note = "flag threshold"
-            else:
-                note = "validated sample"
-            if data.get("actionable"):
-                note += " — REVISE thresholds"
-            elif data.get("flagged"):
-                note += " — FLAG, watch closely"
-            return (f"{label}: {n} outcomes logged, "
-                    f"{pct} accuracy ({note})")
+            return (f"{label}: {n} outcomes logged — accuracy not shown: the "
+                    f"way it is measured is known to be wrong and is being "
+                    f"repaired")
         label = ("daily unresolved-direction bucket (transition zone + "
                  "unconfirmed trends)") if d1_regime == "VOLATILE" \
             else f"D1 {d1_regime}"

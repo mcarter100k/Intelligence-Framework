@@ -4049,3 +4049,14 @@ All four runs used main 733a63a: the gate, the run count, the digest fix and ton
 - Tests: the positive control retires a −0.48R sample and keeps a +0.75R one.
 - Mutants killed: printed below N=20, wrong percentile, fire/no-fire label inverted. The label mutant first survived and the test was strengthened.
 
+
+## 2026-10-19 — The brief stops showing the invalid regime-accuracy percentage (docs/specs/accuracy_line_suppression_spec.md)
+
+- **The line.** Every morning DATA BASIS read "daily unresolved-direction bucket: 49 outcomes logged, 0% accuracy (developing)". Read plainly, that is wrong 49 of 49. It came from a measure the audit ruled invalid (item 2, I18).
+- **The change.** For buckets with 20 or more outcomes, the brief now shows the count, and says accuracy is not shown because the way it is measured is known to be wrong and is being repaired. No percentage, tier or accuracy-driven advice. The rows are still logged and graded; only the display changed.
+- **Gate 1.** 4 of 5 new tests fail on the old code. The fifth, under-20 wording unchanged, fails on a mutant. The banned-token display test still passes.
+- **Gate 2 parity.** The real brief ran back to back on main's code and this branch via reality_run, at 16:26:57Z and 16:26:59Z with the market open.
+  - The DECISION lines are identical (both pairs STAND ASIDE), and stderr is empty in both.
+  - The only stdout difference, with times and prices masked, is GBP/AUD's DATA BASIS line.
+  - Every ledger copy's rows are identical in their decision fields. The comparison catches a planted stand_down flip.
+  - Both runs came from worktrees, so neither exercised the news calendar (the known Gate 2 blind spot); the comparison is like for like.
