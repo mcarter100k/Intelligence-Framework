@@ -4060,3 +4060,59 @@ All four runs used main 733a63a: the gate, the run count, the digest fix and ton
   - The only stdout difference, with times and prices masked, is GBP/AUD's DATA BASIS line.
   - Every ledger copy's rows are identical in their decision fields. The comparison catches a planted stand_down flip.
   - Both runs came from worktrees, so neither exercised the news calendar (the known Gate 2 blind spot); the comparison is like for like.
+
+## 2026-10-19 — The shadow tally overstated N and showed no R; a reviewer read −0.95R where the truth was −0.20R (docs/specs/shadow_tally_spec.md)
+
+**The chain.**
+- The brief's shadow tally read "17 rows / 4 episodes, 16 graded, 5 wins, -79 avg pips".
+- It had two faults:
+  - **N was inflated.** Episodes were split at 120 clock hours, but 30 H4 bars span about 168 hours once a weekend falls inside them (M34). Ungraded rows counted too.
+  - **R was missing.** The line gave a win count with no breakeven figure, and net pips, but no R.
+- A reviewer converted the line to R using the pending signal's stop, and reported "4 graded episodes averaging about −0.95R".
+- That figure commissioned a doctrine change: the futility rule (entry above, same date). Its disclosure recorded that −0.95R "could not be reproduced"; this entry is the explanation.
+- **The truth, from the ledger:** 3 independent episodes, with first-fire R of −0.55, −0.39 and +0.34. Mean −0.20R, median −0.39R, −0.47R without the best one.
+- The futility rule itself is unaffected. It fires at N=20 and was adopted on its own grounds; nothing was retired.
+
+**Class.** The display layer caused an analytic error downstream. This is a new instance of an old class: a count from an unproven path read as evidence (M24), and N counted in rows or clock time rather than episodes on the bar index (M34). The numbers in the line were each true. What made it misleading was which numbers it chose to show.
+
+**What changed (merged as one branch, `fix/tally-episodes-r`).**
+- **Episodes** (`shadow_signals.graded_episodes`): graded, valid, non-excluded rows only. A new episode starts 30 or more H4 bars after the current one's first fire, counted on the trading-calendar bar index. An episode's R is its first fire's R. `episode_count()` was removed; `get_shadow_tally()` carries `episodes` and `episode_rs`, and keeps its old keys.
+- **The tally, as rendered by today's real brief:**
+  ```
+        tally: 3 independent episodes from 16 graded rows (2 still open)
+               per episode: avg -0.20R, median -0.39R, without the best one -0.47R
+               diagnostic only: avg -79 pips at bar 30 over the graded rows
+               (futility check at 20 episodes, flag at 30, review at 60)
+  ```
+  The win count is dropped. The candidates exit at bar 30, not at a fixed target, so there is no single breakeven rate to show beside it. The heartbeat and nightly-grader summaries show the same episode count and avg R.
+- **Digest:** when every pair's block says the market is closed, the 07:30 digest leads with "MARKET CLOSED until <next open> — no live calls", then lists each pair as its last read. It is not suppressed. A single closed pair shows as "<pair> last read <decision> (market closed)".
+- **AGENTS.md rule 2:** the hand-written test count was removed. It went stale three times (853 recorded vs 865 actual, most recently).
+
+**Corrected tallies, real ledger (copy, hash-verified unchanged), 2026-10-19:**
+
+| Candidate | Pair | Graded rows | Episodes | Episode R | Old count |
+|---|---|---|---|---|---|
+| EARLY_MOMENTUM_v2 | GBP/JPY | 16 of 17 | 3 | −0.55, −0.39, +0.34 (avg −0.20R) | 4 |
+| THRUST_PULLBACK | GBP/JPY | 1 of 1 | 1 | −0.33 | 1 |
+| MOMENTUM_JOIN | GBP/AUD | 5 of 5 | 1 | −1.00 | 1 |
+| EARLY_MOMENTUM (retired v1) | GBP/JPY | 1 of 1 valid | 1 | −1.00 | 1 |
+
+All are INSUFFICIENT (N < 20).
+
+**Evidence.**
+- **Two implementations agree.** `shadow_signals` (a calendar-built bar index) and `foundation/tools/episodes.py` (the real OANDA H4 index in `studies/`) give the same episode starts and R in every candidate/pair cell: 0 disagreements. Under a clock-hour mutant the same comparison reports 1 disagreement (EM_v2), so it can fail.
+- **Gate 1.** The 7 new tally tests all fail on main's code. Six mutants were each killed: clock hours, ungraded rows counted, the without-best line shown at 1 episode, plural "rows" at 1, the last fire's R used, the win count restored. The ungraded-row mutant first survived (the R parse also dropped open rows); the test was fixed to give an open row an R value.
+- The 2 digest-fix tests fail on main's code. Three mutants were killed: gate removed, every pair treated as closed (this one also fails the open-market pin), and a closed pair left as a bare direction.
+- Three older tests built episodes from ungraded rows; they now grade them, each documenting old → new. The old digest test that expected "GBP/AUD LONG" for the closed 10-17 run now expects the last-read form.
+- **Gate 2 parity.** The real brief was run via reality_run on main's code and then on the branch, back to back (18:03:21Z and 18:03:23Z, market open; an EARLY_MOMENTUM_v2 LONG fired, so the tally rendered in both).
+  - The DECISION lines are identical (both pairs STAND ASIDE), and stderr is empty in both.
+  - With times and prices masked, the only stdout difference is the tally line.
+  - Ledger copies are identical on every decision field (stand_down, filter_allowed, regimes, confidence, size). The comparison catches a planted stand_down flip.
+  - The digest of both real runs is the same from main's and the branch's digest code.
+  - The project hash was unchanged across both runs.
+- **Suite:** 869 passed on the branch.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+- **The closed-market digest on the scheduled path:** the first 07:30 run with the market closed after this merge (Sat 2026-10-24). Until then the closed path has only been run on the real captured 10-17 brief.
+- **The new SHADOW summary in the nightly grader's notification:** the first night a shadow outcome is graded after this merge.
+- **The new shadow line in the weekly heartbeat:** its next scheduled run.
