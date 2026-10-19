@@ -1520,11 +1520,23 @@ evidence (log line / ledger row / notification) is cited here.
       and sends no DECISION notification. A later open-market directional
       run must still notify. Proven so far on replayed real text and one
       live brief, not on a scheduled run.
+      **PARTLY CLEARED 2026-10-18 (closed half).** The scheduled runs at
+      02:30:07 and 07:30:09 PDT (main 733a63a) each logged GBP/AUD LONG
+      under the closed-market banner, followed by `DECISION notification
+      suppressed: market closed` (logs/brief_2026-10-18.log). **Still
+      open (open half):** the 18:00:08 PDT open-market run was STAND ASIDE
+      on both pairs, so an open-market directional notification has not
+      yet been observed on the scheduled path.
 - [ ] **Scheduled heartbeat reports expected vs on-time runs** (added
       2026-10-18) — the Sunday 12:30 PM launchd heartbeat writes the
       `runs (last 7d, launchd schedule): …` line, and a real gap raises
       `runs: SHORTFALL`. Proven on real logs replayed at past dates and on
       a scratch copy, not yet on a scheduled run.
+      **PARTLY CLEARED 2026-10-18 (reporting half).** The 12:30:05 PDT
+      launchd heartbeat wrote `runs (last 7d, launchd schedule): brief 21
+      expected / 21 on time / 21 ran; outcomes 7 expected / 7 on time / 7
+      ran` (logs/heartbeat_2026-10-18.log). **Still open:** a live
+      `runs: SHORTFALL`; this week had no gap.
 - [ ] **First row in notification_log.csv from a scheduled run** (added
       2026-10-18) — blocked on team review of
       docs/specs/notification_ledger_spec.md (branch
@@ -3960,4 +3972,26 @@ This needs its own spec.
 - The verification tooling is deliberately left unchanged right before a verification window. Until the fix lands, read any worktree Gate 2 as "news gate not tested".
 
 **For Gate 3 triage.** A 56-file test reorganization (c483c5b) and these comment-only edits merged on the night of 2026-10-17. Neither touches what the scheduled jobs execute: the tests are not on the live path, and the comments are AST-identical. If a scheduled run misbehaves, rule both out first.
+
+## 2026-10-18 — Gate 3 window (Sunday): E1-E4 observed on the scheduled path; E5 blocked
+
+All four runs used main 733a63a: the gate, the run count, the digest fix and tonight's comment-only edits, but none of the held branches. Notification delivery is not recorded until the notification ledger merges, so "nothing sent" below rests on the wrapper's own record, not on a delivery record.
+
+**E1, 02:30:07 PDT (closed).** GBP/AUD LONG under the closed banner; GBP/JPY STAND ASIDE. The log has `DECISION notification suppressed: market closed`.
+- VERIFIED: the DECISION notification was suppressed (the gate's own line; its tests were shown able to fail).
+- OBSERVED: nothing else had a trigger (no health change, no ##ALERT##, no shadow signal).
+- The calendar auto-fetch also ran.
+
+**E2, 07:30:09 PDT (closed).** The same result as E1, with the suppression line.
+- The 07:30 DIGEST fired; it is not gated. Recomputed with main's daily_digest.py from this run's exact output, it read "GBP/AUD LONG · GBP/JPY STAND ASIDE — watch: …". The "?" fix is live. That text is recomputed; the wrapper does not log what was sent.
+- **Finding: the DIGEST conveys a closed-market directional decision with no market-closed note.** At 07:30 on a Sunday it sent "GBP/AUD LONG". This is the should-it-reach-the-owner class of proposed AGENTS rule 12. Recorded, not fixed.
+- logs/latest_brief.log showed the 02:30 run as "GBP/AUD · GBP/JPY STAND ASIDE", with no direction. That is the latest_view copy of the old parser, live-confirmed; the fix is on chore/live-scripts-cleanup.
+
+**E3, 12:30:05 PDT heartbeat: VERIFIED.** It reported `brief 21 expected / 21 on time / 21 ran; outcomes 7 expected / 7 on time / 7 ran`, healthy. A live SHORTFALL has not occurred; the detector was shown on replayed real gaps (14/21 and 15/21).
+
+**E4, 18:00:08 PDT (open; live prices GBP/AUD 1.9138, GBP/JPY 210.471): the case did not arise.** Both pairs were STAND ASIDE. An open-market directional notification remains unobserved on the scheduled path.
+
+**E5: blocked.** feat/notification-review (the notification ledger, AGENTS rule 12) has not had team review.
+
+**Decision-channel consequence (no statistic computed).** The GBP/AUD LONG issued Friday 2026-10-16 18:12 PDT, after the weekly close, became STAND ASIDE at the first open-market run. Under docs/specs/decision_channel_measurement_spec.md, that episode is **NEVER ACTIONABLE**. The reversal also notified nobody: that is known defect 0(b), the silent withdrawal, here harmless because the LONG had never been notified (the gate held it).
 
