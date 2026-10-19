@@ -72,6 +72,18 @@ def bootstrap_lower_bound(rs: list[float], conf: float = 0.90,
     return means[int((1 - conf) * iters)]
 
 
+def bootstrap_upper_bound(rs: list[float], conf: float = 0.90,
+                          iters: int = 10_000, seed: int = 7) -> float:
+    """One-sided UPPER confidence bound on mean R by the same percentile
+    bootstrap: the futility test (docs/specs/futility_rule_spec.md) retires a
+    candidate whose upper bound is below +0.15R. The same skew makes it
+    unreliable at small N, so it too is reported only from N >= 20 (M3)."""
+    rng = random.Random(seed)
+    n = len(rs)
+    means = sorted(mean(rng.choices(rs, k=n)) for _ in range(iters))
+    return means[int(conf * iters) - 1]
+
+
 def _report_observed(rs: list[float]) -> None:
     n = len(rs)
     print(f"N (independent episodes)      : {n}" + ("   INSUFFICIENT (<20)" if n < 20 else ""))
@@ -85,6 +97,10 @@ def _report_observed(rs: list[float]) -> None:
     if n >= 20:
         print(f"90% one-sided lower bound     : {bootstrap_lower_bound(rs):+.3f}"
               "   (percentile bootstrap, under-covers on skewed R; edge claimed only if > 0)")
+        ub = bootstrap_upper_bound(rs)
+        print(f"90% one-sided upper bound     : {ub:+.3f}"
+              "   (percentile bootstrap, under-covers on skewed R; futility: below +0.15R"
+              + (" -> FIRES at the N=20 checkpoint)" if ub < 0.15 else " -> does not fire)"))
 
 
 def main() -> None:

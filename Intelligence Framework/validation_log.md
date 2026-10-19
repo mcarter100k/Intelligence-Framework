@@ -4028,3 +4028,24 @@ All four runs used main 733a63a: the gate, the run count, the digest fix and ton
   - The mirror test on 600 real as-of points is identical to main.
   - incident_catalogue.md I8 is marked CLOSED. The closure takes effect when this commit merges to main, after the 2026-10-18 18:00 PDT Gate 3 run.
 
+## 2026-10-19 — The shadow candidates had no abandonment rule for their entire life; futility checkpoint adopted
+
+**Finding.** From the 2026-07-29 spec freeze until today, the candidates' review gates were FLAG at N=30 and REVIEW at N=60 (AGENTS.md; `shadow_signals.FLAG_N`/`REVIEW_N`). There was no rule for when to ABANDON one, so a losing candidate ran to N=30 at minimum by default. The framework's only FAILED criterion (M10: N≥30 and avg R ≤ 0, from data_map_spec 2026-09-11) governs the historical exam, not the forward candidates. It too starts at N=30. At 0.7–0.9 episodes a week, that is most of a year.
+
+**Adopted** (docs/specs/futility_rule_spec.md, committed ff3cf12 before any further grading):
+- once, at N=20 graded independent episodes;
+- 90% one-sided upper bound on mean R below +0.15R → REFUTED and retired;
+- applies to all three candidates;
+- **it does not fire today**: EM_v2 has 3 episodes, THRUST_PULLBACK 1, MOMENTUM_JOIN 1. Nothing was retired.
+
+**Disclosure (in full in the spec).**
+- The rule was written with EM_v2 results visible. The commissioning message said "4 graded episodes averaging about −0.95R". The ledger, counted by the spec's method, shows 3 episodes with first-fire R of −0.55, −0.39 and +0.34 (mean −0.20R). The clock-hour counter shows 4. −0.95R could not be reproduced.
+- The +0.15R threshold is the framework's pre-existing minimum edge (M10; power_check's examples).
+- The checkpoint was moved from the proposed N=15 to N=20 because N=20 is the bootstrap's own gate and M3's minimum for any claim. A design simulation (studies/futility_rule_simulation.py, synthetic R) shows the bound is unstable below it: a true +0.15R candidate is wrongly retired 8.4% at N=15 and 16.0% at N=20 on near-binary R, and 6.9% / 5.6% on smoother R.
+- **Known limit:** a true −0.20R loser is retired only 30–49% of the time at N=15–30. The rule catches clear losers, not mild ones.
+
+**Tooling.**
+- `power_check.bootstrap_upper_bound` mirrors the lower bound: percentile bootstrap, N≥20, same under-coverage label. The CLI prints whether the futility condition fires.
+- Tests: the positive control retires a −0.48R sample and keeps a +0.75R one.
+- Mutants killed: printed below N=20, wrong percentile, fire/no-fire label inverted. The label mutant first survived and the test was strengthened.
+

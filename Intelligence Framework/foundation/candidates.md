@@ -9,6 +9,7 @@ Exact definitions of the pre-registered candidates and what the ledger shows.
 ## 5a. Common rules for all candidates (`shadow_signals.py`)
 
 - Frozen 2026-07-29. `FLAG_N=30`, `REVIEW_N=60` graded episodes. `HORIZON=30` H4 bars.
+- Futility checkpoint (2026-10-19, docs/specs/futility_rule_spec.md): once, at N=20 graded independent episodes; if the 90% one-sided upper bound on mean R is below +0.15R, the candidate is REFUTED and retired. As of 2026-10-19: EM_v2 3 episodes, THRUST_PULLBACK 1, MOMENTUM_JOIN 1.
 - **Context:** the last 300 **complete** H4 bars. ADX (Wilder 14), ATR series (n−14), and **structure from `_detect_structure` on H4 bars** (`:83-107`).
 - **Entry:** the last complete H4 close, stamped with that bar's **open** time.
 - **Grading** (`:575-639`)
