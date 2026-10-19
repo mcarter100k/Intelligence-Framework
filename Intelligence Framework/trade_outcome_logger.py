@@ -5,7 +5,7 @@ Logs every signal output with enough context to validate accuracy later.
 CSV-based. One row per signal. Outcome fields filled in by the nightly
 grader, check_pending_trade_outcomes().
 
-Schema mirrors TradeSignal — see field comments for data source.
+One row per directional brief decision; see the field comments for where each value comes from.
 """
 
 from __future__ import annotations

@@ -1,11 +1,10 @@
 """
 run_outcome_check.py
 ─────────────────────
-Daily/weekly script to fill pending regime classification outcomes
-and report accuracy against the Problem 1 validation contract.
-
-Run this after the market closes each day (or weekly) to see if
-the framework's regime calls are statistically correct.
+The nightly grader (launchd 15:15 via scheduled_outcome_check.sh, after a
+verified ledger backup). For each pair it grades the regime calls, trade
+signals and shadow candidates that are now old enough, then prints accuracy
+and any regime due for review.
 
 Usage: python3 run_outcome_check.py
 """
@@ -51,8 +50,7 @@ def main() -> None:
         print(f"\n{instrument}: {filled} regime outcomes filled")
         print(get_accuracy_report(instrument))
 
-        # Close the trade-signal feedback loop too (was previously never run —
-        # every signal row stayed outcome_filled=False forever).
+        # Grade trade signals (20 daily bars after each signal).
         from trade_outcome_logger import (
             check_pending_trade_outcomes, get_accuracy_by_regime,
         )

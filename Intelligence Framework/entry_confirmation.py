@@ -6,7 +6,7 @@ shows LONG or SHORT. Fetches H1 and M15 bars and checks whether
 the higher-timeframe setup is showing on the lower timeframes.
 
 THRESHOLDS (all unvalidated — logged for Phase 1 review):
-  H1 ADX trending threshold : 25 (matching D1 validated value)
+  H1 ADX trending threshold : 25 (same as the daily threshold, INFORMED PRIOR)
   H1 ATR spike threshold    : 1.5x (conservative)
   M15                       : structure confirmation only,
                               no ADX regime classification

@@ -3,7 +3,7 @@ session_memory.py
 ─────────────────
 Intraday session context accumulator.
 
-Logs nine key indicators on every brief run.
+Logs seven readings on every open-market brief run.
 When the brief runs again in the same session,
 computes deltas and surfaces direction of travel.
 
@@ -12,7 +12,7 @@ within a single session:
   - ADX direction of travel (toward or away from thresholds)
   - ATR ratio trend (expanding or contracting)
   - Regime classification changes (the most important event)
-  - H4 structure direction (holding or breaking)
+  - Daily price structure (holding or breaking)
 
 Everything else — weekly context, MA readings, COT,
 currency strength — does not move intraday and is
