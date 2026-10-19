@@ -72,7 +72,11 @@ teaches the wrong lesson.
 4. You versus the framework versus the candidates: on the same weeks, whose
    calls scored better in R?
 5. Rule-break tally. Which rule broke most, and in what `pre_trade_state`?
-6. **One** lesson, and **at most one** rule change, written down *before*
+6. Read the week's notifications (`notification_log.csv`) and record
+   **MATERIAL / TOTAL**. Material means it told you something you did
+   not already know. One number, recorded, not interpreted (week of
+   2026-10-11: 2 of 12).
+7. **One** lesson, and **at most one** rule change, written down *before*
    next week starts. Never change a rule mid-week: that is in-sample tuning
    on yourself.
 

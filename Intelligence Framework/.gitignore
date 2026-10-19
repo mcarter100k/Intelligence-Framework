@@ -13,6 +13,7 @@ trade_log.csv
 calendar.csv
 pre_trade_journal.csv
 trades.csv
+notification_log.csv
 studies/data_cache/
 *.orphaned-*
 backups/

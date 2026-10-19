@@ -130,6 +130,19 @@ if printf '%s\n' "$OUT" | grep 'DECISION' | grep -qv 'STAND ASIDE' \
     echo "DECISION notification suppressed: market closed" >> "$LOG"
 fi
 
+# Per-pair decision state for the notification ledger
+# (docs/specs/notification_ledger_spec.md), e.g.
+# "GBP_AUD=LONG/closed;GBP_JPY=STAND ASIDE/closed". An error page prints
+# STAND ASIDE, so its REASON line makes the state ERROR.
+DSTATE="$(printf '%s\n' "$OUT" | awk -v m="$CLOSED_MARKER" '
+    function emit() { if (p != "") print p "=" d "/" (c ? "closed" : "open") }
+    /^ *[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { emit(); p = $1; sub("/", "_", p); d = "?"; c = 0 }
+    index($0, m) { c = 1 }
+    /^ *DECISION / && d != "ERROR" { d = ($0 ~ /STAND ASIDE/) ? "STAND ASIDE" : ($0 ~ /LONG/) ? "LONG" : ($0 ~ /SHORT/) ? "SHORT" : "?" }
+    /^ *REASON +Framework error/ { d = "ERROR" }
+    END { emit() }' | paste -sd ';' -)"
+PAIRS="$(printf '%s' "$DSTATE" | tr ';' '\n' | cut -d= -f1 | paste -sd ' ' -)"
+
 # Notify if: a real decision (non STAND ASIDE), a shadow signal, OR a flip.
 # Category priority mirrors the old summary preference: flips first, then the
 # decision, then shadow (docs/specs/notify_click_through_spec.md).
@@ -157,7 +170,7 @@ if [ -n "$CATEGORY" ]; then
             | paste -sd '|' - | sed 's/|/ · /g' | cut -c1-180)"
     fi
     [ -z "$SUMMARY" ] && SUMMARY="Signal — see $LOG"
-    notify "$CATEGORY" "$SUMMARY" "$LOG"
+    notify "$CATEGORY" "$SUMMARY" "$LOG" "$PAIRS" "$DSTATE"
 fi
 
 # Daily DIGEST (docs/specs/daily_digest_spec.md): ONLY when launchd passed
@@ -171,9 +184,9 @@ if [ "${1:-}" = "digest" ]; then
 ' "$OUT" | python3 scripts/daily_digest.py)"
     [ -z "$DIGEST" ] && DIGEST="digest unavailable — see the log"
     if [ -f "logs/latest_brief.log" ]; then
-        notify "DIGEST" "$DIGEST" "logs/latest_brief.log"
+        notify "DIGEST" "$DIGEST" "logs/latest_brief.log" "$PAIRS" "$DSTATE"
     else
-        notify "DIGEST" "$DIGEST" "$LOG"
+        notify "DIGEST" "$DIGEST" "$LOG" "$PAIRS" "$DSTATE"
     fi
 fi
 

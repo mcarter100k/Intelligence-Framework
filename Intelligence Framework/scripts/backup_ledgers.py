@@ -40,6 +40,7 @@ EVIDENCE = [
     "regime_classification_log.csv", "session_context_log.csv",
     "shadow_signal_log.csv", "trade_signal_log.csv", "excluded_rows.csv",
     "trades.csv", "pre_trade_journal.csv", "trade_log.csv",
+    "notification_log.csv",   # docs/specs/notification_ledger_spec.md
     os.path.join("logs", "health_state.json"),
 ]
 

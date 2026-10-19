@@ -23,6 +23,7 @@ a guard that fails on a clean clone is a guard someone disables.
 from _paths import ROOT
 import csv
 import os
+import sys
 
 import pytest
 
@@ -30,6 +31,8 @@ from _paths import ROOT as _ROOT
 
 
 def _schema(module_name, attr):
+    if os.path.join(_ROOT, "scripts") not in sys.path:
+        sys.path.insert(0, os.path.join(_ROOT, "scripts"))   # notification_ledger
     mod = __import__(module_name)
     return list(getattr(mod, attr))
 
@@ -43,6 +46,8 @@ LEDGERS = [
     ("trades.csv",                    "trade_logger",             "FIELDS"),
     ("pre_trade_journal.csv",         "setup_check",        "_JOURNAL_FIELDS"),
     ("excluded_rows.csv",             "exclusions",               "FIELDS"),
+    # docs/specs/notification_ledger_spec.md; the writer lives in scripts/
+    ("notification_log.csv",          "notification_ledger",      "FIELDS"),
 ]
 
 
@@ -116,3 +121,14 @@ def test_the_check_would_have_caught_the_2026_09_16_drift(tmp_path):
     with open(p, "w", newline="") as f:          # and stays quiet when fixed
         csv.writer(f).writerow(expected)
     assert header_drift(str(p), expected) is None
+
+
+def test_the_notification_writer_creates_its_ledger_with_its_own_schema(tmp_path):
+    """M30 on a file the writer itself created: header == FIELDS."""
+    import shutil
+    shutil.copy(os.path.join(_ROOT, "ledger_io.py"), tmp_path)
+    import notification_ledger as nl
+    nl.append(str(tmp_path), "DECISION", "GBP_AUD", "GBP_AUD=LONG/open", "x")
+    assert header_drift(str(tmp_path / nl.FILE), nl.FIELDS) is None
+    with open(tmp_path / nl.FILE) as f:
+        assert next(csv.reader(f)) == nl.FIELDS

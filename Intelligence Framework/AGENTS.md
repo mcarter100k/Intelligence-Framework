@@ -232,6 +232,12 @@ restoring either requires team review and a concrete evidence path.
     inferred claims (validation_log 2026-09-29 CORRECTION). Method and report
     format: the `evidence-validation` skill (`foundation/skills/`).
 
+12. **A NOTIFICATION IS TESTED FOR WHETHER IT SHOULD REACH THE OWNER**
+    (proposed 2026-10-18; team review required). Not only whether its
+    content is correct: market status, unchanged state and actionability
+    are tested the same way. A notification path with no such test does
+    not merge.
+
 ---
 
 ## Live entry points (what "reachable" means)
