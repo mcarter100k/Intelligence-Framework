@@ -21,9 +21,13 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(_HERE)
+for _p in (_ROOT, _HERE):                     # display_time / ledger_io, daily_digest
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from daily_digest import pair_decisions      # the one decision parser
 
 _HDR = re.compile(r"(?m)^=====\s*(\d{4}-\d{2}-\d{2}) ([0-9:]{8}) ([A-Z]{2,5})\s*=====\s*$")
 _SIGNAL = ("ALERT:", "RECOVERED", "##ALERT##")
@@ -95,13 +99,7 @@ def build_view(blocks, sources, today: str, fallback=None) -> str:
             if "Framework error" in block:
                 out.append(f"{ts}  error")
                 continue
-            decs = []
-            for pm in re.finditer(r"(GBP/[A-Z]{3})\s+\|", block):
-                seg = block[pm.start():pm.start() + 2000]
-                dm = re.search(r"DECISION\s+([A-Z][A-Z ]*?)(?:\s+—|\s*$)",
-                               seg, re.M)
-                decs.append(f"{pm.group(1)} {dm.group(1).strip()}"
-                            if dm else pm.group(1))
+            decs = pair_decisions(block)
             out.append(f"{ts}  {' · '.join(decs) if decs else 'no output'}")
         out.append("")
     signals = []
@@ -123,8 +121,9 @@ def main(argv) -> int:
             logs_dir = os.path.dirname(logs_dir) or "."
         today = _display_today()
         blocks, sources, fallback = collect(logs_dir, today)
-        with open(out_file, "w") as f:
-            f.write(build_view(blocks, sources, today, fallback))
+        view = build_view(blocks, sources, today, fallback)
+        from ledger_io import atomic_write_text   # never a half-written view
+        atomic_write_text(out_file, view)
     except Exception:
         pass                               # view failure never breaks a run
     return 0

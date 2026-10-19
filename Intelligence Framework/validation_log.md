@@ -3995,3 +3995,12 @@ All four runs used main 733a63a: the gate, the run count, the digest fix and ton
 
 **Decision-channel consequence (no statistic computed).** The GBP/AUD LONG issued Friday 2026-10-16 18:12 PDT, after the weekly close, became STAND ASIDE at the first open-market run. Under docs/specs/decision_channel_measurement_spec.md, that episode is **NEVER ACTIONABLE**. The reversal also notified nobody: that is known defect 0(b), the silent withdrawal, here harmless because the LONG had never been notified (the gate held it).
 
+
+## 2026-10-18 — CORRECTION: the heartbeat run-count test (C1, merged 3415303) failed for 30 minutes after every scheduled slot
+
+- **The claim, and why it was wrong.** It was reported VERIFIED on 2026-10-18. It hardcoded "21 expected", but `run_count` correctly leaves a slot out of the count for its first 30 minutes, since that run may still be going. So the suite went red from :00-:30 after every brief slot, and from :15-:45 after the grader's.
+- **Observed.** The heartbeat test failed at 18:06 PDT on main: 2 failed, the output showing "brief 20 expected". The code was right; the test was wrong.
+- **Fix.** The test now requires on-time = expected, with expected 21 (or 20 while a slot is in its grace window), and a SHORTFALL of exactly 6 missing.
+  - Fixed test at 18:06, inside the window: 3 passed. Main's old version at the same time: 2 failed.
+  - Still caught: a run count that never raises a shortfall, and one that is short by one.
+- **How it was missed.** Every earlier suite run happened to land outside a grace window. The original test was not exercised at the time-of-day boundary its own code defines.

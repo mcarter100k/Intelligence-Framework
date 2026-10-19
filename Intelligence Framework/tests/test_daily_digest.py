@@ -198,3 +198,23 @@ def test_only_brief_ny_plist_passes_digest():
         with open(os.path.join(ld, name)) as f:
             has = "<string>digest</string>" in f.read()
         assert has == ("brief-ny" in name), name
+
+
+# ── one decision parser for the digest and the latest view (2026-10-18) ──────
+# latest_view kept its own copy of the pre-fix pattern, so its TODAY SO FAR
+# lines misread every directional run the digest now reads correctly.
+
+def test_the_latest_view_names_an_earlier_directional_run():
+    real = _fixture("brief_2026-10-12_digest_run.txt")        # GBP/JPY SHORT
+    blocks = [("===== 2026-10-12 07:38:40 PDT =====", real, "brief_2026-10-12.log"),
+              ("===== 2026-10-12 18:05:33 PDT =====", _BRIEF, "brief_2026-10-12.log")]
+    view = lv.build_view(blocks, ["brief_2026-10-12.log"], "2026-10-12")
+    line = next(l for l in view.splitlines() if l.startswith("2026-10-12 07:38:40 PDT"))
+    assert line == "2026-10-12 07:38:40 PDT  GBP/AUD STAND ASIDE · GBP/JPY SHORT", line
+
+
+def test_the_digest_and_the_view_share_one_parser():
+    import inspect
+    assert inspect.getsourcefile(lv.pair_decisions).endswith(os.path.join("scripts", "daily_digest.py"))
+    src = open(os.path.join(_PROJ, "scripts", "latest_view.py"), encoding="utf-8").read()
+    assert "DECISION" not in src.replace("pair_decisions", "")   # no second copy of the pattern

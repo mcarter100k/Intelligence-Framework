@@ -3,7 +3,7 @@
 #
 #   notify <SUBTITLE> <MESSAGE> <LOG-RELPATH>
 #
-# SUBTITLE is the category (ALERT / RECOVERED / SHADOW / DECISION / HEARTBEAT).
+# SUBTITLE is the category (ALERT / RECOVERED / SHADOW / DECISION / DIGEST / HEARTBEAT).
 # The message ALWAYS gets a "→ <log>" pointer appended, so the osascript
 # fallback (which cannot open anything on click) still says where to look.
 #
