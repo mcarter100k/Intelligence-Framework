@@ -233,7 +233,7 @@ restoring either requires team review and a concrete evidence path.
     format: the `evidence-validation` skill (`foundation/skills/`).
 
 12. **A NOTIFICATION IS TESTED FOR WHETHER IT SHOULD REACH THE OWNER**
-    (proposed 2026-10-18; team review required). Not only whether its
+    (adopted 2026-10-19, team review). Not only whether its
     content is correct: market status, unchanged state and actionability
     are tested the same way. A notification path with no such test does
     not merge.
