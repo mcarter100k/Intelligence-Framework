@@ -4116,3 +4116,93 @@ All are INSUFFICIENT (N < 20).
 - **The closed-market digest on the scheduled path:** the first 07:30 run with the market closed after this merge (Sat 2026-10-24). Until then the closed path has only been run on the real captured 10-17 brief.
 - **The new SHADOW summary in the nightly grader's notification:** the first night a shadow outcome is graded after this merge.
 - **The new shadow line in the weekly heartbeat:** its next scheduled run.
+
+---
+
+## 2026-10-19 — Data map Stage 2 request stopped before sourcing (rule 5: the brief's premise was wrong); raw Dukascopy feed found reachable
+
+*Recorded 2026-10-20. The stop happened 2026-10-19 and was reported in-session; no entry was written at the time.*
+
+**The request:** "source and convert the STUDY partition", described as a plan pre-registered in September "and never run."
+
+**The premise failed inspection.** Stage 2 had run on 2026-09-11 (commit `5c0e0ab`; entry "STAGE 2 (data_map_spec §10): overlap check FAILED", above). It failed the frozen overlap thresholds on both pairs, and the ladder declared history validation INFEASIBLE. That entry makes any re-attempt on the raw feed "a team decision, not self-authorized", and no later ruling existed. A search of validation_log, foundation/, docs/ and all commit subjects found none. Under AGENTS.md rule 5 the run stopped before any download. Nothing in the repo changed (`git status` empty).
+
+**Reachability probe (header-only, no price data):** 2026-10-19 23:50 PDT (2026-10-20 06:50 UTC). One overlap-window file per pair (the 2023-09-04 10:00 UTC tick hour), nothing from 2014–2021.
+
+| request | result |
+|---|---|
+| GBPAUD tick hour | HTTP 200, 14,875 bytes |
+| GBPJPY tick hour | first try: TLS failure (curl exit 35, after 9.4 s); retry: HTTP 200 |
+| **control:** same host, nonexistent pair `NOSUCHPAIR` | **HTTP 404** |
+
+The 404 control shows the probe can tell a served file from a missing one. `datafeed.dukascopy.com` was unreachable all session on 2026-09-11. On this date it served, intermittently. That is the condition the 09-11 entry named for a re-attempt.
+
+---
+
+## 2026-10-20 — TEAM RULING: history data — OANDA depth check first; Dukascopy raw-feed re-attempt authorized as ATTEMPT 2 OF A MAXIMUM OF 2
+
+This is the team decision the 2026-09-11 Stage 2 entry requires before any re-attempt.
+
+**Authorized, with conditions:**
+- **Thresholds unchanged:** ≤ 2% disagreement outside the rollover bar, ≤ 1.5-pip median close difference. "Changing a threshold to pass is cheating. Trying the source the spec originally named is not."
+- **The Dukascopy re-attempt is attempt 2 of a maximum of 2.** If it fails, Dukascopy history validation is INFEASIBLE and closed permanently. The cap is what distinguishes this from retrying until a gate passes.
+- **The 09-11 FAIL stays in the record.** This entry adds; nothing is replaced or amended.
+- **Order:** Phase 1, an OANDA depth check with a reduced gate against the framework's own stored bars. Phase 2, the Dukascopy attempt, only if Phase 1 comes up short, and only after a short spec is committed stating the attempt number, the unchanged thresholds and the expected outcome. Phase 3, a HistData re-probe.
+- **Boundaries:** the SEALED EXAM is not sourced, converted, counted or opened in any phase. Verification numbers only. Free zone; no protected module, no ledger written.
+
+**Reasoning, as given:** the 09-11 run never tested the specified source. The spec named Dukascopy's RAW feed as primary. It was unreachable, so that run fell back to the hourly chart feed, a different and lower-quality product. HistData returned 0 bytes, so that rung was never executed either. This is therefore the first execution of the test as specified, not a second attempt at the same test. The OANDA-first order follows the 2026-09-29 audit (§5 item 2): same broker, same bar construction, same timestamps as the live system, so there is no foreign feed to reconcile.
+
+**Two premise conflicts found on inspection (rule 5), recorded with the ruling:**
+1. Phase 1 task 2 asked for bar counts over 2014-01-01 → 2021-12-31. Everything up to 2021-04-25 is the SEALED EXAM, which the ruling's own boundary says is "not counted." Not done. The STUDY span (2005–2013) and the unsealed remainder (2021-04-27 → 2021-12-31) were counted instead, labelled as a substitution.
+2. The audit's "OANDA's own 2014–2021 data" is the SEALED EXAM itself. Using it means opening the exam under data_map_spec §7 (one frozen candidate spec, hashes, marker, one run), not a change of data source. Not acted on.
+
+---
+
+## 2026-10-20 — History data Phase 1 (OANDA depth): OANDA's own 2005–2013 weekday grid is intact; Phase 2 NOT RUN pending a ruling; Phase 3: HistData functional
+
+Run under the ruling above, on branch `feat/history-depth-attempt2`. Full numbers, every gap and the scripts are in studies/history_depth_report.md. Verification numbers only. OANDA candles outside the reduced-gate window were reduced to timestamps on receipt. **No sealed-exam bar was counted or stored.** The project hash (659 files) was identical before and after.
+
+**Phase 1 — OANDA depth (this live account, mid prices, default 17:00-NY alignment):**
+- **Earliest candle:** GBP_AUD D1 2004-05-31, H4 2004-06-01. GBP_JPY D1 2002-05-07, H4 2002-05-08. Both pairs cover the STUDY start.
+- **STUDY 2005–2013 as served: D1 fails the §3 band.** There are 273–361 candles a year against [252, 262], because of 14–101 weekend-session candles a year (the "old convention").
+- **The weekday grid underneath passes the §3 counts, both pairs, all nine years:**
+  - aligned weekday D1 candles: 259–262 a year;
+  - weekday sessions with all 6 H4 bars: 99.23–100% (needs ≥ 99%);
+  - 0 misaligned candles;
+  - every gap and short session falls on Dec 24–26 or Dec 31–Jan 2.
+- **USED remainder 2021-04-27 → 2021-12-31:** 179 D1 / 1,074 H4 per pair, 100% full sessions, 0 weekend candles.
+- **API constraints (observed):**
+  - hard limit of 5,000 candles per request, enforced on `count` and on the count a `from`/`to` window implies;
+  - `to` in the future is rejected;
+  - `from` returns the candle *containing* that instant;
+  - 30 back-to-back requests returned 200 with no throttling.
+- **Reduced gate — exact match:**
+  - September cache vs OANDA today: 30,810 of 30,810 bars identical on O/H/L/C (2022-05-31 → 2026-09-10; diff 0.0 pips at median, p95 and max).
+  - Live-recorded D1 closes in `regime_classification_log.csv` (`price_basis=d1_close`, 2026-09-30 → 2026-10-19): 76 of 76 identical.
+  - **Control:** a planted +1-pip H4 close and a +2-pip ledger close were each reported exactly.
+  - **Limit:** this proves stability for 2022–2026 only. Nothing stored from 2005–2013 exists to compare against.
+- **Verdict:** can OANDA alone cover the STUDY span at D1/H4? **Not as served (NO).** On counts, **YES** once the weekend-session candles are set aside; same broker, nothing to reconcile. It is not a gate pass yet:
+  - §3 items 3 (D1/H4 internal consistency) and 4 (known-date spot checks) need prices and were not run;
+  - whether weekend-session candles are dropped or folded into Monday is a conversion rule the team has not set.
+- **Census correction (INFERRED):** data_map_spec §1's "H4 ~4.8–5.7 bars/day with 70–95 short days/yr" reproduces as H4 rows ÷ D1 rows *including weekend candles* (4.71–5.75). It measured the weekend extras, not missing weekday bars. The census method was not recorded, so this rests on the arithmetic match. The spec text is unchanged; it is fixed absent a team ruling.
+
+**Sealed-edge incident:**
+- A request with `from=2021-04-26T00:00Z` returned the candle containing that instant. That candle opens Sunday 2021-04-25 17:00 New York: its label is sealed, its session (Monday 04-26) is USED.
+- The post-receipt guard aborted. Nothing was written, and only the timestamp was printed.
+- The guard now keeps a one-day margin, and the Monday 2021-04-26 session was given up.
+- **The spec does not say which side of the seal a Sunday-open candle belongs to; that is for the team to rule.**
+
+**Phase 2 — Dukascopy attempt 2 of 2: NOT RUN.** Phase 1 came back neither as the ruling's YES nor as clearly short. It found a same-broker path, the outcome the OANDA-first order was designed to prefer. Attempt 2 is the last Dukascopy attempt and cannot be taken back, so spending it now is the team's call. No Phase 2 spec was committed, and nothing was requested from Dukascopy.
+
+**Phase 3 — HistData: endpoint FUNCTIONAL (2026-10-20 00:09 PDT)**, a change from the 2026-09-11 "0 bytes":
+- **GBPJPY:** offered 2002–2026, so all STUDY years. The 2005 archive downloaded as a valid zip with a 351,750-row M1 csv.
+- **GBPAUD:** offered 2007–2026 only. The 2007 archive's first row is 2007-09-30, so HistData lacks GBP/AUD for 2005-01 → 2007-09.
+- A not-offered year (GBPAUD 2005) serves an empty form token, which was the 2026-09-11 symptom.
+- Archives were kept outside the repo, not extracted, and not used.
+
+**For team review:**
+1. Is the OANDA path adopted for the STUDY span?
+   - If so: the weekend-candle rule (drop vs fold), then §3 items 3–4 on OANDA data.
+   - If not: whether to spend Dukascopy attempt 2.
+2. Which side of the seal the 2021-04-25 Sunday-open candle belongs to.
+3. Whether data_map_spec §1's census line and foundation/market_data_facts.md:19 are corrected in light of the census finding.
