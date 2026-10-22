@@ -4288,3 +4288,40 @@ The gate was run 01:09 PDT exactly as declared in data_map_spec §11.4, committe
 - The project hash was identical before and after.
 
 **study_weekend_candle_spec.md is now APPROVED.** The status line was updated as directed, the rule is appended as §6, and the original proposal text stands. The Monday re-check's pass criterion is declared in §6 before the conversion is built or run.
+
+---
+
+## 2026-10-22 — Weekend-candle rule built; Monday re-check PASS on both pairs. The OANDA STUDY data is ready for a pre-registered study
+
+**Built:**
+- `studies/history_study_convert.py`, the rule exactly as approved in study_weekend_candle_spec.md §6: Saturday sessions dropped; Sunday sessions folded into the next weekday session with Sunday open, combined high/low, target close and target timestamp; an error if there is no target. It is a pure function and is never imported by the live path.
+- **Gate 1:** 12 tests in `tests/test_history_study_convert.py`. They cover Sunday-only, Saturday-only, both, 2011-style continuous weekends, a holiday Monday, a missing first Monday slot, no target, folded-Monday consistency, inputs unmodified, and DST labelling.
+- **Six mutants each killed:**
+
+  | Mutant | Tests failing |
+  |---|---|
+  | Saturday folded like Sunday | 2 |
+  | target keeps its own open | 6 |
+  | Sunday close kept | 6 |
+  | fold backwards | 7 |
+  | H4 folded into the last slot | 5 |
+  | Sunday dropped instead of folded | 6 |
+
+  Each mutant was confirmed applied and confirmed reverted byte-identical, and the clean tests passed 12/12 with no bytecode.
+- **Mutation-run correction:** the first mutation pass used `git checkout` to revert an untracked file. The revert failed and the mutants stacked, so only M1 of that pass was valid. It was discarded and redone with copy-based reverts, verified per mutant.
+
+**Monday re-check** (2026-10-22 01:28 PDT, the criterion committed in `096be86` before the build). Inputs: the stored STUDY candles from the §3 gate fetch. Full tables: studies/history_study_monday_recheck_report.md.
+
+| | GBP_AUD | GBP_JPY |
+|---|---|---|
+| Sunday sessions folded (D1 / H4 candles) | 420 (420 / 771) | 420 (420 / 710) |
+| Saturday-session candles dropped (D1 / H4) | 266 / 480 | 258 / 453 |
+| Mondays passing check 3, before → after | 468/468 → 468/468, 0.0 pips | 468/468 → 468/468, 0.0 pips |
+| Weekend candles left | 0 | 0 |
+| D1 rows/yr after (items 1–2 still pass) | 258–262 | 258–262 |
+| **Control:** half-built fold (D1 folded, H4 not) | 162 of 468 Mondays fail | 135 of 468 Mondays fail |
+
+- **Short holiday Mondays** (2006-12-25, 2007-01-01) were listed and untested, as declared. The one that received a fold (GBP_AUD 2006-12-25) is consistent at 0.0 pips (supplementary).
+- **The fold counts match the 2026-10-22 timestamp census exactly:** 420 Sunday-session D1 per pair; 771/710 Sunday H4; 266/258 Saturday D1; 480/453 Saturday H4.
+
+**Status:** PASS on both pairs, by the declared criterion. Together with the §3 gate, the converted OANDA STUDY data (2005-01-01 → 2013-12-30) now meets every data-side condition in data_map_spec. **A study still needs its own pre-registration, starting with the §9 frequency count.** The live project hash was identical before and after (verified against the pre-check snapshot).
