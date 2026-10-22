@@ -111,3 +111,16 @@ Source: `studies/stage2_gate_report.md`; VL:2341-2354.
 | trade_signal_log | 720h |
 
 ---
+
+## Corrections (dated, appended; earlier rows are not rewritten)
+
+- **2026-10-22 — §2a row "Old convention (pre-2014 OANDA)" (line 19): INFERRED correction.**
+  - **The row says:** H4 "~4.8–5.7 bars/day, with 70–95 short days/yr" and "unusable until converted".
+  - **Measured on the 17:00-NY session grid** (2026-10-20, timestamps only): the weekday grid is intact.
+    - Weekday D1: 259–262 a year.
+    - H4 sessions with all 6 bars: 99.23–100% of weekdays.
+    - The only gaps are Dec 24–26 and Dec 31–Jan 2.
+  - **What the "old convention" actually is:** 14–101 *extra* weekend-session D1 candles a year (and their H4/H1), on top of a complete grid.
+  - **Evidence (arithmetic match only):** H4 rows ÷ D1 rows with weekend candles counted gives 4.71–5.75, matching "~4.8–5.7". Raw D1 rows are 331–361 for 2005–2012, matching "330–360". The census method was never recorded, so the explanation is INFERRED.
+  - **"Unusable until converted" still holds in one respect:** the weekend candles need a rule, and none is approved yet (`docs/specs/study_weekend_candle_spec.md`).
+  - Sources: `studies/history_depth_report.md`; `docs/specs/data_map_spec.md` §11.3.

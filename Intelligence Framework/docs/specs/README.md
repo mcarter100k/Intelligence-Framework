@@ -11,7 +11,7 @@ carries the lifecycle. A later change gets its own spec.
 | [circuit_breaker_promotion_spec.md](circuit_breaker_promotion_spec.md) | circuit-breaker promotion (Spec B of the 2026-09-09 post-audit directive) | 23107bc 2026-09-09 | Promoted to protected; **not wired**: nothing on the live path calls `session_guard`/`risk_config` (owner decision: wire or delete) |
 | [daily_digest_spec.md](daily_digest_spec.md) | daily DIGEST notification (final before freeze, 2026-09-09) | 23669df 2026-09-09 | Built; validation_log cites it 1x |
 | [data_at_source_spec.md](data_at_source_spec.md) | fix the data at the source (Phase 4 of the 2026-09-29 audit plan) | 586a582 2026-09-30 | Built; validation_log cites it 1x |
-| [data_map_spec.md](data_map_spec.md) | data map — pre-registered partition of all GBP_AUD / GBP_JPY history (Stage 1) | f5eea4f 2026-09-11 | Built; validation_log cites it 2x |
+| [data_map_spec.md](data_map_spec.md) | data map — pre-registered partition of all GBP_AUD / GBP_JPY history (Stage 1) | f5eea4f 2026-09-11 | Stage 2 on Dukascopy-freeserv FAILED 2026-09-11. §11 amendments 2026-10-22 (340aef0): OANDA adopted, seal embargo, census correction (INFERRED), §3 run rules. §3 gate PASS on the OANDA weekday grid 2026-10-22; Monday re-run pending the weekend rule |
 | [decision_channel_measurement_spec.md](decision_channel_measurement_spec.md) | Decision-channel measurement — pre-registration (2026-10-17) | c151e3c 2026-10-17 | Phase 0 built; Measurement A not run (stop rule: at most 3 gradeable episodes, 10 needed); B and C are spec only |
 | [decision_logic_spec.md](decision_logic_spec.md) | fix the decision logic (Phase 5 of the 2026-09-29 audit plan) | 549d299 2026-09-30 | Built; validation_log cites it 1x |
 | [display_timezone_spec.md](display_timezone_spec.md) | display timezone (freeze exception, display-layer only, 2026-09-10) | f96e4ce 2026-09-10 | Built; validation_log cites it 1x |
@@ -31,6 +31,7 @@ carries the lifecycle. A later change gets its own spec.
 | [safe_ledger_writes_spec.md](safe_ledger_writes_spec.md) | safe ledger writes (Phase 3 of the 2026-09-29 audit plan) | 748c482 2026-09-29 | Built; validation_log cites it 1x |
 | [setup_check_plain_english_spec.md](setup_check_plain_english_spec.md) | setup_check plain-English rewrite (display layer only) | 3d7bf11 2026-09-09 | Built; validation_log cites it 1x |
 | [setup_check_spec.md](setup_check_spec.md) | setup_check — pre-trade evidence stack tool (team approved 2026-07-31) | 3a10200 2026-07-31 | Built; validation_log cites it 1x |
+| [study_weekend_candle_spec.md](study_weekend_candle_spec.md) | weekend-session candles in the OANDA STUDY data (owner ruling 2026-10-22) | 340aef0 2026-10-22 | **PROPOSED — not approved, not built**; Saturday-session question open |
 | [state_dependent_labels_spec.md](state_dependent_labels_spec.md) | state-dependent labels (freeze exception — label honesty, 2026-09-10) | 19a295a 2026-09-10 | Built; validation_log cites it 1x |
 | [trade_logger_repair_spec.md](trade_logger_repair_spec.md) | trade_logger repair (team approved 2026-07-31, amended same day) | 94e6add 2026-07-31 | Built; validation_log cites it 2x |
 | [unconfirmed_trend_display_spec.md](unconfirmed_trend_display_spec.md) | unconfirmed-trend display subtype (display-layer only) | a831cef 2026-09-09 | Built; validation_log cites it 1x |
