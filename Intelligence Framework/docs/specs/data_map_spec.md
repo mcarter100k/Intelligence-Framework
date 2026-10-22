@@ -221,3 +221,93 @@ All formerly-PROPOSED items were finalized in the 2026-09-11 Stage-1 review
 (spreads and overlap thresholds approved as proposed; success criteria
 approved as amended in §6; provider approved with the §2 failure ladder).
 This file is now fixed; further change requires a fresh team ruling.
+
+---
+
+## 11. Dated amendments (appended; §1–§10 above are unchanged)
+
+### 11.1 — 2026-10-22: STUDY data source is OANDA (owner ruling)
+
+Amends the provider named in §2. **OANDA's own candles are the STUDY data
+source** (mid prices, default 17:00-NY alignment, the same request as the
+live feed). Basis: the 2026-10-20 depth check (studies/history_depth_report.md).
+OANDA serves both pairs from before 2005. Its 2005–2013 weekday grid meets
+the §3 count tests, and its historical API matched the framework's stored
+bars and live-recorded closes exactly (30,810 + 76 bars, 0.0 pips).
+**Dukascopy attempt 2 of 2 is NOT spent. It stays the fallback**, under the
+2026-10-20 ruling's conditions. The §2 feed-overlap check does not apply to
+a same-broker source; the reduced gate above takes its place. The §3
+conversion gate still applies in full. **No study builds on this data until
+§3 items 3 and 4 pass.**
+
+### 11.2 — 2026-10-22: seal embargo (owner ruling)
+
+Bars within one trading day of the seal belong to **no span** (the same
+standing as 2004). That covers both edges of the SEALED EXAM and one trading
+day on each side of each edge, plus any weekend or holiday candles between
+them. A candle belongs to the span of its session's trading day. Session D
+runs 17:00 New York on D−1 → 17:00 on D, which is how OANDA stamps it.
+
+| Edge | Embargoed trading days | Candle opens embargoed (UTC, half-open) |
+|---|---|---|
+| STUDY → SEALED | 2013-12-31 (STUDY side), 2014-01-01 (SEALED side) | [2013-12-30T22:00Z, 2014-01-01T22:00Z) |
+| SEALED → USED | 2021-04-23 (SEALED side), the weekend including the **2021-04-25 Sunday-open candle**, 2021-04-26 (USED side) | [2021-04-22T21:00Z, 2021-04-26T21:00Z) |
+
+Effective spans: STUDY = trading days 2005-01-01 → **2013-12-30**; SEALED
+EXAM = **2014-01-02 → 2021-04-22**; USED = **2021-04-27** → 2026-09-10.
+The ruling named the 2021-04-25 candle and "anything within one trading day
+of the seal". Applying the margin to both sides of both edges is the
+reading recorded here; narrowing it is a fresh ruling. Requests near an
+edge must stop at least one candle short, because OANDA returns the candle
+*containing* `from` (observed 2026-10-20).
+
+### 11.3 — 2026-10-22: correction to the §1 census reading (INFERRED)
+
+§1 and §2 (lines 27–29) describe OANDA's STUDY-era H4 as "~4.8–5.7 bars/day
+with 70–95 short days/yr" and its D1 as "330–360 raw rows/yr". Measured on
+the 17:00-NY session grid (2026-10-20, timestamps only), the weekday grid
+is intact:
+- **Weekday D1:** 259–262 a year.
+- **H4 sessions with all 6 bars:** 99.23–100% of weekdays.
+- **Extras:** 14–101 weekend-session D1 candles a year sit on top of that grid.
+
+**Evidence for the correction (arithmetic match):** H4 rows ÷ D1 rows *with
+weekend candles counted as days* gives 4.71–5.75 across 2005–2013, matching
+"~4.8–5.7". Raw D1 rows are 331–361 for 2005–2012, matching "330–360". The
+census measured the weekend extras, not missing weekday bars.
+**Status: INFERRED.** The census method and raw timestamps were never
+recorded, so the explanation rests on the arithmetic match alone. The
+original text above stands as written.
+
+### 11.4 — 2026-10-22: how §3 items 3–4 are run on OANDA data (declared before any price is fetched)
+
+- **Data:** OANDA D1 and H4, mid, default alignment, STUDY span less the
+  §11.2 embargo. Candles are fetched as served; **no weekend-candle
+  treatment is applied** (that rule is pending:
+  docs/specs/study_weekend_candle_spec.md).
+- **Item 3 (internal consistency):**
+  - **Eligible days:** weekday trading days with one aligned D1 candle and
+    all six aligned H4 candles.
+  - **Fixed sample:** per pair per year, `random.Random(f"data_map_s3_item3:{pair}:{year}").sample(sorted(eligible), 50)`.
+  - **A day passes when** |D1 high − max of its six H4 highs| ≤ 0.5 pip
+    AND |D1 low − min of its six H4 lows| ≤ 0.5 pip.
+  - **Item 3 passes only if all 900 sampled days pass** (50 × 9 years × 2 pairs).
+  - **Reported, not gated:** the same test on every eligible weekday, and on
+    every weekend session against that session's own H4 candles. Monday
+    sessions change under any fold, so item 3 is re-run on Mondays once a
+    weekend rule is approved and built.
+- **Item 4 (known-date spot checks):**
+  - **Existence:** the D1 candle for the named trading day exists, for both
+    pairs on all four dates.
+  - **Elevated range (sign only):** the day's D1 high−low exceeds the median
+    high−low of the 20 preceding Tuesday–Friday trading days in the same
+    series. Mondays are excluded so the result cannot change under a
+    weekend rule; weekend candles are excluded too.
+  - **Pairs for the range check:** both pairs on 2008-10-24 and 2010-05-06
+    (broad-market events). GBP/JPY only on 2011-03-17 and 2013-04-04 (yen
+    events); GBP/AUD is not computed on those two dates.
+  - **Item 4 passes only if all 4 × 2 existence checks and all 6 range
+    checks pass.** Pass/fail only; no range is recorded.
+- **Items 1–2** are recomputed on the same fetch with the embargo applied.
+- **Output:** match counts, pass/fail, and |difference| in pips for item
+  3. No price level, range or average.

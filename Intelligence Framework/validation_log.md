@@ -4206,3 +4206,31 @@ Run under the ruling above, on branch `feat/history-depth-attempt2`. Full number
    - If not: whether to spend Dukascopy attempt 2.
 2. Which side of the seal the 2021-04-25 Sunday-open candle belongs to.
 3. Whether data_map_spec §1's census line and foundation/market_data_facts.md:19 are corrected in light of the census finding.
+
+---
+
+## 2026-10-22 — OWNER RULING on the history-depth report: OANDA adopted for the STUDY span; seal embargo; census corrected (INFERRED); weekend-candle rule PROPOSED, not built; §3 items 3–4 declared before running
+
+**Decisions (owner, 2026-10-22):**
+1. **OANDA is the STUDY data source.** Dukascopy attempt 2 of 2 is **not spent** and stays the fallback under the 2026-10-20 conditions.
+2. **Weekend candles:** report the live path's handling first, and the study applies the identical treatment. With no explicit live rule, propose folding into the following Monday as a spec change for review. **No implementation until approved.**
+3. **Seal embargo:** the 2021-04-25 Sunday candle and anything within one trading day of the seal belong to neither side.
+4. **Census correction:** appended, dated, marked INFERRED; no in-place rewrites.
+5. **Run §3 items 3 and 4 on OANDA STUDY data. No study builds on this data until they pass.**
+
+**What was done before any price was fetched:**
+- **Live weekend handling: no explicit rule.**
+  - `oanda_feed.py:249-251` drops only incomplete candles, so a weekend candle would enter the indicators as an ordinary bar.
+  - `regime_detection.py:750-755` (`is_trading_day`) and `shadow_signals.py:395-413` (`_h4_bar_opens`) treat Saturday and Sunday as non-existent.
+  - The live feed serves none: 0 weekend-session candles in 30,810 cached bars for 2022–2026.
+  - **Proposal written:** docs/specs/study_weekend_candle_spec.md (PROPOSED).
+    - Sunday-session candles fold into Monday per the ruling.
+    - **Open question raised:** Saturday-session candles are Friday after-close quotes (Fri 17:00 NY), not a Sunday open. The literal rule would make Monday's open a Friday-evening price. The spec recommends dropping them and asks for a ruling.
+- **Embargo recorded** in data_map_spec §11.2.
+  - It covers one trading day on each side of each seal edge: [2013-12-30T22:00Z, 2014-01-01T22:00Z) and [2021-04-22T21:00Z, 2021-04-26T21:00Z).
+  - Effective spans: STUDY → 2013-12-30; SEALED 2014-01-02 → 2021-04-22; USED from 2021-04-27.
+  - Applying the margin to both sides of both edges is the reading recorded; narrowing it is a fresh ruling.
+- **Census correction appended** to data_map_spec §11.3 and foundation/market_data_facts.md (Corrections). The original text stands.
+- **How items 3–4 are run is declared in data_map_spec §11.4, committed before the fetch:**
+  - item 3: a seeded fixed sample of 50 days per pair per year; 0.5-pip tolerance; all 900 must pass;
+  - item 4: existence on both pairs for all four dates; a sign-only range check against the median of the 20 preceding Tuesday–Friday days; both pairs on the two broad-market dates, GBP/JPY only on the two yen dates.
