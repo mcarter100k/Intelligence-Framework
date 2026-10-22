@@ -4268,3 +4268,23 @@ The gate was run 01:09 PDT exactly as declared in data_map_spec §11.4, committe
 - Monday sessions change under any weekend rule, so item 3 is re-run on Mondays once the rule (docs/specs/study_weekend_candle_spec.md, PROPOSED) is approved and built. Weekend sessions' internal consistency suggests a fold stays consistent; that is INFERRED until it is run.
 - **No study builds on this data until then.** The §9 frequency count and the exam-split decision remain Stage 3 work.
 - Dukascopy attempt 2 stays unspent.
+
+---
+
+## 2026-10-22 — OWNER RULINGS on weekend candles: Saturday sessions DROP; Sunday sessions FOLD into Monday, approved after verifying the live Monday candle; embargo two-sided reading confirmed
+
+**Rulings (owner, 2026-10-22):**
+1. Saturday-session candles (open Fri 17:00 New York): **drop** in the study.
+2. Sunday-session candles: **fold into the following Monday**, provided current OANDA data first shows a recent Monday daily candle opening at Sunday 17:00 New York and containing the Sunday open. Read-only; three recent Mondays.
+3. **Embargo:** the two-sided reading in data_map_spec §11.2 is confirmed as written.
+4. After the fold is built, re-run check 3 on every Monday in the study span and report counts per year before and after the rule. **No study starts until the Monday re-check passes.**
+
+**Step-2 verification (read-only, 2026-10-22 01:25 PDT):** CONFIRMED on the Mondays of 2026-10-19, 10-12 and 10-05, both pairs.
+- The Monday D1 opens Sunday 14:00 PDT (17:00 New York).
+- There are 0 M1 candles from Friday 17:00 to Sunday 17:00 New York.
+- The first quote of the week is Sunday 14:04 PDT.
+- D1 open = the week's first M1 open, 0.0 pips; D1 high, low and close = the session's M1 max, min and last close, 0.0 pips.
+- **Control:** the D1 open against the M1 open one hour later differs by 2.1–30.3 pips.
+- The project hash was identical before and after.
+
+**study_weekend_candle_spec.md is now APPROVED.** The status line was updated as directed, the rule is appended as §6, and the original proposal text stands. The Monday re-check's pass criterion is declared in §6 before the conversion is built or run.

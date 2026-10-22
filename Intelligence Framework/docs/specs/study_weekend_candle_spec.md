@@ -1,6 +1,6 @@
-# Spec: weekend-session candles in the OANDA STUDY data (PROPOSED — not approved, not built)
+# Spec: weekend-session candles in the OANDA STUDY data (APPROVED 2026-10-22 — the approved rule is §6)
 
-**Status:** PROPOSED 2026-10-22 for owner/team review, per the owner's
+**Status:** APPROVED 2026-10-22 by owner ruling, after the §6 verification confirmed; the approved rule is §6. Originally PROPOSED 2026-10-22 for owner/team review, per the owner's
 2026-10-22 ruling: "first report how the live path handles them today (file
 and line). The study must apply the identical treatment. If live has no
 explicit rule, propose folding into the following Monday (Sunday open,
@@ -88,3 +88,58 @@ statistic exists, and it applies identically to every candidate.
   under `studies/`, with tests that pin each case (Sunday-only,
   Saturday-only, both, 2011-style continuous weekends, holiday Monday).
   The live path is unaffected, since it never receives weekend candles.
+
+---
+
+## 6. APPROVED rule (owner ruling 2026-10-22)
+
+**Rulings:**
+- **Saturday-session candles** (open Fri 17:00 New York): **DROP** (§4 option B).
+- **Sunday-session candles: FOLD into the following Monday** (Proposal A, §3),
+  approved on the condition that current OANDA data shows the Monday daily
+  candle opens at Sunday 17:00 New York and contains the Sunday open.
+
+**The condition was verified 2026-10-22 01:25 PDT** (read-only;
+`studies/history_monday_open_check.py`; times and pip differences only).
+Both pairs were checked on the Mondays of 2026-10-19, 10-12 and 10-05:
+- The Monday D1 candle opens **Sunday 14:00 PDT (17:00 New York)**.
+- There are **0** M1 candles from Friday 17:00 to Sunday 17:00 New York. The
+  last M1 before the weekend is Friday 13:59 PDT; the first of the week is
+  Sunday 14:04 PDT.
+- The D1 open equals the week's first M1 open (**0.0 pips**). D1 high, low
+  and close equal the session's M1 max, min and last close (**0.0 pips**).
+- **Control:** the D1 open against the M1 open an hour later differs by
+  2.1–30.3 pips, so the equality can fail.
+
+So the live feed's Monday candle is the whole of the week's first session,
+from its first quote. Folding the old Sunday-session candles into Monday
+gives 2005–2013 the same structure.
+
+**The rule, exactly as built** (`studies/history_study_convert.py`):
+1. A candle's session is the New York date of (open + 7 h).
+2. Saturday-session candles (D1 and H4) are dropped.
+3. A Sunday session's **target** is the first later weekday session with
+   both a D1 candle and at least one H4 candle. That is normally Monday; after
+   a holiday Monday it is the next trading session. If no target exists,
+   the conversion raises an error instead of guessing.
+4. **D1:** the target's candle becomes (open of the earliest Sunday-session
+   D1, max of highs, min of lows, target's close), keeping the target's
+   timestamp. The Sunday-session D1 is removed.
+5. **H4:** all Sunday-session H4 candles fold into the target session's
+   earliest H4 candle. That candle becomes (earliest folded open, max of
+   highs, min of lows, its own close), keeping its timestamp. The
+   Sunday-session H4 candles are removed.
+6. Weekday sessions not targeted are untouched.
+
+**Monday re-check (owner ruling item 4; criterion declared here, before it runs):**
+- Check 3 is run on **every** Monday session in the converted STUDY span,
+  not a sample, plus every non-Monday fold target.
+- **A session passes when** |D1 high − max H4 high| ≤ 0.5 pip and
+  |D1 low − min H4 low| ≤ 0.5 pip.
+- Sessions with fewer than six aligned H4 bars are listed by date, not tested.
+- **PASS requires all of these, for both pairs:**
+  - every tested session passes;
+  - the converted series has 0 weekend-session candles;
+  - items 1–2 still hold every year.
+- Rows per year are reported before and after the rule.
+- **No study starts until this passes.**

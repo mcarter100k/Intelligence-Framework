@@ -31,7 +31,7 @@ carries the lifecycle. A later change gets its own spec.
 | [safe_ledger_writes_spec.md](safe_ledger_writes_spec.md) | safe ledger writes (Phase 3 of the 2026-09-29 audit plan) | 748c482 2026-09-29 | Built; validation_log cites it 1x |
 | [setup_check_plain_english_spec.md](setup_check_plain_english_spec.md) | setup_check plain-English rewrite (display layer only) | 3d7bf11 2026-09-09 | Built; validation_log cites it 1x |
 | [setup_check_spec.md](setup_check_spec.md) | setup_check — pre-trade evidence stack tool (team approved 2026-07-31) | 3a10200 2026-07-31 | Built; validation_log cites it 1x |
-| [study_weekend_candle_spec.md](study_weekend_candle_spec.md) | weekend-session candles in the OANDA STUDY data (owner ruling 2026-10-22) | 340aef0 2026-10-22 | **PROPOSED — not approved, not built**; Saturday-session question open |
+| [study_weekend_candle_spec.md](study_weekend_candle_spec.md) | weekend-session candles in the OANDA STUDY data (owner ruling 2026-10-22) | 340aef0 2026-10-22 | **APPROVED 2026-10-22** (Saturday sessions dropped, Sunday sessions folded into Monday; §6). Build and Monday re-check: see validation_log 2026-10-22 |
 | [state_dependent_labels_spec.md](state_dependent_labels_spec.md) | state-dependent labels (freeze exception — label honesty, 2026-09-10) | 19a295a 2026-09-10 | Built; validation_log cites it 1x |
 | [trade_logger_repair_spec.md](trade_logger_repair_spec.md) | trade_logger repair (team approved 2026-07-31, amended same day) | 94e6add 2026-07-31 | Built; validation_log cites it 2x |
 | [unconfirmed_trend_display_spec.md](unconfirmed_trend_display_spec.md) | unconfirmed-trend display subtype (display-layer only) | a831cef 2026-09-09 | Built; validation_log cites it 1x |
