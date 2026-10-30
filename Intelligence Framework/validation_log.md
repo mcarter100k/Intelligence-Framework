@@ -4341,3 +4341,35 @@ The owner asked what happens in weeks of 200+ pips versus under 200 on the weekl
 - **GBP/JPY's up-skew** (58% up-closing big weeks; 40% of weekly lows on Monday) matches the pair's 2021–26 rise, a regime and not a weekly habit.
 - **Guard:** OANDA stamps a weekly candle at the previous Friday 17:00 New York. The study's first window assumed a Sunday stamp; the post-receipt guard aborted the run before anything was stored, and the window was corrected. No embargoed, sealed or forward week was used.
 - **Status:** INFORMED PRIOR at most. The candidate hypotheses for a pre-registered 2005–2013 test are listed in the report.
+
+---
+
+## 2026-10-29 — PRE-REGISTRATION: carry after a quiet week (GBP/JPY and GBP/AUD), 2005–2013 STUDY data
+
+Owner direction 2026-10-29: test both pairs, thoroughly. **No 2005–2013 outcome has been computed at this commit.**
+
+**Committed together (sha256):**
+- spec `docs/specs/carry_quiet_week_spec.md`: `5dd3033c856493ced8779fde1505e6ae8e4cc990b38e191e588ba14f82c3cc4d`
+- runner `studies/carry_quiet_week_test.py`: `36c2c3c45fb415a3c1a7c2c00a5a687a421aa9038929f4cf2a5fc281b14e2d92`
+- rates `studies/policy_rates_2003_2014.json`: `5df23e1891630678f2c10184ba8b261498d8a56193a6cc81710f6a83d6a6eacf`
+
+**The test in brief** (the spec is binding):
+- **Rule:** after a week quieter than its previous 26-week median, hold the carry side Monday open → Friday close the next week. That is long GBP/JPY and short GBP/AUD, from the rates table each week.
+- **Costs:** era spreads plus 6 days of financing at the rate gap less 1% a year.
+- **Measure:** typical-week units.
+- **Pass:** a one-sided 95% bootstrap lower bound > 0 (Šidák for two cells) **and** the mean without the best week > 0.
+- **REFUTED** if mean ≤ 0. **INCONCLUSIVE** otherwise.
+
+**Power, stated before the run:** about 222 trades per pair can detect about +0.11–0.12 typical-week units, roughly 30–40 pips a week. Carry alone (about 10 pips a week) is below that, so a small real effect most likely reads INCONCLUSIVE.
+
+**Rates sources:**
+- Bank of England Bank Rate table and RBA cash rate table, fetched and parsed 2026-10-29, page checksums in the rates file.
+- Bank of Japan overnight call rate target: dates confirmed in the BoJ's own documents (July 13–14 2006 → 0.25%; Feb 20–21 2007 → 0.5%; Oct 31 2008 → 0.3%; Dec 18–19 2008 → 0.1%), held at 0.1% thereafter (conservative).
+- FRED and the BoJ statistics portal were unreachable, so they were not used.
+
+**Self-test of the test machinery:** `SELFTEST OK`.
+- A zero edge passed the bound in 14 of 300 simulated runs (about 5%, as intended).
+- **Seven mutants each made it fail:** weakened bar, outlier rule removed, financing sign flipped, quiet test inverted, normaliser shifted a week, carry side reversed, markup ignored.
+- **Before that:** the first self-test missed the weakened bar and the removed outlier rule, and a later version missed the shifted normaliser. The decision rule was extracted and tested at its boundaries, and the hand-computed case was rebuilt with rising ranges, before this commit.
+
+**data_map_spec §11.5** records the owner ruling that the STUDY span also tests this hypothesis.

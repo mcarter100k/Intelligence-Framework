@@ -311,3 +311,17 @@ original text above stands as written.
 - **Items 1–2** are recomputed on the same fetch with the embargo applied.
 - **Output:** match counts, pass/fail, and |difference| in pips for item
   3. No price level, range or average.
+
+### 11.5 — 2026-10-29: the STUDY span also tests one new hypothesis (owner ruling)
+
+§8 named the frozen shadow candidates as what the STUDY tests. On
+2026-10-29 the owner directed one additional pre-registered test on the
+same span: **carry after a quiet week** (docs/specs/carry_quiet_week_spec.md),
+with GBP/JPY and GBP/AUD each as its own cell.
+- **Multiple testing across studies:** each hypothesis tested on this span
+  adds to the number of questions asked of it. Each study must report what
+  it tested, and later readers count them.
+- **The frozen-candidate tests in §8 and §9 are unaffected.** They remain
+  the span's first purpose.
+- **The SEALED EXAM is untouched.** Opening it for any candidate still
+  requires §7.

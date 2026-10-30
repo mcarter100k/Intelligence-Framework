@@ -8,6 +8,7 @@ carries the lifecycle. A later change gets its own spec.
 |---|---|---|---|
 | [alert_expansion_spec.md](alert_expansion_spec.md) | alert expansion — watched-condition flips to phone (team approved 2026-07-31) | f829cd5 2026-07-31 | Built; validation_log cites it 2x |
 | [calendar_autofetch_spec.md](calendar_autofetch_spec.md) | weekly automatic calendar feed (team approved 2026-07-31) | f691f5a 2026-07-31 | Built; validation_log cites it 1x |
+| [carry_quiet_week_spec.md](carry_quiet_week_spec.md) | carry after a quiet week — pre-registered test on the 2005–2013 STUDY data (owner 2026-10-29) | (this commit) 2026-10-29 | Pre-registered; result: see validation_log |
 | [circuit_breaker_promotion_spec.md](circuit_breaker_promotion_spec.md) | circuit-breaker promotion (Spec B of the 2026-09-09 post-audit directive) | 23107bc 2026-09-09 | Promoted to protected; **not wired**: nothing on the live path calls `session_guard`/`risk_config` (owner decision: wire or delete) |
 | [daily_digest_spec.md](daily_digest_spec.md) | daily DIGEST notification (final before freeze, 2026-09-09) | 23669df 2026-09-09 | Built; validation_log cites it 1x |
 | [data_at_source_spec.md](data_at_source_spec.md) | fix the data at the source (Phase 4 of the 2026-09-29 audit plan) | 586a582 2026-09-30 | Built; validation_log cites it 1x |
