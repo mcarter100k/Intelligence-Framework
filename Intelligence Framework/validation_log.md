@@ -4341,3 +4341,121 @@ The owner asked what happens in weeks of 200+ pips versus under 200 on the weekl
 - **GBP/JPY's up-skew** (58% up-closing big weeks; 40% of weekly lows on Monday) matches the pair's 2021–26 rise, a regime and not a weekly habit.
 - **Guard:** OANDA stamps a weekly candle at the previous Friday 17:00 New York. The study's first window assumed a Sunday stamp; the post-receipt guard aborted the run before anything was stored, and the window was corrected. No embargoed, sealed or forward week was used.
 - **Status:** INFORMED PRIOR at most. The candidate hypotheses for a pre-registered 2005–2013 test are listed in the report.
+
+---
+
+## 2026-10-29 — PRE-REGISTRATION: carry after a quiet week (GBP/JPY and GBP/AUD), 2005–2013 STUDY data
+
+Owner direction 2026-10-29: test both pairs, thoroughly. **No 2005–2013 outcome has been computed at this commit.**
+
+**Committed together (sha256):**
+- spec `docs/specs/carry_quiet_week_spec.md`: `5dd3033c856493ced8779fde1505e6ae8e4cc990b38e191e588ba14f82c3cc4d`
+- runner `studies/carry_quiet_week_test.py`: `36c2c3c45fb415a3c1a7c2c00a5a687a421aa9038929f4cf2a5fc281b14e2d92`
+- rates `studies/policy_rates_2003_2014.json`: `5df23e1891630678f2c10184ba8b261498d8a56193a6cc81710f6a83d6a6eacf`
+
+**The test in brief** (the spec is binding):
+- **Rule:** after a week quieter than its previous 26-week median, hold the carry side Monday open → Friday close the next week. That is long GBP/JPY and short GBP/AUD, from the rates table each week.
+- **Costs:** era spreads plus 6 days of financing at the rate gap less 1% a year.
+- **Measure:** typical-week units.
+- **Pass:** a one-sided 95% bootstrap lower bound > 0 (Šidák for two cells) **and** the mean without the best week > 0.
+- **REFUTED** if mean ≤ 0. **INCONCLUSIVE** otherwise.
+
+**Power, stated before the run:** about 222 trades per pair can detect about +0.11–0.12 typical-week units, roughly 30–40 pips a week. Carry alone (about 10 pips a week) is below that, so a small real effect most likely reads INCONCLUSIVE.
+
+**Rates sources:**
+- Bank of England Bank Rate table and RBA cash rate table, fetched and parsed 2026-10-29, page checksums in the rates file.
+- Bank of Japan overnight call rate target: dates confirmed in the BoJ's own documents (July 13–14 2006 → 0.25%; Feb 20–21 2007 → 0.5%; Oct 31 2008 → 0.3%; Dec 18–19 2008 → 0.1%), held at 0.1% thereafter (conservative).
+- FRED and the BoJ statistics portal were unreachable, so they were not used.
+
+**Self-test of the test machinery:** `SELFTEST OK`.
+- A zero edge passed the bound in 14 of 300 simulated runs (about 5%, as intended).
+- **Seven mutants each made it fail:** weakened bar, outlier rule removed, financing sign flipped, quiet test inverted, normaliser shifted a week, carry side reversed, markup ignored.
+- **Before that:** the first self-test missed the weakened bar and the removed outlier rule, and a later version missed the shifted normaliser. The decision rule was extracted and tested at its boundaries, and the hand-computed case was rebuilt with rising ranges, before this commit.
+
+**data_map_spec §11.5** records the owner ruling that the STUDY span also tests this hypothesis.
+
+---
+
+## 2026-10-29 — carry after a quiet week: counts stage (before any outcome)
+
+Run 2026-10-29 23:51 PDT, after pre-registration commit `55cd404`. **Counts only; no outcome computed.**
+
+| | GBP/JPY | GBP/AUD |
+|---|---|---|
+| Weeks (2005-01-03 → 2013-12-30) | 470, 1 excluded (< 3 sessions) | 470, 1 excluded |
+| Weeks with 26 weeks of history and a next week | 442 | 442 |
+| **Quiet-week trades** | **233** | **224** |
+| Side held (from the rates table) | long, every week | short, every week |
+| Weekend rule applied | 420 Sundays folded, 258 Saturdays dropped | 420 folded, 266 dropped |
+
+- **Trades per year:** GBP/JPY 10, 30, 19, 25, 36, 34, 28, 28, 23; GBP/AUD 10, 29, 18, 26, 41, 26, 25, 33, 16 (2005 → 2013).
+- **The N is in line with the power plan** (about 222).
+- **Data checksums** recorded for the full stage:
+  - GBP_JPY_D `ca160240…`, GBP_JPY_H4 `f06892d1…`
+  - GBP_AUD_D `661a9d49…`, GBP_AUD_H4 `a59db994…`
+  - full values in the run's `data_hashes.json`
+- **Cross-check against the 2026-10-22 gate fetch: NOT CHECKED.** Those files no longer exist. The weekend-rule counts, computed independently, equal the 2026-10-22 census exactly.
+- The live project hash was identical before and after.
+
+
+---
+
+## 2026-10-29 — RESULT: carry after a quiet week — GBP/JPY REFUTED, GBP/AUD INCONCLUSIVE (2005–2013 STUDY data)
+
+Run once, 2026-10-29 23:52 PDT, under pre-registration `55cd404` and on the data recorded at the counts stage `e568867` (sha256 verified by the runner). The live project hash was identical before and after. **Verbatim output:**
+
+# Carry after a quiet week — pre-registered test result (2005–2013 STUDY data)
+
+Spec: docs/specs/carry_quiet_week_spec.md. Run once, on the candles recorded at the counts stage (sha256 verified). Units: **typical-week ranges** (a trade's pips divided by the median weekly range of the 26 weeks before it), the primary measure; pips are secondary.
+
+## GBP/JPY: **REFUTED**
+
+- Side held: long GBP/JPY in 233 of 233 weeks (the higher-yielding currency bought).
+- **Primary (typical-week units):** N 233; mean -0.003; one-sided 95% lower bound -0.075 (normal-approximation check -0.076); median -0.033; mean without the best week -0.012; winning weeks 48%
+- Pips: N 233; mean -13.701 pips; one-sided 95% lower bound -45.077 pips (normal-approximation check -45.181); median -10.317 pips; mean without the best week -17.475 pips; winning weeks 48%
+- Average trade in pips: price move -11.9, spread −5.5, financing +3.7, net -13.7
+- Worst drawdown: -20.38 typical-week ranges (-8984 pips); worst week -1126 pips; longest losing run 7 weeks
+
+**Secondary (never changes the verdict):**
+
+- Carry in every week (no quiet filter): N 442; mean +0.014; one-sided 95% lower bound -0.047 (normal-approximation check -0.047); median +0.033; mean without the best week +0.008; winning weeks 52%
+- Carry after non-quiet weeks: N 209; mean +0.033; one-sided 95% lower bound -0.069 (normal-approximation check -0.067); median +0.121; mean without the best week +0.022; winning weeks 57%
+- Does 'quiet' add anything? Quiet minus non-quiet mean -0.037, 90% interval -0.162 to +0.088
+- 2005-01 to 2008-06 (before the crisis): N 74, mean +0.080, winning weeks 57%
+- 2008-07 to 2009-06 (the crisis): N 30, mean -0.118, winning weeks 40%
+- 2009-07 to 2013-12 (after): N 129, mean -0.025, winning weeks 44%
+- Net pips by year: 2005 +1406 (10), 2006 +2091 (30), 2007 -2345 (19), 2008 -2991 (25), 2009 -653 (36), 2010 -1099 (34), 2011 -1098 (28), 2012 +520 (28), 2013 +977 (23)
+- Cost sensitivity, financing markup 0%: mean +0.004, lower bound -0.069
+- Cost sensitivity, financing markup 2%: mean -0.011, lower bound -0.084
+- Cost sensitivity, spread x1.5: mean -0.011, lower bound -0.084
+
+## GBP/AUD: **INCONCLUSIVE**
+
+- Side held: short GBP/AUD in 224 of 224 weeks (the higher-yielding currency bought).
+- **Primary (typical-week units):** N 224; mean +0.033; one-sided 95% lower bound -0.035 (normal-approximation check -0.035); median +0.036; mean without the best week +0.025; winning weeks 51%
+- Pips: N 224; mean +30.241 pips; one-sided 95% lower bound +1.083 pips (normal-approximation check +0.610); median +14.632 pips; mean without the best week +26.329 pips; winning weeks 51%
+- Average trade in pips: price move +34.6, spread −8.7, financing +4.3, net +30.2
+- Worst drawdown: -9.38 typical-week ranges (-3010 pips); worst week -616 pips; longest losing run 7 weeks
+
+**Secondary (never changes the verdict):**
+
+- Carry in every week (no quiet filter): N 442; mean -0.008; one-sided 95% lower bound -0.073 (normal-approximation check -0.073); median +0.042; mean without the best week -0.015; winning weeks 51%
+- Carry after non-quiet weeks: N 218; mean -0.049; one-sided 95% lower bound -0.164 (normal-approximation check -0.162); median +0.061; mean without the best week -0.064; winning weeks 51%
+- Does 'quiet' add anything? Quiet minus non-quiet mean +0.082, 90% interval -0.046 to +0.213
+- 2005-01 to 2008-06 (before the crisis): N 78, mean +0.058, winning weeks 54%
+- 2008-07 to 2009-06 (the crisis): N 27, mean +0.091, winning weeks 48%
+- 2009-07 to 2013-12 (after): N 119, mean +0.003, winning weeks 50%
+- Net pips by year: 2005 +871 (10), 2006 -309 (29), 2007 +133 (18), 2008 +2814 (26), 2009 +3246 (41), 2010 +1558 (26), 2011 +887 (25), 2012 -814 (33), 2013 -1612 (16)
+- Cost sensitivity, financing markup 0%: mean +0.041, lower bound -0.027
+- Cost sensitivity, financing markup 2%: mean +0.025, lower bound -0.041
+- Cost sensitivity, spread x1.5: mean +0.022, lower bound -0.044
+
+**Reading** (the verdicts above are the pre-registered ones; nothing here changes them):
+- **GBP/JPY: REFUTED.** Buying after quiet weeks lost money on average, and the 2021–2026 observation did not survive conditions it was not found on.
+  - Carry in every week was flat too (+0.014, bound −0.047).
+  - The losses concentrate in 2007–2008, the carry unwind; the worst week was −1,126 pips.
+- **GBP/AUD: INCONCLUSIVE.** The mean is positive (+0.033 typical-week units, about +30 pips a week after costs), but the 95% lower bound is −0.035.
+  - The pip-measured bound is slightly positive (+1.1 pips), but pips were declared secondary in advance. The pip total is carried by the volatile 2008–09 weeks (+6,060 of the net), which risk-equal sizing removes. Reporting the better-looking measure would be the forking path the pre-registration exists to stop.
+  - The quiet filter's advantage over non-quiet weeks (+0.082) has an interval spanning zero.
+  - This effect is below what 224 trades can resolve, as the power statement warned.
+- **Status:** GBP/JPY carry-after-quiet REFUTED on 2005–2013. GBP/AUD INCONCLUSIVE; it is not a candidate for the sealed exam on this evidence. Both are recorded in foundation/research_findings.md (R33, R34).
