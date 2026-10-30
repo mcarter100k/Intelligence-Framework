@@ -4373,3 +4373,26 @@ Owner direction 2026-10-29: test both pairs, thoroughly. **No 2005–2013 outcom
 - **Before that:** the first self-test missed the weakened bar and the removed outlier rule, and a later version missed the shifted normaliser. The decision rule was extracted and tested at its boundaries, and the hand-computed case was rebuilt with rising ranges, before this commit.
 
 **data_map_spec §11.5** records the owner ruling that the STUDY span also tests this hypothesis.
+
+---
+
+## 2026-10-29 — carry after a quiet week: counts stage (before any outcome)
+
+Run 2026-10-29 23:51 PDT, after pre-registration commit `55cd404`. **Counts only; no outcome computed.**
+
+| | GBP/JPY | GBP/AUD |
+|---|---|---|
+| Weeks (2005-01-03 → 2013-12-30) | 470, 1 excluded (< 3 sessions) | 470, 1 excluded |
+| Weeks with 26 weeks of history and a next week | 442 | 442 |
+| **Quiet-week trades** | **233** | **224** |
+| Side held (from the rates table) | long, every week | short, every week |
+| Weekend rule applied | 420 Sundays folded, 258 Saturdays dropped | 420 folded, 266 dropped |
+
+- **Trades per year:** GBP/JPY 10, 30, 19, 25, 36, 34, 28, 28, 23; GBP/AUD 10, 29, 18, 26, 41, 26, 25, 33, 16 (2005 → 2013).
+- **The N is in line with the power plan** (about 222).
+- **Data checksums** recorded for the full stage:
+  - GBP_JPY_D `ca160240…`, GBP_JPY_H4 `f06892d1…`
+  - GBP_AUD_D `661a9d49…`, GBP_AUD_H4 `a59db994…`
+  - full values in the run's `data_hashes.json`
+- **Cross-check against the 2026-10-22 gate fetch: NOT CHECKED.** Those files no longer exist. The weekend-rule counts, computed independently, equal the 2026-10-22 census exactly.
+- The live project hash was identical before and after.
