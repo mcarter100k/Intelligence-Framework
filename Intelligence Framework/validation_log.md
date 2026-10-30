@@ -4325,3 +4325,19 @@ The gate was run 01:09 PDT exactly as declared in data_map_spec §11.4, committe
 - **The fold counts match the 2026-10-22 timestamp census exactly:** 420 Sunday-session D1 per pair; 771/710 Sunday H4; 266/258 Saturday D1; 480/453 Saturday H4.
 
 **Status:** PASS on both pairs, by the declared criterion. Together with the §3 gate, the converted OANDA STUDY data (2005-01-01 → 2013-12-30) now meets every data-side condition in data_map_spec. **A study still needs its own pre-registration, starting with the §9 frequency count.** The live project hash was identical before and after (verified against the pre-check snapshot).
+
+---
+
+## 2026-10-29 — Weekly range study (exploratory, USED span): no directional weekly tendency; volatility clusters
+
+The owner asked what happens in weeks of 200+ pips versus under 200 on the weekly timeframe. It was run on the USED span (learning only, never proof): weeks of 2021-05-03 → 2026-08-31, 279 per pair, OANDA mid weekly candles checked against their daily candles (279/279 agree within 0.5 pip). The untouched 2005–2013 STUDY data stays fresh for confirmation. Full numbers: studies/weekly_range_study_report.md; script: studies/weekly_range_study.py.
+
+- **Split:** 200+ pip weeks were 80% of GBP/AUD weeks and 88% of GBP/JPY weeks.
+- **Volatility clusters (real):** after a 200+ week, the next was 200+ 83% / 90% of the time; after a quieter week, 71% / 76%.
+- **No direction persistence:** next-week continuation was 46–60% in every group, every confidence interval spanning 50%.
+- **Weekly shape matches a random walk:** trend vs indecision weeks, close location, extremes on Monday or Friday, and Monday agreeing with the week. This was checked against a directionless random walk, including a version weighted by each weekday's real activity.
+  - **Control:** the simulation reproduces the closed-form random-walk values (59% for the high on Monday or Friday; 65% for Monday agreeing with the week).
+  - **Borderline only:** GBP/AUD extremes set midweek, 21% (CI 16–26) vs 15.7% expected; GBP/JPY Monday agreement, 60% (CI 54–66) vs 64.3%. Among about 100 comparisons, these are consistent with chance.
+- **GBP/JPY's up-skew** (58% up-closing big weeks; 40% of weekly lows on Monday) matches the pair's 2021–26 rise, a regime and not a weekly habit.
+- **Guard:** OANDA stamps a weekly candle at the previous Friday 17:00 New York. The study's first window assumed a Sunday stamp; the post-receipt guard aborted the run before anything was stored, and the window was corrected. No embargoed, sealed or forward week was used.
+- **Status:** INFORMED PRIOR at most. The candidate hypotheses for a pre-registered 2005–2013 test are listed in the report.
