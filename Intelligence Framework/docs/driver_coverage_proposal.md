@@ -221,3 +221,8 @@ evidence path.
   reactions. Recorded in validation_log.
 - **2026-11-01, done:** step 0 (live guard code check, merged), storylines
   format test (merged), step 2 (instrument probe).
+- **2026-11-01, step 4 done (US-event study, pre-registered):** all six
+  cells INCONCLUSIVE (R35, R36). Typical US release days move these crosses
+  about as much as normal days; GBP/AUD on FOMC days is the closest call.
+  Step 5 proceeds as **context only**; a US gate is not justified on this
+  evidence.

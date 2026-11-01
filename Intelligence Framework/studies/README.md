@@ -37,6 +37,7 @@ foundation/ cites these about 20 times. They were committed exactly as found, ea
 |---|---|---|
 | `stage2_source_convert_gate.py` | `stage2_gate_report.md` | Stage 2 of docs/specs/data_map_spec.md: source conversion and the feed-overlap gate |
 | `instrument_probe.py` | `instrument_probe_report.md` | Which cross-market instruments the live account offers, their daily history, and today's financing rates (owner-approved, 2026-11-01) |
+| `us_event_reaction_test.py` | `us_event_reaction_result.md` (after the run) | Do scheduled US releases (FOMC, CPI, jobs report) widen GBP/JPY and GBP/AUD daily ranges? Pre-registered: docs/specs/us_event_reaction_spec.md; event table `us_events_2005_2013.csv` |
 
 ## Premises tested (most were refuted at honest N; see foundation/research_findings.md)
 

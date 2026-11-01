@@ -1,0 +1,2506 @@
+[
+ {
+  "source_id": "alfred_CPIAUCSL",
+  "url": "https://alfred.stlouisfed.org/series/downloaddata?seid=CPIAUCSL",
+  "fetched_utc": "2026-11-01T08:08:37Z",
+  "sha256": "33e006a7e258ad2f4ee80f42e48f948901528e49b616ee2c4ae328326d3e20ad",
+  "raw_file": "raw/alfred/alfred_dl_CPIAUCSL.htm",
+  "bytes": 84957
+ },
+ {
+  "source_id": "alfred_PAYEMS",
+  "url": "https://alfred.stlouisfed.org/series/downloaddata?seid=PAYEMS",
+  "fetched_utc": "2026-11-01T08:08:35Z",
+  "sha256": "eb9cd5c0f706f2b58d6076a9dbebb349d6abdf18ac36d20a6a40cb76ca5d2cfd",
+  "raw_file": "raw/alfred/alfred_dl_PAYEMS.htm",
+  "bytes": 99893
+ },
+ {
+  "source_id": "bls_cpi_archive",
+  "url": "https://www.bls.gov/bls/news-release/cpi.htm",
+  "fetched_utc": "2026-11-01T08:01:01Z",
+  "sha256": "a6c6595103212f19425d454b5fa4b58f63eb4e037a5da6659b9f787c8e449b2b",
+  "raw_file": "raw/bls_cpi.htm",
+  "bytes": 128672
+ },
+ {
+  "source_id": "bls_cpi_rel_20050119",
+  "url": "https://www.bls.gov/news.release/history/cpi_01192005.txt",
+  "fetched_utc": "2026-11-01T08:01:36Z",
+  "sha256": "0b6c144d8ede320e7a816035d73116e1562a225534c99d22396837ddb7f83039",
+  "raw_file": "raw/bls_cpi_detail/cpi_01192005.txt",
+  "bytes": 146262
+ },
+ {
+  "source_id": "bls_cpi_rel_20050223",
+  "url": "https://www.bls.gov/news.release/history/cpi_02232005.txt",
+  "fetched_utc": "2026-11-01T08:01:37Z",
+  "sha256": "a6ffe294afb200a94cc2b392743f1642101cefe4987e7fb50d4534385ef050cf",
+  "raw_file": "raw/bls_cpi_detail/cpi_02232005.txt",
+  "bytes": 123143
+ },
+ {
+  "source_id": "bls_cpi_rel_20050323",
+  "url": "https://www.bls.gov/news.release/history/cpi_03232005.txt",
+  "fetched_utc": "2026-11-01T08:01:38Z",
+  "sha256": "464210deb0157aca866000647d428d3c90edd83911c028cd9c73887e2f0aa19d",
+  "raw_file": "raw/bls_cpi_detail/cpi_03232005.txt",
+  "bytes": 116864
+ },
+ {
+  "source_id": "bls_cpi_rel_20050420",
+  "url": "https://www.bls.gov/news.release/history/cpi_04202005.txt",
+  "fetched_utc": "2026-11-01T08:01:39Z",
+  "sha256": "7a42458c9236edcf432f14504e9570b4af4ece1bbd597be956febdffbff73e39",
+  "raw_file": "raw/bls_cpi_detail/cpi_04202005.txt",
+  "bytes": 119690
+ },
+ {
+  "source_id": "bls_cpi_rel_20050518",
+  "url": "https://www.bls.gov/news.release/history/cpi_05182005.txt",
+  "fetched_utc": "2026-11-01T08:01:41Z",
+  "sha256": "fe2b7117fbe1419477546971c41027386363c1f940b1436e900a9c705c493d85",
+  "raw_file": "raw/bls_cpi_detail/cpi_05182005.txt",
+  "bytes": 117489
+ },
+ {
+  "source_id": "bls_cpi_rel_20050615",
+  "url": "https://www.bls.gov/news.release/history/cpi_06152005.txt",
+  "fetched_utc": "2026-11-01T08:01:42Z",
+  "sha256": "cb3ff7c2bfef975fc81d9d9dd92841387ffec6dd3b8feb7986c17a141c22e394",
+  "raw_file": "raw/bls_cpi_detail/cpi_06152005.txt",
+  "bytes": 117436
+ },
+ {
+  "source_id": "bls_cpi_rel_20050714",
+  "url": "https://www.bls.gov/news.release/history/cpi_07142005.txt",
+  "fetched_utc": "2026-11-01T08:01:43Z",
+  "sha256": "4b28d4dbc19b48e341e3b50845ff2220e73906f047692007a1e3536230c604be",
+  "raw_file": "raw/bls_cpi_detail/cpi_07142005.txt",
+  "bytes": 119840
+ },
+ {
+  "source_id": "bls_cpi_rel_20050816",
+  "url": "https://www.bls.gov/news.release/history/cpi_08162005.txt",
+  "fetched_utc": "2026-11-01T08:01:44Z",
+  "sha256": "36d0c6d7ec6bf9fd78b00aa6a6d269bdf406897410c1b022e78ae7b24a6fc44c",
+  "raw_file": "raw/bls_cpi_detail/cpi_08162005.txt",
+  "bytes": 116574
+ },
+ {
+  "source_id": "bls_cpi_rel_20050915",
+  "url": "https://www.bls.gov/news.release/history/cpi_09152005.txt",
+  "fetched_utc": "2026-11-01T08:01:45Z",
+  "sha256": "13661ac69386a265a7ba1dc936c435fa149c112318d745249156eb4d1206c5f2",
+  "raw_file": "raw/bls_cpi_detail/cpi_09152005.txt",
+  "bytes": 117324
+ },
+ {
+  "source_id": "bls_cpi_rel_20051014",
+  "url": "https://www.bls.gov/news.release/history/cpi_10142005.txt",
+  "fetched_utc": "2026-11-01T08:01:46Z",
+  "sha256": "9da257e6fb0b6197be64419a6e99be5224e9c503844003571891b545e202268f",
+  "raw_file": "raw/bls_cpi_detail/cpi_10142005.txt",
+  "bytes": 121084
+ },
+ {
+  "source_id": "bls_cpi_rel_20051116",
+  "url": "https://www.bls.gov/news.release/history/cpi_11162005.txt",
+  "fetched_utc": "2026-11-01T08:01:48Z",
+  "sha256": "f8ee56c7cd0511d2ba286a065ec988bbc424b82171fb875e86f5919fd42e54aa",
+  "raw_file": "raw/bls_cpi_detail/cpi_11162005.txt",
+  "bytes": 117579
+ },
+ {
+  "source_id": "bls_cpi_rel_20051215",
+  "url": "https://www.bls.gov/news.release/history/cpi_12152005.txt",
+  "fetched_utc": "2026-11-01T08:01:49Z",
+  "sha256": "b8b9aa26a27828cd686b8361cfc8008c7af2a1fc7b1ab2884db0e57d2435d0ab",
+  "raw_file": "raw/bls_cpi_detail/cpi_12152005.txt",
+  "bytes": 117932
+ },
+ {
+  "source_id": "bls_cpi_rel_20060118",
+  "url": "https://www.bls.gov/news.release/history/cpi_01182006.txt",
+  "fetched_utc": "2026-11-01T08:01:50Z",
+  "sha256": "756b2b3a5c9a8050089973ae54e993f058aa2a74f8325964e80801d80566d6cf",
+  "raw_file": "raw/bls_cpi_detail/cpi_01182006.txt",
+  "bytes": 149921
+ },
+ {
+  "source_id": "bls_cpi_rel_20060222",
+  "url": "https://www.bls.gov/news.release/history/cpi_02222006.txt",
+  "fetched_utc": "2026-11-01T08:01:51Z",
+  "sha256": "59a140200f9e0b721235df81ec3a8451aac6c6f427220c748e33c07b7c6dcdc4",
+  "raw_file": "raw/bls_cpi_detail/cpi_02222006.txt",
+  "bytes": 174149
+ },
+ {
+  "source_id": "bls_cpi_rel_20060316",
+  "url": "https://www.bls.gov/news.release/history/cpi_03162006.txt",
+  "fetched_utc": "2026-11-01T08:01:52Z",
+  "sha256": "05465f54809065f1a4e939b92206068371630ef307e9c79ca719062edaf81ee1",
+  "raw_file": "raw/bls_cpi_detail/cpi_03162006.txt",
+  "bytes": 166166
+ },
+ {
+  "source_id": "bls_cpi_rel_20060419",
+  "url": "https://www.bls.gov/news.release/history/cpi_04192006.txt",
+  "fetched_utc": "2026-11-01T08:01:54Z",
+  "sha256": "80df11f973c7276764d3053197d462a4762862e6ae37cc3373bb2bcd0ab45ebb",
+  "raw_file": "raw/bls_cpi_detail/cpi_04192006.txt",
+  "bytes": 169254
+ },
+ {
+  "source_id": "bls_cpi_rel_20060517",
+  "url": "https://www.bls.gov/news.release/history/cpi_05172006.txt",
+  "fetched_utc": "2026-11-01T08:01:55Z",
+  "sha256": "98c4c93e42005e3dcc008a78e1e1aa2344c40f34ecfdae354f12dd6d5780ed42",
+  "raw_file": "raw/bls_cpi_detail/cpi_05172006.txt",
+  "bytes": 165803
+ },
+ {
+  "source_id": "bls_cpi_rel_20060614",
+  "url": "https://www.bls.gov/news.release/history/cpi_06142006.txt",
+  "fetched_utc": "2026-11-01T08:01:56Z",
+  "sha256": "dbc44f67d6bd2574a9e9da9b124d33cb5c2e246a561eccf87db2e368db286fb1",
+  "raw_file": "raw/bls_cpi_detail/cpi_06142006.txt",
+  "bytes": 165680
+ },
+ {
+  "source_id": "bls_cpi_rel_20060719",
+  "url": "https://www.bls.gov/news.release/history/cpi_07192006.txt",
+  "fetched_utc": "2026-11-01T08:01:57Z",
+  "sha256": "6c202fec2019e5a42711001f2f2a7afebc7580dd790284c7f7f896e5fce571a9",
+  "raw_file": "raw/bls_cpi_detail/cpi_07192006.txt",
+  "bytes": 168512
+ },
+ {
+  "source_id": "bls_cpi_rel_20060816",
+  "url": "https://www.bls.gov/news.release/history/cpi_08162006.txt",
+  "fetched_utc": "2026-11-01T08:01:58Z",
+  "sha256": "b0ac46126418ed0fbbef2fb36bc547aa2056900762ace5ce3b71178431c5dcab",
+  "raw_file": "raw/bls_cpi_detail/cpi_08162006.txt",
+  "bytes": 119493
+ },
+ {
+  "source_id": "bls_cpi_rel_20060915",
+  "url": "https://www.bls.gov/news.release/history/cpi_09152006.txt",
+  "fetched_utc": "2026-11-01T08:02:00Z",
+  "sha256": "3f6f47d8c4d17c96f5ebfd54144eb6768f3ab029ae4709c7dd55817d67e4c443",
+  "raw_file": "raw/bls_cpi_detail/cpi_09152006.txt",
+  "bytes": 119658
+ },
+ {
+  "source_id": "bls_cpi_rel_20061018",
+  "url": "https://www.bls.gov/news.release/history/cpi_10182006.txt",
+  "fetched_utc": "2026-11-01T08:02:01Z",
+  "sha256": "d9e6a1f17e84bbb5fd5f42d5d7ae5e54d0f192ba3774a32c2891a0a7c7dc1b2e",
+  "raw_file": "raw/bls_cpi_detail/cpi_10182006.txt",
+  "bytes": 122632
+ },
+ {
+  "source_id": "bls_cpi_rel_20061116",
+  "url": "https://www.bls.gov/news.release/history/cpi_11162006.txt",
+  "fetched_utc": "2026-11-01T08:02:02Z",
+  "sha256": "41c96bd30ca87dd60dc554bcf6f400dbf2db4beca83956889e56be7e7ddefd71",
+  "raw_file": "raw/bls_cpi_detail/cpi_11162006.txt",
+  "bytes": 119898
+ },
+ {
+  "source_id": "bls_cpi_rel_20061215",
+  "url": "https://www.bls.gov/news.release/history/cpi_12152006.txt",
+  "fetched_utc": "2026-11-01T08:02:03Z",
+  "sha256": "c72e0b321b8a292198b136746d73bc7a8c29ecf6904125abe9660a56da627b84",
+  "raw_file": "raw/bls_cpi_detail/cpi_12152006.txt",
+  "bytes": 120764
+ },
+ {
+  "source_id": "bls_cpi_rel_20070118",
+  "url": "https://www.bls.gov/news.release/history/cpi_01182007.txt",
+  "fetched_utc": "2026-11-01T08:02:04Z",
+  "sha256": "a4e8b0223db55d3ac48e9e673d5ffd4dbe199d0405665fbff0ea3ac754a462b1",
+  "raw_file": "raw/bls_cpi_detail/cpi_01182007.txt",
+  "bytes": 150958
+ },
+ {
+  "source_id": "bls_cpi_rel_20070221",
+  "url": "https://www.bls.gov/news.release/history/cpi_02212007.txt",
+  "fetched_utc": "2026-11-01T08:02:06Z",
+  "sha256": "a63809402ff16ac3f6976930f8eb3458d3b536614ef66c8fe6ce34d8e4b42a87",
+  "raw_file": "raw/bls_cpi_detail/cpi_02212007.txt",
+  "bytes": 131084
+ },
+ {
+  "source_id": "bls_cpi_rel_20070316",
+  "url": "https://www.bls.gov/news.release/history/cpi_03162007.txt",
+  "fetched_utc": "2026-11-01T08:02:07Z",
+  "sha256": "657369d47f725e8b4b89dea911786d13d99a0d05e24ff6614aee2d93c3495e93",
+  "raw_file": "raw/bls_cpi_detail/cpi_03162007.txt",
+  "bytes": 124649
+ },
+ {
+  "source_id": "bls_cpi_rel_20070417",
+  "url": "https://www.bls.gov/news.release/history/cpi_04172007.txt",
+  "fetched_utc": "2026-11-01T08:02:08Z",
+  "sha256": "b13bb5ad195f586aea461f9abd2cb289f43254baec6c0b9864ee3478ab5c4247",
+  "raw_file": "raw/bls_cpi_detail/cpi_04172007.txt",
+  "bytes": 127770
+ },
+ {
+  "source_id": "bls_cpi_rel_20070515",
+  "url": "https://www.bls.gov/news.release/history/cpi_05152007.txt",
+  "fetched_utc": "2026-11-01T08:02:09Z",
+  "sha256": "2458db111e23c402dbe0c9e120f83d2b03ab61f6a43b76985a612cac55931bf5",
+  "raw_file": "raw/bls_cpi_detail/cpi_05152007.txt",
+  "bytes": 124858
+ },
+ {
+  "source_id": "bls_cpi_rel_20070615",
+  "url": "https://www.bls.gov/news.release/history/cpi_06152007.txt",
+  "fetched_utc": "2026-11-01T08:02:10Z",
+  "sha256": "3bb98f5e4eb06f65084159c3f7573790925f7383fa8e5b686be75ac0cfa1ee20",
+  "raw_file": "raw/bls_cpi_detail/cpi_06152007.txt",
+  "bytes": 125082
+ },
+ {
+  "source_id": "bls_cpi_rel_20070718",
+  "url": "https://www.bls.gov/news.release/history/cpi_07182007.txt",
+  "fetched_utc": "2026-11-01T08:02:12Z",
+  "sha256": "e83b5b54dcfc9af25ccfd85f8353b8aac2515fd0260e04c4e44420fa7eece0ba",
+  "raw_file": "raw/bls_cpi_detail/cpi_07182007.txt",
+  "bytes": 127402
+ },
+ {
+  "source_id": "bls_cpi_rel_20070815",
+  "url": "https://www.bls.gov/news.release/history/cpi_08152007.txt",
+  "fetched_utc": "2026-11-01T08:02:13Z",
+  "sha256": "2e25c7bd8a57af8a272f855a5199fd5331fde44b2e73886e7a1d72be216da780",
+  "raw_file": "raw/bls_cpi_detail/cpi_08152007.txt",
+  "bytes": 123084
+ },
+ {
+  "source_id": "bls_cpi_rel_20070919",
+  "url": "https://www.bls.gov/news.release/history/cpi_09192007.txt",
+  "fetched_utc": "2026-11-01T08:02:14Z",
+  "sha256": "33652f147c828145dfa32950bce39997111f860959c03a11a84fabb570ff8dee",
+  "raw_file": "raw/bls_cpi_detail/cpi_09192007.txt",
+  "bytes": 128974
+ },
+ {
+  "source_id": "bls_cpi_rel_20071017",
+  "url": "https://www.bls.gov/news.release/history/cpi_10172007.txt",
+  "fetched_utc": "2026-11-01T08:02:15Z",
+  "sha256": "3ed45f40c9a85086ffd7a20f0293fb527cdb529c09fabd20a1e8b52037aef558",
+  "raw_file": "raw/bls_cpi_detail/cpi_10172007.txt",
+  "bytes": 126577
+ },
+ {
+  "source_id": "bls_cpi_rel_20071115",
+  "url": "https://www.bls.gov/news.release/history/cpi_11152007.txt",
+  "fetched_utc": "2026-11-01T08:02:17Z",
+  "sha256": "0454be6b3c5486176b72b4c18e1e776cdfa520fea5dc5dbc38d8a5a95974bfc7",
+  "raw_file": "raw/bls_cpi_detail/cpi_11152007.txt",
+  "bytes": 123640
+ },
+ {
+  "source_id": "bls_cpi_rel_20071214",
+  "url": "https://www.bls.gov/news.release/history/cpi_12142007.txt",
+  "fetched_utc": "2026-11-01T08:02:18Z",
+  "sha256": "af3928b6b03f6515852f23efb6c3cc77beae791be7e3ac96891db0a50fa66c6d",
+  "raw_file": "raw/bls_cpi_detail/cpi_12142007.txt",
+  "bytes": 124409
+ },
+ {
+  "source_id": "bls_cpi_rel_20080116",
+  "url": "https://www.bls.gov/news.release/history/cpi_01162008.txt",
+  "fetched_utc": "2026-11-01T08:02:19Z",
+  "sha256": "05d1b65f005be12175e72ff73710b2c50c5f16ba84faadf42b3893a6c8d417ef",
+  "raw_file": "raw/bls_cpi_detail/cpi_01162008.txt",
+  "bytes": 153604
+ },
+ {
+  "source_id": "bls_cpi_rel_20080220",
+  "url": "https://www.bls.gov/news.release/archives/cpi_02202008.htm",
+  "fetched_utc": "2026-11-01T08:02:20Z",
+  "sha256": "ce93f84364f3c6fa23a69ab497145c10e732b8ae40bf49daeba081d912b179e5",
+  "raw_file": "raw/bls_cpi_detail/cpi_02202008.htm",
+  "bytes": 177126
+ },
+ {
+  "source_id": "bls_cpi_rel_20080314",
+  "url": "https://www.bls.gov/news.release/archives/cpi_03142008.htm",
+  "fetched_utc": "2026-11-01T08:02:21Z",
+  "sha256": "7caa111629ba32bd32a5ce7c26305db044edda249127d3ea811220a1314f6310",
+  "raw_file": "raw/bls_cpi_detail/cpi_03142008.htm",
+  "bytes": 171803
+ },
+ {
+  "source_id": "bls_cpi_rel_20080416",
+  "url": "https://www.bls.gov/news.release/archives/cpi_04162008.htm",
+  "fetched_utc": "2026-11-01T08:02:22Z",
+  "sha256": "b525f2f4f9607519fd21e0cb3731cb530c3787d839c268f85390847d68c3d7c6",
+  "raw_file": "raw/bls_cpi_detail/cpi_04162008.htm",
+  "bytes": 174973
+ },
+ {
+  "source_id": "bls_cpi_rel_20080514",
+  "url": "https://www.bls.gov/news.release/archives/cpi_05142008.htm",
+  "fetched_utc": "2026-11-01T08:02:24Z",
+  "sha256": "9f7cab68e46611bd7f3566bad38081ce8c3e4d2b1f9b6429fcc68877916b6388",
+  "raw_file": "raw/bls_cpi_detail/cpi_05142008.htm",
+  "bytes": 172438
+ },
+ {
+  "source_id": "bls_cpi_rel_20080613",
+  "url": "https://www.bls.gov/news.release/archives/cpi_06132008.htm",
+  "fetched_utc": "2026-11-01T08:02:25Z",
+  "sha256": "ec56898b731ef1a211dbd90f07645fe8060e4ed488a153d5dab435727491edd1",
+  "raw_file": "raw/bls_cpi_detail/cpi_06132008.htm",
+  "bytes": 171991
+ },
+ {
+  "source_id": "bls_cpi_rel_20080716",
+  "url": "https://www.bls.gov/news.release/archives/cpi_07162008.htm",
+  "fetched_utc": "2026-11-01T08:02:26Z",
+  "sha256": "67c80a0bcb9a3748b4614ef98263be6841968ac356cafb42fc4d9bf8c34b540f",
+  "raw_file": "raw/bls_cpi_detail/cpi_07162008.htm",
+  "bytes": 175015
+ },
+ {
+  "source_id": "bls_cpi_rel_20080814",
+  "url": "https://www.bls.gov/news.release/archives/cpi_08142008.htm",
+  "fetched_utc": "2026-11-01T08:02:27Z",
+  "sha256": "160a21882306ef81863f6a727d5e1a451ed8f982628e3a0a279a3721991aacb7",
+  "raw_file": "raw/bls_cpi_detail/cpi_08142008.htm",
+  "bytes": 171156
+ },
+ {
+  "source_id": "bls_cpi_rel_20080916",
+  "url": "https://www.bls.gov/news.release/archives/cpi_09162008.htm",
+  "fetched_utc": "2026-11-01T08:02:28Z",
+  "sha256": "854327d0aa6c068b77f924e000645d32c644e5812947349a796b48072037486a",
+  "raw_file": "raw/bls_cpi_detail/cpi_09162008.htm",
+  "bytes": 171985
+ },
+ {
+  "source_id": "bls_cpi_rel_20081016",
+  "url": "https://www.bls.gov/news.release/archives/cpi_10162008.htm",
+  "fetched_utc": "2026-11-01T08:02:30Z",
+  "sha256": "204aefda5e9ab68e9d15f1632158c9e8673e986c6775ba5bb28a8e5e7707fbf4",
+  "raw_file": "raw/bls_cpi_detail/cpi_10162008.htm",
+  "bytes": 175432
+ },
+ {
+  "source_id": "bls_cpi_rel_20081119",
+  "url": "https://www.bls.gov/news.release/archives/cpi_11192008.htm",
+  "fetched_utc": "2026-11-01T08:02:31Z",
+  "sha256": "85fdcca0cea4e5277502810e69cd3f84967e029fe3ddc521a10c239c6be264f2",
+  "raw_file": "raw/bls_cpi_detail/cpi_11192008.htm",
+  "bytes": 171651
+ },
+ {
+  "source_id": "bls_cpi_rel_20081216",
+  "url": "https://www.bls.gov/news.release/archives/cpi_12162008.htm",
+  "fetched_utc": "2026-11-01T08:02:32Z",
+  "sha256": "8128a06275f35cf1eab38de5310fb29d9a57753f3d5ea3b3ee97d45245b0e65e",
+  "raw_file": "raw/bls_cpi_detail/cpi_12162008.htm",
+  "bytes": 172026
+ },
+ {
+  "source_id": "bls_cpi_rel_20090116",
+  "url": "https://www.bls.gov/news.release/archives/cpi_01162009.htm",
+  "fetched_utc": "2026-11-01T08:02:33Z",
+  "sha256": "f49da4456b8de6210a56d34149f42a63a4821aee1a41cf5e3f8b924ccb0a51bc",
+  "raw_file": "raw/bls_cpi_detail/cpi_01162009.htm",
+  "bytes": 201922
+ },
+ {
+  "source_id": "bls_cpi_rel_20090220",
+  "url": "https://www.bls.gov/news.release/archives/cpi_02202009.htm",
+  "fetched_utc": "2026-11-01T08:02:34Z",
+  "sha256": "27a6eb7acb7ce78828640073f0d772fcab832be563aea635223ff37276dca82f",
+  "raw_file": "raw/bls_cpi_detail/cpi_02202009.htm",
+  "bytes": 177342
+ },
+ {
+  "source_id": "bls_cpi_rel_20090318",
+  "url": "https://www.bls.gov/news.release/archives/cpi_03182009.htm",
+  "fetched_utc": "2026-11-01T08:02:35Z",
+  "sha256": "df2eaa97392cb26f1dcbebeda06204b595f493aeb5354717f6b19358564eba29",
+  "raw_file": "raw/bls_cpi_detail/cpi_03182009.htm",
+  "bytes": 170502
+ },
+ {
+  "source_id": "bls_cpi_rel_20090415",
+  "url": "https://www.bls.gov/news.release/archives/cpi_04152009.htm",
+  "fetched_utc": "2026-11-01T08:02:37Z",
+  "sha256": "d9f5ca256288416b14e3555c57e14561de7bc237befe64d1ca28baa162a0ce8a",
+  "raw_file": "raw/bls_cpi_detail/cpi_04152009.htm",
+  "bytes": 173705
+ },
+ {
+  "source_id": "bls_cpi_rel_20090515",
+  "url": "https://www.bls.gov/news.release/archives/cpi_05152009.htm",
+  "fetched_utc": "2026-11-01T08:02:38Z",
+  "sha256": "0efa989204d721c5926bcdb6b624da9a6ee3df3845be15af7ad5daa12a8f475e",
+  "raw_file": "raw/bls_cpi_detail/cpi_05152009.htm",
+  "bytes": 170593
+ },
+ {
+  "source_id": "bls_cpi_rel_20090617",
+  "url": "https://www.bls.gov/news.release/archives/cpi_06172009.htm",
+  "fetched_utc": "2026-11-01T08:02:39Z",
+  "sha256": "94ab7581fd9a8097a7aaec44be860c4a99b3dc42b96a8c3104c9527585c21ce3",
+  "raw_file": "raw/bls_cpi_detail/cpi_06172009.htm",
+  "bytes": 170296
+ },
+ {
+  "source_id": "bls_cpi_rel_20090715",
+  "url": "https://www.bls.gov/news.release/archives/cpi_07152009.htm",
+  "fetched_utc": "2026-11-01T08:02:40Z",
+  "sha256": "6bb9de0640d08efd9f8cd37116a51c5f193fc75df9ee3822ca91f88dcef909e0",
+  "raw_file": "raw/bls_cpi_detail/cpi_07152009.htm",
+  "bytes": 173923
+ },
+ {
+  "source_id": "bls_cpi_rel_20090814",
+  "url": "https://www.bls.gov/news.release/archives/cpi_08142009.htm",
+  "fetched_utc": "2026-11-01T08:02:42Z",
+  "sha256": "8a9d5aaa102618b3e31aa4d493e107f5addfa8208ed6c3f52757ebbda0b23673",
+  "raw_file": "raw/bls_cpi_detail/cpi_08142009.htm",
+  "bytes": 171513
+ },
+ {
+  "source_id": "bls_cpi_rel_20090916",
+  "url": "https://www.bls.gov/news.release/archives/cpi_09162009.htm",
+  "fetched_utc": "2026-11-01T08:02:43Z",
+  "sha256": "8f7468cbfbab950be358d02d9d0c2dbe04287b0226c3d00723a60ac87f9175e7",
+  "raw_file": "raw/bls_cpi_detail/cpi_09162009.htm",
+  "bytes": 167106
+ },
+ {
+  "source_id": "bls_cpi_rel_20091015",
+  "url": "https://www.bls.gov/news.release/archives/cpi_10152009.htm",
+  "fetched_utc": "2026-11-01T08:02:44Z",
+  "sha256": "1bf2a3cbbb55553658240d6020585998229316c73446f32d61ce678f1ca3aaea",
+  "raw_file": "raw/bls_cpi_detail/cpi_10152009.htm",
+  "bytes": 167815
+ },
+ {
+  "source_id": "bls_cpi_rel_20091118",
+  "url": "https://www.bls.gov/news.release/archives/cpi_11182009.htm",
+  "fetched_utc": "2026-11-01T08:02:46Z",
+  "sha256": "e8aef329b1d8d699401ff36c91fcf4c8d436d7f046ca90e79deff109e4de23f7",
+  "raw_file": "raw/bls_cpi_detail/cpi_11182009.htm",
+  "bytes": 166754
+ },
+ {
+  "source_id": "bls_cpi_rel_20091216",
+  "url": "https://www.bls.gov/news.release/archives/cpi_12162009.htm",
+  "fetched_utc": "2026-11-01T08:02:47Z",
+  "sha256": "6526d3f730d0465b8dd15e247cb7fa95816ee5b9ad875e7417eac6b763336db0",
+  "raw_file": "raw/bls_cpi_detail/cpi_12162009.htm",
+  "bytes": 169110
+ },
+ {
+  "source_id": "bls_cpi_rel_20100115",
+  "url": "https://www.bls.gov/news.release/archives/cpi_01152010.htm",
+  "fetched_utc": "2026-11-01T08:02:48Z",
+  "sha256": "b31f295c4df5d9567fa0ccb87b009afb1b56f21ab6483e95e9faf3a443c5590f",
+  "raw_file": "raw/bls_cpi_detail/cpi_01152010.htm",
+  "bytes": 200020
+ },
+ {
+  "source_id": "bls_cpi_rel_20100219",
+  "url": "https://www.bls.gov/news.release/archives/cpi_02192010.htm",
+  "fetched_utc": "2026-11-01T08:02:49Z",
+  "sha256": "3c859e407f2b4de5a054e181a6c34ba1d2b5713076505c908876280972c003a4",
+  "raw_file": "raw/bls_cpi_detail/cpi_02192010.htm",
+  "bytes": 175036
+ },
+ {
+  "source_id": "bls_cpi_rel_20100318",
+  "url": "https://www.bls.gov/news.release/archives/cpi_03182010.htm",
+  "fetched_utc": "2026-11-01T08:02:51Z",
+  "sha256": "720d67fdeb3787866c35c2bd76af21a9bfbd30beb6a88d504db32b71be080234",
+  "raw_file": "raw/bls_cpi_detail/cpi_03182010.htm",
+  "bytes": 167973
+ },
+ {
+  "source_id": "bls_cpi_rel_20100414",
+  "url": "https://www.bls.gov/news.release/archives/cpi_04142010.htm",
+  "fetched_utc": "2026-11-01T08:02:52Z",
+  "sha256": "ad54b47b9c5f18948677ae9162761c8972ded124ddf8f2f8fb3c0a4a0ca9e5ae",
+  "raw_file": "raw/bls_cpi_detail/cpi_04142010.htm",
+  "bytes": 167994
+ },
+ {
+  "source_id": "bls_cpi_rel_20100519",
+  "url": "https://www.bls.gov/news.release/archives/cpi_05192010.htm",
+  "fetched_utc": "2026-11-01T08:02:53Z",
+  "sha256": "8157dfef2d95b7a2c8b808a740fc888cad22a109e1a85727820337e6e01ab239",
+  "raw_file": "raw/bls_cpi_detail/cpi_05192010.htm",
+  "bytes": 168243
+ },
+ {
+  "source_id": "bls_cpi_rel_20100617",
+  "url": "https://www.bls.gov/news.release/archives/cpi_06172010.htm",
+  "fetched_utc": "2026-11-01T08:02:54Z",
+  "sha256": "740dd51f5edd5bf2c467433835aa584ded49df8d679ad83b51dc94b6b558affb",
+  "raw_file": "raw/bls_cpi_detail/cpi_06172010.htm",
+  "bytes": 168566
+ },
+ {
+  "source_id": "bls_cpi_rel_20100716",
+  "url": "https://www.bls.gov/news.release/archives/cpi_07162010.htm",
+  "fetched_utc": "2026-11-01T08:02:56Z",
+  "sha256": "addcfb938f3d541f6df160199d21b51c1fba5132b37da2720882aaa99e85d898",
+  "raw_file": "raw/bls_cpi_detail/cpi_07162010.htm",
+  "bytes": 168640
+ },
+ {
+  "source_id": "bls_cpi_rel_20100813",
+  "url": "https://www.bls.gov/news.release/archives/cpi_08132010.htm",
+  "fetched_utc": "2026-11-01T08:02:57Z",
+  "sha256": "152cec761b9f311b5e205a612ae46a9d80376a0ae4436bb13ef6d7f53ba34cd4",
+  "raw_file": "raw/bls_cpi_detail/cpi_08132010.htm",
+  "bytes": 169101
+ },
+ {
+  "source_id": "bls_cpi_rel_20100917",
+  "url": "https://www.bls.gov/news.release/archives/cpi_09172010.htm",
+  "fetched_utc": "2026-11-01T08:02:58Z",
+  "sha256": "ee49a62a4c02bbffa5190f8c15851c9c6741857414c5cf5fc5fdca38c76553d4",
+  "raw_file": "raw/bls_cpi_detail/cpi_09172010.htm",
+  "bytes": 168951
+ },
+ {
+  "source_id": "bls_cpi_rel_20101015",
+  "url": "https://www.bls.gov/news.release/archives/cpi_10152010.htm",
+  "fetched_utc": "2026-11-01T08:03:00Z",
+  "sha256": "ecc66fb3d7aafb8edb3a150edf079309a22a214dceb1cd04790df5709ff863d6",
+  "raw_file": "raw/bls_cpi_detail/cpi_10152010.htm",
+  "bytes": 169113
+ },
+ {
+  "source_id": "bls_cpi_rel_20101117",
+  "url": "https://www.bls.gov/news.release/archives/cpi_11172010.htm",
+  "fetched_utc": "2026-11-01T08:03:01Z",
+  "sha256": "48b85c93c92a128fd19dd09a0a033998e2b45345d70deb665cc7db3069cf5be3",
+  "raw_file": "raw/bls_cpi_detail/cpi_11172010.htm",
+  "bytes": 170793
+ },
+ {
+  "source_id": "bls_cpi_rel_20101215",
+  "url": "https://www.bls.gov/news.release/archives/cpi_12152010.htm",
+  "fetched_utc": "2026-11-01T08:03:02Z",
+  "sha256": "03eb977a274bef2db8b460ab49aab1b9545fc2b39bc0283e0d9c44b3c846e0c1",
+  "raw_file": "raw/bls_cpi_detail/cpi_12152010.htm",
+  "bytes": 169770
+ },
+ {
+  "source_id": "bls_cpi_rel_20110114",
+  "url": "https://www.bls.gov/news.release/archives/cpi_01142011.htm",
+  "fetched_utc": "2026-11-01T08:03:03Z",
+  "sha256": "7d44776eaa1fadd3f1450354e17fe5fcec5bbe713624fd4280889f0ea1c30801",
+  "raw_file": "raw/bls_cpi_detail/cpi_01142011.htm",
+  "bytes": 197002
+ },
+ {
+  "source_id": "bls_cpi_rel_20110217",
+  "url": "https://www.bls.gov/news.release/archives/cpi_02172011.htm",
+  "fetched_utc": "2026-11-01T08:03:05Z",
+  "sha256": "40b4a71412fbf4be5f0ec38e9e243268e74e795aa029ad88bdf99d051990c49b",
+  "raw_file": "raw/bls_cpi_detail/cpi_02172011.htm",
+  "bytes": 173453
+ },
+ {
+  "source_id": "bls_cpi_rel_20110317",
+  "url": "https://www.bls.gov/news.release/archives/cpi_03172011.htm",
+  "fetched_utc": "2026-11-01T08:03:06Z",
+  "sha256": "c3947231ea39d24b10b93fca81450300c5e655671a24fc089fd6e65c5a978578",
+  "raw_file": "raw/bls_cpi_detail/cpi_03172011.htm",
+  "bytes": 169629
+ },
+ {
+  "source_id": "bls_cpi_rel_20110415",
+  "url": "https://www.bls.gov/news.release/archives/cpi_04152011.htm",
+  "fetched_utc": "2026-11-01T08:03:07Z",
+  "sha256": "2d6fa7a055e382ae6d9b00673b5f4b00fe72517cb94bd9eceea8b13a20b6eec1",
+  "raw_file": "raw/bls_cpi_detail/cpi_04152011.htm",
+  "bytes": 169039
+ },
+ {
+  "source_id": "bls_cpi_rel_20110513",
+  "url": "https://www.bls.gov/news.release/archives/cpi_05132011.htm",
+  "fetched_utc": "2026-11-01T08:03:08Z",
+  "sha256": "9eafe09b20ffe0fa71e3e873191cebade482af15743550fa60485c7d677acea3",
+  "raw_file": "raw/bls_cpi_detail/cpi_05132011.htm",
+  "bytes": 169376
+ },
+ {
+  "source_id": "bls_cpi_rel_20110615",
+  "url": "https://www.bls.gov/news.release/archives/cpi_06152011.htm",
+  "fetched_utc": "2026-11-01T08:03:09Z",
+  "sha256": "7afb7c57c15be5a94e5250da34ba788cc4b78304f9accfedaff753a48061b05e",
+  "raw_file": "raw/bls_cpi_detail/cpi_06152011.htm",
+  "bytes": 169414
+ },
+ {
+  "source_id": "bls_cpi_rel_20110715",
+  "url": "https://www.bls.gov/news.release/archives/cpi_07152011.htm",
+  "fetched_utc": "2026-11-01T08:03:11Z",
+  "sha256": "48f6c81199b753025ad10a73afbeb78aba1e80f89d0ce5d8a82ef677d1a3051e",
+  "raw_file": "raw/bls_cpi_detail/cpi_07152011.htm",
+  "bytes": 169469
+ },
+ {
+  "source_id": "bls_cpi_rel_20110818",
+  "url": "https://www.bls.gov/news.release/archives/cpi_08182011.htm",
+  "fetched_utc": "2026-11-01T08:03:12Z",
+  "sha256": "5427d7f7932e143afca4aaefdeb8555a5e6b459e39497a759ea1fdbc47ef9ef6",
+  "raw_file": "raw/bls_cpi_detail/cpi_08182011.htm",
+  "bytes": 168282
+ },
+ {
+  "source_id": "bls_cpi_rel_20110915",
+  "url": "https://www.bls.gov/news.release/archives/cpi_09152011.htm",
+  "fetched_utc": "2026-11-01T08:03:14Z",
+  "sha256": "6a64bd2af57bb2ed341d41a5eff81e41199a59c3ea106c2a24eff2496afd8c53",
+  "raw_file": "raw/bls_cpi_detail/cpi_09152011.htm",
+  "bytes": 168432
+ },
+ {
+  "source_id": "bls_cpi_rel_20111019",
+  "url": "https://www.bls.gov/news.release/archives/cpi_10192011.htm",
+  "fetched_utc": "2026-11-01T08:03:15Z",
+  "sha256": "d3bb1fdf2d5a7b64e59e237f639ed2b7be17d8e3a6bac49c14a14297a8fc4820",
+  "raw_file": "raw/bls_cpi_detail/cpi_10192011.htm",
+  "bytes": 172648
+ },
+ {
+  "source_id": "bls_cpi_rel_20111116",
+  "url": "https://www.bls.gov/news.release/archives/cpi_11162011.htm",
+  "fetched_utc": "2026-11-01T08:03:16Z",
+  "sha256": "89ebdedffbba51f721e26870391da6bff7832a63fc18ef6d19b78c2793de546c",
+  "raw_file": "raw/bls_cpi_detail/cpi_11162011.htm",
+  "bytes": 168169
+ },
+ {
+  "source_id": "bls_cpi_rel_20111216",
+  "url": "https://www.bls.gov/news.release/archives/cpi_12162011.htm",
+  "fetched_utc": "2026-11-01T08:03:17Z",
+  "sha256": "c0c89a3f89321fd591a1fdb984e4f23be6143deef1d481216271fd18a20e1c71",
+  "raw_file": "raw/bls_cpi_detail/cpi_12162011.htm",
+  "bytes": 169452
+ },
+ {
+  "source_id": "bls_cpi_rel_20120119",
+  "url": "https://www.bls.gov/news.release/archives/cpi_01192012.htm",
+  "fetched_utc": "2026-11-01T08:03:18Z",
+  "sha256": "42db663fd317fde777531eb057e1f29a024da2b7afea520403d971c6b7223fe7",
+  "raw_file": "raw/bls_cpi_detail/cpi_01192012.htm",
+  "bytes": 200767
+ },
+ {
+  "source_id": "bls_cpi_rel_20120217",
+  "url": "https://www.bls.gov/news.release/archives/cpi_02172012.htm",
+  "fetched_utc": "2026-11-01T08:03:20Z",
+  "sha256": "e496f8939385c7032f2e8533be15bcbe0e1169736202f4b113f241d006cee8ba",
+  "raw_file": "raw/bls_cpi_detail/cpi_02172012.htm",
+  "bytes": 177067
+ },
+ {
+  "source_id": "bls_cpi_rel_20120316",
+  "url": "https://www.bls.gov/news.release/archives/cpi_03162012.htm",
+  "fetched_utc": "2026-11-01T08:03:21Z",
+  "sha256": "f7bad6bc27c2ed1f0eb4d3db3a4d156f06c3071a8edc232bd125effbd17b7e1d",
+  "raw_file": "raw/bls_cpi_detail/cpi_03162012.htm",
+  "bytes": 174352
+ },
+ {
+  "source_id": "bls_cpi_rel_20120413",
+  "url": "https://www.bls.gov/news.release/archives/cpi_04132012.htm",
+  "fetched_utc": "2026-11-01T08:03:22Z",
+  "sha256": "17847450b4727182c4b04714f8e81943c23c905b66a761f1784b8367eade05d4",
+  "raw_file": "raw/bls_cpi_detail/cpi_04132012.htm",
+  "bytes": 839994
+ },
+ {
+  "source_id": "bls_cpi_rel_20120515",
+  "url": "https://www.bls.gov/news.release/archives/cpi_05152012.htm",
+  "fetched_utc": "2026-11-01T08:03:24Z",
+  "sha256": "49307eb9e1b0ab004a3d3f2ea82bf833bc8ce2db22dbd7d5bdf0c699ac273665",
+  "raw_file": "raw/bls_cpi_detail/cpi_05152012.htm",
+  "bytes": 839714
+ },
+ {
+  "source_id": "bls_cpi_rel_20120614",
+  "url": "https://www.bls.gov/news.release/archives/cpi_06142012.htm",
+  "fetched_utc": "2026-11-01T08:03:25Z",
+  "sha256": "c35b62d5de70109208f678b67c669a71b052df2098303b49613f918107ba1b43",
+  "raw_file": "raw/bls_cpi_detail/cpi_06142012.htm",
+  "bytes": 835237
+ },
+ {
+  "source_id": "bls_cpi_rel_20120717",
+  "url": "https://www.bls.gov/news.release/archives/cpi_07172012.htm",
+  "fetched_utc": "2026-11-01T08:03:27Z",
+  "sha256": "db4e64405246da30208618f2dae514de5ba09eed3c10bc9b6e5c68d65dfe2805",
+  "raw_file": "raw/bls_cpi_detail/cpi_07172012.htm",
+  "bytes": 835623
+ },
+ {
+  "source_id": "bls_cpi_rel_20120815",
+  "url": "https://www.bls.gov/news.release/archives/cpi_08152012.htm",
+  "fetched_utc": "2026-11-01T08:03:28Z",
+  "sha256": "7d29489127a7f9e49cd671336fab83ee595a31ac81f73e9578c36d2be898b308",
+  "raw_file": "raw/bls_cpi_detail/cpi_08152012.htm",
+  "bytes": 835806
+ },
+ {
+  "source_id": "bls_cpi_rel_20120914",
+  "url": "https://www.bls.gov/news.release/archives/cpi_09142012.htm",
+  "fetched_utc": "2026-11-01T08:03:30Z",
+  "sha256": "e41d2fa855158bd5afb36e625f8c833941feede1b7d23c88ef506cd29c192d8a",
+  "raw_file": "raw/bls_cpi_detail/cpi_09142012.htm",
+  "bytes": 835810
+ },
+ {
+  "source_id": "bls_cpi_rel_20121016",
+  "url": "https://www.bls.gov/news.release/archives/cpi_10162012.htm",
+  "fetched_utc": "2026-11-01T08:03:31Z",
+  "sha256": "9f7bef7d4e7c65540a9e6f507e5099685c1c0a3b0de1c8475c8a684f448faca0",
+  "raw_file": "raw/bls_cpi_detail/cpi_10162012.htm",
+  "bytes": 836165
+ },
+ {
+  "source_id": "bls_cpi_rel_20121115",
+  "url": "https://www.bls.gov/news.release/archives/cpi_11152012.htm",
+  "fetched_utc": "2026-11-01T08:03:32Z",
+  "sha256": "189cae88f63fbad143901c2f85f27be89dc246a65131768d7bd1031fe55478e2",
+  "raw_file": "raw/bls_cpi_detail/cpi_11152012.htm",
+  "bytes": 836315
+ },
+ {
+  "source_id": "bls_cpi_rel_20121214",
+  "url": "https://www.bls.gov/news.release/archives/cpi_12142012.htm",
+  "fetched_utc": "2026-11-01T08:03:34Z",
+  "sha256": "68e7bed61268880d3331036796d86c678b9caa57d301850c385be4591740869e",
+  "raw_file": "raw/bls_cpi_detail/cpi_12142012.htm",
+  "bytes": 931897
+ },
+ {
+  "source_id": "bls_cpi_rel_20130116",
+  "url": "https://www.bls.gov/news.release/archives/cpi_01162013.htm",
+  "fetched_utc": "2026-11-01T08:03:36Z",
+  "sha256": "e97b7f46458bbe5a595454c4c36b96f356eb5f4ce3d7019d14c937c5639a8384",
+  "raw_file": "raw/bls_cpi_detail/cpi_01162013.htm",
+  "bytes": 840109
+ },
+ {
+  "source_id": "bls_cpi_rel_20130221",
+  "url": "https://www.bls.gov/news.release/archives/cpi_02212013.htm",
+  "fetched_utc": "2026-11-01T08:03:37Z",
+  "sha256": "9f78360978e60ec3662ec0d108d3ba4313bfc55694f8388514b36184ea95dec4",
+  "raw_file": "raw/bls_cpi_detail/cpi_02212013.htm",
+  "bytes": 835926
+ },
+ {
+  "source_id": "bls_cpi_rel_20130315",
+  "url": "https://www.bls.gov/news.release/archives/cpi_03152013.htm",
+  "fetched_utc": "2026-11-01T08:03:39Z",
+  "sha256": "026f626d2e1ed33c112c5cdcfb9d977fcf4ce55327e5e4c2032e5b29ee29cd62",
+  "raw_file": "raw/bls_cpi_detail/cpi_03152013.htm",
+  "bytes": 832790
+ },
+ {
+  "source_id": "bls_cpi_rel_20130416",
+  "url": "https://www.bls.gov/news.release/archives/cpi_04162013.htm",
+  "fetched_utc": "2026-11-01T08:03:40Z",
+  "sha256": "36731f90f4ba284d9a96f70a1acc7e73760af8340a37128bc219d8d16feb1181",
+  "raw_file": "raw/bls_cpi_detail/cpi_04162013.htm",
+  "bytes": 833296
+ },
+ {
+  "source_id": "bls_cpi_rel_20130516",
+  "url": "https://www.bls.gov/news.release/archives/cpi_05162013.htm",
+  "fetched_utc": "2026-11-01T08:03:41Z",
+  "sha256": "a208a5edcb88abfb140b60841852c28f85238746e67dc0b510aa353557f3fd2f",
+  "raw_file": "raw/bls_cpi_detail/cpi_05162013.htm",
+  "bytes": 935673
+ },
+ {
+  "source_id": "bls_cpi_rel_20130618",
+  "url": "https://www.bls.gov/news.release/archives/cpi_06182013.htm",
+  "fetched_utc": "2026-11-01T08:03:43Z",
+  "sha256": "a3fa450a13ff4235043ccb229d0a79aa8047fdef564a5120415b43f24e292064",
+  "raw_file": "raw/bls_cpi_detail/cpi_06182013.htm",
+  "bytes": 834522
+ },
+ {
+  "source_id": "bls_cpi_rel_20130716",
+  "url": "https://www.bls.gov/news.release/archives/cpi_07162013.htm",
+  "fetched_utc": "2026-11-01T08:03:44Z",
+  "sha256": "112099d485d603e72e603bad3bc1e36f38bff146a3d0f31137855596d093572c",
+  "raw_file": "raw/bls_cpi_detail/cpi_07162013.htm",
+  "bytes": 834422
+ },
+ {
+  "source_id": "bls_cpi_rel_20130815",
+  "url": "https://www.bls.gov/news.release/archives/cpi_08152013.htm",
+  "fetched_utc": "2026-11-01T08:03:45Z",
+  "sha256": "48b20608916580bcb6e5bfe179a701dc3f74337902a0306832bdcc399b3d7774",
+  "raw_file": "raw/bls_cpi_detail/cpi_08152013.htm",
+  "bytes": 835852
+ },
+ {
+  "source_id": "bls_cpi_rel_20130917",
+  "url": "https://www.bls.gov/news.release/archives/cpi_09172013.htm",
+  "fetched_utc": "2026-11-01T08:03:47Z",
+  "sha256": "7821f05fe995b4fd1adfbfeeba2cdf47f0ecba66e92b3ca314aecc7835f2f013",
+  "raw_file": "raw/bls_cpi_detail/cpi_09172013.htm",
+  "bytes": 835207
+ },
+ {
+  "source_id": "bls_cpi_rel_20131030",
+  "url": "https://www.bls.gov/news.release/archives/cpi_10302013.htm",
+  "fetched_utc": "2026-11-01T08:03:48Z",
+  "sha256": "bd37207d907ed551d0d13f62ee1a2358ea10151d33c80dbc2db6feb1f85d5aea",
+  "raw_file": "raw/bls_cpi_detail/cpi_10302013.htm",
+  "bytes": 835851
+ },
+ {
+  "source_id": "bls_cpi_rel_20131120",
+  "url": "https://www.bls.gov/news.release/archives/cpi_11202013.htm",
+  "fetched_utc": "2026-11-01T08:03:50Z",
+  "sha256": "b117b0f801e01809977d9e8baa76243cbd0f4f913730b668feced434c2dc9174",
+  "raw_file": "raw/bls_cpi_detail/cpi_11202013.htm",
+  "bytes": 836512
+ },
+ {
+  "source_id": "bls_cpi_rel_20131217",
+  "url": "https://www.bls.gov/news.release/archives/cpi_12172013.htm",
+  "fetched_utc": "2026-11-01T08:03:51Z",
+  "sha256": "1e305539fea3d10e251262715e6d7854916ea841475fc92dacba4bf9b6124ef1",
+  "raw_file": "raw/bls_cpi_detail/cpi_12172013.htm",
+  "bytes": 836502
+ },
+ {
+  "source_id": "bls_empsit_archive",
+  "url": "https://www.bls.gov/bls/news-release/empsit.htm",
+  "fetched_utc": "2026-11-01T08:01:01Z",
+  "sha256": "faabff400e4e64d8e354a5e6a6d5f6aebb59a006b951ae5f5259b47b7245adf3",
+  "raw_file": "raw/bls_empsit.htm",
+  "bytes": 132517
+ },
+ {
+  "source_id": "bls_empsit_rel_20050107",
+  "url": "https://www.bls.gov/news.release/history/empsit_01072005.txt",
+  "fetched_utc": "2026-11-01T08:03:52Z",
+  "sha256": "7f80f14cba3f95b3eeeded7306edb1224c7d9b9f80f7253163b82cef86c0cae7",
+  "raw_file": "raw/bls_nfp_detail/empsit_01072005.txt",
+  "bytes": 181460
+ },
+ {
+  "source_id": "bls_empsit_rel_20050204",
+  "url": "https://www.bls.gov/news.release/history/empsit_02042005.txt",
+  "fetched_utc": "2026-11-01T08:03:53Z",
+  "sha256": "9b3aa17478bab622f69afc4780974205c2be139fa7dc9a4c674ada0306c85e30",
+  "raw_file": "raw/bls_nfp_detail/empsit_02042005.txt",
+  "bytes": 176134
+ },
+ {
+  "source_id": "bls_empsit_rel_20050304",
+  "url": "https://www.bls.gov/news.release/history/empsit_03042005.txt",
+  "fetched_utc": "2026-11-01T08:03:55Z",
+  "sha256": "658e666cfbf71ea3aa9f351bd426bb1fe74174bd429ec8be74b7fceb2bf1f518",
+  "raw_file": "raw/bls_nfp_detail/empsit_03042005.txt",
+  "bytes": 166248
+ },
+ {
+  "source_id": "bls_empsit_rel_20050401",
+  "url": "https://www.bls.gov/news.release/history/empsit_04012005.txt",
+  "fetched_utc": "2026-11-01T08:03:56Z",
+  "sha256": "1c15195fbdc23614ff8042ef07a0b96f560e90c5fcc5e56623bff4fbeee80edd",
+  "raw_file": "raw/bls_nfp_detail/empsit_04012005.txt",
+  "bytes": 165378
+ },
+ {
+  "source_id": "bls_empsit_rel_20050506",
+  "url": "https://www.bls.gov/news.release/history/empsit_05062005.txt",
+  "fetched_utc": "2026-11-01T08:03:57Z",
+  "sha256": "62a57e87c938bfbea5401a1ebb1fe6473cc385e952e40c7581bdf889cb11e148",
+  "raw_file": "raw/bls_nfp_detail/empsit_05062005.txt",
+  "bytes": 165900
+ },
+ {
+  "source_id": "bls_empsit_rel_20050603",
+  "url": "https://www.bls.gov/news.release/history/empsit_06032005.txt",
+  "fetched_utc": "2026-11-01T08:03:58Z",
+  "sha256": "17f6b433b70aacf94c1a1a10c5aea8bba6bace6b8e916dd6c4ff92447cffbae3",
+  "raw_file": "raw/bls_nfp_detail/empsit_06032005.txt",
+  "bytes": 165140
+ },
+ {
+  "source_id": "bls_empsit_rel_20050708",
+  "url": "https://www.bls.gov/news.release/history/empsit_07082005.txt",
+  "fetched_utc": "2026-11-01T08:03:59Z",
+  "sha256": "c0144eafebe1d5ed683479d4a14a333eb8b6fe11d0316c5ab19032057835c4e4",
+  "raw_file": "raw/bls_nfp_detail/empsit_07082005.txt",
+  "bytes": 165303
+ },
+ {
+  "source_id": "bls_empsit_rel_20050805",
+  "url": "https://www.bls.gov/news.release/history/empsit_08052005.txt",
+  "fetched_utc": "2026-11-01T08:04:00Z",
+  "sha256": "39256f41d76f96429ca7e322a9ea01b87ee27fb04cfc683b46a6362b3ed7f16f",
+  "raw_file": "raw/bls_nfp_detail/empsit_08052005.txt",
+  "bytes": 166684
+ },
+ {
+  "source_id": "bls_empsit_rel_20050902",
+  "url": "https://www.bls.gov/news.release/history/empsit_09022005.txt",
+  "fetched_utc": "2026-11-01T08:04:02Z",
+  "sha256": "16d93c571efe2ae8f985f3031e32a87a73a1b6a411f646177a29a9a656d38074",
+  "raw_file": "raw/bls_nfp_detail/empsit_09022005.txt",
+  "bytes": 166572
+ },
+ {
+  "source_id": "bls_empsit_rel_20051007",
+  "url": "https://www.bls.gov/news.release/history/empsit_10072005.txt",
+  "fetched_utc": "2026-11-01T08:04:03Z",
+  "sha256": "a4b4de0c59682527ff44505743beb792f90caafadbaa9cbd80adf6df349dd7b0",
+  "raw_file": "raw/bls_nfp_detail/empsit_10072005.txt",
+  "bytes": 171144
+ },
+ {
+  "source_id": "bls_empsit_rel_20051104",
+  "url": "https://www.bls.gov/news.release/history/empsit_11042005.txt",
+  "fetched_utc": "2026-11-01T08:04:04Z",
+  "sha256": "47e471346998b6cacc0d3b2fb12b3eba13869fcbf8d053e5242d8d5499406938",
+  "raw_file": "raw/bls_nfp_detail/empsit_11042005.txt",
+  "bytes": 170349
+ },
+ {
+  "source_id": "bls_empsit_rel_20051202",
+  "url": "https://www.bls.gov/news.release/history/empsit_12022005.txt",
+  "fetched_utc": "2026-11-01T08:04:05Z",
+  "sha256": "ffc989f5e3b09f444ed5ddfb6c68949a7591036e101757def077d6b0b9516922",
+  "raw_file": "raw/bls_nfp_detail/empsit_12022005.txt",
+  "bytes": 172369
+ },
+ {
+  "source_id": "bls_empsit_rel_20060106",
+  "url": "https://www.bls.gov/news.release/history/empsit_01062006.txt",
+  "fetched_utc": "2026-11-01T08:04:06Z",
+  "sha256": "03a5ffbef50003a95f95656840089f9de0c2629302d95a88ce1fb2359751d0ee",
+  "raw_file": "raw/bls_nfp_detail/empsit_01062006.txt",
+  "bytes": 186019
+ },
+ {
+  "source_id": "bls_empsit_rel_20060203",
+  "url": "https://www.bls.gov/news.release/history/empsit_02032006.txt",
+  "fetched_utc": "2026-11-01T08:04:08Z",
+  "sha256": "b39769cc7db9506e9109e2b338d7d61fce7c4f2da49cf2f93d993da0278fe46f",
+  "raw_file": "raw/bls_nfp_detail/empsit_02032006.txt",
+  "bytes": 198788
+ },
+ {
+  "source_id": "bls_empsit_rel_20060310",
+  "url": "https://www.bls.gov/news.release/history/empsit_03102006.txt",
+  "fetched_utc": "2026-11-01T08:04:09Z",
+  "sha256": "6f4ccc6a0a157cd49d62fef6b63e4f38282a22279dd8787624fb5a4353ea3c5f",
+  "raw_file": "raw/bls_nfp_detail/empsit_03102006.txt",
+  "bytes": 189437
+ },
+ {
+  "source_id": "bls_empsit_rel_20060407",
+  "url": "https://www.bls.gov/news.release/history/empsit_04072006.txt",
+  "fetched_utc": "2026-11-01T08:04:10Z",
+  "sha256": "b4de8101b5f106f0813daf5bf0857faf37a3907adae54972020e0339e0175bc3",
+  "raw_file": "raw/bls_nfp_detail/empsit_04072006.txt",
+  "bytes": 189684
+ },
+ {
+  "source_id": "bls_empsit_rel_20060505",
+  "url": "https://www.bls.gov/news.release/history/empsit_05052006.txt",
+  "fetched_utc": "2026-11-01T08:04:11Z",
+  "sha256": "8535f139830ad8b9648ed46f8db5667d452ccafa371705733069458d821b92f5",
+  "raw_file": "raw/bls_nfp_detail/empsit_05052006.txt",
+  "bytes": 189083
+ },
+ {
+  "source_id": "bls_empsit_rel_20060602",
+  "url": "https://www.bls.gov/news.release/history/empsit_06022006.txt",
+  "fetched_utc": "2026-11-01T08:04:12Z",
+  "sha256": "e23359c838dac1fc04580fce74f7cb43384d9f1799a2e08c9c3465c55b1d9c56",
+  "raw_file": "raw/bls_nfp_detail/empsit_06022006.txt",
+  "bytes": 189209
+ },
+ {
+  "source_id": "bls_empsit_rel_20060707",
+  "url": "https://www.bls.gov/news.release/history/empsit_07072006.txt",
+  "fetched_utc": "2026-11-01T08:04:14Z",
+  "sha256": "00bf4ff32c96813918938227733a093cabbfa41372b982d3719295c4ec145b8d",
+  "raw_file": "raw/bls_nfp_detail/empsit_07072006.txt",
+  "bytes": 190396
+ },
+ {
+  "source_id": "bls_empsit_rel_20060804",
+  "url": "https://www.bls.gov/news.release/history/empsit_08042006.txt",
+  "fetched_utc": "2026-11-01T08:04:15Z",
+  "sha256": "beaabda43723cc0012ea483454d1ac19dd8e9a868be2905f6568daf2d8a11324",
+  "raw_file": "raw/bls_nfp_detail/empsit_08042006.txt",
+  "bytes": 191193
+ },
+ {
+  "source_id": "bls_empsit_rel_20060901",
+  "url": "https://www.bls.gov/news.release/history/empsit_09012006.txt",
+  "fetched_utc": "2026-11-01T08:04:16Z",
+  "sha256": "70924ca2be1cec3204a948990db90779fb0dbfa793747a211559c28e4a27cbca",
+  "raw_file": "raw/bls_nfp_detail/empsit_09012006.txt",
+  "bytes": 188932
+ },
+ {
+  "source_id": "bls_empsit_rel_20061006",
+  "url": "https://www.bls.gov/news.release/history/empsit_10062006.txt",
+  "fetched_utc": "2026-11-01T08:04:17Z",
+  "sha256": "f2a35aa67c8813dc60dd916e56d75394763fc7c3654907a632e3e522fb4b8685",
+  "raw_file": "raw/bls_nfp_detail/empsit_10062006.txt",
+  "bytes": 193497
+ },
+ {
+  "source_id": "bls_empsit_rel_20061103",
+  "url": "https://www.bls.gov/news.release/history/empsit_11032006.txt",
+  "fetched_utc": "2026-11-01T08:04:18Z",
+  "sha256": "c921617f665de0aceef5234a418480a0201e8e42cb8c4b9f67abfc6975f53fa8",
+  "raw_file": "raw/bls_nfp_detail/empsit_11032006.txt",
+  "bytes": 191212
+ },
+ {
+  "source_id": "bls_empsit_rel_20061208",
+  "url": "https://www.bls.gov/news.release/history/empsit_12082006.txt",
+  "fetched_utc": "2026-11-01T08:04:20Z",
+  "sha256": "7a29ba78922b2d2fd39a88f5c38627333607dd8a1089318d0dd83220016c2e21",
+  "raw_file": "raw/bls_nfp_detail/empsit_12082006.txt",
+  "bytes": 189776
+ },
+ {
+  "source_id": "bls_empsit_rel_20070105",
+  "url": "https://www.bls.gov/news.release/history/empsit_01052007.txt",
+  "fetched_utc": "2026-11-01T08:04:21Z",
+  "sha256": "f8558d0b701f6eb4ee0f244cdfe08ae992c4d325cd722ae62b83c752db07347b",
+  "raw_file": "raw/bls_nfp_detail/empsit_01052007.txt",
+  "bytes": 201642
+ },
+ {
+  "source_id": "bls_empsit_rel_20070202",
+  "url": "https://www.bls.gov/news.release/history/empsit_02022007.txt",
+  "fetched_utc": "2026-11-01T08:04:22Z",
+  "sha256": "be444921e4d043c52c007286f488426872cfdae4d673295de8cf344bf6590178",
+  "raw_file": "raw/bls_nfp_detail/empsit_02022007.txt",
+  "bytes": 196768
+ },
+ {
+  "source_id": "bls_empsit_rel_20070309",
+  "url": "https://www.bls.gov/news.release/history/empsit_03092007.txt",
+  "fetched_utc": "2026-11-01T08:04:23Z",
+  "sha256": "e566f1897441397ccd8d12e44e9c02b92210d8c14f773b42b261dd167667b02f",
+  "raw_file": "raw/bls_nfp_detail/empsit_03092007.txt",
+  "bytes": 188783
+ },
+ {
+  "source_id": "bls_empsit_rel_20070406",
+  "url": "https://www.bls.gov/news.release/history/empsit_04062007.txt",
+  "fetched_utc": "2026-11-01T08:04:24Z",
+  "sha256": "f7761290b016a2cc4295419828845ade808b39775d4d189981d97b018ed1f057",
+  "raw_file": "raw/bls_nfp_detail/empsit_04062007.txt",
+  "bytes": 189868
+ },
+ {
+  "source_id": "bls_empsit_rel_20070504",
+  "url": "https://www.bls.gov/news.release/history/empsit_05042007.txt",
+  "fetched_utc": "2026-11-01T08:04:25Z",
+  "sha256": "3b9bf95d59af48a9e3ac1113043bc767a58b6f40e858c17593db71197a97580e",
+  "raw_file": "raw/bls_nfp_detail/empsit_05042007.txt",
+  "bytes": 188056
+ },
+ {
+  "source_id": "bls_empsit_rel_20070601",
+  "url": "https://www.bls.gov/news.release/history/empsit_06012007.txt",
+  "fetched_utc": "2026-11-01T08:04:27Z",
+  "sha256": "38b43208c8199c32b8633d631679f2d6a54d0318000445a582c23f7cc88f008f",
+  "raw_file": "raw/bls_nfp_detail/empsit_06012007.txt",
+  "bytes": 184810
+ },
+ {
+  "source_id": "bls_empsit_rel_20070706",
+  "url": "https://www.bls.gov/news.release/history/empsit_07062007.txt",
+  "fetched_utc": "2026-11-01T08:04:28Z",
+  "sha256": "b06430bd85dd02ef510d2afef73cf6daaa91ba8b17b1c67ed61063c25f3698e6",
+  "raw_file": "raw/bls_nfp_detail/empsit_07062007.txt",
+  "bytes": 184287
+ },
+ {
+  "source_id": "bls_empsit_rel_20070803",
+  "url": "https://www.bls.gov/news.release/history/empsit_08032007.txt",
+  "fetched_utc": "2026-11-01T08:04:29Z",
+  "sha256": "e14caab3e75133790fec6909322ba7c691849a89abecab6a68f188d12abd1bb7",
+  "raw_file": "raw/bls_nfp_detail/empsit_08032007.txt",
+  "bytes": 185223
+ },
+ {
+  "source_id": "bls_empsit_rel_20070907",
+  "url": "https://www.bls.gov/news.release/history/empsit_09072007.txt",
+  "fetched_utc": "2026-11-01T08:04:30Z",
+  "sha256": "b1253cf3df60fcbbc13f549e3e4a4aa035ba46f7d202392da3c1f8f4db604f9d",
+  "raw_file": "raw/bls_nfp_detail/empsit_09072007.txt",
+  "bytes": 185114
+ },
+ {
+  "source_id": "bls_empsit_rel_20071005",
+  "url": "https://www.bls.gov/news.release/history/empsit_10052007.txt",
+  "fetched_utc": "2026-11-01T08:04:31Z",
+  "sha256": "eef5d345019a41e75967ac8a7aee1deb57a670c77fd4db98265e55ba5304bd50",
+  "raw_file": "raw/bls_nfp_detail/empsit_10052007.txt",
+  "bytes": 188728
+ },
+ {
+  "source_id": "bls_empsit_rel_20071102",
+  "url": "https://www.bls.gov/news.release/history/empsit_11022007.txt",
+  "fetched_utc": "2026-11-01T08:04:33Z",
+  "sha256": "8f7cf624e3792f973d5f8404c72fb00fe0c09020eb63e391d8e309548e7fe5a7",
+  "raw_file": "raw/bls_nfp_detail/empsit_11022007.txt",
+  "bytes": 187925
+ },
+ {
+  "source_id": "bls_empsit_rel_20071207",
+  "url": "https://www.bls.gov/news.release/history/empsit_12072007.txt",
+  "fetched_utc": "2026-11-01T08:04:34Z",
+  "sha256": "10e1576f8147413e0b752e61975e7e9f61989b7b0e359e774a3b8e407e6dd27c",
+  "raw_file": "raw/bls_nfp_detail/empsit_12072007.txt",
+  "bytes": 189782
+ },
+ {
+  "source_id": "bls_empsit_rel_20080104",
+  "url": "https://www.bls.gov/news.release/history/empsit_01042008.txt",
+  "fetched_utc": "2026-11-01T08:04:35Z",
+  "sha256": "5a6e7abc73f9cb4341c58d618559252741b967713a85b25a75444df878ca1bbc",
+  "raw_file": "raw/bls_nfp_detail/empsit_01042008.txt",
+  "bytes": 201386
+ },
+ {
+  "source_id": "bls_empsit_rel_20080201",
+  "url": "https://www.bls.gov/news.release/archives/empsit_02012008.htm",
+  "fetched_utc": "2026-11-01T08:04:36Z",
+  "sha256": "103fa881d219c9d4b4bfcd6ef6c37d77d93ecb30b822e6dba53a5b7909715a7b",
+  "raw_file": "raw/bls_nfp_detail/empsit_02012008.htm",
+  "bytes": 250238
+ },
+ {
+  "source_id": "bls_empsit_rel_20080307",
+  "url": "https://www.bls.gov/news.release/archives/empsit_03072008.htm",
+  "fetched_utc": "2026-11-01T08:04:37Z",
+  "sha256": "be7a676863ba13d90342d889218aec4889319864e44ea18940afc37e64dfe14e",
+  "raw_file": "raw/bls_nfp_detail/empsit_03072008.htm",
+  "bytes": 235848
+ },
+ {
+  "source_id": "bls_empsit_rel_20080404",
+  "url": "https://www.bls.gov/news.release/archives/empsit_04042008.htm",
+  "fetched_utc": "2026-11-01T08:04:38Z",
+  "sha256": "5dc766656540167bc5b598b1746fa6d724d91499c6ebfb76218ce0766373bb02",
+  "raw_file": "raw/bls_nfp_detail/empsit_04042008.htm",
+  "bytes": 237092
+ },
+ {
+  "source_id": "bls_empsit_rel_20080502",
+  "url": "https://www.bls.gov/news.release/archives/empsit_05022008.htm",
+  "fetched_utc": "2026-11-01T08:04:40Z",
+  "sha256": "aedcf1797c6295f56e6b48bdbbcf42fe41b79d6cdcafcc066ecaf7de04635bd1",
+  "raw_file": "raw/bls_nfp_detail/empsit_05022008.htm",
+  "bytes": 235526
+ },
+ {
+  "source_id": "bls_empsit_rel_20080606",
+  "url": "https://www.bls.gov/news.release/archives/empsit_06062008.htm",
+  "fetched_utc": "2026-11-01T08:04:41Z",
+  "sha256": "054a3d5bc129a098c7bf34fbd1320abcb925bc2c8b9b978dab60ef5b46809ef3",
+  "raw_file": "raw/bls_nfp_detail/empsit_06062008.htm",
+  "bytes": 236566
+ },
+ {
+  "source_id": "bls_empsit_rel_20080703",
+  "url": "https://www.bls.gov/news.release/archives/empsit_07032008.htm",
+  "fetched_utc": "2026-11-01T08:04:42Z",
+  "sha256": "198f5397639c2249ec8277206f296139ad07ca16a10633a131edb27eab9a7011",
+  "raw_file": "raw/bls_nfp_detail/empsit_07032008.htm",
+  "bytes": 248992
+ },
+ {
+  "source_id": "bls_empsit_rel_20080801",
+  "url": "https://www.bls.gov/news.release/archives/empsit_08012008.htm",
+  "fetched_utc": "2026-11-01T08:04:43Z",
+  "sha256": "b3598b330e1404cc61bedfd190d3e0570e08b8c0fc10518573ba5cf4e2e88ac1",
+  "raw_file": "raw/bls_nfp_detail/empsit_08012008.htm",
+  "bytes": 236545
+ },
+ {
+  "source_id": "bls_empsit_rel_20080905",
+  "url": "https://www.bls.gov/news.release/archives/empsit_09052008.htm",
+  "fetched_utc": "2026-11-01T08:04:44Z",
+  "sha256": "2687fcfe0c0ac058f8a24a1abd345fca8199875898210661f314e5c6d68e8938",
+  "raw_file": "raw/bls_nfp_detail/empsit_09052008.htm",
+  "bytes": 236325
+ },
+ {
+  "source_id": "bls_empsit_rel_20081003",
+  "url": "https://www.bls.gov/news.release/archives/empsit_10032008.htm",
+  "fetched_utc": "2026-11-01T08:04:46Z",
+  "sha256": "b71fda4c9ff5a8d55420c350ce70a2b06022583c18536798f936bbc0459cc766",
+  "raw_file": "raw/bls_nfp_detail/empsit_10032008.htm",
+  "bytes": 241187
+ },
+ {
+  "source_id": "bls_empsit_rel_20081107",
+  "url": "https://www.bls.gov/news.release/archives/empsit_11072008.htm",
+  "fetched_utc": "2026-11-01T08:04:47Z",
+  "sha256": "70ff1b61466c1ffbde185310dd15e6140b0d6ed69522bcfd65b6a1cc4806c38f",
+  "raw_file": "raw/bls_nfp_detail/empsit_11072008.htm",
+  "bytes": 236672
+ },
+ {
+  "source_id": "bls_empsit_rel_20081205",
+  "url": "https://www.bls.gov/news.release/archives/empsit_12052008.htm",
+  "fetched_utc": "2026-11-01T08:04:48Z",
+  "sha256": "8452301d1fd715043e4fca2ca4116aa206d10cc184e2d6aa961c66f5c7644325",
+  "raw_file": "raw/bls_nfp_detail/empsit_12052008.htm",
+  "bytes": 241644
+ },
+ {
+  "source_id": "bls_empsit_rel_20090109",
+  "url": "https://www.bls.gov/news.release/archives/empsit_01092009.htm",
+  "fetched_utc": "2026-11-01T08:04:49Z",
+  "sha256": "6cd6c639a1ae6dd401f6284118b8316b188ad76bb21dda267d9e848e4fc0ba0b",
+  "raw_file": "raw/bls_nfp_detail/empsit_01092009.htm",
+  "bytes": 251756
+ },
+ {
+  "source_id": "bls_empsit_rel_20090206",
+  "url": "https://www.bls.gov/news.release/archives/empsit_02062009.htm",
+  "fetched_utc": "2026-11-01T08:04:50Z",
+  "sha256": "37b8fe327ff4dda97cf2c95c2222446374ad72249e94fb72a56a8d14a8130b05",
+  "raw_file": "raw/bls_nfp_detail/empsit_02062009.htm",
+  "bytes": 248417
+ },
+ {
+  "source_id": "bls_empsit_rel_20090306",
+  "url": "https://www.bls.gov/news.release/archives/empsit_03062009.htm",
+  "fetched_utc": "2026-11-01T08:04:51Z",
+  "sha256": "a3f2c54aa87c2f09aa12088ca22a208690f8941f650238c032bfc08736b97ea8",
+  "raw_file": "raw/bls_nfp_detail/empsit_03062009.htm",
+  "bytes": 234726
+ },
+ {
+  "source_id": "bls_empsit_rel_20090403",
+  "url": "https://www.bls.gov/news.release/archives/empsit_04032009.htm",
+  "fetched_utc": "2026-11-01T08:04:52Z",
+  "sha256": "05fb531193f3330178be5aad4c4f95482df590accd1ca272bfda59da840e454b",
+  "raw_file": "raw/bls_nfp_detail/empsit_04032009.htm",
+  "bytes": 235049
+ },
+ {
+  "source_id": "bls_empsit_rel_20090508",
+  "url": "https://www.bls.gov/news.release/archives/empsit_05082009.htm",
+  "fetched_utc": "2026-11-01T08:04:54Z",
+  "sha256": "46c2646e7025a2f22c857faeb12f7c7ec25102ad8aa2db62bade85a318446a17",
+  "raw_file": "raw/bls_nfp_detail/empsit_05082009.htm",
+  "bytes": 234095
+ },
+ {
+  "source_id": "bls_empsit_rel_20090605",
+  "url": "https://www.bls.gov/news.release/archives/empsit_06052009.htm",
+  "fetched_utc": "2026-11-01T08:04:55Z",
+  "sha256": "dc2aee2dfe9f4ff67ed09217ba8bddcbd7f0abb7cd6586e1888a0057cb3084b7",
+  "raw_file": "raw/bls_nfp_detail/empsit_06052009.htm",
+  "bytes": 234140
+ },
+ {
+  "source_id": "bls_empsit_rel_20090702",
+  "url": "https://www.bls.gov/news.release/archives/empsit_07022009.htm",
+  "fetched_utc": "2026-11-01T08:04:56Z",
+  "sha256": "2e72572b8e4ad15b614d7cb54deaaaff811e610a9992268d2ff3716ddcc4b444",
+  "raw_file": "raw/bls_nfp_detail/empsit_07022009.htm",
+  "bytes": 235405
+ },
+ {
+  "source_id": "bls_empsit_rel_20090807",
+  "url": "https://www.bls.gov/news.release/archives/empsit_08072009.htm",
+  "fetched_utc": "2026-11-01T08:04:57Z",
+  "sha256": "610014f77f6509baa871eb4d06cb8e30db223bf1c4cef3063300907e674bc1d6",
+  "raw_file": "raw/bls_nfp_detail/empsit_08072009.htm",
+  "bytes": 232896
+ },
+ {
+  "source_id": "bls_empsit_rel_20090904",
+  "url": "https://www.bls.gov/news.release/archives/empsit_09042009.htm",
+  "fetched_utc": "2026-11-01T08:04:58Z",
+  "sha256": "8675d74e6757c611802b50fae1d4b243b2d2c9a577ba9b486ecf58c0d08ea7cd",
+  "raw_file": "raw/bls_nfp_detail/empsit_09042009.htm",
+  "bytes": 232821
+ },
+ {
+  "source_id": "bls_empsit_rel_20091002",
+  "url": "https://www.bls.gov/news.release/archives/empsit_10022009.htm",
+  "fetched_utc": "2026-11-01T08:04:59Z",
+  "sha256": "80e2e85aab455491c7f718e7c747bfbfefd5b177b672cd4c91091e994b41e033",
+  "raw_file": "raw/bls_nfp_detail/empsit_10022009.htm",
+  "bytes": 235840
+ },
+ {
+  "source_id": "bls_empsit_rel_20091106",
+  "url": "https://www.bls.gov/news.release/archives/empsit_11062009.htm",
+  "fetched_utc": "2026-11-01T08:05:01Z",
+  "sha256": "09eb1c4b4a8dfab96ab46eb46a9fbfbdecb273ada3cf14cda1b7d473fadc0fe6",
+  "raw_file": "raw/bls_nfp_detail/empsit_11062009.htm",
+  "bytes": 231928
+ },
+ {
+  "source_id": "bls_empsit_rel_20091204",
+  "url": "https://www.bls.gov/news.release/archives/empsit_12042009.htm",
+  "fetched_utc": "2026-11-01T08:05:02Z",
+  "sha256": "d9c81c963a3b0a42cf0b14b151e30d2ee86922e84ea23a8c7ec3d9c3e95bc370",
+  "raw_file": "raw/bls_nfp_detail/empsit_12042009.htm",
+  "bytes": 233911
+ },
+ {
+  "source_id": "bls_empsit_rel_20100108",
+  "url": "https://www.bls.gov/news.release/archives/empsit_01082010.htm",
+  "fetched_utc": "2026-11-01T08:05:03Z",
+  "sha256": "55edc05d3d669e7204688d01188fb587a7af85335de0ea1ed525687e18e76f05",
+  "raw_file": "raw/bls_nfp_detail/empsit_01082010.htm",
+  "bytes": 243427
+ },
+ {
+  "source_id": "bls_empsit_rel_20100205",
+  "url": "https://www.bls.gov/news.release/archives/empsit_02052010.htm",
+  "fetched_utc": "2026-11-01T08:05:04Z",
+  "sha256": "eda281b627b6c08c63ee40b25cd409990dc6a510048cd5b150b52324ba8f0e7b",
+  "raw_file": "raw/bls_nfp_detail/empsit_02052010.htm",
+  "bytes": 668423
+ },
+ {
+  "source_id": "bls_empsit_rel_20100305",
+  "url": "https://www.bls.gov/news.release/archives/empsit_03052010.htm",
+  "fetched_utc": "2026-11-01T08:05:05Z",
+  "sha256": "afad918417e63e6d42ebe891c001400052a8238c91fc319b501a6bc87aca9591",
+  "raw_file": "raw/bls_nfp_detail/empsit_03052010.htm",
+  "bytes": 573406
+ },
+ {
+  "source_id": "bls_empsit_rel_20100402",
+  "url": "https://www.bls.gov/news.release/archives/empsit_04022010.htm",
+  "fetched_utc": "2026-11-01T08:05:07Z",
+  "sha256": "8409b95781397202a4ccaf49e2ac2a56c5af319d607d55e34bb793316dad804b",
+  "raw_file": "raw/bls_nfp_detail/empsit_04022010.htm",
+  "bytes": 569887
+ },
+ {
+  "source_id": "bls_empsit_rel_20100507",
+  "url": "https://www.bls.gov/news.release/archives/empsit_05072010.htm",
+  "fetched_utc": "2026-11-01T08:05:08Z",
+  "sha256": "64ad65532492cfb623f82652701d8762682cfcab7203f002366e4f68d389f96e",
+  "raw_file": "raw/bls_nfp_detail/empsit_05072010.htm",
+  "bytes": 572425
+ },
+ {
+  "source_id": "bls_empsit_rel_20100604",
+  "url": "https://www.bls.gov/news.release/archives/empsit_06042010.htm",
+  "fetched_utc": "2026-11-01T08:05:09Z",
+  "sha256": "ce6078b19d33461d397ed1654f5eb482c74f7b80ee83f40a95f60986c1e17c31",
+  "raw_file": "raw/bls_nfp_detail/empsit_06042010.htm",
+  "bytes": 571517
+ },
+ {
+  "source_id": "bls_empsit_rel_20100702",
+  "url": "https://www.bls.gov/news.release/archives/empsit_07022010.htm",
+  "fetched_utc": "2026-11-01T08:05:10Z",
+  "sha256": "dd43543d202b8b49d1b9f5ebf445df61a8324cc2652eba51bc49868fe03d03c5",
+  "raw_file": "raw/bls_nfp_detail/empsit_07022010.htm",
+  "bytes": 588683
+ },
+ {
+  "source_id": "bls_empsit_rel_20100806",
+  "url": "https://www.bls.gov/news.release/archives/empsit_08062010.htm",
+  "fetched_utc": "2026-11-01T08:05:11Z",
+  "sha256": "9f39d5d43a2f51543a06f058af21682557946926ff800ad4027ec19a406fabfb",
+  "raw_file": "raw/bls_nfp_detail/empsit_08062010.htm",
+  "bytes": 571878
+ },
+ {
+  "source_id": "bls_empsit_rel_20100903",
+  "url": "https://www.bls.gov/news.release/archives/empsit_09032010.htm",
+  "fetched_utc": "2026-11-01T08:05:13Z",
+  "sha256": "7497e8cb76c7ab2a4628da8f22138991c696d05e48d186fcf711de232fbf1c4a",
+  "raw_file": "raw/bls_nfp_detail/empsit_09032010.htm",
+  "bytes": 571908
+ },
+ {
+  "source_id": "bls_empsit_rel_20101008",
+  "url": "https://www.bls.gov/news.release/archives/empsit_10082010.htm",
+  "fetched_utc": "2026-11-01T08:05:14Z",
+  "sha256": "4744938f36ce6192cd496cc5f664323df5fde2b8372ee2f8ada3b4b513ccb8ae",
+  "raw_file": "raw/bls_nfp_detail/empsit_10082010.htm",
+  "bytes": 576232
+ },
+ {
+  "source_id": "bls_empsit_rel_20101105",
+  "url": "https://www.bls.gov/news.release/archives/empsit_11052010.htm",
+  "fetched_utc": "2026-11-01T08:05:15Z",
+  "sha256": "b83a3887d98501de61c306e31bd4de519b8ae7eae4b3789665efae15376a96d7",
+  "raw_file": "raw/bls_nfp_detail/empsit_11052010.htm",
+  "bytes": 575950
+ },
+ {
+  "source_id": "bls_empsit_rel_20101203",
+  "url": "https://www.bls.gov/news.release/archives/empsit_12032010.htm",
+  "fetched_utc": "2026-11-01T08:05:16Z",
+  "sha256": "86f0a6dded3428ef5d8bf4efbfa21286626ee3720036cc9eeb4d97ca3baea916",
+  "raw_file": "raw/bls_nfp_detail/empsit_12032010.htm",
+  "bytes": 576009
+ },
+ {
+  "source_id": "bls_empsit_rel_20110107",
+  "url": "https://www.bls.gov/news.release/archives/empsit_01072011.htm",
+  "fetched_utc": "2026-11-01T08:05:18Z",
+  "sha256": "4bbcbc4c438dd9b730a6efca611daef57ae8bf342f42ee6d0c433a5f463715c9",
+  "raw_file": "raw/bls_nfp_detail/empsit_01072011.htm",
+  "bytes": 587942
+ },
+ {
+  "source_id": "bls_empsit_rel_20110204",
+  "url": "https://www.bls.gov/news.release/archives/empsit_02042011.htm",
+  "fetched_utc": "2026-11-01T08:05:19Z",
+  "sha256": "297fbe71fb73288e77591be9d03cc9977d2d82240999a003ab27eeffd43656eb",
+  "raw_file": "raw/bls_nfp_detail/empsit_02042011.htm",
+  "bytes": 593440
+ },
+ {
+  "source_id": "bls_empsit_rel_20110304",
+  "url": "https://www.bls.gov/news.release/archives/empsit_03042011.htm",
+  "fetched_utc": "2026-11-01T08:05:20Z",
+  "sha256": "3a7128752333ffee9df628f798bc6db72c97d68c23f134ef45e7ce713af0d75e",
+  "raw_file": "raw/bls_nfp_detail/empsit_03042011.htm",
+  "bytes": 563934
+ },
+ {
+  "source_id": "bls_empsit_rel_20110401",
+  "url": "https://www.bls.gov/news.release/archives/empsit_04012011.htm",
+  "fetched_utc": "2026-11-01T08:05:21Z",
+  "sha256": "61c2bc69576f0dae03aa713ef1ea9b1073acf28723efb910d6a1629dedc6c3a2",
+  "raw_file": "raw/bls_nfp_detail/empsit_04012011.htm",
+  "bytes": 563738
+ },
+ {
+  "source_id": "bls_empsit_rel_20110506",
+  "url": "https://www.bls.gov/news.release/archives/empsit_05062011.htm",
+  "fetched_utc": "2026-11-01T08:05:22Z",
+  "sha256": "92c2517e03367c67efc59e29a69167cc2a0cd432f451712ac00203e79d99f9b3",
+  "raw_file": "raw/bls_nfp_detail/empsit_05062011.htm",
+  "bytes": 564480
+ },
+ {
+  "source_id": "bls_empsit_rel_20110603",
+  "url": "https://www.bls.gov/news.release/archives/empsit_06032011.htm",
+  "fetched_utc": "2026-11-01T08:05:24Z",
+  "sha256": "c171ba33d823d0751129716283e9f2230fb7249fc9e76c42e4def5c93be456fd",
+  "raw_file": "raw/bls_nfp_detail/empsit_06032011.htm",
+  "bytes": 563782
+ },
+ {
+  "source_id": "bls_empsit_rel_20110708",
+  "url": "https://www.bls.gov/news.release/archives/empsit_07082011.htm",
+  "fetched_utc": "2026-11-01T08:05:25Z",
+  "sha256": "e87cfea7784a26647340effcaf928233999748f910ed67bd58077bd3f6dd2458",
+  "raw_file": "raw/bls_nfp_detail/empsit_07082011.htm",
+  "bytes": 564149
+ },
+ {
+  "source_id": "bls_empsit_rel_20110805",
+  "url": "https://www.bls.gov/news.release/archives/empsit_08052011.htm",
+  "fetched_utc": "2026-11-01T08:05:26Z",
+  "sha256": "0ffc1a7f5d4a5cc0cdf277752b834960ee761b023f42ad23a2f556aa9e62df80",
+  "raw_file": "raw/bls_nfp_detail/empsit_08052011.htm",
+  "bytes": 564359
+ },
+ {
+  "source_id": "bls_empsit_rel_20110902",
+  "url": "https://www.bls.gov/news.release/archives/empsit_09022011.htm",
+  "fetched_utc": "2026-11-01T08:05:27Z",
+  "sha256": "d936b0f786ef9fcf21e09f40c06d570b30688f65893bc894758bcf527201d926",
+  "raw_file": "raw/bls_nfp_detail/empsit_09022011.htm",
+  "bytes": 566002
+ },
+ {
+  "source_id": "bls_empsit_rel_20111007",
+  "url": "https://www.bls.gov/news.release/archives/empsit_10072011.htm",
+  "fetched_utc": "2026-11-01T08:05:28Z",
+  "sha256": "45c9e765c1082df0d133dda993175fbb0f9af449a3553d75a47fdd53436d1859",
+  "raw_file": "raw/bls_nfp_detail/empsit_10072011.htm",
+  "bytes": 564427
+ },
+ {
+  "source_id": "bls_empsit_rel_20111104",
+  "url": "https://www.bls.gov/news.release/archives/empsit_11042011.htm",
+  "fetched_utc": "2026-11-01T08:05:30Z",
+  "sha256": "7ce2e0f0e0c55f94276d56eb3f3e1cef58fb672bc2cc01aa654a6a4f23f2fff1",
+  "raw_file": "raw/bls_nfp_detail/empsit_11042011.htm",
+  "bytes": 565434
+ },
+ {
+  "source_id": "bls_empsit_rel_20111202",
+  "url": "https://www.bls.gov/news.release/archives/empsit_12022011.htm",
+  "fetched_utc": "2026-11-01T08:05:31Z",
+  "sha256": "0e2ee50a493b9644d8c0f793c332f8eb868db3ae381c197a71c99551f22d59e9",
+  "raw_file": "raw/bls_nfp_detail/empsit_12022011.htm",
+  "bytes": 568732
+ },
+ {
+  "source_id": "bls_empsit_rel_20120106",
+  "url": "https://www.bls.gov/news.release/archives/empsit_01062012.htm",
+  "fetched_utc": "2026-11-01T08:05:32Z",
+  "sha256": "adfe462dbe086545f1fe564c0a9e2668dd2b992f053a5f49d76dc9daa89e3ca5",
+  "raw_file": "raw/bls_nfp_detail/empsit_01062012.htm",
+  "bytes": 577676
+ },
+ {
+  "source_id": "bls_empsit_rel_20120203",
+  "url": "https://www.bls.gov/news.release/archives/empsit_02032012.htm",
+  "fetched_utc": "2026-11-01T08:05:33Z",
+  "sha256": "b9e62a12555ea13aae85cc610811907933481c8f93fc69689982de79cf94c130",
+  "raw_file": "raw/bls_nfp_detail/empsit_02032012.htm",
+  "bytes": 580934
+ },
+ {
+  "source_id": "bls_empsit_rel_20120309",
+  "url": "https://www.bls.gov/news.release/archives/empsit_03092012.htm",
+  "fetched_utc": "2026-11-01T08:05:34Z",
+  "sha256": "2df675aa15131bf2ed14947be5e8c6b3d0c48239378bad1eba023238ad861d10",
+  "raw_file": "raw/bls_nfp_detail/empsit_03092012.htm",
+  "bytes": 564302
+ },
+ {
+  "source_id": "bls_empsit_rel_20120406",
+  "url": "https://www.bls.gov/news.release/archives/empsit_04062012.htm",
+  "fetched_utc": "2026-11-01T08:05:35Z",
+  "sha256": "dcb2260c7d071e0fd7216e734f9da5c671d581fdafb5bc1124c84f77f7230df7",
+  "raw_file": "raw/bls_nfp_detail/empsit_04062012.htm",
+  "bytes": 563864
+ },
+ {
+  "source_id": "bls_empsit_rel_20120504",
+  "url": "https://www.bls.gov/news.release/archives/empsit_05042012.htm",
+  "fetched_utc": "2026-11-01T08:05:37Z",
+  "sha256": "0ed5c2cd765e1753f4d40fd90e1600fc5327d51a6ab65881e5e846c8a49cc572",
+  "raw_file": "raw/bls_nfp_detail/empsit_05042012.htm",
+  "bytes": 563990
+ },
+ {
+  "source_id": "bls_empsit_rel_20120601",
+  "url": "https://www.bls.gov/news.release/archives/empsit_06012012.htm",
+  "fetched_utc": "2026-11-01T08:05:38Z",
+  "sha256": "95fbf266dd26c09366a89434e3ea1ce1b872a45ff5a84c9f5c21d19f7fe53042",
+  "raw_file": "raw/bls_nfp_detail/empsit_06012012.htm",
+  "bytes": 566254
+ },
+ {
+  "source_id": "bls_empsit_rel_20120706",
+  "url": "https://www.bls.gov/news.release/archives/empsit_07062012.htm",
+  "fetched_utc": "2026-11-01T08:05:40Z",
+  "sha256": "d4bbb44c803125cc2a1c850c628c07b0522f0077a7aaaed7b72b5d1e27cfe8a4",
+  "raw_file": "raw/bls_nfp_detail/empsit_07062012.htm",
+  "bytes": 564703
+ },
+ {
+  "source_id": "bls_empsit_rel_20120803",
+  "url": "https://www.bls.gov/news.release/archives/empsit_08032012.htm",
+  "fetched_utc": "2026-11-01T08:05:41Z",
+  "sha256": "1a49acdb7f2367ebc4ec66e11ff2b278d4e689a54c397ec73690bcc98e95e6c6",
+  "raw_file": "raw/bls_nfp_detail/empsit_08032012.htm",
+  "bytes": 563679
+ },
+ {
+  "source_id": "bls_empsit_rel_20120907",
+  "url": "https://www.bls.gov/news.release/archives/empsit_09072012.htm",
+  "fetched_utc": "2026-11-01T08:05:43Z",
+  "sha256": "313e2ac2645f47ccce9b208f0cdcc4c4213b69c84cc3a5184807e7dcdc580c5e",
+  "raw_file": "raw/bls_nfp_detail/empsit_09072012.htm",
+  "bytes": 565866
+ },
+ {
+  "source_id": "bls_empsit_rel_20121005",
+  "url": "https://www.bls.gov/news.release/archives/empsit_10052012.htm",
+  "fetched_utc": "2026-11-01T08:05:44Z",
+  "sha256": "f9ee3d83e48e8335f69321c429e61611a5513325577860bae0fc1717606ec927",
+  "raw_file": "raw/bls_nfp_detail/empsit_10052012.htm",
+  "bytes": 564254
+ },
+ {
+  "source_id": "bls_empsit_rel_20121102",
+  "url": "https://www.bls.gov/news.release/archives/empsit_11022012.htm",
+  "fetched_utc": "2026-11-01T08:05:45Z",
+  "sha256": "610466de8e5413527c3148b5c16b640e864925136f6085375b705250a30f5dcb",
+  "raw_file": "raw/bls_nfp_detail/empsit_11022012.htm",
+  "bytes": 565632
+ },
+ {
+  "source_id": "bls_empsit_rel_20121207",
+  "url": "https://www.bls.gov/news.release/archives/empsit_12072012.htm",
+  "fetched_utc": "2026-11-01T08:05:46Z",
+  "sha256": "b66fb4ce3cae3755c1e0cba858860a606be24c52013d8a9880836cfb9c228820",
+  "raw_file": "raw/bls_nfp_detail/empsit_12072012.htm",
+  "bytes": 568974
+ },
+ {
+  "source_id": "bls_empsit_rel_20130104",
+  "url": "https://www.bls.gov/news.release/archives/empsit_01042013.htm",
+  "fetched_utc": "2026-11-01T08:05:48Z",
+  "sha256": "b5db8cf7d265044d15e13458a3fc2cf5a3dfe5308cd61133317ee25e6e7090a9",
+  "raw_file": "raw/bls_nfp_detail/empsit_01042013.htm",
+  "bytes": 593916
+ },
+ {
+  "source_id": "bls_empsit_rel_20130201",
+  "url": "https://www.bls.gov/news.release/archives/empsit_02012013.htm",
+  "fetched_utc": "2026-11-01T08:05:49Z",
+  "sha256": "07e0fc458fb868319fddd3fb0e6fc4fa6dfc486bf2c64a9ce2b4116fdafcd2b0",
+  "raw_file": "raw/bls_nfp_detail/empsit_02012013.htm",
+  "bytes": 577771
+ },
+ {
+  "source_id": "bls_empsit_rel_20130308",
+  "url": "https://www.bls.gov/news.release/archives/empsit_03082013.htm",
+  "fetched_utc": "2026-11-01T08:05:50Z",
+  "sha256": "c84fc3f321546a1a42ae6c28317536a768119174683908406157373082548a83",
+  "raw_file": "raw/bls_nfp_detail/empsit_03082013.htm",
+  "bytes": 563260
+ },
+ {
+  "source_id": "bls_empsit_rel_20130405",
+  "url": "https://www.bls.gov/news.release/archives/empsit_04052013.htm",
+  "fetched_utc": "2026-11-01T08:05:52Z",
+  "sha256": "78954bde2cb5c4c031d825eb7febdb35e226fa142ddecdf6c88afbec32d4e08f",
+  "raw_file": "raw/bls_nfp_detail/empsit_04052013.htm",
+  "bytes": 563515
+ },
+ {
+  "source_id": "bls_empsit_rel_20130503",
+  "url": "https://www.bls.gov/news.release/archives/empsit_05032013.htm",
+  "fetched_utc": "2026-11-01T08:05:53Z",
+  "sha256": "e8b7cb575c9b1794d2cb0c41cc5b3f2196ed5f785d0b3958156b208acef6ebf1",
+  "raw_file": "raw/bls_nfp_detail/empsit_05032013.htm",
+  "bytes": 563706
+ },
+ {
+  "source_id": "bls_empsit_rel_20130607",
+  "url": "https://www.bls.gov/news.release/archives/empsit_06072013.htm",
+  "fetched_utc": "2026-11-01T08:05:54Z",
+  "sha256": "f921d281ded6ae06fdc969240f68f2bce79e891fdfa91269cbf47579d1ec1dc7",
+  "raw_file": "raw/bls_nfp_detail/empsit_06072013.htm",
+  "bytes": 563137
+ },
+ {
+  "source_id": "bls_empsit_rel_20130705",
+  "url": "https://www.bls.gov/news.release/archives/empsit_07052013.htm",
+  "fetched_utc": "2026-11-01T08:05:56Z",
+  "sha256": "beb5b062879c053b86c7efaba55ac564c615d2f150e3bc0b5f689eb634addc97",
+  "raw_file": "raw/bls_nfp_detail/empsit_07052013.htm",
+  "bytes": 563652
+ },
+ {
+  "source_id": "bls_empsit_rel_20130802",
+  "url": "https://www.bls.gov/news.release/archives/empsit_08022013.htm",
+  "fetched_utc": "2026-11-01T08:05:57Z",
+  "sha256": "111d0f45e5843b30a20f8a1385ea0cef60b57cb42cb88ca1cf11edccebabbc6b",
+  "raw_file": "raw/bls_nfp_detail/empsit_08022013.htm",
+  "bytes": 563510
+ },
+ {
+  "source_id": "bls_empsit_rel_20130906",
+  "url": "https://www.bls.gov/news.release/archives/empsit_09062013.htm",
+  "fetched_utc": "2026-11-01T08:05:58Z",
+  "sha256": "61844f988b7b04a3fd4a75c5397bd32e648dfb9290423bcdbe4c9f9619cf5750",
+  "raw_file": "raw/bls_nfp_detail/empsit_09062013.htm",
+  "bytes": 565244
+ },
+ {
+  "source_id": "bls_empsit_rel_20131022",
+  "url": "https://www.bls.gov/news.release/archives/empsit_10222013.htm",
+  "fetched_utc": "2026-11-01T08:06:00Z",
+  "sha256": "12a5e63cb6b37028a0c077bfa63009456ff451f28eb84e6536519597c87d3e84",
+  "raw_file": "raw/bls_nfp_detail/empsit_10222013.htm",
+  "bytes": 564636
+ },
+ {
+  "source_id": "bls_empsit_rel_20131108",
+  "url": "https://www.bls.gov/news.release/archives/empsit_11082013.htm",
+  "fetched_utc": "2026-11-01T08:06:01Z",
+  "sha256": "72ccc3458454adec135ddf213db2987f9dfadc51b57a08504552056b45448ae0",
+  "raw_file": "raw/bls_nfp_detail/empsit_11082013.htm",
+  "bytes": 569105
+ },
+ {
+  "source_id": "bls_empsit_rel_20131206",
+  "url": "https://www.bls.gov/news.release/archives/empsit_12062013.htm",
+  "fetched_utc": "2026-11-01T08:06:02Z",
+  "sha256": "69750abe45c86d8760f4f2b79399d69ccc55ac293bb82f1364feed9480b781c8",
+  "raw_file": "raw/bls_nfp_detail/empsit_12062013.htm",
+  "bytes": 567368
+ },
+ {
+  "source_id": "fed_hist_2005",
+  "url": "https://www.federalreserve.gov/monetarypolicy/fomchistorical2005.htm",
+  "fetched_utc": "2026-11-01T08:01:46Z",
+  "sha256": "9c134c1b1a8327508fe9ee942ff8138a688c9888f4cd9a27e5ce9d40fe284f9e",
+  "raw_file": "raw/fomchistorical2005.htm",
+  "bytes": 92479
+ },
+ {
+  "source_id": "fed_hist_2006",
+  "url": "https://www.federalreserve.gov/monetarypolicy/fomchistorical2006.htm",
+  "fetched_utc": "2026-11-01T08:01:48Z",
+  "sha256": "04950f30a61cf023623e8aa9b78c3626b43c8f92195ae15a3061f5321ba6315b",
+  "raw_file": "raw/fomchistorical2006.htm",
+  "bytes": 92157
+ },
+ {
+  "source_id": "fed_hist_2007",
+  "url": "https://www.federalreserve.gov/monetarypolicy/fomchistorical2007.htm",
+  "fetched_utc": "2026-11-01T08:02:15Z",
+  "sha256": "13fe317173f840f1024cd66fbc2315574d083ac430007526e011a6a76c5b8e45",
+  "raw_file": "raw/fomchistorical2007.htm",
+  "bytes": 94955
+ },
+ {
+  "source_id": "fed_hist_2008",
+  "url": "https://www.federalreserve.gov/monetarypolicy/fomchistorical2008.htm",
+  "fetched_utc": "2026-11-01T08:02:16Z",
+  "sha256": "2fb55d22a37ba356b5b80394f320c41b78be0ed78a4fa55c8aa3859524680b3d",
+  "raw_file": "raw/fomchistorical2008.htm",
+  "bytes": 100178
+ },
+ {
+  "source_id": "fed_hist_2009",
+  "url": "https://www.federalreserve.gov/monetarypolicy/fomchistorical2009.htm",
+  "fetched_utc": "2026-11-01T08:02:17Z",
+  "sha256": "236f86cc3812944d0919d423acac723bfda6eaac477dbc26f862853a7ae1ec2b",
+  "raw_file": "raw/fomchistorical2009.htm",
+  "bytes": 98428
+ },
+ {
+  "source_id": "fed_hist_2010",
+  "url": "https://www.federalreserve.gov/monetarypolicy/fomchistorical2010.htm",
+  "fetched_utc": "2026-11-01T08:02:19Z",
+  "sha256": "f29a423af0b67dfbcb0cc32213b369e2f01125dcc6264c720ce1eda93fcd6ae9",
+  "raw_file": "raw/fomchistorical2010.htm",
+  "bytes": 96396
+ },
+ {
+  "source_id": "fed_hist_2011",
+  "url": "https://www.federalreserve.gov/monetarypolicy/fomchistorical2011.htm",
+  "fetched_utc": "2026-11-01T08:02:20Z",
+  "sha256": "f7dab6f5bb46c55d6f9816723bddc2892e63b8cb57c1531d3855f9f5b50a8d46",
+  "raw_file": "raw/fomchistorical2011.htm",
+  "bytes": 98403
+ },
+ {
+  "source_id": "fed_hist_2012",
+  "url": "https://www.federalreserve.gov/monetarypolicy/fomchistorical2012.htm",
+  "fetched_utc": "2026-11-01T08:02:21Z",
+  "sha256": "232787480dd5c25fddf8cddf6e5b519bc846d88e9efb0d4a15e133fe4397d218",
+  "raw_file": "raw/fomchistorical2012.htm",
+  "bytes": 98324
+ },
+ {
+  "source_id": "fed_hist_2013",
+  "url": "https://www.federalreserve.gov/monetarypolicy/fomchistorical2013.htm",
+  "fetched_utc": "2026-11-01T08:02:22Z",
+  "sha256": "2ed60959d877b0024d7fc76707a162c601f6b661da5f4471cd785c5ee83094c6",
+  "raw_file": "raw/fomchistorical2013.htm",
+  "bytes": 95985
+ },
+ {
+  "source_id": "fed_notice_20060720b",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20060720b.htm",
+  "fetched_utc": "2026-11-01T08:06:51Z",
+  "sha256": "55dee28af3a14bfeff28de2f6411e53c745643a74b67bf0256f122b395e1bce4",
+  "raw_file": "raw/fed_time_notices/monetary20060720b.htm",
+  "bytes": 80571
+ },
+ {
+  "source_id": "fed_notice_20110324a",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20110324a.htm",
+  "fetched_utc": "2026-11-01T08:06:56Z",
+  "sha256": "9483e0f3c09e3a802758ed021b9556020504ac7ae167b491f096e2e57ba4aa56",
+  "raw_file": "raw/fed_time_notices/monetary20110324a.htm",
+  "bytes": 81889
+ },
+ {
+  "source_id": "fed_notice_20130313a",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20130313a.htm",
+  "fetched_utc": "2026-11-01T08:07:00Z",
+  "sha256": "e00dcd189d52c0cb2dc58960d2d040f7829051f4266f05502d3bf47e4aefbb2c",
+  "raw_file": "raw/fed_time_notices/monetary20130313a.htm",
+  "bytes": 80812
+ },
+ {
+  "source_id": "fed_press_json",
+  "url": "https://www.federalreserve.gov/json/ne-press.json",
+  "fetched_utc": "2026-11-01T08:06:11Z",
+  "sha256": "ffcf4d3ff1bce77918e51bde3e7633ff8c1a8f87dc5bda5de043cb68a954ce70",
+  "raw_file": "raw/fed_ne-press.json",
+  "bytes": 1000524
+ },
+ {
+  "source_id": "fed_stmt_20050202",
+  "url": "https://www.federalreserve.gov/boarddocs/press/monetary/2005/20050202/default.htm",
+  "fetched_utc": "2026-11-01T08:03:01Z",
+  "sha256": "406774874de1e3c23154079b6d8ef325004e230ce89356d9eed206c0a7435579",
+  "raw_file": "raw/fomc_statements/boarddocs__press__monetary__2005__20050202__default.htm",
+  "bytes": 4039
+ },
+ {
+  "source_id": "fed_stmt_20050322",
+  "url": "https://www.federalreserve.gov/boarddocs/press/monetary/2005/20050322/default.htm",
+  "fetched_utc": "2026-11-01T08:03:02Z",
+  "sha256": "47113d2c07dc51092358adce45ca79458a35dee5aa36303997c09e65300c6ca5",
+  "raw_file": "raw/fomc_statements/boarddocs__press__monetary__2005__20050322__default.htm",
+  "bytes": 4216
+ },
+ {
+  "source_id": "fed_stmt_20050503",
+  "url": "https://www.federalreserve.gov/boarddocs/press/monetary/2005/20050503/default.htm",
+  "fetched_utc": "2026-11-01T08:03:03Z",
+  "sha256": "5385eb3bd55842b39f82d9908578892b7629b0bdf9b33c23bdfd716cd52f52ef",
+  "raw_file": "raw/fomc_statements/boarddocs__press__monetary__2005__20050503__default.htm",
+  "bytes": 4198
+ },
+ {
+  "source_id": "fed_stmt_20050630",
+  "url": "https://www.federalreserve.gov/boarddocs/press/monetary/2005/20050630/default.htm",
+  "fetched_utc": "2026-11-01T08:03:04Z",
+  "sha256": "2742c40afb0dd826118dae549dd5b2f03634aedb1ec08862bb4fa7f30580fe64",
+  "raw_file": "raw/fomc_statements/boarddocs__press__monetary__2005__20050630__default.htm",
+  "bytes": 4072
+ },
+ {
+  "source_id": "fed_stmt_20050809",
+  "url": "https://www.federalreserve.gov/boarddocs/press/monetary/2005/20050809/default.htm",
+  "fetched_utc": "2026-11-01T08:03:06Z",
+  "sha256": "e2efd29f02a8f98eaa160d3aa162238ed6d599734487e8de65b122c0c8403976",
+  "raw_file": "raw/fomc_statements/boarddocs__press__monetary__2005__20050809__default.htm",
+  "bytes": 4151
+ },
+ {
+  "source_id": "fed_stmt_20050920",
+  "url": "https://www.federalreserve.gov/boarddocs/press/monetary/2005/20050920/",
+  "fetched_utc": "2026-11-01T08:03:07Z",
+  "sha256": "336a8ce625dd32b148213f188151a3b4cc6173e4bfd563e9308fd63be3807a06",
+  "raw_file": "raw/fomc_statements/boarddocs__press__monetary__2005__20050920__index.htm",
+  "bytes": 4679
+ },
+ {
+  "source_id": "fed_stmt_20051101",
+  "url": "https://www.federalreserve.gov/boarddocs/press/monetary/2005/20051101/",
+  "fetched_utc": "2026-11-01T08:03:08Z",
+  "sha256": "f05339f4604d2c687d41735b306ed161a23d3c4e479183a624aee9d6289af07b",
+  "raw_file": "raw/fomc_statements/boarddocs__press__monetary__2005__20051101__index.htm",
+  "bytes": 4383
+ },
+ {
+  "source_id": "fed_stmt_20051213",
+  "url": "https://www.federalreserve.gov/boarddocs/press/monetary/2005/20051213/",
+  "fetched_utc": "2026-11-01T08:03:09Z",
+  "sha256": "3d7764db6878e4181001d6cad06e4ff89ec6c14103a60c322197c9b26e0ad8ed",
+  "raw_file": "raw/fomc_statements/boarddocs__press__monetary__2005__20051213__index.htm",
+  "bytes": 3721
+ },
+ {
+  "source_id": "fed_stmt_20060131",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20060131a.htm",
+  "fetched_utc": "2026-11-01T08:03:10Z",
+  "sha256": "9e4eb0db1bf1005b8a40a81c83e6fa51bc2e4c9e7f04e38288ac6cbd58926fe0",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20060131a.htm",
+  "bytes": 80942
+ },
+ {
+  "source_id": "fed_stmt_20060328",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20060328a.htm",
+  "fetched_utc": "2026-11-01T08:03:12Z",
+  "sha256": "ff0c98c21e90ea8f6175b6f1e510557277b2b6575f8610cedfdf23674e35629a",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20060328a.htm",
+  "bytes": 81266
+ },
+ {
+  "source_id": "fed_stmt_20060510",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20060510a.htm",
+  "fetched_utc": "2026-11-01T08:03:13Z",
+  "sha256": "112ffa7eeb7f6e9480c3af64ed7fc97834ce5e2dfff5a52eb83469b0a7e872e9",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20060510a.htm",
+  "bytes": 83175
+ },
+ {
+  "source_id": "fed_stmt_20060629",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20060629a.htm",
+  "fetched_utc": "2026-11-01T08:03:14Z",
+  "sha256": "c81037532d790901928bf08493c2178687eb76efe911ef6d8ad638f0c6f20583",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20060629a.htm",
+  "bytes": 81350
+ },
+ {
+  "source_id": "fed_stmt_20060808",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20060808a.htm",
+  "fetched_utc": "2026-11-01T08:03:15Z",
+  "sha256": "de60c5c2781adcfe5674762ca3e6d1dc55450388c01859d3919a1aa5fe349fa2",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20060808a.htm",
+  "bytes": 80911
+ },
+ {
+  "source_id": "fed_stmt_20060920",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20060920a.htm",
+  "fetched_utc": "2026-11-01T08:03:17Z",
+  "sha256": "2fbc186bbde7723dec0b26abee5fe9458c761085ce85455bdfb2c08aaa7acc50",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20060920a.htm",
+  "bytes": 80861
+ },
+ {
+  "source_id": "fed_stmt_20061025",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20061025a.htm",
+  "fetched_utc": "2026-11-01T08:03:18Z",
+  "sha256": "c30c9c5e43a9484607c41232ecd209245a0723b2807eab10d782a003de8429a4",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20061025a.htm",
+  "bytes": 80874
+ },
+ {
+  "source_id": "fed_stmt_20061212",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20061212a.htm",
+  "fetched_utc": "2026-11-01T08:03:19Z",
+  "sha256": "955903fab3f53d55ac96ce4fbc138a65d7a17fed6e1c6b10ab7e2f870a96e404",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20061212a.htm",
+  "bytes": 80949
+ },
+ {
+  "source_id": "fed_stmt_20070131",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20070131a.htm",
+  "fetched_utc": "2026-11-01T08:03:21Z",
+  "sha256": "8fd6e15c24f46fab873d8196c826a57e9b36c02de11114483b5723672e42b640",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20070131a.htm",
+  "bytes": 80645
+ },
+ {
+  "source_id": "fed_stmt_20070321",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20070321a.htm",
+  "fetched_utc": "2026-11-01T08:03:22Z",
+  "sha256": "736dfcf0bbc0289b88f46968a26b5c0e79f66cc2e0f04ba44776ca52bd9b5899",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20070321a.htm",
+  "bytes": 80584
+ },
+ {
+  "source_id": "fed_stmt_20070509",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20070509a.htm",
+  "fetched_utc": "2026-11-01T08:03:23Z",
+  "sha256": "4c527ec4582838942dee1fab3cb1e934c170ee87cce87014c33717715a3e86ed",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20070509a.htm",
+  "bytes": 80569
+ },
+ {
+  "source_id": "fed_stmt_20070628",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20070618a.htm",
+  "fetched_utc": "2026-11-01T08:03:24Z",
+  "sha256": "55105b7f8a97a17cdeb17f08d5a81160f2e3d036535dac7d5c3dd737df671f0c",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20070618a.htm",
+  "bytes": 80663
+ },
+ {
+  "source_id": "fed_stmt_20070807",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20070807a.htm",
+  "fetched_utc": "2026-11-01T08:03:26Z",
+  "sha256": "c8bc7b4f869d339d533ff55054fb389b98fca9b1bbe6fc11144e5ac93d51ccbd",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20070807a.htm",
+  "bytes": 80876
+ },
+ {
+  "source_id": "fed_stmt_20070810",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20070810a.htm",
+  "fetched_utc": "2026-11-01T08:03:27Z",
+  "sha256": "a03240fd53c128337c206c2680ec1cdab83acd541c132557bc4b50aec2047d00",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20070810a.htm",
+  "bytes": 80962
+ },
+ {
+  "source_id": "fed_stmt_20070817",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20070817b.htm",
+  "fetched_utc": "2026-11-01T08:03:28Z",
+  "sha256": "a43ccf54f53a52ce09f8dd61ac67d87ad6cdf38950833ce4472c5a286c33663a",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20070817b.htm",
+  "bytes": 80325
+ },
+ {
+  "source_id": "fed_stmt_20070918",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20070918a.htm",
+  "fetched_utc": "2026-11-01T08:03:30Z",
+  "sha256": "87c4fb7f2255ce89155269d5cc9f0dfb9180e9404008fdcf31a2ad121d9fa824",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20070918a.htm",
+  "bytes": 81261
+ },
+ {
+  "source_id": "fed_stmt_20071031",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20071031a.htm",
+  "fetched_utc": "2026-11-01T08:03:31Z",
+  "sha256": "ffed1f07dba318e9662c7dca129307f13734d67a8e8a055801ccece6be6cf107",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20071031a.htm",
+  "bytes": 81526
+ },
+ {
+  "source_id": "fed_stmt_20071211",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20071211a.htm",
+  "fetched_utc": "2026-11-01T08:03:32Z",
+  "sha256": "9a73e7e66cc371a505c4b0c522bbd9eb41704131aee560cadb831ab0825632c7",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20071211a.htm",
+  "bytes": 81445
+ },
+ {
+  "source_id": "fed_stmt_20080122",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20080122b.htm",
+  "fetched_utc": "2026-11-01T08:03:34Z",
+  "sha256": "9d209513f8e34b9875ba5c36c82f5b70e96b0d9331a3804b235e0abcc49b6b62",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20080122b.htm",
+  "bytes": 81193
+ },
+ {
+  "source_id": "fed_stmt_20080130",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20080130a.htm",
+  "fetched_utc": "2026-11-01T08:03:35Z",
+  "sha256": "cff4328f5d574fede3173b7e9fc329f31b04377a6b336811be29a69f3703b4f7",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20080130a.htm",
+  "bytes": 81188
+ },
+ {
+  "source_id": "fed_stmt_20080311",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20080311a.htm",
+  "fetched_utc": "2026-11-01T08:03:36Z",
+  "sha256": "8a2fe829cf762f60d430840fb2f447d8742bffdb0b5a4f4f9b30fd4e5397a5d8",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20080311a.htm",
+  "bytes": 84272
+ },
+ {
+  "source_id": "fed_stmt_20080318",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20080318a.htm",
+  "fetched_utc": "2026-11-01T08:03:37Z",
+  "sha256": "b8887050f18723f9860b3d35ad4a236c66214a22f69a5e5d7470e26cec65c574",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20080318a.htm",
+  "bytes": 81493
+ },
+ {
+  "source_id": "fed_stmt_20080430",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20080430a.htm",
+  "fetched_utc": "2026-11-01T08:03:39Z",
+  "sha256": "14fe9c575b67867276d38fd1d6008339eaf54acb82835fa184fb1e6447146bfe",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20080430a.htm",
+  "bytes": 81549
+ },
+ {
+  "source_id": "fed_stmt_20080625",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20080625a.htm",
+  "fetched_utc": "2026-11-01T08:03:40Z",
+  "sha256": "fc805921335c85172e58979be3cac586014892cab90780bfd35918f793b71b35",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20080625a.htm",
+  "bytes": 81207
+ },
+ {
+  "source_id": "fed_stmt_20080805",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20080805a.htm",
+  "fetched_utc": "2026-11-01T08:03:41Z",
+  "sha256": "5ba71df0e8a241907b48d203c827b58371a56179228936300746ee2443afbdf3",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20080805a.htm",
+  "bytes": 81129
+ },
+ {
+  "source_id": "fed_stmt_20080916",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20080916a.htm",
+  "fetched_utc": "2026-11-01T08:03:43Z",
+  "sha256": "5521ebf323da09e276ec236c4446c9039593df07800fd6d74bab281ac177f917",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20080916a.htm",
+  "bytes": 80978
+ },
+ {
+  "source_id": "fed_stmt_20081008",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20081008a.htm",
+  "fetched_utc": "2026-11-01T08:03:44Z",
+  "sha256": "a3cbc53762dfe3ebeb5f75d3c4b235ec436610dcf0cf727fc1a7e8b0215ec6d7",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20081008a.htm",
+  "bytes": 83746
+ },
+ {
+  "source_id": "fed_stmt_20081029",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20081029a.htm",
+  "fetched_utc": "2026-11-01T08:03:45Z",
+  "sha256": "d3d8804ddd12e75e4f871d8e77679d5d3b06d49c04a896b0b438a06a86392a0f",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20081029a.htm",
+  "bytes": 81453
+ },
+ {
+  "source_id": "fed_stmt_20081216",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20081216b.htm",
+  "fetched_utc": "2026-11-01T08:03:46Z",
+  "sha256": "e0fc90814850da073b7c76e1f36262505622dec3fad3611b84c50bebe7b7b69b",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20081216b.htm",
+  "bytes": 82311
+ },
+ {
+  "source_id": "fed_stmt_20090128",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20090128a.htm",
+  "fetched_utc": "2026-11-01T08:03:48Z",
+  "sha256": "a5ac07fb391e5a9f0c7f14eb04cfb13fdb554e45162232432f835a0cbb0bea44",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20090128a.htm",
+  "bytes": 82762
+ },
+ {
+  "source_id": "fed_stmt_20090318",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20090318a.htm",
+  "fetched_utc": "2026-11-01T08:03:49Z",
+  "sha256": "95f59f50c46492cfb0242c12afb3a2c1ef1e9ca08598a6ebabe3b4f93d5f3fa6",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20090318a.htm",
+  "bytes": 82313
+ },
+ {
+  "source_id": "fed_stmt_20090429",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20090429a.htm",
+  "fetched_utc": "2026-11-01T08:03:50Z",
+  "sha256": "60c799f350f232e010a96bbc4ba2478b4c0ba43923495be9e4ea545223ad8917",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20090429a.htm",
+  "bytes": 82283
+ },
+ {
+  "source_id": "fed_stmt_20090624",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20090624a.htm",
+  "fetched_utc": "2026-11-01T08:03:51Z",
+  "sha256": "2d3e1b052a8ad4647440149bc56c37a873fe9680b7fe73cdef849419eed4b4e4",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20090624a.htm",
+  "bytes": 81944
+ },
+ {
+  "source_id": "fed_stmt_20090812",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20090812a.htm",
+  "fetched_utc": "2026-11-01T08:03:53Z",
+  "sha256": "085a1d1147de11a71a7a24d41ce44934626c56725383fb27565c692a9eb54c3e",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20090812a.htm",
+  "bytes": 82217
+ },
+ {
+  "source_id": "fed_stmt_20090923",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20090923a.htm",
+  "fetched_utc": "2026-11-01T08:03:54Z",
+  "sha256": "f7d85369270815619a8550d1a4e5ba575e530509eb03fb9980209bcc00397716",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20090923a.htm",
+  "bytes": 82342
+ },
+ {
+  "source_id": "fed_stmt_20091104",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20091104a.htm",
+  "fetched_utc": "2026-11-01T08:03:55Z",
+  "sha256": "e7cc0c8281e74f4a8e0a0563347aa8f6e0215a0904c551af5d42ea30140706ca",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20091104a.htm",
+  "bytes": 82552
+ },
+ {
+  "source_id": "fed_stmt_20091216",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20091216a.htm",
+  "fetched_utc": "2026-11-01T08:03:57Z",
+  "sha256": "668dbd22df16baf3487f1847e4ef225e9accec1b16f3a82a10cf879b2709c738",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20091216a.htm",
+  "bytes": 83353
+ },
+ {
+  "source_id": "fed_stmt_20100127",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20100127a.htm",
+  "fetched_utc": "2026-11-01T08:03:58Z",
+  "sha256": "f391dceb3420533b3db1a506de6f07d1a32be8a0a353bbc72c2021717772f37b",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20100127a.htm",
+  "bytes": 83105
+ },
+ {
+  "source_id": "fed_stmt_20100316",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20100316a.htm",
+  "fetched_utc": "2026-11-01T08:03:59Z",
+  "sha256": "b30923c960bc5142fc0f69a27c0d9650e7899ec7fab5d194c0ec25e26e7f6701",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20100316a.htm",
+  "bytes": 82564
+ },
+ {
+  "source_id": "fed_stmt_20100428",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20100428a.htm",
+  "fetched_utc": "2026-11-01T08:04:00Z",
+  "sha256": "7af1f08fe896611e89f04601d53c88f1de4dd2316621261f6126ebdad4774c3f",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20100428a.htm",
+  "bytes": 82306
+ },
+ {
+  "source_id": "fed_stmt_20100509",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20100509a.htm",
+  "fetched_utc": "2026-11-01T08:04:02Z",
+  "sha256": "3971811ea8e6270b845f980e812a37dde322cb77c2f47681b21e02bb02205af4",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20100509a.htm",
+  "bytes": 83550
+ },
+ {
+  "source_id": "fed_stmt_20100623",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20100623a.htm",
+  "fetched_utc": "2026-11-01T08:04:03Z",
+  "sha256": "c4cb3c6225780b9ff2bf9e7eca883877dfe136fecdf83cfbdc1a937d9a6bd62c",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20100623a.htm",
+  "bytes": 82026
+ },
+ {
+  "source_id": "fed_stmt_20100810",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20100810a.htm",
+  "fetched_utc": "2026-11-01T08:04:04Z",
+  "sha256": "62d68c560735218475dbe867a1a50ac09eff21aa5fddfecd6674a22d2c79684f",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20100810a.htm",
+  "bytes": 83020
+ },
+ {
+  "source_id": "fed_stmt_20100921",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20100921a.htm",
+  "fetched_utc": "2026-11-01T08:04:06Z",
+  "sha256": "539bdc69af26e1da6a066d10be4339d734b88a9c1f8f5cc0384ef4d07fda9f56",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20100921a.htm",
+  "bytes": 82478
+ },
+ {
+  "source_id": "fed_stmt_20101103",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20101103a.htm",
+  "fetched_utc": "2026-11-01T08:04:07Z",
+  "sha256": "256f03e2b7ac6e208b00637d99cc249dda4a00bf952bf06ef2a17f33e4b669ea",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20101103a.htm",
+  "bytes": 83067
+ },
+ {
+  "source_id": "fed_stmt_20101214",
+  "url": "https://www.federalreserve.gov/newsevents/press/monetary/20101214a.htm",
+  "fetched_utc": "2026-11-01T08:04:08Z",
+  "sha256": "c0cd9e78609be81d260d06c1a4c05489ff501aa8ff1b5f370a53edebbfd73ecb",
+  "raw_file": "raw/fomc_statements/newsevents__press__monetary__20101214a.htm",
+  "bytes": 82916
+ },
+ {
+  "source_id": "fed_stmt_20110126",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20110126a.htm",
+  "fetched_utc": "2026-11-01T08:04:09Z",
+  "sha256": "631c24b1a90ed4848883b3b5a61999f6328bb6732c9b86ecf8831cf61c327d03",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20110126a.htm",
+  "bytes": 82549
+ },
+ {
+  "source_id": "fed_stmt_20110315",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20110315a.htm",
+  "fetched_utc": "2026-11-01T08:04:10Z",
+  "sha256": "e6ee8cef5ef64a92fdc0dc1ab16b22aca5a23cec0ea55337ba8980bc07cf0fa7",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20110315a.htm",
+  "bytes": 82691
+ },
+ {
+  "source_id": "fed_stmt_20110427",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20110427a.htm",
+  "fetched_utc": "2026-11-01T08:04:12Z",
+  "sha256": "1379484959304f3f84b6fb2cb17acb4b32253453c916528d20346f6e969e0f06",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20110427a.htm",
+  "bytes": 82756
+ },
+ {
+  "source_id": "fed_stmt_20110622",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20110622a.htm",
+  "fetched_utc": "2026-11-01T08:04:13Z",
+  "sha256": "c211f769bea3e333e4c7ea6e40618b1b3c516cb01e3547ab9122231056552b3e",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20110622a.htm",
+  "bytes": 82701
+ },
+ {
+  "source_id": "fed_stmt_20110809",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20110809a.htm",
+  "fetched_utc": "2026-11-01T08:04:14Z",
+  "sha256": "835a2968ead0e6cf84f513b3dcd4239faa50467b45ebe041409097db145684cb",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20110809a.htm",
+  "bytes": 83174
+ },
+ {
+  "source_id": "fed_stmt_20110921",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20110921a.htm",
+  "fetched_utc": "2026-11-01T08:04:15Z",
+  "sha256": "e6c67d4131e94af06dda365910b10ba8872faac2a9710ac3e21f9f6446873f3b",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20110921a.htm",
+  "bytes": 84407
+ },
+ {
+  "source_id": "fed_stmt_20111102",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20111102a.htm",
+  "fetched_utc": "2026-11-01T08:04:16Z",
+  "sha256": "1769903642977dc9bc64474d12377cdd334f1dacfb16531c33ba459f56393a51",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20111102a.htm",
+  "bytes": 83121
+ },
+ {
+  "source_id": "fed_stmt_20111213",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20111213a.htm",
+  "fetched_utc": "2026-11-01T08:04:17Z",
+  "sha256": "7f0f02b489e0e706509dde99354e6cce2a0a919b5fda0fffbb17f125362028e7",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20111213a.htm",
+  "bytes": 82764
+ },
+ {
+  "source_id": "fed_stmt_20120125",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20120125a.htm",
+  "fetched_utc": "2026-11-01T08:04:19Z",
+  "sha256": "f27dd4aa2c39c54f02bb65f86d34d3af1957e46d1c4115acf80d94017daa0d0d",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20120125a.htm",
+  "bytes": 82650
+ },
+ {
+  "source_id": "fed_stmt_20120313",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20120313a.htm",
+  "fetched_utc": "2026-11-01T08:04:20Z",
+  "sha256": "f258a4f21867f9d2be07b10ee9f7caf273f30feeb07012d97115c25a349d7cb3",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20120313a.htm",
+  "bytes": 82699
+ },
+ {
+  "source_id": "fed_stmt_20120425",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20120425a.htm",
+  "fetched_utc": "2026-11-01T08:04:21Z",
+  "sha256": "a87b8b5d4a8fe0932a85126678fc6092887948a545837555327b979d374f52ee",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20120425a.htm",
+  "bytes": 82750
+ },
+ {
+  "source_id": "fed_stmt_20120620",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20120620a.htm",
+  "fetched_utc": "2026-11-01T08:04:22Z",
+  "sha256": "44a7aeb9ad43a2892641a32c21c60c7a769a93824673b1ecb0c0c156b1000bd8",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20120620a.htm",
+  "bytes": 83860
+ },
+ {
+  "source_id": "fed_stmt_20120801",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20120801a.htm",
+  "fetched_utc": "2026-11-01T08:04:23Z",
+  "sha256": "3b9e526e7b70a0ab0b6040ae936bbc13cf6bd8de878e2a3834b1ad85c2cbfd72",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20120801a.htm",
+  "bytes": 82828
+ },
+ {
+  "source_id": "fed_stmt_20120913",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20120913a.htm",
+  "fetched_utc": "2026-11-01T08:04:25Z",
+  "sha256": "12e35d5594689d2ef7660fdc8fad55a6b6d42badebd82c0ba9b19db72980ea44",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20120913a.htm",
+  "bytes": 83657
+ },
+ {
+  "source_id": "fed_stmt_20121024",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20121024a.htm",
+  "fetched_utc": "2026-11-01T08:04:26Z",
+  "sha256": "8c4a31ff0d3b5b535c89d12585fc8d31ace76b76e2253ce1e7df5d6d3e2bab2e",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20121024a.htm",
+  "bytes": 83641
+ },
+ {
+  "source_id": "fed_stmt_20121212",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20121212a.htm",
+  "fetched_utc": "2026-11-01T08:04:27Z",
+  "sha256": "f084ca10e67348518157a105c9ff7f81463ab67844e0654dcca11bfd57919903",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20121212a.htm",
+  "bytes": 84693
+ },
+ {
+  "source_id": "fed_stmt_20130130",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20130130a.htm",
+  "fetched_utc": "2026-11-01T08:04:28Z",
+  "sha256": "f00b93259db3269731d517e922a5c2d1d8fec615e0d843bacab6653a262105e1",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20130130a.htm",
+  "bytes": 84279
+ },
+ {
+  "source_id": "fed_stmt_20130320",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20130320a.htm",
+  "fetched_utc": "2026-11-01T08:04:29Z",
+  "sha256": "8138c362301beab4cb2ead6b8770132869dd7361d1ce32e2e1b1ede397fd03ef",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20130320a.htm",
+  "bytes": 84316
+ },
+ {
+  "source_id": "fed_stmt_20130501",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20130501a.htm",
+  "fetched_utc": "2026-11-01T08:04:30Z",
+  "sha256": "1258dd96dd4c87c789361a8a815fffa43cba5b667e2342e70966446d08bed5eb",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20130501a.htm",
+  "bytes": 84391
+ },
+ {
+  "source_id": "fed_stmt_20130619",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20130619a.htm",
+  "fetched_utc": "2026-11-01T08:04:32Z",
+  "sha256": "937bfe544064fad368147ce41494e05fbabe6636e6d1ef306213087258c21f20",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20130619a.htm",
+  "bytes": 84603
+ },
+ {
+  "source_id": "fed_stmt_20130731",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20130731a.htm",
+  "fetched_utc": "2026-11-01T08:04:33Z",
+  "sha256": "d76ddfb36a6b9d1e2838a2f940fcbd48dd15de2409068164eaaa0ee9906a43b5",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20130731a.htm",
+  "bytes": 84579
+ },
+ {
+  "source_id": "fed_stmt_20130918",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20130918a.htm",
+  "fetched_utc": "2026-11-01T08:04:34Z",
+  "sha256": "0381a46382a920a7f745bf8820fdebad0851919a5fabafc089e063aa019beac8",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20130918a.htm",
+  "bytes": 85247
+ },
+ {
+  "source_id": "fed_stmt_20131030",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20131030a.htm",
+  "fetched_utc": "2026-11-01T08:04:35Z",
+  "sha256": "06977550684fa3286dfc7eb699ec9f36aea9b5e80eac3f1d5aadacc71e211b7e",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20131030a.htm",
+  "bytes": 85116
+ },
+ {
+  "source_id": "fed_stmt_20131218",
+  "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20131218a.htm",
+  "fetched_utc": "2026-11-01T08:04:36Z",
+  "sha256": "d3d3a16e8b728dc4dca93b8b80fa5a9e8c9688555ea7c230d81a03dedf95a932",
+  "raw_file": "raw/fomc_statements/newsevents__pressreleases__monetary20131218a.htm",
+  "bytes": 85904
+ },
+ {
+  "source_id": "fred_DFEDTAR",
+  "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFEDTAR",
+  "fetched_utc": "2026-11-01T08:09:52Z",
+  "sha256": "323b6d9fb014cdd8b39eab02025bb37111e9497c75fdd24ea1731ed3f360376c",
+  "raw_file": "raw/fred/fred_DFEDTAR.csv",
+  "bytes": 172645
+ },
+ {
+  "source_id": "fred_DFEDTARU",
+  "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFEDTARU",
+  "fetched_utc": "2026-11-01T08:09:54Z",
+  "sha256": "8bf90ca4b8af7803315cec97a19bc1547e3369212d5dadcb01f4021eda4e8080",
+  "raw_file": "raw/fred/fred_DFEDTARU.csv",
+  "bytes": 104490
+ }
+]
