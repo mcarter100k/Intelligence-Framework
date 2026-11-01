@@ -4701,3 +4701,60 @@ Spec: docs/specs/us_event_reaction_spec.md. Bonferroni α per cell 0.0083 (one-s
 - **Rollovers:** each 17:00 New York crossed while open, Wednesday ×3. Entry is at the fire bar's close, and a rollover at that instant is not charged. Exit is at the stop-hit bar's open, or the close of bar 30.
 - **Self-test:** OK (10 checks). 7 mutants: 6 caught; C7 (UTC instead of New York as the loop's start day) is an equivalent mutant, because aware comparisons make it the same.
 - **Full suite on the branch:** see the commit (suite run before commit).
+
+## 2026-11-01 — RESULT: shadow ledger re-graded with costs (read-only; all candidates INSUFFICIENT)
+
+Run: `scripts/reality_run.py --code <worktree> script studies/shadow_cost_regrade.py run …`. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty. Full suite on the branch before the parameters commit: 897 passed, 8 skipped, 2 deselected. Verbatim report (`studies/shadow_cost_regrade_report.md`):
+
+### Shadow ledger re-graded with costs (read-only)
+
+Spread 3.0 pips round trip (sensitivity 4.0); financing at OANDA's 2026-11-01 quoted rates (sensitivity: 1 point worse); rollovers at 17:00 New York, Wednesday x3. Raw R is the frozen grader's; adjusted R never replaces it.
+
+Positive control: 28 graded rows; every raw R reproduced from freshly fetched H4 bars to 2 dp (a mismatch would have aborted the run).
+
+#### EARLY_MOMENTUM_v2
+
+- Episodes, raw R (frozen grader): N 4; mean -0.400R; median -0.470R  (INSUFFICIENT: N<20)
+- Episodes, cost-adjusted R: N 4; mean -0.411R; median -0.513R  (INSUFFICIENT: N<20)
+- Episodes, cost-adjusted R at 4.0 pips and rates 1 point worse: N 4; mean -0.442R; median -0.535R  (INSUFFICIENT: N<20)
+- All graded fires (20): mean spread cost 0.025R, mean financing +0.004R, mean nights 6.0
+
+| Episode (first fire) | Pair | Side | Risk (pips) | Nights | Raw R | Spread | Financing | Adjusted R |
+|---|---|---|---|---|---|---|---|---|
+| 2026-09-18T05:00 | GBP_JPY | LONG | 311 | 7 | -0.55 | -0.010 | +0.021 | -0.539 |
+| 2026-09-25T17:00 | GBP_JPY | SHORT | 182 | 7 | -0.39 | -0.016 | -0.080 | -0.487 |
+| 2026-10-02T17:00 | GBP_JPY | LONG | 144 | 7 | +0.34 | -0.021 | +0.045 | +0.364 |
+| 2026-10-19T09:00 | GBP_JPY | LONG | 83 | 5 | -1.00 | -0.036 | +0.056 | -0.980 |
+
+#### THRUST_PULLBACK
+
+- Episodes, raw R (frozen grader): N 1; mean -0.330R; median -0.330R  (INSUFFICIENT: N<20)
+- Episodes, cost-adjusted R: N 1; mean -0.418R; median -0.418R  (INSUFFICIENT: N<20)
+- Episodes, cost-adjusted R at 4.0 pips and rates 1 point worse: N 1; mean -0.443R; median -0.443R  (INSUFFICIENT: N<20)
+- All graded fires (1): mean spread cost 0.015R, mean financing -0.073R, mean nights 7.0
+
+| Episode (first fire) | Pair | Side | Risk (pips) | Nights | Raw R | Spread | Financing | Adjusted R |
+|---|---|---|---|---|---|---|---|---|
+| 2026-09-28T05:00 | GBP_JPY | SHORT | 200 | 7 | -0.33 | -0.015 | -0.073 | -0.418 |
+
+#### MOMENTUM_JOIN
+
+- Episodes, raw R (frozen grader): N 2; mean -1.000R; median -1.000R  (INSUFFICIENT: N<20)
+- Episodes, cost-adjusted R: N 2; mean -1.038R; median -1.038R  (INSUFFICIENT: N<20)
+- Episodes, cost-adjusted R at 4.0 pips and rates 1 point worse: N 2; mean -1.074R; median -1.074R  (INSUFFICIENT: N<20)
+- All graded fires (7): mean spread cost 0.049R, mean financing -0.039R, mean nights 3.3
+
+| Episode (first fire) | Pair | Side | Risk (pips) | Nights | Raw R | Spread | Financing | Adjusted R |
+|---|---|---|---|---|---|---|---|---|
+| 2026-09-28T05:00 | GBP_AUD | LONG | 55 | 1 | -1.00 | -0.054 | -0.018 | -1.072 |
+| 2026-10-21T05:00 | GBP_JPY | LONG | 60 | 3 | -1.00 | -0.050 | +0.046 | -1.004 |
+
+
+**Reading** (descriptive; no verdict changes; the frozen raw R and the futility rule stand as written):
+- **The positive control held:** 28 of 28 graded rows were reproduced from fresh bars. The ledger, the feed and the grader agree.
+- **Costs move each episode by −0.01R to −0.09R.**
+  - Short GBP/JPY pays the most financing, about −0.08R a week.
+  - Tight-stop MOMENTUM_JOIN pays about 0.05R in spread.
+  - Long GBP/JPY earns carry (+0.02 to +0.06R) that roughly offsets its spread.
+- **For the futility checkpoint** (N=20, 90% bound vs +0.15R on raw R): costs of this size make every candidate's real edge smaller than its raw R by about 0.01–0.04R on average (EARLY_MOMENTUM_v2 −0.011R). That should be read beside any raw result near the bar.
+- Every candidate is negative before costs and more negative after, at N = 4, 1 and 2 episodes: INSUFFICIENT throughout.
