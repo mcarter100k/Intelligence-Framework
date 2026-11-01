@@ -5,6 +5,19 @@
 `news_gate.py` and `decision_brief.py`. Built on branch
 `feat/us-events-context`. **It does not merge without team review.**
 
+**Revision 1 (2026-11-01, after team review; owner approved the rebuild).**
+Two reviewers returned REQUEST CHANGES and rule 12 FAIL
+(validation_log 2026-11-01 CORRECTION). This revision is committed before the
+rebuild. Changes, old → new:
+- §1.1: a malformed USD row used to reject the whole feed. Now it is skipped
+  and counted. USD rows are also confined to the GBP/AUD/JPY rows' feed week.
+- §1.3: titles were sanitized by a two-word replace. Now an allow-list.
+  Same-time releases are grouped, a silent cap at 3 becomes "+N more", and
+  the line sits below every warning note. Three wordings are corrected.
+- §1.4 (new): the notification wrapper's triggers are anchored to real
+  label lines.
+- §2 I1 and I3: rewritten to match. §3 lists the test changes.
+
 **Owner decisions behind it** (driver-coverage proposal §7, 2026-11-01):
 - US events come in as **context first**.
 - Gating is decided from evidence. The pre-registered study (R35, R36) found
@@ -21,6 +34,19 @@
      an empty feed is today.
    - Schema unchanged.
    - CNY stays out (not decided).
+   - **A USD row can never fail the gated fetch (Rev 1).** A USD row that
+     cannot be read (missing or unparseable date, a date with no UTC offset,
+     a non-text title) is skipped and counted, never raised. GBP/AUD/JPY rows
+     keep today's fail-closed behaviour exactly.
+   - **USD rows are confined to the feed week (Rev 1).** A USD row later than
+     `news_gate.covered_through(newest GBP/AUD/JPY row)` is dropped and
+     counted. `check_news_gate` takes staleness from the newest row of any
+     currency, so without this a stray next-week USD row could turn a stale
+     gate active. The real feed is a single week, so this should never fire.
+     It is enforced in code because nothing else guarantees it.
+   - The success line reports skipped and dropped rows, e.g.
+     `… and 4 US events (context only); skipped 1 US row (unreadable or
+     outside this calendar's week) …`. It goes to the log only.
 
 2. **`news_gate.py`**
    - `PAIR_CURRENCIES` and `check_news_gate` are **unchanged**. USD still
@@ -39,17 +65,57 @@
 3. **`decision_brief.py`**
    - A new field `us_events_line`, computed in `get_decision_brief` from
      `us_event_context()`.
-   - It renders as one line `  US DATA    …`, placed after the existing
-     news-calendar honesty line. Plain English throughout; times through
-     `display_time.to_display(style="day_time")`.
+   - It renders as one line `  US DATA    …`. Plain English throughout;
+     times go through `display_time.to_display(style="day_time")`.
+   - **Placement (Rev 1):** the line goes immediately before the header's
+     closing border, below every warning note (price source, market closed,
+     feed stale, news calendar). It used to be inserted above the
+     market-closed and price notes.
+   - **Grouping (Rev 1):** releases at the same time are listed once with
+     their shared time. At most 4 titles are shown; any more add
+     `· +N more`. Before Rev 1, the 4th and later events were dropped silently.
+   - **Titles (Rev 1), allow-list in `_us_title`:**
+     1. Any character outside ASCII letters, digits, space and `.,&()'%+:/-`
+        becomes a space. That covers `#`, `|`, `_`, control characters,
+        newlines and non-ASCII look-alikes.
+     2. `/` survives only between lowercase letters or digits (`m/m`, `y/y`),
+        so no `XXX/YYY` pair-header shape can form.
+     3. Whitespace is collapsed.
+     4. All-capital words of 5 or more letters are capitalised
+        (`DECISION` → `Decision`), and each wrapper or digest phrase
+        (DECISION, ALERT, SHADOW SIGNALS, FRAMEWORK ERROR, EXIT IF,
+        WATCH FOR, STAND ASIDE, STAND DOWN, REASON) is capitalised word by
+        word in any casing. Short acronyms (FOMC, CPI, ISM) are kept.
+     5. Titles over 60 characters are cut at a word boundary, followed by `...`.
+     6. An empty result becomes `US release`.
+   - **Untimed events:** the feed carries no all-day marker. Observed
+     2026-11-01: "Congressional Elections" arrives as `10:16` ET, and real
+     releases also land on odd minutes (03:50, 18:50). So the feed's time is
+     shown as given; detecting untimed events is not possible from this
+     source.
 
    | Status | Rendered text |
    |---|---|
-   | `ok`, events ahead | `<title> <Day time>` for up to 3 events, joined by ` · `, then ` — for information; the framework does not stand aside for US releases.` |
+   | `ok`, events ahead | groups `<title>, <title> <Day time>` joined by ` · `, optional ` · +N more`, then ` — for information; the framework does not stand aside for US releases.` |
    | `ok`, none, and coverage reaches 24h ahead | `none in the next 24 hours.` |
    | `ok`, none, coverage ends sooner | `none before <coverage end, day_time>; later days are not in this week's calendar yet.` |
-   | `no_us_rows` | `not checked — this calendar carries no US events yet (it refreshes Sundays).` |
-   | `stale` / `missing` | `not checked — news calendar out of date.` |
+   | `no_us_rows` | `not checked — the saved news calendar holds no US events (it refreshes when over a day old).` (Rev 1; was "it refreshes Sundays", which is wrong: `scripts/scheduled_brief.sh:46` re-fetches whenever the file is over 24 h old) |
+   | `stale` | `not checked — news calendar out of date.` |
+   | `missing` | `not checked — news calendar missing.` (Rev 1; was shown as "out of date") |
+
+4. **`scripts/scheduled_brief.sh` (free zone, rule 12; Rev 1)**
+   - Every trigger read from the brief's stdout is anchored to a real label
+     line. Label lines start with 0–2 spaces; wrapped continuation lines
+     start with 13 or 15. So the patterns become `^ ? ?DECISION `,
+     `^ ? ?SHADOW SIGNALS`, `^ ? ?REASON +Framework error` and
+     `^ ? ?[A-Z]{3}/[A-Z]{3}( |$)` for pair headers. This covers the
+     market-closed gate, the suppression log line, the per-pair ledger
+     state, the category choice and the summary.
+     - Plain `^ *` is not enough: a wrapped title word can start a
+       continuation line.
+   - This closes the whole class, including own-currency titles that
+     `gate_reason` already puts into REASON lines unsanitized (pre-existing).
+     The sanitizer stays as a second layer.
 
 ## 2. What must not change (each pinned by a test)
 
@@ -57,18 +123,34 @@
   dict with and without USD rows in the calendar, over a sweep of times
   across a feed week, including active vs stale. So `apply_filter`, the
   decision and the REASON line cannot change.
+  - **Rev 1:** the USD rows in the sweep pass through the fetch's own
+    confinement function, not a test-side filter, so removing the
+    confinement fails I1.
+  - **I1b (Rev 1), fetch side:** a feed of valid GBP/AUD/JPY rows plus any
+    malformed USD row writes exactly the GBP/AUD/JPY rows `main` would write.
+    A next-week USD row is dropped.
 - **I2, the frozen shadow stamp (trap T1):** `pre_release` and therefore
   `news_window` are part of I1's dict equality.
   `shadow_signals.py` is not touched.
-- **I3, no false notifications (rule 12):**
-  - The wrapper sends DECISION for any brief line containing uppercase
-    `DECISION` without `STAND ASIDE` (`scripts/scheduled_brief.sh:128,151`).
-  - The US line must never contain uppercase `DECISION` or `ALERT`; event
-    titles are sanitized so that holds whatever the feed sends.
-  - The test runs the wrapper's own grep pipeline on a rendered stand-aside
-    brief carrying a US event titled `RATE DECISION` and asserts no DECISION
-    category. It also asserts the line never reaches stderr, the ALERT
-    channel.
+- **I3, no false notifications (rule 12; rewritten in Rev 1):**
+  - The original I3 checked only the DECISION grep, with a copied pipeline
+    string that a mutated wrapper still satisfied.
+  - **I3a, wrapper layer:** run the **real** `scheduled_brief.sh` on the
+    `test_wrapper_behavior` harness. The rendered briefs carry an
+    **unsanitized** US line, crafted so that `DECISION LONG`,
+    `SHADOW SIGNALS`, `REASON Framework error` and `USD/JPY` each start a
+    wrapped continuation line.
+    - On an open-market stand-aside brief: no notification, no ledger row,
+      and no health failure over two runs.
+    - On an open-market GBP/JPY LONG brief: exactly `GBP/JPY LONG`, with
+      ledger state `GBP_JPY=LONG/open`.
+    - Positive control: the same LONG brief without the US line notifies
+      identically, and a real label line still fires.
+  - **I3b, sanitizer layer:** across an adversarial title corpus × every
+    padding that moves the trigger across a wrap boundary, the rendered
+    line contains none of the wrapper or digest phrases (case-sensitive),
+    no `#`, `|` or `_`, no `[A-Z]{3}/[A-Z]{3}`, and only ASCII.
+  - Each layer is proven alone, so either one failing is caught.
   - No new notification is added.
 - **I4, plain English (rule 4):** the rendered line passes the banned-token
   floor in `tests/test_brief_display.py`. The floor itself is not edited.
@@ -83,6 +165,11 @@
   - This is not a floor test.
 - `tests/test_news_gate.py::test_usd_event_gates_neither_pair` is
   **unchanged** and must still pass.
+- **Rev 1:**
+  - `tests/test_us_events_context.py`: the old wrapper-string I3 test and
+    its control are replaced by I3a and I3b above. Neither was a floor test.
+  - All existing `tests/test_wrapper_behavior.py` cases must pass unchanged
+    under the anchored wrapper.
 
 ## 4. Verification
 
@@ -99,8 +186,17 @@
   2. A real ForexFactory fetch into a temp path. It must hold USD rows.
   3. The brief against that file, rendering real US events, with the
      decisions identical to run 1 (I1 on real data).
-- **Gate 3, PENDING LIVE CONFIRMATION:** the first Sunday calendar fetch
-  after merge writes USD rows, and the next brief renders real US events.
+- **Gate 3, PENDING LIVE CONFIRMATION:** the first calendar fetch after
+  merge writes USD rows (Sunday's launchd job, or the brief's re-fetch of a
+  file over 24 h old), and the next brief renders real US events.
+- **Rev 1 mutants, added:**
+  - malformed USD row raised again;
+  - confinement removed;
+  - each wrapper anchor reverted to unanchored;
+  - `/` rule removed;
+  - phrase capitalisation removed;
+  - grouping removed (silent cap);
+  - line placed above the warnings.
 
 ## 5. Out of scope
 
@@ -108,3 +204,10 @@
 - US events in the DIGEST or in `setup_check`.
 - CNY events.
 - Archiving forecasts or actuals (proposal step 6, its own spec).
+- Rev 1, deferred with reasons:
+  - "released at …" for the last two hours (reviewer: optional);
+  - splitting the weekly heartbeat's event count into own-currency and US
+    (non-blocking);
+  - committing a mutation runner script (non-blocking);
+  - fixing `reality_run --code`'s missing calendar (separate change, known
+    since 2026-10-18).
