@@ -140,9 +140,11 @@ worth pre-registering. "Have" = already in the framework.
   forecast history accumulates.
 
 **What isn't known yet:**
-- **Account region:** NOT CHECKED. It decides whether bond, index and
-  commodity CFDs (US 10-year, S&P 500, copper) are available. Settling it
-  takes one read-only instruments call through `scripts/reality_run.py`.
+- **Account region:** settled 2026-11-01 by the owner-approved probe
+  (`studies/instrument_probe_report.md`). The account offers **currency
+  pairs only** (68): no bond, index or commodity CFDs. USD/JPY, GBP/USD and
+  AUD/USD have daily history from 2002. Yields, equities, VIX and
+  commodities need outside sources. (VERIFIED)
 
 **What exists only in git history:**
 - `shadow/cross_market.py` (VIX, S&P), `cot_data.py`, `interest_rates.py`
@@ -208,3 +210,14 @@ evidence path.
    because it decides whether US events belong in the gate at all.
 5. **Origin of the 00:03 edit (1a):** if it was not the owner, find out who
    or what can write to the live checkout.
+
+---
+
+## Updates
+
+- **2026-11-01, owner decisions on §7:** (1) format lines in
+  `storylines.md`, no code change; (2) live probe approved and run, see §5;
+  (3) US events come in as context first; (4) next study: US-event
+  reactions. Recorded in validation_log.
+- **2026-11-01, done:** step 0 (live guard code check, merged), storylines
+  format test (merged), step 2 (instrument probe).

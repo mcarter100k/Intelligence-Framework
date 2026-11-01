@@ -30,9 +30,9 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 
 | Area | Status | What we have / what's missing |
 |---|---|---|
-| US dollar and US yields (move GBP/JPY via USD/JPY) | MISSING | Mentioned by hand in the storylines "Backdrop" only |
-| Risk-on / risk-off (equities, VIX); AUD is risk-sensitive | MISSING | |
-| Commodities (AUD with iron ore, copper) | MISSING | |
+| US dollar and US yields (move GBP/JPY via USD/JPY) | MISSING | Mentioned by hand in the storylines "Backdrop" only. USD/JPY, GBP/USD, AUD/USD are on the account with daily history from 2002; yields are not (instrument probe, 2026-11-01) |
+| Risk-on / risk-off (equities, VIX); AUD is risk-sensitive | MISSING | The account offers no index products: needs an outside source such as FRED |
+| Commodities (AUD with iron ore, copper) | MISSING | The account offers no commodities: needs an outside source |
 | Positioning (COT, retail sentiment) | MISSING | |
 
 ## Price: the chart
@@ -53,7 +53,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 | Sessions and time of day (Tokyo, London, New York) | PARTIAL | Asian-session range used as a level only |
 | Fixes and month-end flows (London 4pm, Tokyo fix) | MISSING | |
 | Spread | PARTIAL | Fixed assumption (3.0 pips in studies, 4.0 in execution tools). Never measured live |
-| Overnight financing (swap) | PARTIAL | Known to matter (R32: about 0.1R per 5-day GBP/JPY hold). **Not counted in the shadow ledger grading** |
+| Overnight financing (swap) | PARTIAL | Known to matter (R32: about 0.1R per 5-day GBP/JPY hold). **Not counted in the shadow ledger grading.** Today's broker rates (2026-11-01): GBP/JPY long +1.6%/yr, GBP/AUD long −1.89%/yr |
 | Liquidity, slippage, order flow, volume | MISSING | Prices are mid only; no bid/ask |
 
 ## Risk and the trader

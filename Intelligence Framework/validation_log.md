@@ -4521,3 +4521,16 @@ Spec: docs/specs/carry_quiet_week_spec.md. Run once, on the candles recorded at 
 - Mutation: making the check vacuous (`missing = set()`) → the control fails (1 failed); reverted → 2 passed, 1 skipped.
 
 **Gate 3 — PENDING LIVE CONFIRMATION:** the first `storylines.md` approved after 2026-11-01 passes `test_live_storylines_is_machine_readable`, and a real `setup_check` run prints FUEL AGREES or CONFLICTS.
+
+## 2026-11-01 — Instrument probe (owner-approved): the account offers currency pairs only
+
+**What ran.** `studies/instrument_probe.py`, read-only: the account's instrument list, then the first and latest daily candle of each target present. Through `scripts/reality_run.py --code <worktree> script …`, twice (the second after a `sys.path` convention fix): both exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty, second output byte-identical to the first. Verbatim output: `studies/instrument_probe_report.md`.
+
+**Gate 1.** `tests/test_instrument_probe.py`, canned responses: availability per target, the account id and key never printed, financing read when present, an HTTP failure raises rather than printing a report. Mutants caught: unmasked id (1 failed), swallowed HTTP errors (1 failed), skipped availability check (2 failed); reverted → 3 passed.
+
+**Result (VERIFIED, REALITY GATE):**
+- `Instruments offered by type: CURRENCY 68`. No yields, equity indices, metals or commodities: all 14 non-currency targets `NOT OFFERED`.
+- USD_JPY, GBP_USD, AUD_USD daily history `2002-05-06 → 2026-10-29`; USD_CNH `2011-02-06 → 2026-10-29`.
+- Financing today: `GBP_JPY: longRate 0.016 shortRate -0.0366`; `GBP_AUD: longRate -0.0189 shortRate -0.0018`. Read as annual rates paid to (+) or by (−) the holder (INFERRED convention). This matches policy-rate gaps less a markup of about 0.9–1.0 point (BoE 3.75 − BoJ 1.25 = 2.5 → +1.6; BoE 3.75 − RBA 4.60 = −0.85 → −1.89). The rates in that check come from web reports.
+
+**Consequences.** Cross-market context from OANDA is limited to the USD legs; yields, VIX and commodities need outside sources with their own feed validation. The US-event study can use USD legs and both crosses on one feed.

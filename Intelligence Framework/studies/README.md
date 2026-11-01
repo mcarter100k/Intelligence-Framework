@@ -36,6 +36,7 @@ foundation/ cites these about 20 times. They were committed exactly as found, ea
 | Script | Report | Question |
 |---|---|---|
 | `stage2_source_convert_gate.py` | `stage2_gate_report.md` | Stage 2 of docs/specs/data_map_spec.md: source conversion and the feed-overlap gate |
+| `instrument_probe.py` | `instrument_probe_report.md` | Which cross-market instruments the live account offers, their daily history, and today's financing rates (owner-approved, 2026-11-01) |
 
 ## Premises tested (most were refuted at honest N; see foundation/research_findings.md)
 
