@@ -4534,3 +4534,36 @@ Spec: docs/specs/carry_quiet_week_spec.md. Run once, on the candles recorded at 
 - Financing today: `GBP_JPY: longRate 0.016 shortRate -0.0366`; `GBP_AUD: longRate -0.0189 shortRate -0.0018`. Read as annual rates paid to (+) or by (−) the holder (INFERRED convention). This matches policy-rate gaps less a markup of about 0.9–1.0 point (BoE 3.75 − BoJ 1.25 = 2.5 → +1.6; BoE 3.75 − RBA 4.60 = −0.85 → −1.89). The rates in that check come from web reports.
 
 **Consequences.** Cross-market context from OANDA is limited to the USD legs; yields, VIX and commodities need outside sources with their own feed validation. The US-event study can use USD legs and both crosses on one feed.
+
+## 2026-11-01 — PRE-REGISTRATION: do scheduled US releases move GBP/JPY and GBP/AUD? (2005–2013 STUDY data)
+
+**Owner direction:** driver-coverage proposal §7, decision 4. The study decides whether US events (FOMC, CPI, the jobs report) belong in the news gate; until then they come in as context only (decision 3).
+
+**Committed together, before any 2005–2013 outcome is computed:**
+
+| File | sha256 |
+|---|---|
+| `docs/specs/us_event_reaction_spec.md` | `932a22d99b79dc514d9df01224b90260b591f5a7d8c4dd4c51dff35b8841841f` |
+| `studies/us_event_reaction_test.py` | `045067698abfb861d11c0f475d72a0f21255086f18be13fabbcc3f6c35399c49` |
+| `studies/us_events_2005_2013.csv` | `0f898806a110f5a4c1c063bd772e93102085eb743b47069d95f788103fed8aa2` |
+| `studies/us_events_sources.json` | `1c2aadab293095ae8bc7643af890b408701187e3c778a38c2d5576950f813f8f` |
+
+**The test (spec §3–§5).**
+- Six cells: {GBP_JPY, GBP_AUD} × {FOMC, CPI, NFP}.
+- Primary measure per event: the paired range-ratio effect. That is the day's range over the median of the 20 prior days, minus the mean of same-weekday, event-free control days within ±28 days.
+- Bounds: Bonferroni one-sided bootstrap at α = 0.05/6.
+- Verdicts: MATERIAL if the lower bound ≥ +0.10; NOT MATERIAL if the upper bound < +0.10; otherwise INCONCLUSIVE.
+- Power stated in advance: MATERIAL needs an observed mean of roughly +0.23 to +0.26; a modest real effect most likely reads INCONCLUSIVE.
+
+**Event table (VERIFIED in this session, independently of the agent that compiled it):**
+- 294 rows: 72 scheduled FOMC, 6 unscheduled FOMC, 108 CPI, 108 NFP. 313 source pages, all hashes re-verified (0 mismatches), first in the scratchpad and again in the persistent archive `~/intel_study_archives/us_events_2005_2013/`.
+- Checks: no duplicates; exactly one CPI and one NFP in each of the 108 months; the only weekend row is the Sunday 2010-05-09 21:15 ET action, which maps to the Monday session.
+- 8 dates spot-checked against the raw pages, all found: 2013-10-22 NFP and 2013-10-30 CPI (shutdown shifts), 2010-07-16 CPI, 2006-04-07 NFP, and FOMC on 2008-12-16, 2005-06-30, 2012-09-13 and 2007-06-28. The negative control (the pre-shutdown 2013-10-04 NFP date) is absent from both the page and the table.
+- The agent's cross-checks, not re-run here: NFP vs ALFRED PAYEMS 108/108; CPI within ALFRED CPIAUCSL vintages 108/108; FOMC vs the Fed press listing 70/70 (2006–2013); all 21 fed funds target changes on a table date.
+- 62 FOMC rows have no release time. Scheduled statements are all daytime, so the session is the release date either way (INFERRED from the meeting format; times stated where a Fed page gives them).
+
+**Self-test:** `SELFTEST OK` (20 checks). 12 mutants, each caught (FAIL count ≥ 1, no crash): day inside its own normaliser; event days as controls; any-weekday controls; a 35-day window; no Bonferroni; a strict threshold; round trip at d+3 only; UTC date instead of session date; embargo check removed; unscheduled kept as a cell; unscheduled not excluded from controls; no evening roll. Reverted identical, caches cleared, `SELFTEST OK` again. The self-test also runs in the suite (`tests/test_us_event_reaction_selftest.py`).
+
+**Full suite on the branch:** 896 passed, 8 skipped (the gitignored ledgers are absent in a worktree), 2 deselected.
+
+**Next:** the `counts` stage through `scripts/reality_run.py` (counts only, no outcome), recorded here before `full` runs once.
