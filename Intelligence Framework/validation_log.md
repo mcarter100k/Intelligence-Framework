@@ -4817,3 +4817,64 @@ Positive control: 28 graded rows; every raw R reproduced from freshly fetched H4
 7. Wording: "(it refreshes Sundays)" is wrong, since the wrapper re-fetches when the file is over 24 h old (scheduled_brief.sh:46); a missing calendar should not read "out of date"; untimed events should not render as exact times.
 
 **Gate 3 entry above is void** until a rebuilt branch passes review.
+
+## 2026-11-01 — REBUILT (Rev 1), AWAITING RE-REVIEW: US events in the brief, the team's requested changes (branch `feat/us-events-context`, NOT merged)
+
+**Owner approved the rebuild.** Spec Rev 1 was committed before the build (spec `cbf7fb2`, then build `b6262e9`). `main` was merged into the branch (`6ca1ce4`) to settle the append-only conflict in this log: both sides kept, main's entries first, 0 deletions against either parent (`git diff --numstat`).
+
+**Changes, one per requested item (see the CORRECTION entry above):**
+1. A USD row that can't be read is skipped and counted, never fatal. That covers an unparseable or missing date, a date with no UTC offset, and a non-text title or forecast. The GBP/AUD/JPY parsing block is byte-identical to `main`'s (compared programmatically).
+2. USD rows later than `covered_through(newest own row)` are dropped by `calendar_fetch._confine_context_rows`. I1 now runs its USD rows through that function, not a test-side filter.
+3. Allow-list sanitizer (`_us_title`):
+   - ASCII letters, digits and `.,&()'%+:/-` only;
+   - `/` only inside `m/m`-style ratios;
+   - capitals ≥ 5 letters and every trigger phrase capitalised;
+   - capped at 60 characters.
+4. `scheduled_brief.sh`: every stdout trigger is anchored to label lines with `^ ? ?` (labels start 0–2 spaces in, continuations 13–15). This covers DECISION, SHADOW SIGNALS, REASON Framework error and the pair header, in the closed-market gate, the suppression line, the ledger state, the category and the summary.
+5. Same-time releases are grouped, max 4 titles, then `+N more`.
+6. The line goes immediately before the header border, below every warning.
+7. Wording: missing → "news calendar missing", and "refreshes when over a day old" replaces "refreshes Sundays". Untimed events are **not fixable from this source**: the feed has no all-day marker. Observed in the raw feed 2026-11-01: "Congressional Elections" arrives as `2026-11-03T10:16:00-05:00`, and real releases also sit on odd minutes (03:50, 18:50).
+
+**Gate 1:**
+- `tests/test_us_events_context.py`: 26 tests.
+  - I1b: 5 malformed-USD variants; the dirty feed writes a file byte-identical to the clean feed's.
+  - An own-currency malformed row still rejects the feed.
+  - A next-week USD row is dropped, and coverage is the own rows' week.
+  - I3b: 17 attack titles × 40 paddings = 680 rendered briefs. None carries a trigger phrase, `#`, `|`, `_` or `XXX/YYY`.
+  - Ordinary titles survive unchanged. Grouping and placement are each pinned.
+- `tests/test_wrapper_behavior.py`: 5 new I3a tests, run on the **real** wrapper under `/bin/bash`, with the US line **unsanitized** and each trigger starting a wrapped line (a precondition test asserts it does).
+  - Stand-aside brief, two runs: no notification, no ledger row, 0 health failures.
+  - LONG: ledger `GBP_JPY=LONG/open`, summary exactly `GBP/JPY LONG`.
+  - Closed-market LONG: suppressed.
+  - Control without the US line: identical notification.
+  - All existing wrapper tests pass unchanged under the anchors.
+- **Mutation: 19 of 19 caught.** Each mutant was confirmed applied, run under `/bin/bash` with `PYTHONDONTWRITEBYTECODE=1`, reverted byte-identical with caches cleared. The reverted copy gave 93 passed.
+  - Wrapper: W1 DECISION, W2 SHADOW and W3 error greps unanchored; W4 ledger header, W5 summary DECISION, W6 summary header, W7 closed-gate header and W10 ledger error each set back to `^ *`.
+  - Fetch: S1 a malformed USD row raises again; S2 confinement removed. S2 was caught by I1 itself and by the dropped-row test.
+  - Sanitizer: S3 `/` rule removed; S4 phrase capitalisation removed; S5 `#` allowed; S6 length cap removed.
+  - Display: S7 grouping removed; S8 silent cap; S9 line placed above the warnings; S10 missing shown as out of date.
+  - Gate: S11 USD added to `PAIR_CURRENCIES`.
+- Full suite on the merged branch: **928 passed, 8 skipped, 2 deselected** (8 skips: gitignored ledgers absent in a worktree).
+
+**Gate 2 — REALITY** (`scripts/reality_run.py --code <worktree>`; every run exit 0, `project files : UNCHANGED (verified by hash)`, stderr 0 bytes):
+1. Real ForexFactory fetch with the branch code into the temp dir: `calendar.csv updated: 10 high-impact GBP/AUD/JPY events and 4 US events (context only) through 2026-11-06 16:00 UTC.` The US rows were Congressional Elections (11-03 15:16 UTC) and AHE m/m, NFP and Unemployment Rate (11-06 13:30).
+2. The line from that real file:
+   - at Thu 18:00 UTC: `Average Hourly Earnings m/m, Non-Farm Employment Change, Unemployment Rate Fri 5:30 AM PST — for information; the framework does not stand aside for US releases.`
+   - at Sat 18:00 UTC: `none before Sat 8:59 PM PST; later days are not in this week's calendar yet.`
+   - from the same file without US rows: `not checked — the saved news calendar holds no US events (it refreshes when over a day old).`
+   - with no file: `not checked — news calendar missing.`
+3. Real brief on the fetched calendar (copied into the worktree for the run, removed after; the worktree status was clean). Header:
+   `Market closed — analysis based on last close. Next open Sun 2:00 PM PST.` / `US DATA    none in the next 24 hours.` / border. The line sits below the warning.
+4. DECISION / REASON / CONFIDENCE / POSITION identical with vs without US rows, both pairs: `True`. Caveat: Sunday, market closed, so both stood aside. I1 is the stronger proof.
+5. The anchored triggers on the real output: 0 non-stand-aside DECISION lines, 0 SHADOW / error label lines.
+
+**Deferred (spec §5 Rev 1):**
+- "released at …" for the last 2 hours (optional);
+- splitting the heartbeat's event count;
+- committing a mutation runner;
+- the `reality_run --code` calendar gap (known since 2026-10-18; this run worked around it again by copying the calendar in).
+
+**Gate 3 — PENDING LIVE CONFIRMATION (after merge only):**
+- The first calendar fetch after merge (Sunday's job, or the brief's re-fetch of a file over 24 h old) writes USD rows.
+- The next brief renders them.
+- No notification is ever caused by the line.
