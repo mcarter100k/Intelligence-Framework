@@ -4567,3 +4567,20 @@ Spec: docs/specs/carry_quiet_week_spec.md. Run once, on the candles recorded at 
 **Full suite on the branch:** 896 passed, 8 skipped (the gitignored ledgers are absent in a worktree), 2 deselected.
 
 **Next:** the `counts` stage through `scripts/reality_run.py` (counts only, no outcome), recorded here before `full` runs once.
+
+## 2026-11-01 — US release reactions: counts stage (before any outcome)
+
+Run: `scripts/reality_run.py --code <worktree> script studies/us_event_reaction_test.py counts <.env> ~/intel_study_archives/us_event_reaction_data`. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty, 424 OANDA requests through the embargo-guarded fetch. Counts only, no ratio, range or effect printed.
+
+| Cell | Events in table | Matched | Dropped | Mean controls per event |
+|---|---|---|---|---|
+| GBP_JPY FOMC | 72 | 72 | 0 | 7.38 |
+| GBP_JPY CPI | 108 | 107 | 1 warm-up (Jan 2005) | 6.66 |
+| GBP_JPY NFP | 108 | 107 | 1 warm-up (Jan 2005) | 6.17 |
+| GBP_AUD FOMC | 72 | 72 | 0 | 7.38 |
+| GBP_AUD CPI | 108 | 107 | 1 warm-up | 6.66 |
+| GBP_AUD NFP | 108 | 107 | 1 warm-up | 6.17 |
+
+- Trading days: 2,343 per pair (2005-01-03 → 2013-12-30). Weekend rule: GBP_JPY 420 Sundays folded, 258 Saturdays dropped; GBP_AUD 420 folded, 266 dropped. That matches the carry study's counts stage on the same pipeline exactly (2026-10-29).
+- Data hashes (the `full` stage refuses any other file): GBP_JPY_D `ca1602404c5c501dffc0ee8ec5eeb4bee4a2197fe2fc76d3bbf69be2c8fa000a`, GBP_JPY_H4 `f06892d1ebf958cc1a52bebf399e6ce10bef8e73e5e2c5b6a7f5634644053764`, GBP_AUD_D `661a9d49c09ed9fbaa7a26a1e3ae60a4fc07860d19ea3ec89342398a9db7d939`, GBP_AUD_H4 `a59db9940e8d7a1c4ff02441112390c5d7b7544e764d980943877dee51b0ff77`; event table `0f898806…8aa2`.
+- Every N is at or near the power statement's assumption (72 / 108; about 7 controls). The power statement stands unchanged.
