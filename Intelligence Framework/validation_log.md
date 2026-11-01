@@ -4459,3 +4459,15 @@ Spec: docs/specs/carry_quiet_week_spec.md. Run once, on the candles recorded at 
   - The quiet filter's advantage over non-quiet weeks (+0.082) has an interval spanning zero.
   - This effect is below what 224 trades can resolve, as the power statement warned.
 - **Status:** GBP/JPY carry-after-quiet REFUTED on 2005–2013. GBP/AUD INCONCLUSIVE; it is not a candidate for the sealed exam on this evidence. Both are recorded in foundation/research_findings.md (R33, R34).
+
+## 2026-11-01 — INCIDENT: protected live file broken overnight (restored); FINDING: the macro read was never machine-readable
+
+**Incident (I31).** At 2026-11-01 00:03:54 PDT `levels_context.py` in the live checkout (`main`) was modified: line 98 `result["prev_week_high"]` became `result["n]`, a syntax error. Origin unknown (no framework agent session was running; it reads as a stray keystroke over a selection). Observed:
+- `git status` showed `M levels_context.py`; `ast.parse` → `SyntaxError: unterminated string literal (detected at line 98)`.
+- The broken copy and its diff were saved outside the repo, then the file was restored with `git checkout`. After the restore: status clean, the file parses, and the full suite on the live checkout gave `888 passed, 2 deselected` with the conftest evidence guard passing.
+- Impact had it run: `entry_confirmation.py:177-182` imports the module inside `try/except Exception`, so the brief would not have crashed. The 15-minute key-level check would have gone quietly unavailable. No scheduled run executed while the file was broken (next brief 02:30 PDT).
+- Control added: the live guard alerts when tracked code in the live checkout differs from `main` (branch `feat/live-code-guard`, entry to follow).
+
+**Finding (I32).** `setup_check.parse_storylines()` on the live `storylines.md` returns `views: {}` (no GBP, AUD or JPY bias). A control file with `GBP: neutral` / `AUD: bullish` / `JPY: bullish` lines returns all three. So the pre-trade FUEL check could never return AGREES or CONFLICTS; the journal holds only `neutral` (4) and `stale` (5). `storylines.md` has also been stale since its 2026-09-10 approval. Proposed remedy (owner's choice, docs/driver_coverage_proposal.md §7): add one machine-readable line per currency to the file; no code change.
+
+**Also recorded today:** `docs/capability_inventory.md` (what the framework covers and doesn't, for the owner's goal of being sharp in the markets) and `docs/driver_coverage_proposal.md` (four agent reviews of what moves GBP/JPY and GBP/AUD, and a staged plan). Both are proposals; nothing in them changes the tradeable path.
