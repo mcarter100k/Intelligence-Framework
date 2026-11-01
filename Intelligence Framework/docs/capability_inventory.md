@@ -20,7 +20,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 |---|---|---|
 | Central-bank policy (BoE, RBA, BoJ): rate path and what the market prices | MANUAL | Written weekly in `storylines.md`. **Stale since 2026-09-10.** No data feed |
 | Inflation, growth, jobs (CPI, GDP, employment) | MANUAL | Narrative only, in `storylines.md` |
-| Economic calendar and event risk | HAVE | `news_gate.py` stands aside around high-impact GBP/AUD/JPY events. **USD events missing** |
+| Economic calendar and event risk | HAVE | `news_gate.py` stands aside around high-impact GBP/AUD/JPY events. **USD events missing.** Tested 2026-11-01 (R35, R36): scheduled US releases are INCONCLUSIVE on both pairs, so they come in as context, not a gate |
 | Surprise vs forecast (actual minus consensus) | MISSING | `calendar.csv` stores forecast and previous, but nothing uses them. The feed has no actual values, and the file is overwritten every fetch, so no history builds up |
 | Interest-rate differentials and carry | TESTED | Carry after a quiet week: GBP/JPY REFUTED (R33), GBP/AUD INCONCLUSIVE (R34). Not a live input |
 | Government action (yen intervention, fiscal news) | MANUAL | Intervention watch flag in `storylines.md`, read by `setup_check.py` |

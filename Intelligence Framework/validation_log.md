@@ -4584,3 +4584,108 @@ Run: `scripts/reality_run.py --code <worktree> script studies/us_event_reaction_
 - Trading days: 2,343 per pair (2005-01-03 → 2013-12-30). Weekend rule: GBP_JPY 420 Sundays folded, 258 Saturdays dropped; GBP_AUD 420 folded, 266 dropped. That matches the carry study's counts stage on the same pipeline exactly (2026-10-29).
 - Data hashes (the `full` stage refuses any other file): GBP_JPY_D `ca1602404c5c501dffc0ee8ec5eeb4bee4a2197fe2fc76d3bbf69be2c8fa000a`, GBP_JPY_H4 `f06892d1ebf958cc1a52bebf399e6ce10bef8e73e5e2c5b6a7f5634644053764`, GBP_AUD_D `661a9d49c09ed9fbaa7a26a1e3ae60a4fc07860d19ea3ec89342398a9db7d939`, GBP_AUD_H4 `a59db9940e8d7a1c4ff02441112390c5d7b7544e764d980943877dee51b0ff77`; event table `0f898806…8aa2`.
 - Every N is at or near the power statement's assumption (72 / 108; about 7 controls). The power statement stands unchanged.
+
+## 2026-11-01 — RESULT: US release reactions — all six cells INCONCLUSIVE (2005–2013 STUDY data)
+
+Run once: `scripts/reality_run.py --code <worktree> script studies/us_event_reaction_test.py full ~/intel_study_archives/us_event_reaction_data studies/us_event_reaction_result.md`. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty. The data and event-table hashes were checked against the counts stage by the runner before computing. Verbatim output:
+
+### US release reactions — pre-registered test result (2005–2013 STUDY data)
+
+Spec: docs/specs/us_event_reaction_spec.md. Bonferroni α per cell 0.0083 (one-sided), threshold +0.10, 20000 resamples.
+
+#### GBP_JPY
+
+##### FOMC: **INCONCLUSIVE**
+
+- **Primary (range ratio, paired):** N 72; mean effect +0.096; one-sided bounds [-0.042, +0.242]; median -0.012; SD 0.509; dropped {'no_session': 0, 'warm_up': 0, 'no_control': 0}
+- Event-day mean ratio 1.182 vs control mean 1.087
+
+**Secondary (never changes the verdict):**
+
+- Close-to-close move, paired: mean effect +0.065, median -0.107
+- Round trip within 3 days: event days 42% (N 72) vs control days 43% (N 530)
+- 2005-01 to 2008-06 (before the crisis): N 28, mean effect +0.098
+- 2008-07 to 2009-06 (the crisis): N 8, mean effect +0.080
+- 2009-07 to 2013-12 (after): N 36, mean effect +0.097
+
+##### CPI: **INCONCLUSIVE**
+
+- **Primary (range ratio, paired):** N 107; mean effect +0.062; one-sided bounds [-0.079, +0.216]; median -0.054; SD 0.638; dropped {'no_session': 0, 'warm_up': 1, 'no_control': 0}
+- Event-day mean ratio 1.156 vs control mean 1.093
+
+**Secondary (never changes the verdict):**
+
+- Close-to-close move, paired: mean effect +0.032, median -0.083
+- Round trip within 3 days: event days 40% (N 107) vs control days 45% (N 712)
+- 2005-01 to 2008-06 (before the crisis): N 41, mean effect +0.117
+- 2008-07 to 2009-06 (the crisis): N 12, mean effect +0.121
+- 2009-07 to 2013-12 (after): N 54, mean effect +0.008
+
+##### NFP: **INCONCLUSIVE**
+
+- **Primary (range ratio, paired):** N 107; mean effect +0.093; one-sided bounds [-0.015, +0.207]; median +0.016; SD 0.478; dropped {'no_session': 0, 'warm_up': 1, 'no_control': 0}
+- Event-day mean ratio 1.170 vs control mean 1.078
+
+**Secondary (never changes the verdict):**
+
+- Close-to-close move, paired: mean effect +0.066, median +0.005
+- Round trip within 3 days: event days 47% (N 107) vs control days 45% (N 659)
+- 2005-01 to 2008-06 (before the crisis): N 41, mean effect -0.012
+- 2008-07 to 2009-06 (the crisis): N 12, mean effect -0.032
+- 2009-07 to 2013-12 (after): N 54, mean effect +0.200
+
+- Unscheduled FOMC actions (descriptive): 2007-08-10 ratio 1.69; 2007-08-17 ratio 3.05; 2008-01-22 ratio 1.79; 2008-03-11 ratio 1.65; 2008-10-08 ratio 1.91; 2010-05-10 ratio 2.72
+
+#### GBP_AUD
+
+##### FOMC: **INCONCLUSIVE**
+
+- **Primary (range ratio, paired):** N 72; mean effect +0.177; one-sided bounds [+0.027, +0.369]; median +0.144; SD 0.602; dropped {'no_session': 0, 'warm_up': 0, 'no_control': 0}
+- Event-day mean ratio 1.272 vs control mean 1.095
+
+**Secondary (never changes the verdict):**
+
+- Close-to-close move, paired: mean effect +0.047, median -0.012
+- Round trip within 3 days: event days 44% (N 72) vs control days 42% (N 531)
+- 2005-01 to 2008-06 (before the crisis): N 28, mean effect +0.077
+- 2008-07 to 2009-06 (the crisis): N 8, mean effect +0.212
+- 2009-07 to 2013-12 (after): N 36, mean effect +0.248
+
+##### CPI: **INCONCLUSIVE**
+
+- **Primary (range ratio, paired):** N 107; mean effect +0.022; one-sided bounds [-0.072, +0.122]; median -0.016; SD 0.427; dropped {'no_session': 0, 'warm_up': 1, 'no_control': 0}
+- Event-day mean ratio 1.098 vs control mean 1.076
+
+**Secondary (never changes the verdict):**
+
+- Close-to-close move, paired: mean effect +0.026, median -0.048
+- Round trip within 3 days: event days 44% (N 107) vs control days 43% (N 713)
+- 2005-01 to 2008-06 (before the crisis): N 41, mean effect +0.078
+- 2008-07 to 2009-06 (the crisis): N 12, mean effect +0.012
+- 2009-07 to 2013-12 (after): N 54, mean effect -0.017
+
+##### NFP: **INCONCLUSIVE**
+
+- **Primary (range ratio, paired):** N 107; mean effect +0.076; one-sided bounds [-0.043, +0.208]; median -0.023; SD 0.544; dropped {'no_session': 0, 'warm_up': 1, 'no_control': 0}
+- Event-day mean ratio 1.117 vs control mean 1.041
+
+**Secondary (never changes the verdict):**
+
+- Close-to-close move, paired: mean effect +0.001, median -0.059
+- Round trip within 3 days: event days 37% (N 107) vs control days 52% (N 659)
+- 2005-01 to 2008-06 (before the crisis): N 41, mean effect -0.069
+- 2008-07 to 2009-06 (the crisis): N 12, mean effect +0.109
+- 2009-07 to 2013-12 (after): N 54, mean effect +0.179
+
+- Unscheduled FOMC actions (descriptive): 2007-08-10 ratio 1.28; 2007-08-17 ratio 3.62; 2008-01-22 ratio 1.15; 2008-03-11 ratio 1.36; 2008-10-08 ratio 6.18; 2010-05-10 ratio 2.20
+
+
+**Reading** (the verdicts above are the pre-registered ones; nothing here changes them):
+- **All six cells INCONCLUSIVE.** Scheduled US releases do not reliably widen GBP/JPY or GBP/AUD days by 10% or more of a normal day, and that size of effect cannot be ruled out either.
+  - The means are positive (+0.02 to +0.18), but the medians are near zero (−0.05 to +0.14). A typical release day is about a normal day; a minority of big days carries the mean.
+  - This fits the dollar partly cancelling in a cross.
+- **Closest call: GBP/AUD on FOMC days.** Mean +0.177, Bonferroni lower bound +0.027 (above zero, below +0.10), median +0.144. It is the cell to re-examine if more data is ever opened.
+- **Unscheduled FOMC actions** were large on both pairs (1.15–6.18× a normal day), but they cannot be gated in advance.
+- **Round trips** (secondary): event days give back their move about as often as control days, 37–47% against 42–52%. The exception is GBP/AUD on NFP days, 37% against 52%.
+- **Consequence for the plan:** owner decision 3 stands. US events come into the brief as context only (proposal step 5). A US gate is not justified on this evidence.
+- **Status:** recorded as R35 (GBP/JPY) and R36 (GBP/AUD) in foundation/research_findings.md; tested-hypothesis count 34 → 36.
