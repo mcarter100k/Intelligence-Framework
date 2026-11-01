@@ -17,7 +17,7 @@ it, and add a Gate 3 PENDING entry until the next scheduled run fires.
 ## Sourced by the wrappers
 
 - `notify.sh`: sends a notification (terminal-notifier, with an osascript fallback).
-- `live_guard.sh`: alerts if the live checkout is not on `main`.
+- `live_guard.sh`: alerts if the live checkout is not on `main`, or if any tracked code file (`*.py`, `*.sh`) in it differs from `main` (naming the files and marking Python that does not parse; incident I31).
 - `crash.sh`: one definition of "the Python step crashed".
 
 ## Called by the wrappers
