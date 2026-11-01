@@ -4505,3 +4505,19 @@ Spec: docs/specs/carry_quiet_week_spec.md. Run once, on the candles recorded at 
 **Full suite on the branch (2026-11-01):** 890 passed, 7 skipped (the gitignored ledgers are absent in a worktree), 2 deselected.
 
 **Gate 3 — PENDING LIVE CONFIRMATION:** the first scheduled run after merge executes the new guard on the clean live checkout and stays silent (no `LIVE CODE MODIFIED` line in that day's log). A real alert from launchd on a real edit has not happened and should not be manufactured.
+
+## 2026-11-01 — Owner decisions on the driver-coverage proposal; storylines format test
+
+**Owner decisions** (docs/driver_coverage_proposal.md §7, answered 2026-11-01):
+1. Storylines: the owner adds one machine-readable line per currency (`GBP: neutral`, bullish / bearish / neutral) under each heading of `storylines.md`. No code change.
+2. Live instrument probe: approved, one read-only instruments listing plus history depth, through `scripts/reality_run.py`.
+3. US events: context first in the brief; the frozen shadow `news_window` stamp stays on own-currency events. Gating is decided later from evidence.
+4. Next study: how US events (FOMC, US CPI, jobs report) move GBP/JPY and GBP/AUD.
+
+**Test** (`tests/test_storylines_format.py`, free zone):
+- The template given to the owner parses to all three views.
+- The live file must carry all three views once approved on or after 2026-11-01. The current file (approved 2026-09-10) skips with the I32 reason.
+- Positive control: the real file re-dated to 2026-11-08 without the lines fails the check.
+- Mutation: making the check vacuous (`missing = set()`) → the control fails (1 failed); reverted → 2 passed, 1 skipped.
+
+**Gate 3 — PENDING LIVE CONFIRMATION:** the first `storylines.md` approved after 2026-11-01 passes `test_live_storylines_is_machine_readable`, and a real `setup_check` run prints FUEL AGREES or CONFLICTS.
