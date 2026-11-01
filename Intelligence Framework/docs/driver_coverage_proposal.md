@@ -226,3 +226,9 @@ evidence path.
   about as much as normal days; GBP/AUD on FOMC days is the closest call.
   Step 5 proceeds as **context only**; a US gate is not justified on this
   evidence.
+- **2026-11-01, step 3 done (cost re-grade, read-only):** costs shift shadow
+  episodes by −0.01R to −0.09R; every candidate is negative before and after
+  costs, all INSUFFICIENT (`studies/shadow_cost_regrade_report.md`).
+- **2026-11-01, step 5 built, awaiting team review:** US events as context
+  only (`docs/specs/us_events_context_spec.md`), on branch
+  `feat/us-events-context`, **not merged**.
