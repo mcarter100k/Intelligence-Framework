@@ -44,14 +44,16 @@ def test_happy_path_writes_news_gate_schema(tmp_path):
         _event(20, "GBP"),
         _event(40, "AUD", title="RBA Rate Statement"),
         _event(60, "JPY", title="BOJ Policy Rate"),
-        _event(30, "USD", title="FOMC"),          # filtered: not our currency
+        _event(30, "USD", title="FOMC"),          # KEPT since 2026-11-01 (context only,
+                                                  # us_events_context_spec §3; was filtered)
         _event(25, "GBP", impact="Low"),          # filtered: not high impact
         _event(24 * 20, "GBP"),                   # filtered: outside 8-day window
     ])
     ok = fetch_calendar(calendar_path=str(p), now=NOW, fetcher=lambda: feed)
     assert ok is True
     rows = list(csv.DictReader(open(p)))
-    assert [r["currency"] for r in rows] == ["GBP", "AUD", "JPY"]   # sorted by time
+    # old: ["GBP", "AUD", "JPY"]; new (us_events_context_spec §3): USD kept
+    assert [r["currency"] for r in rows] == ["GBP", "USD", "AUD", "JPY"]   # sorted by time
     assert rows[0]["event"] == "UK CPI y/y"
     assert rows[0]["impact"] == "High"
     assert rows[0]["actual"] == ""                                   # feed has no actuals

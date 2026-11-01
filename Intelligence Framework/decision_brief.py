@@ -69,6 +69,7 @@ class DecisionBrief:
     entry_line:           str             = ""   # LONG/SHORT: trigger + level
     target_line:          str             = ""   # LONG/SHORT: honest target note
     news_note:            str             = ""   # stale/missing-calendar honesty line
+    us_events_line:       str             = ""   # US DATA context (us_events_context_spec)
     price_basis:          str             = "unknown"   # data_at_source_spec P1
 
     def format(self) -> str:
@@ -141,6 +142,11 @@ class DecisionBrief:
         # doesn't have: stale/missing calendar = event risk UNCHECKED, no gating.
         if self.news_note:
             lines.insert(3, f"  ⚠ {self.news_note}")
+        # US releases: information only, never a stand-aside
+        # (docs/specs/us_events_context_spec.md), right after the news note.
+        if self.us_events_line:
+            lines.insert(4 if self.news_note else 3,
+                         f"  US DATA    {self._wrap(self.us_events_line, 37, 13)}")
 
         # Session delta line — inserted between MARKET STATE and EXIT IF
         if self.session_delta:
@@ -437,12 +443,52 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             news_note=((regime.get("news_gate") or {}).get("note", "")
                        if not (regime.get("news_gate") or {}).get("active", True)
                        else ""),
+            us_events_line=_us_events_line(),
             entry_line=entry_line,
             target_line=target_line,
         )
 
     except Exception as e:
         return _error_brief(instrument, timestamp, str(e))
+
+
+def _us_title(title: str) -> str:
+    """A feed title made safe for the brief: the wrapper treats any line with
+    uppercase DECISION (or ALERT) as a notification trigger
+    (scripts/scheduled_brief.sh), so those words never appear in capitals."""
+    import re
+    t = re.sub(r"DECISION", "Decision", title or "US release")
+    t = re.sub(r"ALERT", "Alert", t)
+    return t.replace("#", "").strip() or "US release"
+
+
+def _us_events_line(now=None, calendar_path=None) -> str:
+    """The US DATA line (docs/specs/us_events_context_spec.md §1.3). Context
+    only: it never feeds a decision. Never raises."""
+    try:
+        from datetime import datetime, timedelta, timezone
+        from display_time import to_display
+        from news_gate import us_event_context, US_CONTEXT_HOURS
+        now = now or datetime.now(timezone.utc)
+        ctx = us_event_context(now=now, calendar_path=calendar_path)
+        st = ctx["status"]
+        if st in ("stale", "missing"):
+            return "not checked — news calendar out of date."
+        if st == "no_us_rows":
+            return ("not checked — this calendar carries no US events yet "
+                    "(it refreshes Sundays).")
+        if ctx["events"]:
+            shown = " · ".join(f"{_us_title(name)} {to_display(dt, style='day_time')}"
+                               for dt, name in ctx["events"][:3])
+            return (f"{shown} — for information; the framework does not stand "
+                    f"aside for US releases.")
+        horizon = now.astimezone(timezone.utc).replace(tzinfo=None) + timedelta(hours=US_CONTEXT_HOURS)
+        if ctx["covered_through"] is not None and ctx["covered_through"] < horizon:
+            return (f"none before {to_display(ctx['covered_through'], style='day_time')}; "
+                    f"later days are not in this week's calendar yet.")
+        return f"none in the next {US_CONTEXT_HOURS} hours."
+    except Exception:
+        return "not checked — news calendar could not be read."
 
 
 def _last_expected_d1_close(now, close_hour: int):

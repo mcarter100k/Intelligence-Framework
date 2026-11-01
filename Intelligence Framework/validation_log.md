@@ -4689,3 +4689,37 @@ Spec: docs/specs/us_event_reaction_spec.md. Bonferroni α per cell 0.0083 (one-s
 - **Round trips** (secondary): event days give back their move about as often as control days, 37–47% against 42–52%. The exception is GBP/AUD on NFP days, 37% against 52%.
 - **Consequence for the plan:** owner decision 3 stands. US events come into the brief as context only (proposal step 5). A US gate is not justified on this evidence.
 - **Status:** recorded as R35 (GBP/JPY) and R36 (GBP/AUD) in foundation/research_findings.md; tested-hypothesis count 34 → 36.
+
+## 2026-11-01 — BUILT, AWAITING TEAM REVIEW: US events in the brief as context only (branch `feat/us-events-context`, NOT merged)
+
+**Spec:** `docs/specs/us_events_context_spec.md`, committed before the build (9fb643f). Protected modules touched: `calendar_fetch.py`, `news_gate.py`, `decision_brief.py`. **Do not merge without team review.**
+
+**Change.**
+- `calendar_fetch` keeps HIGH-impact USD rows; at least one GBP/AUD/JPY row is still required.
+- `news_gate.us_event_context()` is new and read-only. `check_news_gate` and `PAIR_CURRENCIES` are unchanged.
+- The brief gets one `US DATA` line: information only, sanitized against the wrapper's DECISION/ALERT triggers. It says "not checked" unless the calendar is current and carries USD rows.
+
+**Gate 1** (`tests/test_us_events_context.py`, 15 new tests; one listed test changed old → new per spec §3):
+- I1/I2: `check_news_gate` is identical with and without USD rows across 60 random calendars × a 47-minute sweep of a feed week × both pairs. That is over 10,000 comparisons, with active, stale and gating branches all exercised.
+- I3: the wrapper's own DECISION pipeline (asserted verbatim from `scripts/scheduled_brief.sh`) does not fire on a stand-aside brief carrying a `FED RATE DECISION ##ALERT##` title. Positive control: the unsanitized title does fire it. Nothing is written to stderr.
+- I4: the banned-token floor (`_assert_clean`) passes on every rendered state.
+- I5: "none" comes only from status `ok`.
+- **Mutation:** 9 of 9 caught. USD in `PAIR_CURRENCIES` (2 failed); sanitizer removed (1); "none" for `no_us_rows` (1); USD-only feed accepted (1); medium-impact USD counted (1); USD dropped at fetch (2); line placed above the news note (1); no coverage-end branch (1); past events listed (3). Reverted → 33 passed.
+- **Harness note:** the first mutation pass reported "no tests ran" for every mutant. zsh does not word-split an unquoted `$T`, so pytest got one bogus path. It was re-run under `/bin/bash` with the results above. A "no tests ran" line is a failed measurement, not a pass.
+- Full suite on the branch: 913 passed, 8 skipped (the gitignored ledgers are absent in a worktree), 2 deselected.
+
+**Gate 2 — REALITY** (all through `scripts/reality_run.py --code <worktree>`; every run exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty):
+1. Real brief, worktree with no calendar: `⚠ news calendar missing — event risk unchecked` / `US DATA    not checked — news calendar out of date.`
+2. Real brief on a copy of the live `calendar.csv` (last week's file, so stale): `⚠ news calendar stale — event risk unchecked` / `US DATA    not checked — news calendar out of date.`
+3. Real ForexFactory fetch into a temp file: `calendar.csv updated: 10 high-impact GBP/AUD/JPY events and 4 US events (context only) through 2026-11-06 16:00 UTC.` The USD rows were Congressional Elections (11-03), and Average Hourly Earnings m/m, Non-Farm Employment Change and Unemployment Rate (11-06 13:30).
+   - The real brief against it: `US DATA    none in the next 24 hours.` for both pairs.
+   - Against the same file without USD rows: `US DATA    not checked — this calendar carries…`.
+   - DECISION / REASON / CONFIDENCE / POSITION identical with vs without USD rows for both pairs: `True`. The market was closed (Sunday), so both briefs stood aside; I1 is the stronger proof.
+4. The line from the real fetched calendar at pinned clocks:
+   - Thu 18:00 UTC: `Average Hourly Earnings m/m Fri 5:30 AM PST · Non-Farm Employment Change Fri 5:30 AM PST · Unemployment Rate Fri 5:30 AM PST — for information; the framework does not stand aside for US releases.`
+   - Mon 18:00 UTC: `Congressional Elections Tue 7:16 AM PST — …`
+   - Sat 18:00 UTC: `none before Sat 8:59 PM PST; later days are not in this week's calendar yet.`
+
+**Found along the way (pre-existing, deferred):** with `--code <worktree>`, `reality_run.py brief` reads no calendar. `news_gate._CALENDAR_FILE` is module-relative, so it resolves to the worktree, where `calendar.csv` is gitignored and absent. Earlier `--code` brief runs therefore exercised the "calendar missing" path, visibly marked in the output. A fix (copy the live calendar into the run, or make the path cwd-relative under reality_run) is a separate change.
+
+**Gate 3 — PENDING LIVE CONFIRMATION (after merge only):** the first Sunday calendar fetch after merge writes USD rows; the next brief renders real US events; no DECISION notification is ever sent because of the line.

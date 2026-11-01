@@ -31,9 +31,12 @@ Output schema (exactly what news_gate.py reads):
     time,currency,event,actual,forecast,previous,impact
     with time as naive-UTC "YYYY-MM-DD HH:MM".
 
-Filter: HIGH-impact events for GBP, AUD, JPY only.
-Validation before commit-to-disk: >= 1 parsed event, every event inside
-[now - 24h, now + 8 days], currencies a subset of {GBP, AUD, JPY}.
+Filter: HIGH-impact events for GBP, AUD, JPY, and USD (USD added
+2026-11-01, docs/specs/us_events_context_spec.md: shown in the brief as
+context only; news_gate still gates on the pair's own currencies only).
+Validation before commit-to-disk: >= 1 parsed GBP/AUD/JPY event (a USD-only
+parse is rejected like an empty one), every event inside
+[now - 24h, now + 8 days], currencies a subset of {GBP, AUD, JPY, USD}.
 Any failure → keep the existing file, log loudly, exit 0.
 """
 from __future__ import annotations
@@ -45,7 +48,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 FEED_URL   = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
-CURRENCIES = ("GBP", "AUD", "JPY")
+CURRENCIES = ("GBP", "AUD", "JPY")            # the gated currencies
+CONTEXT_CURRENCIES = ("USD",)                  # kept for display only
+FETCH_CURRENCIES = CURRENCIES + CONTEXT_CURRENCIES
 WINDOW_PAST_HOURS  = 24    # tolerate already-passed events from earlier today
 WINDOW_FUTURE_DAYS = 8     # spec: all dates within the next 8 days
 TIMEOUT_S  = 20
@@ -81,7 +86,7 @@ def _parse_events(raw: str, now: datetime) -> List[Dict]:
         if (e.get("impact") or "").strip().lower() != "high":
             continue
         ccy = (e.get("country") or "").strip().upper()
-        if ccy not in CURRENCIES:
+        if ccy not in FETCH_CURRENCIES:
             continue
         try:
             dt = datetime.fromisoformat(e["date"])
@@ -104,7 +109,7 @@ def _parse_events(raw: str, now: datetime) -> List[Dict]:
 
 def _validate(rows: List[Dict], now: datetime) -> Optional[str]:
     """Spec validation before commit-to-disk. Returns an error string, or None."""
-    if len(rows) < 1:
+    if not any(r["currency"] in CURRENCIES for r in rows):
         return "0 high-impact GBP/AUD/JPY events parsed for the window"
     lo = now - timedelta(hours=WINDOW_PAST_HOURS)
     hi = now + timedelta(days=WINDOW_FUTURE_DAYS)
@@ -116,7 +121,7 @@ def _validate(rows: List[Dict], now: datetime) -> Optional[str]:
             return f"invalid time in parsed row: {r['time']!r}"
         if not (lo <= dt <= hi):
             return f"event outside the next-8-days window: {r['time']}"
-        if r["currency"] not in CURRENCIES:
+        if r["currency"] not in FETCH_CURRENCIES:
             return f"unexpected currency: {r['currency']!r}"
     return None
 
@@ -160,7 +165,9 @@ def fetch_calendar(calendar_path: Optional[str] = None,
         print(f"CALENDAR WRITE FAILED: {exc} — keeping existing calendar.csv.")
         return False
 
-    print(f"calendar.csv updated: {len(rows)} high-impact GBP/AUD/JPY events "
+    n_own = sum(r["currency"] in CURRENCIES for r in rows)
+    print(f"calendar.csv updated: {n_own} high-impact GBP/AUD/JPY events "
+          f"and {len(rows) - n_own} US events (context only) "
           f"through {rows[-1]['time']} UTC.")
     return True
 
