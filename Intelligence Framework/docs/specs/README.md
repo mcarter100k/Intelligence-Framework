@@ -38,4 +38,5 @@ carries the lifecycle. A later change gets its own spec.
 | [unconfirmed_trend_display_spec.md](unconfirmed_trend_display_spec.md) | unconfirmed-trend display subtype (display-layer only) | a831cef 2026-09-09 | Built; validation_log cites it 1x |
 | [unresolved_direction_polish_spec.md](unresolved_direction_polish_spec.md) | unresolved-direction polish (follow-up ruling, 2026-09-09) | d718094 2026-09-09 | Built; validation_log cites it 1x |
 | [visible_failures_spec.md](visible_failures_spec.md) | make failures visible (Phase 2 of the 2026-09-29 audit plan) | bfe9430 2026-09-29 | Built; validation_log cites it 1x |
+| [us_events_context_spec.md](us_events_context_spec.md) | US events in the brief as context only, no gating (owner decision 2026-11-01; R35–R36) | (this branch) 2026-11-01 | **Awaiting team review**; built on `feat/us-events-context`, not merged |
 | [weekly_alignment_wording_spec.md](weekly_alignment_wording_spec.md) | plain wording for the 20-week alignment block (Phase 5 review 2, item R2b; 2026-09-30) | a3c2a4a 2026-09-30 | Built; validation_log cites it 1x |
