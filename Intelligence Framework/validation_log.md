@@ -4471,3 +4471,37 @@ Spec: docs/specs/carry_quiet_week_spec.md. Run once, on the candles recorded at 
 **Finding (I32).** `setup_check.parse_storylines()` on the live `storylines.md` returns `views: {}` (no GBP, AUD or JPY bias). A control file with `GBP: neutral` / `AUD: bullish` / `JPY: bullish` lines returns all three. So the pre-trade FUEL check could never return AGREES or CONFLICTS; the journal holds only `neutral` (4) and `stale` (5). `storylines.md` has also been stale since its 2026-09-10 approval. Proposed remedy (owner's choice, docs/driver_coverage_proposal.md §7): add one machine-readable line per currency to the file; no code change.
 
 **Also recorded today:** `docs/capability_inventory.md` (what the framework covers and doesn't, for the owner's goal of being sharp in the markets) and `docs/driver_coverage_proposal.md` (four agent reviews of what moves GBP/JPY and GBP/AUD, and a staged plan). Both are proposals; nothing in them changes the tradeable path.
+
+## 2026-11-01 — Live guard: alert when live code differs from main (incident I31 control)
+
+**Change** (`scripts/live_guard.sh`, free zone; branch `feat/live-code-guard`). On every scheduled run, after the branch check, the guard lists tracked `*.py` / `*.sh` files under the project folder that differ from HEAD (staged or not). If there are any, it writes `##ALERT## LIVE CODE MODIFIED: …` to the day log and sends an ALERT naming each file, marked `(does not parse)` or `(deleted)` where true. Docs, ledgers, untracked files and files elsewhere under `$HOME` never alert. The branch check no longer returns early, so both alerts can fire on one run.
+
+**Gate 1 — tests** (`tests/test_live_guard.py`, 8 new, in repos whose git root sits above a project folder with a space in its name, as in production):
+- Before the change: 5 of the new alert tests failed against the old guard.
+- After: `tests/test_live_guard.py` + `tests/test_shell_syntax.py` 24 passed.
+- Rule 12 (should it reach the owner): alerts on unparseable, parseable, staged, shell and deleted edits; silent on a clean checkout, a `storylines.md` edit, a change outside the project, and an untracked `.py`; repeats every run while the condition persists (deliberate, as the branch alert does); fires next to the branch alert when both hold.
+
+**Mutation tests** (each applied, confirmed by `cmp`, reverted, confirmed identical, suite re-passed 13/13):
+
+| Mutant | Caught by |
+|---|---|
+| M1 drop `--relative` | unparseable test (paths break) |
+| M2 drop the `*.py`/`*.sh` filter | doc test |
+| M3 drop the parse check | unparseable test |
+| M4 diff unstaged only (no `HEAD`) | staged test |
+| M5 code guard disabled | 5 alert tests |
+| M6 include untracked files | untracked test |
+| M7 drop the `(deleted)` mark | deleted test |
+| M8 restore the old early return on main | 5 alert tests |
+| M9 root-relative pathspec, `--relative` kept | **survived: equivalent mutant**, `--relative` alone keeps out-of-project files out |
+| M10 root-relative pathspec and no `--relative` | outside-project test (+1) |
+
+**Gate 2 — reality** (real git, real files, `/bin/bash` 3.2, notify stubbed so nothing was posted):
+- Real live checkout (clean): no output, no log written, project hash identical before and after.
+- Throwaway worktree of `main` with the actual broken `levels_context.py` from 00:03 replayed:
+  `##ALERT## LIVE CODE MODIFIED: Live code differs from main: levels_context.py (does not parse). Scheduled runs are executing unreviewed edits. …`
+  (A `LIVE BRANCH` alert fired alongside it only because the probe worktree's branch could not be named `main`.)
+
+**Full suite on the branch (2026-11-01):** 890 passed, 7 skipped (the gitignored ledgers are absent in a worktree), 2 deselected.
+
+**Gate 3 — PENDING LIVE CONFIRMATION:** the first scheduled run after merge executes the new guard on the clean live checkout and stays silent (no `LIVE CODE MODIFIED` line in that day's log). A real alert from launchd on a real edit has not happened and should not be manufactured.
