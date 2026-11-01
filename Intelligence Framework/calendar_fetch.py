@@ -34,6 +34,8 @@ Output schema (exactly what news_gate.py reads):
 Filter: HIGH-impact events for GBP, AUD, JPY, and USD (USD added
 2026-11-01, docs/specs/us_events_context_spec.md: shown in the brief as
 context only; news_gate still gates on the pair's own currencies only).
+A USD row that cannot be read is skipped, never fatal, and USD rows later
+than the GBP/AUD/JPY rows' feed week are dropped (Rev 1, team review).
 Validation before commit-to-disk: >= 1 parsed GBP/AUD/JPY event (a USD-only
 parse is rejected like an empty one), every event inside
 [now - 24h, now + 8 days], currencies a subset of {GBP, AUD, JPY, USD}.
@@ -69,9 +71,13 @@ def _fetch_raw(url: str = FEED_URL, timeout: int = TIMEOUT_S) -> str:
     return resp.text
 
 
-def _parse_events(raw: str, now: datetime) -> List[Dict]:
+def _parse_events(raw: str, now: datetime,
+                  skipped: Optional[List[str]] = None) -> List[Dict]:
     """Parse + filter the feed. Returns rows in calendar.csv schema.
-    Raises ValueError on any format violation (fail closed, never guess)."""
+    Raises ValueError on any format violation in a GBP/AUD/JPY row (fail
+    closed, never guess). A context-only (USD) row that cannot be read is
+    skipped and noted in `skipped` instead: a row the gate never uses must
+    never cost the week's gated calendar (team review 2026-11-01)."""
     data = json.loads(raw)
     if not isinstance(data, list):
         raise ValueError("feed root is not a list")
@@ -87,6 +93,16 @@ def _parse_events(raw: str, now: datetime) -> List[Dict]:
             continue
         ccy = (e.get("country") or "").strip().upper()
         if ccy not in FETCH_CURRENCIES:
+            continue
+        if ccy in CONTEXT_CURRENCIES:
+            try:
+                row = _context_row(e, ccy, lo, hi)
+            except Exception as exc:
+                if skipped is not None:
+                    skipped.append(f"{ccy} {e.get('title')!r}: {exc}")
+                continue
+            if row is not None:
+                rows.append(row)
             continue
         try:
             dt = datetime.fromisoformat(e["date"])
@@ -105,6 +121,46 @@ def _parse_events(raw: str, now: datetime) -> List[Dict]:
             "impact":   "High",
         })
     return rows
+
+
+def _context_row(e: Dict, ccy: str, lo: datetime, hi: datetime) -> Optional[Dict]:
+    """A USD row in calendar.csv schema, None if outside the window. Raises on
+    anything unreadable; the caller skips it. Stricter than the gated path:
+    a date without a UTC offset is unreadable, never read as local time."""
+    dt = datetime.fromisoformat(e["date"])
+    if dt.tzinfo is None:
+        raise ValueError(f"date has no UTC offset: {e['date']!r}")
+    dt_utc = dt.astimezone(timezone.utc)
+    if not (lo <= dt_utc <= hi):
+        return None
+    text = lambda k: (e.get(k) or "").strip()      # non-text raises → skipped
+    return {"time": dt_utc.strftime("%Y-%m-%d %H:%M"), "currency": ccy,
+            "event": text("title"), "actual": "", "forecast": text("forecast"),
+            "previous": text("previous"), "impact": "High"}
+
+
+def _confine_context_rows(rows: List[Dict],
+                          dropped: Optional[List[str]] = None) -> List[Dict]:
+    """Drop USD rows later than the coverage of the newest GBP/AUD/JPY row.
+    check_news_gate takes staleness from the newest row of ANY currency, so a
+    stray next-week USD row would turn a stale gate active. The real feed is
+    one week, so this should never fire; nothing else guarantees it
+    (us_events_context_spec §1.1, Rev 1)."""
+    from news_gate import covered_through
+    own = [datetime.strptime(r["time"], "%Y-%m-%d %H:%M")
+           for r in rows if r["currency"] in CURRENCIES]
+    if not own:
+        return rows                 # _validate rejects a feed with none
+    end = covered_through(max(own))
+    kept = []
+    for r in rows:
+        if (r["currency"] in CONTEXT_CURRENCIES
+                and datetime.strptime(r["time"], "%Y-%m-%d %H:%M") > end):
+            if dropped is not None:
+                dropped.append(f"{r['currency']} {r['event']!r}: after this calendar's week")
+            continue
+        kept.append(r)
+    return kept
 
 
 def _validate(rows: List[Dict], now: datetime) -> Optional[str]:
@@ -145,8 +201,10 @@ def fetch_calendar(calendar_path: Optional[str] = None,
         print(f"CALENDAR FETCH FAILED (network): {exc} — keeping existing "
               f"calendar.csv; brief will show the stale-calendar note.")
         return False
+    skipped: List[str] = []
     try:
-        rows = _parse_events(raw, now)
+        rows = _parse_events(raw, now, skipped)
+        rows = _confine_context_rows(rows, skipped)
     except Exception as exc:
         print(f"CALENDAR FETCH REJECTED (malformed feed): {exc} — keeping "
               f"existing calendar.csv untouched.")
@@ -166,8 +224,10 @@ def fetch_calendar(calendar_path: Optional[str] = None,
         return False
 
     n_own = sum(r["currency"] in CURRENCIES for r in rows)
+    note = (f"; skipped {len(skipped)} US row(s) (unreadable or outside "
+            f"this calendar's week): {'; '.join(skipped)[:300]}" if skipped else "")
     print(f"calendar.csv updated: {n_own} high-impact GBP/AUD/JPY events "
-          f"and {len(rows) - n_own} US events (context only) "
+          f"and {len(rows) - n_own} US events (context only){note} "
           f"through {rows[-1]['time']} UTC.")
     return True
 

@@ -6,8 +6,11 @@ test_us_events_context.py — US events in the brief as context only
       sweep of times across a feed week, active and stale), so no decision,
       REASON or apply_filter result can change.
   I2  the frozen shadow news_window stamp (pre_release) is part of I1.
-  I3  the US line can never trigger the wrapper's DECISION notification nor
-      reach the ALERT channel (stderr).
+  I1b (Rev 1) a USD row can never fail the gated fetch, and USD rows never
+      extend the calendar past the own rows' feed week.
+  I3  (Rev 1) the US line can never trigger a notification. I3b, the title
+      allow-list, is here; I3a, the real wrapper over unsanitized text, is in
+      test_wrapper_behavior.py. Neither layer relies on the other.
   I4  the rendered line passes the banned-token floor.
   I5  "none" renders only from a calendar shown to carry USD rows.
 """
@@ -16,7 +19,6 @@ import json
 import os
 import random
 import re
-import subprocess
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -78,6 +80,57 @@ def test_fetch_rejects_a_usd_only_feed_and_keeps_the_old_file(tmp_path, capsys):
     assert p.read_text() == before
 
 
+# ── I1b (Rev 1): a USD row never costs the gated calendar ───────────────────
+
+_BAD_USD = [
+    {"title": "Tentative", "country": "USD", "impact": "High", "date": "Tentative"},
+    {"title": "No date", "country": "USD", "impact": "High"},
+    {"title": "No offset", "country": "USD", "impact": "High", "date": "2026-11-04T19:00:00"},
+    {"title": 123, "country": "USD", "impact": "High", "date": "2026-11-04T19:00:00+00:00"},
+    {"title": "Odd forecast", "country": "USD", "impact": "High",
+     "date": "2026-11-04T19:00:00+00:00", "forecast": 4.2},
+]
+
+
+@pytest.mark.parametrize("bad", _BAD_USD, ids=[b["title"] if isinstance(b["title"], str)
+                                                else "non-text title" for b in _BAD_USD])
+def test_a_malformed_usd_row_is_skipped_not_fatal(tmp_path, capsys, bad):
+    own = [_feed_event(5, "GBP", title="UK CPI y/y"), _feed_event(30, "JPY", title="BoJ")]
+    clean, dirty = tmp_path / "clean.csv", tmp_path / "dirty.csv"
+    assert calendar_fetch.fetch_calendar(calendar_path=str(clean), now=NOW,
+                                         fetcher=lambda: json.dumps(own)) is True
+    assert calendar_fetch.fetch_calendar(calendar_path=str(dirty), now=NOW,
+                                         fetcher=lambda: json.dumps(own + [bad])) is True
+    assert dirty.read_text() == clean.read_text()      # the gated rows, byte for byte
+    assert "skipped 1 US row(s)" in capsys.readouterr().out
+
+
+def test_a_malformed_own_currency_row_still_rejects_the_feed(tmp_path):
+    p = tmp_path / "calendar.csv"
+    p.write_text("time,currency,event,actual,forecast,previous,impact\n"
+                 "2026-11-03 09:30,GBP,Old Row,,,,High\n")
+    before = p.read_text()
+    feed = json.dumps([_feed_event(5, "GBP"),
+                       {"title": "Bad", "country": "AUD", "impact": "High", "date": "Tentative"}])
+    assert calendar_fetch.fetch_calendar(calendar_path=str(p), now=NOW, fetcher=lambda: feed) is False
+    assert p.read_text() == before                      # fail-closed, unchanged
+
+
+def test_a_usd_row_after_the_feed_week_is_dropped(tmp_path, capsys):
+    # own rows end Wed; the week ends Sat 23:59 ET = Sun 04:59 UTC. A Sat USD
+    # row is kept, a Sun 06:00 UTC one (next feed week) is dropped.
+    p = tmp_path / "calendar.csv"
+    feed = json.dumps([_feed_event(2, "GBP"), _feed_event(80, "USD", title="Sat row"),
+                       _feed_event(90, "USD", title="Next week")])
+    assert calendar_fetch.fetch_calendar(calendar_path=str(p), now=NOW, fetcher=lambda: feed) is True
+    rows = list(csv.DictReader(open(p)))
+    assert [r["event"] for r in rows if r["currency"] == "USD"] == ["Sat row"]
+    assert "after this calendar's week" in capsys.readouterr().out
+    # and the gate's coverage is the own rows' week, not the next one
+    own_end = covered_through(datetime.strptime(rows[0]["time"], "%Y-%m-%d %H:%M"))
+    assert us_event_context(now=NOW, calendar_path=str(p))["covered_through"] == own_end
+
+
 # ── I1 / I2: the gate is blind to USD rows ──────────────────────────────────
 
 def _random_calendar(r, base):
@@ -89,15 +142,23 @@ def _random_calendar(r, base):
     return own, usd
 
 
+def _confined(own, usd):
+    as_row = lambda t: {"time": t[0].strftime("%Y-%m-%d %H:%M"), "currency": t[1],
+                        "event": t[2], "impact": t[3]}
+    kept = calendar_fetch._confine_context_rows([as_row(t) for t in own + usd])
+    names = {r["event"] for r in kept}
+    return [u for u in usd if u[2] in names]
+
+
 def test_gate_output_identical_with_and_without_usd_rows(tmp_path):
     r = random.Random(20261101)
     base = NOW.replace(tzinfo=None)
     compared = active = stale = gating = 0
     for k in range(60):
         own, usd = _random_calendar(r, base)
-        # keep every USD row inside the own rows' feed week, as the real feed does
-        end = covered_through(max(dt for dt, *_ in own))
-        usd = [u for u in usd if u[0] <= end]
+        # USD rows go through the fetch's own confinement (spec §1.1, Rev 1),
+        # not a test-side filter: removing it in calendar_fetch fails here
+        usd = _confined(own, usd)
         a = _write(tmp_path / f"a{k}.csv", own)
         b = _write(tmp_path / f"b{k}.csv", own + usd)
         for step in range(0, 7 * 1440, 47):            # every 47 min across the week
@@ -162,11 +223,13 @@ def test_line_with_events_is_plain_and_says_information_only(tmp_path, pacific):
     ([(datetime(2026, 11, 4, 9, 30), "GBP", "UK CPI", "High"),
       (datetime(2026, 11, 3, 13, 30), "USD", "Earlier", "High")], "none in the next 24 hours."),
     ([(datetime(2026, 11, 4, 9, 30), "GBP", "UK CPI", "High")],
-     "not checked — this calendar carries no US events yet (it refreshes Sundays)."),
+     "not checked — the saved news calendar holds no US events (it refreshes when over a day old)."),
     ([(datetime(2026, 10, 27, 9, 30), "GBP", "UK CPI", "High")], "not checked — news calendar out of date."),
+    (None, "not checked — news calendar missing."),
 ])
 def test_line_for_each_status(tmp_path, pacific, rows, expected):
-    line = db._us_events_line(now=NOW, calendar_path=_write(tmp_path / "c.csv", rows))
+    path = _write(tmp_path / "c.csv", rows) if rows is not None else str(tmp_path / "absent.csv")
+    line = db._us_events_line(now=NOW, calendar_path=path)
     assert line == expected
     _assert_clean(line)
 
@@ -181,7 +244,34 @@ def test_none_names_the_coverage_end_when_the_week_ends_within_24h(tmp_path, pac
                     "week's calendar yet.")
 
 
-# ── I3: never a notification ────────────────────────────────────────────────
+# ── grouping and "+N more" (Rev 1) ──────────────────────────────────────────
+
+def test_same_time_releases_are_grouped_and_extras_counted(tmp_path, pacific):
+    nfp = datetime(2026, 11, 4, 13, 30)
+    p = _write(tmp_path / "c.csv", [
+        (datetime(2026, 11, 4, 9, 30), "GBP", "UK CPI", "High"),
+        (nfp, "USD", "Average Hourly Earnings m/m", "High"),
+        (nfp, "USD", "Non-Farm Employment Change", "High"),
+        (nfp, "USD", "Unemployment Rate", "High"),
+        (datetime(2026, 11, 4, 19, 0), "USD", "FOMC Statement", "High"),
+        (datetime(2026, 11, 4, 19, 30), "USD", "FOMC Press Conference", "High")])
+    line = db._us_events_line(now=NOW, calendar_path=p)
+    assert line == ("Average Hourly Earnings m/m, Non-Farm Employment Change, Unemployment Rate "
+                    "Wed 5:30 AM PST · FOMC Statement Wed 11:00 AM PST · +1 more — for "
+                    "information; the framework does not stand aside for US releases.")
+    _assert_clean(line)
+
+
+# ── I3b: the title allow-list (the wrapper layer is I3a, test_wrapper_behavior) ──
+
+_TRIGGERS = ["DECISION", "ALERT", "SHADOW SIGNALS", "Framework error", "EXIT IF",
+             "WATCH FOR", "STAND ASIDE", "STAND DOWN", "REASON", "MOMENTUM_JOIN"]
+_CORPUS = ["FED RATE DECISION ##ALERT##", "FED DECI#SION LONG", "AL#ERT", "SHADOW SIGNALS review",
+           "FOMC\nSHADOW SIGNALS", "Framework error review", "USD/JPY intervention",
+           "GBP/AUD | LONG", "MOMENTUM_JOIN LONG fired", "exit if watch for", "decision long",
+           "D\u0415CISION LONG", "STAND ASIDE DECISION", "reason: stand down",
+           "Market closed \u2014 analysis based on last close.", "\x00ALERT\x07", "A" * 200]
+
 
 def _stand_aside_brief(us_line):
     return db.DecisionBrief(
@@ -192,27 +282,33 @@ def _stand_aside_brief(us_line):
         weekly_context="", error=None, us_events_line=us_line).format()
 
 
-def test_uppercase_decision_title_cannot_trigger_a_decision_notification(tmp_path):
-    p = _write(tmp_path / "c.csv", [(datetime(2026, 11, 4, 9, 30), "GBP", "UK CPI", "High"),
-                                    (datetime(2026, 11, 4, 19, 0), "USD", "FED RATE DECISION ##ALERT##", "High")])
-    line = db._us_events_line(now=NOW, calendar_path=p)
-    assert "DECISION" not in line and "ALERT" not in line and "#" not in line
-    out = _stand_aside_brief(line)
-    assert "US DATA" in out and "FED RATE Decision" in out
-    # the wrapper's own test (scripts/scheduled_brief.sh), run verbatim
-    wrapper = open(os.path.join(ROOT, "scripts", "scheduled_brief.sh")).read()
-    pipeline = "printf '%s\\n' \"$OUT_GATED\" | grep 'DECISION' | grep -qv 'STAND ASIDE'"
-    assert pipeline in wrapper
-    r = subprocess.run(["/bin/bash", "-c", pipeline], env={"OUT_GATED": out, "PATH": "/usr/bin:/bin"})
-    assert r.returncode != 0, "a stand-aside brief with a US line would send DECISION"
+def _us_block(brief):
+    lines = brief.split("\n")
+    i = next(k for k, l in enumerate(lines) if l.startswith("  US DATA"))
+    j = next(k for k in range(i, len(lines)) if lines[k].startswith("\u2550"))
+    return "\n".join(lines[i:j])
 
 
-def test_positive_control_an_unsanitized_title_would_trigger_it():
-    # proves the check above can fail: the raw title does reach DECISION
-    out = _stand_aside_brief("FED RATE DECISION Wed 11:00 AM PST")
-    pipeline = "printf '%s\\n' \"$OUT_GATED\" | grep 'DECISION' | grep -qv 'STAND ASIDE'"
-    r = subprocess.run(["/bin/bash", "-c", pipeline], env={"OUT_GATED": out, "PATH": "/usr/bin:/bin"})
-    assert r.returncode == 0
+def test_no_title_can_carry_a_trigger_at_any_wrap_position(tmp_path, pacific):
+    checked = 0
+    for title in _CORPUS:
+        for pad in range(0, 40):                   # moves the trigger across every wrap point
+            raw = ("x" * pad + " " + title).strip()
+            p = _write(tmp_path / "c.csv", [(datetime(2026, 11, 4, 9, 30), "GBP", "UK CPI", "High"),
+                                            (datetime(2026, 11, 4, 19, 0), "USD", raw, "High")])
+            block = _us_block(_stand_aside_brief(db._us_events_line(now=NOW, calendar_path=p)))
+            for trig in _TRIGGERS:
+                assert trig not in block, (raw, trig, block)
+            assert not re.search(r"[#|_]|[A-Z]{3}/[A-Z]{3}", block), (raw, block)
+            assert db._us_title(raw).isascii() and len(db._us_title(raw)) <= 63
+            checked += 1
+    assert checked == len(_CORPUS) * 40
+
+
+def test_ordinary_titles_survive_the_allow_list():
+    for t in ("FOMC Statement", "CPI m/m", "Average Hourly Earnings m/m", "ISM Services PMI",
+              "Non-Farm Employment Change", "Core PCE Price Index y/y", "Fed Chair Powell Speaks"):
+        assert db._us_title(t) == t
 
 
 def test_line_never_writes_to_stderr(tmp_path, capsys):
@@ -223,12 +319,17 @@ def test_line_never_writes_to_stderr(tmp_path, capsys):
     assert capsys.readouterr().err == ""
 
 
-def test_brief_places_the_line_after_the_news_note():
+def test_brief_places_the_line_below_every_warning_note():
     b = db.DecisionBrief(
         instrument="GBP_AUD", timestamp="t", price=1.9, atr_pips=100.0, decision="STAND DOWN",
         reason="r", conviction=0, grade="C", size_pct=0, market_state="m", invalidation="w",
         regime_log="x", stand_down=True, override_fired=False, execution_mode="", adx_d1=0.0,
         adx_h4=0.0, weekly_context="", error=None, news_note="news calendar stale — event risk unchecked",
+        market_open=False, market_note="Market closed — analysis based on last close.",
+        price_basis="unknown",
         us_events_line="not checked — news calendar out of date.").format().split("\n")
-    i = next(k for k, l in enumerate(b) if "news calendar stale" in l)
-    assert b[i + 1].startswith("  US DATA    not checked")
+    us = next(k for k, l in enumerate(b) if l.startswith("  US DATA"))
+    for note in ("news calendar stale", "Market closed", "Price source unknown"):
+        assert next(k for k, l in enumerate(b) if note in l) < us, note
+    after = next(l for l in b[us + 1:] if not l.startswith(" " * 13))
+    assert after.startswith("\u2550")                # last item before the header border

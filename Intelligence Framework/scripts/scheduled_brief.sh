@@ -72,6 +72,16 @@ SHADOW_ERR="$(grep -m1 'SHADOW CANDIDATE ERROR' "$ERRTMP" | sed 's/^##ALERT## //
 CRASH="$(crash_reason brief "$BRC" "$ERRTMP")"
 rm -f "$ERRTMP"
 
+# Brief triggers are anchored to LABEL lines (docs/specs/us_events_context_spec.md
+# §1.4, team review 2026-11-01). Labels start with 0-2 spaces; wrapped
+# continuation lines start with 13 or 15, so feed text that wraps onto a new
+# line (a US title, a news REASON) can never pose as a DECISION, SHADOW,
+# error or pair-header line. "^ *" would not do: a wrapped word starts a
+# continuation line. Same anchors in the awk programs below.
+RE_DECISION='^ ? ?DECISION '
+RE_SHADOW='^ ? ?SHADOW SIGNALS'
+RE_ERROR='^ ? ?REASON +Framework error'
+
 # Health tracking (docs/specs/heartbeat_spec.md item 1): an error brief or
 # empty output is a FAILED run. Two consecutive failures notify, repeating
 # daily until healthy; recovery notifies once. Never breaks the run (exit 0
@@ -89,8 +99,8 @@ STALE_LINE="$(printf '%s\n' "$FRESH" | grep -m1 '^STALE:')"
 printf '%s\n' "$FRESH" | grep '^DUE:' >> "$LOG"
 if [ -n "$CRASH" ]; then
     HEALTH="$(python3 scripts/health_state.py record-failure brief "$CRASH" 2>>"$LOG")"
-elif [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -q 'Framework error'; then
-    HREASON="$(printf '%s\n' "$OUT" | grep -o 'Framework error[^"]*' | head -1)"
+elif [ -z "$OUT" ] || printf '%s\n' "$OUT" | grep -Eq "$RE_ERROR"; then
+    HREASON="$(printf '%s\n' "$OUT" | grep -E "$RE_ERROR" | grep -o 'Framework error[^"]*' | head -1)"
     [ -z "$HREASON" ] && HREASON="brief produced no output"
     HEALTH="$(python3 scripts/health_state.py record-failure brief "$HREASON" 2>>"$LOG")"
 elif [ -n "$SHADOW_ERR" ]; then
@@ -121,12 +131,12 @@ fi
 # open, which is the old behavior.
 CLOSED_MARKER='Market closed — analysis based on last close.'
 OUT_GATED="$(printf '%s\n' "$OUT" | awk -v m="$CLOSED_MARKER" '
-    /^ *[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { closed = 0 }
+    /^ ? ?[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { closed = 0 }
     index($0, m) { closed = 1 }
-    closed && /DECISION/ && !/STAND ASIDE/ { next }
+    closed && /^ ? ?DECISION / && !/STAND ASIDE/ { next }
     { print }')"
-if printf '%s\n' "$OUT" | grep 'DECISION' | grep -qv 'STAND ASIDE' \
-   && ! printf '%s\n' "$OUT_GATED" | grep 'DECISION' | grep -qv 'STAND ASIDE'; then
+if printf '%s\n' "$OUT" | grep -E "$RE_DECISION" | grep -qv 'STAND ASIDE' \
+   && ! printf '%s\n' "$OUT_GATED" | grep -E "$RE_DECISION" | grep -qv 'STAND ASIDE'; then
     echo "DECISION notification suppressed: market closed" >> "$LOG"
 fi
 
@@ -136,10 +146,10 @@ fi
 # STAND ASIDE, so its REASON line makes the state ERROR.
 DSTATE="$(printf '%s\n' "$OUT" | awk -v m="$CLOSED_MARKER" '
     function emit() { if (p != "") print p "=" d "/" (c ? "closed" : "open") }
-    /^ *[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { emit(); p = $1; sub("/", "_", p); d = "?"; c = 0 }
+    /^ ? ?[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { emit(); p = $1; sub("/", "_", p); d = "?"; c = 0 }
     index($0, m) { c = 1 }
-    /^ *DECISION / && d != "ERROR" { d = ($0 ~ /STAND ASIDE/) ? "STAND ASIDE" : ($0 ~ /LONG/) ? "LONG" : ($0 ~ /SHORT/) ? "SHORT" : "?" }
-    /^ *REASON +Framework error/ { d = "ERROR" }
+    /^ ? ?DECISION / && d != "ERROR" { d = ($0 ~ /STAND ASIDE/) ? "STAND ASIDE" : ($0 ~ /LONG/) ? "LONG" : ($0 ~ /SHORT/) ? "SHORT" : "?" }
+    /^ ? ?REASON +Framework error/ { d = "ERROR" }
     END { emit() }' | paste -sd ';' -)"
 PAIRS="$(printf '%s' "$DSTATE" | tr ';' '\n' | cut -d= -f1 | paste -sd ' ' -)"
 
@@ -147,8 +157,8 @@ PAIRS="$(printf '%s' "$DSTATE" | tr ';' '\n' | cut -d= -f1 | paste -sd ' ' -)"
 # Category priority mirrors the old summary preference: flips first, then the
 # decision, then shadow (docs/specs/notify_click_through_spec.md).
 CATEGORY=""
-if printf '%s\n' "$OUT" | grep -q 'SHADOW SIGNALS'; then CATEGORY="SHADOW"; fi
-if printf '%s\n' "$OUT_GATED" | grep 'DECISION' | grep -qv 'STAND ASIDE'; then CATEGORY="DECISION"; fi
+if printf '%s\n' "$OUT" | grep -Eq "$RE_SHADOW"; then CATEGORY="SHADOW"; fi
+if printf '%s\n' "$OUT_GATED" | grep -E "$RE_DECISION" | grep -qv 'STAND ASIDE'; then CATEGORY="DECISION"; fi
 if [ -n "$ALERTS" ]; then CATEGORY="ALERT"; fi
 
 if [ -n "$CATEGORY" ]; then
@@ -160,8 +170,8 @@ if [ -n "$CATEGORY" ]; then
         # old line read "DECISION LONG ▲ — look for buy entries" and never
         # said which instrument. Shadow lines follow, as before.
         SUMMARY="$( { printf '%s\n' "$OUT_GATED" | awk '
-                /^ *[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { pair = $1 }
-                /DECISION +(LONG|SHORT)/ {
+                /^ ? ?[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { pair = $1 }
+                /^ ? ?DECISION +(LONG|SHORT)/ {
                     d = ($0 ~ /DECISION +LONG/) ? "LONG" : "SHORT"
                     print (pair != "" ? pair " " : "") d }'
               printf '%s\n' "$OUT_GATED" \

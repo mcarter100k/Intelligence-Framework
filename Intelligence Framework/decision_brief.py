@@ -143,9 +143,10 @@ class DecisionBrief:
         if self.news_note:
             lines.insert(3, f"  ⚠ {self.news_note}")
         # US releases: information only, never a stand-aside
-        # (docs/specs/us_events_context_spec.md), right after the news note.
+        # (docs/specs/us_events_context_spec.md).
+        # Placed below every warning note above (team review 2026-11-01).
         if self.us_events_line:
-            lines.insert(4 if self.news_note else 3,
+            lines.insert(lines.index(border, 1),
                          f"  US DATA    {self._wrap(self.us_events_line, 37, 13)}")
 
         # Session delta line — inserted between MARKET STATE and EXIT IF
@@ -452,14 +453,32 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
         return _error_brief(instrument, timestamp, str(e))
 
 
-def _us_title(title: str) -> str:
-    """A feed title made safe for the brief: the wrapper treats any line with
-    uppercase DECISION (or ALERT) as a notification trigger
-    (scripts/scheduled_brief.sh), so those words never appear in capitals."""
+# Phrases the notification wrapper or the digest react to
+# (scripts/scheduled_brief.sh, scripts/daily_digest.py). A US title never
+# carries one in its trigger casing (us_events_context_spec §1.3, Rev 1).
+_US_TRIGGER_PHRASES = ("DECISION", "ALERT", "SHADOW SIGNALS", "FRAMEWORK ERROR",
+                       "EXIT IF", "WATCH FOR", "STAND ASIDE", "STAND DOWN", "REASON")
+_US_TITLE_MAX = 60
+_US_MAX_TITLES = 4
+
+
+def _us_title(title) -> str:
+    """A feed title made safe for the brief, by allow-list: ASCII letters,
+    digits and plain punctuation only; "/" only inside m/m-style ratios, so no
+    XXX/YYY pair-header shape; long all-capital words and every trigger phrase
+    capitalised; at most 60 characters."""
     import re
-    t = re.sub(r"DECISION", "Decision", title or "US release")
-    t = re.sub(r"ALERT", "Alert", t)
-    return t.replace("#", "").strip() or "US release"
+    t = title if isinstance(title, str) else ""
+    t = re.sub(r"[^A-Za-z0-9 .,&()'%+:/-]", " ", t)
+    t = re.sub(r"(?<![a-z0-9])/|/(?![a-z0-9])", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    cap = lambda m: " ".join(w.capitalize() for w in m.group(0).split())
+    t = re.sub(r"\b[A-Z]{5,}\b", cap, t)
+    for phrase in _US_TRIGGER_PHRASES:
+        t = re.sub(r"\b" + r"\s+".join(phrase.split()) + r"\b", cap, t, flags=re.I)
+    if len(t) > _US_TITLE_MAX:
+        t = t[:_US_TITLE_MAX].rsplit(" ", 1)[0].rstrip(" ,.:-") + "..."
+    return t or "US release"
 
 
 def _us_events_line(now=None, calendar_path=None) -> str:
@@ -467,21 +486,32 @@ def _us_events_line(now=None, calendar_path=None) -> str:
     only: it never feeds a decision. Never raises."""
     try:
         from datetime import datetime, timedelta, timezone
+        from itertools import groupby
         from display_time import to_display
         from news_gate import us_event_context, US_CONTEXT_HOURS
         now = now or datetime.now(timezone.utc)
         ctx = us_event_context(now=now, calendar_path=calendar_path)
         st = ctx["status"]
-        if st in ("stale", "missing"):
+        if st == "missing":
+            return "not checked — news calendar missing."
+        if st == "stale":
             return "not checked — news calendar out of date."
         if st == "no_us_rows":
-            return ("not checked — this calendar carries no US events yet "
-                    "(it refreshes Sundays).")
+            return ("not checked — the saved news calendar holds no US events "
+                    "(it refreshes when over a day old).")
         if ctx["events"]:
-            shown = " · ".join(f"{_us_title(name)} {to_display(dt, style='day_time')}"
-                               for dt, name in ctx["events"][:3])
-            return (f"{shown} — for information; the framework does not stand "
-                    f"aside for US releases.")
+            parts, shown = [], 0
+            for dt, group in groupby(ctx["events"], key=lambda ev: ev[0]):
+                names = [_us_title(name) for _, name in group][:_US_MAX_TITLES - shown]
+                if not names:
+                    break
+                shown += len(names)
+                when = to_display(dt, style="day_time") or "time not shown"
+                parts.append(f"{', '.join(names)} {when}")
+            if len(ctx["events"]) > shown:
+                parts.append(f"+{len(ctx['events']) - shown} more")
+            return (f"{' · '.join(parts)} — for information; the framework does "
+                    f"not stand aside for US releases.")
         horizon = now.astimezone(timezone.utc).replace(tzinfo=None) + timedelta(hours=US_CONTEXT_HOURS)
         if ctx["covered_through"] is not None and ctx["covered_through"] < horizon:
             return (f"none before {to_display(ctx['covered_through'], style='day_time')}; "
