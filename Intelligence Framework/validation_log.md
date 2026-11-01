@@ -4689,3 +4689,15 @@ Spec: docs/specs/us_event_reaction_spec.md. Bonferroni α per cell 0.0083 (one-s
 - **Round trips** (secondary): event days give back their move about as often as control days, 37–47% against 42–52%. The exception is GBP/AUD on NFP days, 37% against 52%.
 - **Consequence for the plan:** owner decision 3 stands. US events come into the brief as context only (proposal step 5). A US gate is not justified on this evidence.
 - **Status:** recorded as R35 (GBP/JPY) and R36 (GBP/AUD) in foundation/research_findings.md; tested-hypothesis count 34 → 36.
+
+## 2026-11-01 — Shadow ledger cost re-grade: parameters fixed before the run (proposal step 3)
+
+`studies/shadow_cost_regrade.py` (sha256 `6cb2e4c91ad600756c3070789f7600008b36946ab3521ee2f38ef4dc3be51fdf`), committed before it is run. It is read-only: it never edits the ledger or `r_multiple` (trap T6), and adjusted R is shown beside raw R, never instead of it.
+- **Episodes:** the live `shadow_signals.graded_episodes` (graded, valid, non-excluded, first fire per 30-bar episode). All graded rows are also costed.
+- **Candidates:** EARLY_MOMENTUM_v2, THRUST_PULLBACK, MOMENTUM_JOIN. Retired EARLY_MOMENTUM v1 is out: retired, and its rows are older than the grader's 500-bar window.
+- **Positive control:** every graded row's raw R is recomputed from freshly fetched H4 bars with the grader's rule. A mismatch with the ledger beyond 0.005 aborts the run.
+- **Spread:** 3.0 pips round trip; sensitivity 4.0.
+- **Financing:** OANDA's quoted rates on 2026-11-01 applied to the whole period. That is an approximation; the endpoint keeps no history. GBP_JPY long +1.60% / short −3.66%; GBP_AUD long −1.89% / short −0.18%. Sensitivity: every rate 1 point worse.
+- **Rollovers:** each 17:00 New York crossed while open, Wednesday ×3. Entry is at the fire bar's close, and a rollover at that instant is not charged. Exit is at the stop-hit bar's open, or the close of bar 30.
+- **Self-test:** OK (10 checks). 7 mutants: 6 caught; C7 (UTC instead of New York as the loop's start day) is an equivalent mutant, because aware comparisons make it the same.
+- **Full suite on the branch:** see the commit (suite run before commit).
