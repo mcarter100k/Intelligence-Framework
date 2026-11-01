@@ -4723,3 +4723,28 @@ Spec: docs/specs/us_event_reaction_spec.md. Bonferroni α per cell 0.0083 (one-s
 **Found along the way (pre-existing, deferred):** with `--code <worktree>`, `reality_run.py brief` reads no calendar. `news_gate._CALENDAR_FILE` is module-relative, so it resolves to the worktree, where `calendar.csv` is gitignored and absent. Earlier `--code` brief runs therefore exercised the "calendar missing" path, visibly marked in the output. A fix (copy the live calendar into the run, or make the path cwd-relative under reality_run) is a separate change.
 
 **Gate 3 — PENDING LIVE CONFIRMATION (after merge only):** the first Sunday calendar fetch after merge writes USD rows; the next brief renders real US events; no DECISION notification is ever sent because of the line.
+
+## 2026-11-01 — CORRECTION: team review of `feat/us-events-context` found two overclaims in the entry above; REQUEST CHANGES
+
+**What was claimed without sufficient evidence (entry above, and the team brief of the same day):**
+1. *"Decisions can't change"* (spec I1). False on the fetch side. `calendar_fetch._parse_events` now parses the date of every USD row it keeps and raises on a bad one (calendar_fetch.py:91-94); before the change USD rows were dropped before the date check. One malformed USD row therefore rejects the whole week's feed, the gated GBP/AUD/JPY calendar goes stale, and a stale calendar fails open (I28): news stand-asides stop.
+   - Observed 2026-11-01 (pure function, temp cwd, no network): feed = one valid GBP row + one USD row dated `"Tentative"`. Branch → `REJECTED: unparseable event date: 'Tentative'`; main → `parsed 1`. Control: the GBP row alone parses on both.
+   - I1's test is also conditional: `check_news_gate` takes staleness from the newest row of any currency, and the test filters out USD rows beyond the own rows' feed week (test_us_events_context.py:98-100). The adversarial reviewer observed a next-week USD row flip `stale` → `active`. It holds only while the feed is one week, which nothing enforces.
+2. *"The line cannot trigger a false DECISION alert"* (spec I3, labelled VERIFIED). False.
+   - `_us_title` strips `#` after replacing the trigger words (decision_brief.py:460-462). Observed: `_us_title("FED DECI#SION LONG")` → `'FED DECISION LONG'`; `_us_title("AL#ERT")` → `'ALERT'`.
+   - The wrapper reacts to more than DECISION. The adversarial reviewer ran the real `scheduled_brief.sh` and observed: a `SHADOW SIGNALS` title sends a SHADOW notification; a `Framework error` title over 2 runs sends "BRIEF UNHEALTHY"; a wrapped line beginning `XXX/YYY` is read as a pair header and the notification names `USD/JPY LONG`.
+   - The I3 test does not pin the live trigger. It asserts the pipeline string occurs somewhere in the wrapper, and line 129 (the suppression check) carries the same string as the real trigger at line 151. A reviewer mutated line 151 to `grep -i 'DECISION'` and I3 still passed.
+3. *Counts.* "15 new tests": `pytest --collect-only tests/test_us_events_context.py` → 17 collected (14 functions, parametrized). "Reverted → 33 passed": a reviewer got 34 on the same three files.
+
+**What held up (re-checked by reviewers):** full branch suite `913 passed, 8 skipped, 2 deselected` (reproduced twice independently); mutants M1 sanitizer removed, M2 USD-only feed accepted and M3 USD in `PAIR_CURRENCIES` each re-run and caught; `check_news_gate` and `PAIR_CURRENCIES` untouched; rejecting a USD-only feed agreed correct; 24-hour window agreed (briefs run 18:00, 02:30, 07:30 Pacific).
+
+**Review verdicts:** code reviewer REQUEST CHANGES; adversarial reviewer rule 12 FAIL. **Not mergeable as built.** Requested changes, both reviewers unless noted:
+1. A malformed USD row is skipped (logged), never fails the gated fetch; test: valid GBP + malformed USD → write succeeds.
+2. Enforce the single-feed-week assumption (`_validate`), or drop I1's filter so the case fails visibly.
+3. Sanitizer becomes an allow-list (character set, length cap, `/` and `|` neutralized), stripping before case-folding, covering every wrapper and digest token.
+4. Anchor the wrapper's DECISION, SHADOW SIGNALS and Framework error greps to their label lines (free-zone, `test_wrapper_behavior.py`). Rebuild I3 on that harness over an adversarial title corpus, with an open-market LONG control, asserting the notification and the notification ledger.
+5. Same-time grouping plus "+N more" instead of a silent cap at 3 (code reviewer).
+6. US DATA moves below the market-closed and price-source notes (code reviewer, observed above them).
+7. Wording: "(it refreshes Sundays)" is wrong, since the wrapper re-fetches when the file is over 24 h old (scheduled_brief.sh:46); a missing calendar should not read "out of date"; untimed events should not render as exact times.
+
+**Gate 3 entry above is void** until a rebuilt branch passes review.
