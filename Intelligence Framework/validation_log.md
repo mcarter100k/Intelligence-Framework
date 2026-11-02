@@ -4878,3 +4878,26 @@ Positive control: 28 graded rows; every raw R reproduced from freshly fetched H4
 - The first calendar fetch after merge (Sunday's job, or the brief's re-fetch of a file over 24 h old) writes USD rows.
 - The next brief renders them.
 - No notification is ever caused by the line.
+
+## 2026-11-02 — CORRECTION + RE-REVIEW of Rev 1: code reviewer APPROVE WITH CHANGES; adversarial reviewer REQUEST CHANGES (rule 12 FAIL, digest path). NOT merged
+
+**Overclaims in the Rev 1 entry above:**
+1. **Spec §1.3 / I3b, "a US title never carries a trigger phrase in its trigger casing":** false. The phrase and capitals rules use `\b`, so a phrase glued to a preceding letter or digit passes untouched. Observed 2026-11-02: `_us_title("xFramework error review")` → `'xFramework error review'`; likewise `aEXIT IF`, `xWATCH FOR a 500 pip drop`, `9DECISION`.
+   - The wrapper anchors are unaffected. But `scripts/daily_digest.py` is not anchored (`"Framework error" in text`, `(?:EXIT IF|WATCH FOR)`), nor is `latest_view.py` (display only).
+   - The reviewer ran the real `scheduled_brief.sh digest`. `xFramework error review` gave the DIGEST "run failed — see the log". `xWATCH FOR a 500 pip drop` replaced the real watch in the DIGEST.
+   - I3b's corpus had no prefix-glued titles, and no I3a test ran the `digest` path.
+2. **S2, "caught by I1 itself":** true only for a mutant *inside* `_confine_context_rows`, which is the S2 that was run. Removing the *call* from `fetch_calendar` is caught by `test_a_usd_row_after_the_feed_week_is_dropped`, not by I1. I1 calls the function directly, so the test comment "removing it in calendar_fetch fails here" (test_us_events_context.py:160) overstates.
+
+**What held (both reviewers, independently):**
+- Requested changes 1–6 fixed. Suite 928 passed.
+- Wrapper anchors work with BSD grep and awk under `/bin/bash`, and no real trigger was lost: the error page ALERT, real SHADOW output, open SHORT, closed-market suppression.
+- Feed-week boundary correct at Sat 23:59 / Sun 00:00 Eastern.
+- Reviewers' own mutants W1, W4, S2 (both forms), placement and `RE_DECISION` were all caught.
+
+**Blocking for Rev 2:**
+1. Trigger phrases matched with no `\b`.
+2. `daily_digest.py` (and `latest_view.py`) anchored to label lines.
+3. Prefix-glued titles added to I3b.
+4. An I3a run with the `digest` argument asserting the DIGEST text and its ledger row match a control.
+
+**Non-blocking:** "+N more" says when the hidden releases are; accented characters transliterated, not dropped; the fetch skip note sanitized or truncated; the I1 test comment corrected; a test that narrative lines (2-space continuation) carry no feed titles.
