@@ -18,6 +18,7 @@ refuses to run inside the project.
 | `decision_gate_replay.py` | `decision_gate_replay_report.md` | How many DECISION notifications the market-closed gate removes, replayed on real day-log text |
 | `decision_channel_followups.py` | `decision_channel_followups_report.md` | Every open-market directional decision; episode count under both concurrent-run handlings |
 | `long_side_diagnosis.py` | `long_side_diagnosis_report.md` | Why all 16 open-market decisions were SHORT: the funnel, plus a mirror test of the decision path |
+| `missed_moves.py` | `missed_moves_report.md` | Every move of 2+ normal days' range the framework sat out, lined up with what it said; "not running" kept apart from "stood aside" (descriptive; hindsight size is not profit) |
 
 ## GBP/AUD profile series (prior-session; committed 2026-10-18 for citation integrity, not re-verified)
 
