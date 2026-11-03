@@ -4837,3 +4837,45 @@ The runner also imports these unchanged files: `studies/history_study_convert.py
 **Full suite on the branch:** 899 passed, 8 skipped, 2 deselected.
 
 **Next:** the `counts` stage through `scripts/reality_run.py --no-env`, which prints legs, entries and episodes only, with no R. It is recorded here before `full` runs once.
+
+## 2026-11-03 — First pullback after a range turn: counts stage (before any outcome)
+
+Run: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/first_pullback_study.py counts ~/intel_study_archives/us_event_reaction_data`, from the live project. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty, no network. The runner verified all 4 data hashes against the pinned values. Counts only: no R, no stop, no outcome printed. This was run after the pre-registration commit 87ed920.
+
+| Cell | Entries (graded) | **Episodes N** (long / short) | Tier | Episodes/yr | No trend filter (secondary), episodes |
+|---|---|---|---|---|---|
+| GBP_JPY 38.2% | 39 | **37** (17 / 20) | developing | 4.1 | 105 |
+| GBP_JPY 50% | 30 | **29** (14 / 15) | developing | 3.2 | 89 |
+| GBP_AUD 38.2% | 36 | **36** (15 / 21) | developing | 4.0 | 90 |
+| GBP_AUD 50% | 31 | **30** (12 / 18) | developing | 3.3 | 73 |
+
+- **Bars:** H4 2005-01-02 22:00 → 2013-12-30 18:00 UTC.
+  - GBP_JPY: 14,028 bars; 710 Sunday H4 bars folded, 453 Saturday dropped.
+  - GBP_AUD: 14,030 bars; 771 folded, 480 dropped.
+  - Both pairs: 2,343 D1 sessions, the same as the US-event counts stage.
+- **Ungraded at the end of data:** 0 in every cell. Episode collapse removed 0–2 entries per cell. Same-bar long/short ties were not counted separately (NOT CHECKED); at most 2 per cell could be affected.
+- **Leg funnel (38.2%, long / short):**
+
+  | Stage | GBP_JPY long | GBP_JPY short | GBP_AUD long | GBP_AUD short |
+  |---|---|---|---|---|
+  | Anchors | 458 | 773 | 860 | 616 |
+  | Replaced by a further extreme before qualifying | 389 | 698 | 797 | 551 |
+  | Qualified 2-ATR impulses | 66 | 69 | 60 | 61 |
+  | First touches | 56 | 65 | 50 | 48 |
+  | Against the 13-week direction (no trade) | 37 | 45 | 35 | 27 |
+  | Entries | 19 | 20 | 15 | 21 |
+
+  - Internal check: qualified = first touches + qualified expiries in every row (for example 66 = 56 + 10). That is consistent with the rule that a qualified leg cannot be replaced without first passing its level.
+  - **The trend filter removes about two-thirds of first touches.** A fresh 20-day extreme is usually against the 13-week direction.
+- **The pre-registered N guess (40–120) was too high.** The real N is 29–37 per cell: all four cells are **developing (20–59)**, none INSUFFICIENT. The power statement at the real N (power_check, SD 1.2R, α 0.0125):
+
+  | N | Smallest edge detectable at 80% power | Power for +0.15R | REFUTED needs an observed mean below |
+  |---|---|---|---|
+  | 29–30 | +0.68 to +0.69R | 6% | about −0.13R |
+  | 36–37 | +0.61 to +0.62R | 7% | about −0.10R |
+
+  - **Read this before the result:** SUPPORTED needs an edge of roughly +0.6R. A real +0.15R edge has a 6–7% chance of showing.
+  - Nothing in the spec changes. The verdict rule, cells and costs stand exactly as committed.
+- **Frequency:** 3.2–4.1 episodes a year per cell. That is below the 8 a year that data_map_spec §1 sets for splitting the sealed exam, so any exam would be a single one.
+
+**Next:** `full`, once.
