@@ -4959,3 +4959,31 @@ Positive control: 28 graded rows; every raw R reproduced from freshly fetched H4
 - Live checkout `git status`: clean.
 
 **Gate 3 — PENDING LIVE CONFIRMATION (after merge):** unchanged from Rev 1 (first fetch writes USD rows; next brief renders them; no notification caused by the line), plus the first 07:30 DIGEST after merge matching the brief's real decisions.
+
+## 2026-11-03 — TEAM REVIEW GIVEN: US events in the brief (Rev 2) approved; merging
+
+**Round 3 verdicts on Rev 2** (`9c496d0`, with main merged in at `4c638e4`):
+- **Code reviewer: APPROVE.** Suite reproduced at 966 passed.
+  - Real-log regression check: old vs new `daily_digest` over all 96 `logs/brief_*.log` files (293 brief blocks). The error check, `build_digest` and `pair_decisions` gave **0 differences**. Coverage: 133 error blocks, 45 market-closed, 160 with a watch, 30 LONG/SHORT.
+  - Every real label line in the logs sits at 2 spaces.
+- **Adversarial reviewer: APPROVE WITH CHANGES (non-blocking); rule 12 PASS.**
+  - Every digest attack was neutralized through the sanitizer and, separately, by the anchors alone, on the real `scheduled_brief.sh digest`.
+  - Real error page, closed market and LONG controls still reach the owner.
+  - Fuzz: 0 of 300,000 sanitized titles kept a consumer phrase, against 102,290 raw inputs that contained one.
+  - Re-ran D1, D3, its own Dw and Tx: all caught.
+  - **Agrees T2 is equivalent:** single-pass and fixpoint outputs were identical on all 300,000.
+
+**Owner's standing instruction (2026-11-02):** "re-review, then merge" if both approve. Both did. Merged by that instruction.
+
+**Non-blocking follow-ups (not in this merge):**
+1. The wrapper's summary grep `EARLY_MOMENTUM|THRUST_PULLBACK|MOMENTUM_JOIN` is still unanchored. A raw candidate name in feed text could add text to a DECISION summary that was already firing. Today only the sanitizer (no `_`) defends it.
+2. Cap the US DATA line's total length. The worst case, 4 slots × 3 sixty-character titles, is about 26 header lines.
+3. Earlier non-blocking items still open: "released at …"; splitting the heartbeat count; committing a mutation runner; the `reality_run --code` calendar gap.
+
+**Process record:** the spec body was revised in place twice during review. This is recorded in `docs/specs/README.md`; the original is `9fb643f`.
+
+**Gate 3 — PENDING LIVE CONFIRMATION:**
+1. The first calendar fetch after merge writes USD rows (Sunday's job, or the brief's re-fetch of a file over 24 h old).
+2. The next brief renders them.
+3. No notification is ever caused by the line.
+4. The first 07:30 DIGEST after merge matches the brief's real decisions.
