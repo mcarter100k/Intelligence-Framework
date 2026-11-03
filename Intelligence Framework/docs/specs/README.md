@@ -39,3 +39,4 @@ carries the lifecycle. A later change gets its own spec.
 | [unresolved_direction_polish_spec.md](unresolved_direction_polish_spec.md) | unresolved-direction polish (follow-up ruling, 2026-09-09) | d718094 2026-09-09 | Built; validation_log cites it 1x |
 | [visible_failures_spec.md](visible_failures_spec.md) | make failures visible (Phase 2 of the 2026-09-29 audit plan) | bfe9430 2026-09-29 | Built; validation_log cites it 1x |
 | [weekly_alignment_wording_spec.md](weekly_alignment_wording_spec.md) | plain wording for the 20-week alignment block (Phase 5 review 2, item R2b; 2026-09-30) | a3c2a4a 2026-09-30 | Built; validation_log cites it 1x |
+| [range_volatile_wording_spec.md](range_volatile_wording_spec.md) | plain, direction-neutral REASON for range + volatile 4-hour stand-asides ("Range breaking down" read as bearish during a rally; owner 2026-11-03) | (this commit) 2026-11-03 | **Spec only, awaiting team review**; not built |
