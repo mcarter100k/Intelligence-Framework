@@ -4781,6 +4781,266 @@ Positive control: 28 graded rows; every raw R reproduced from freshly fetched H4
 
 **Full suite on the branch:** 930 passed, 8 skipped, 2 deselected (before the study commit).
 
+## 2026-11-03 — PRE-REGISTRATION: the first pullback after a range turn (GBP/AUD, GBP/JPY), 2005–2013 STUDY data
+
+**Owner request:** the framework sat out the GBP/AUD rally from the 2026-10-28 low of 1.8873 to 1.9257 on 2026-11-03. The owner's entry for it: after the turn off the range low, buy the first 4-hour pullback to 38.2% of the impulse, with the bigger trend. The question is whether that rule has an edge. This is not a protected-path change: free zone only.
+
+**Committed together, before any 2005–2013 outcome of this rule is computed:**
+
+| File | sha256 |
+|---|---|
+| `docs/specs/first_pullback_study_spec.md` | `0211a39d125467a3ad159b62f8f97fd493730a27cd5f2dbecf5ccaa9385cb72d` |
+| `studies/first_pullback_study.py` | `8549612e67e28659cc57f2331a0181815b89568860284887872511c1a128f169` |
+| `tests/test_first_pullback_selftest.py` | `3fb554c1dbc67200e710c29b0f87fff6370df2a83776145700302ebae1f88e2d` |
+
+The runner also imports these unchanged files: `studies/history_study_convert.py` `584ff76d…a553`, `studies/shadow_cost_regrade.py` (`rollover_nights`) `6cb2e4c9…1fdf`, `studies/policy_rates_2003_2014.json` `5df23e18…eacf`, `foundation/tools/power_check.py` `4afaf1ca…6d09`, `foundation/tools/episodes.py` `92cd1e89…bcd0`.
+
+**Data.** The data is the STUDY partition already fetched by the US-event study through the embargo-guarded fetch, in `~/intel_study_archives/us_event_reaction_data/`. The runner pins the four sha256 values recorded in the 2026-11-01 counts entry above. VERIFIED this session: `shasum -a 256` of all four files matches `data_hashes.json` and those values exactly. The H4 files run from 2005-01-02 to 2013-12-30 18:00 UTC. No network call; no SEALED EXAM or USED data.
+
+**The rule (spec §4–§5), four cells: {GBP_AUD, GBP_JPY} × {38.2%, 50%}, long and short pooled.**
+- **Anchor:** an H4 low strictly below the previous 119 bars (20 sessions).
+- **Impulse:** the highest high after the anchor bar must reach at least 2.0 × D1 ATR(14), with the ATR taken from completed sessions.
+- **Entry:** from each H4 close once the impulse qualifies, a limit rests at B − f(B − A). The first touch is the pullback and fills at min(open, level). It consumes the leg. It must come within 60 bars of the anchor.
+- **With the trend:** the 13-week direction (65 completed sessions) must be > 0 for longs and < 0 for shorts. If the first touch comes against it, there is no trade.
+- **Stop:** the primary stop is the impulse origin − 0.1 ATR. The secondary stop is the 61.8% level − 0.1 ATR.
+- **Horizon:** the fill bar plus 30 H4 bars, graded on the stop. A stop is −1R.
+- **Short side:** the exact mirror (price negation).
+- **Episodes:** the first trade per 30-bar horizon on the bar index.
+- **Costs:** the era spread (data_map_spec §4: GBP/AUD 10/7, GBP/JPY 6/5), plus financing at the policy-rate gap, side-signed, less a 1% markup, with 17:00 New York rollovers and Wednesday counted ×3.
+  - **Deviation from the request:** the request named a 3.0-pip spread. data_map_spec §4 is frozen and requires the era schedule for every STUDY computation, so 3.0 pips is a pre-declared secondary, reported for every cell.
+- **Verdicts:**
+  - N<20: INSUFFICIENT.
+  - SUPPORTED: Bonferroni lower bound (0.9875, one-sided, percentile bootstrap, 20,000 resamples, seed 7) > 0, and the mean without the best episode > 0.
+  - REFUTED: 90% upper bound < +0.15R (the futility standard).
+  - INCONCLUSIVE: otherwise.
+- **How this differs from R20, and why it is not a re-test:** spec §2. R20 was descriptive, every cell had N<30 and it was half in-sample. The prior from R20, R14 and R17 is against this rule, and the spec states that.
+
+**Power (spec §9, power_check, SD 1.2R, α 0.0125):**
+- N required for a +0.15R edge at 80% power: **609 episodes per cell**. That is unreachable.
+- The expected N, a guess to be replaced by the counts stage, is 40–120 per cell. At those N the smallest detectable edge is +0.58R to +0.34R.
+- A real +0.15R edge would almost certainly read INCONCLUSIVE.
+
+**Self-test:** `SELFTEST OK`, 53 checks (OBSERVED). It covers:
+- the leg detector on a replica of the owner's leg (entry 1.9110312);
+- the fill, the stop and the horizon;
+- the short mirror;
+- costs;
+- completed-session context;
+- episode collapse, checked against `episodes.count_episodes`;
+- the verdict rule with the Bonferroni correction;
+- the embargo, sealed-exam and hash refusals.
+
+**Mutation test:** 22 mutants were run in a disposable copy, with PYTHONDONTWRITEBYTECODE=1 and under `/bin/bash`, and each one was confirmed applied. **All 22 were caught** (OBSERVED). 21 were caught by at least one FAIL line. M4 (an order resting before the impulse qualifies) was caught by a crash in the mutated code: it uses an unset extreme.
+- The mutants:
+  - a non-strict anchor;
+  - a 100-bar range;
+  - the anchor bar's high counted;
+  - no qualification before the order rests;
+  - a gap filled at the level;
+  - a filtered touch not consuming the leg;
+  - context lookahead into the bar's own session;
+  - a flat trend accepted;
+  - the horizon one bar short;
+  - no stop check on the fill bar;
+  - the spread sign flipped;
+  - the markup sign flipped;
+  - no Bonferroni;
+  - the embargo check removed;
+  - episodes needing > rather than ≥ 30 bars;
+  - the without-best test dropped;
+  - the mirror without the high/low swap;
+  - an exclusive leg window;
+  - the hash check disabled;
+  - REFUTED at ≤ instead of <;
+  - the stop buffer dropped;
+  - a 1.5-ATR impulse minimum.
+- The original file was unchanged after the run (hash compared).
+
+**Full suite on the branch:** 899 passed, 8 skipped, 2 deselected.
+
+**Next:** the `counts` stage through `scripts/reality_run.py --no-env`, which prints legs, entries and episodes only, with no R. It is recorded here before `full` runs once.
+
+## 2026-11-03 — First pullback after a range turn: counts stage (before any outcome)
+
+Run: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/first_pullback_study.py counts ~/intel_study_archives/us_event_reaction_data`, from the live project. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty, no network. The runner verified all 4 data hashes against the pinned values. Counts only: no R, no stop, no outcome printed. This was run after the pre-registration commit 87ed920.
+
+| Cell | Entries (graded) | **Episodes N** (long / short) | Tier | Episodes/yr | No trend filter (secondary), episodes |
+|---|---|---|---|---|---|
+| GBP_JPY 38.2% | 39 | **37** (17 / 20) | developing | 4.1 | 105 |
+| GBP_JPY 50% | 30 | **29** (14 / 15) | developing | 3.2 | 89 |
+| GBP_AUD 38.2% | 36 | **36** (15 / 21) | developing | 4.0 | 90 |
+| GBP_AUD 50% | 31 | **30** (12 / 18) | developing | 3.3 | 73 |
+
+- **Bars:** H4 2005-01-02 22:00 → 2013-12-30 18:00 UTC.
+  - GBP_JPY: 14,028 bars; 710 Sunday H4 bars folded, 453 Saturday dropped.
+  - GBP_AUD: 14,030 bars; 771 folded, 480 dropped.
+  - Both pairs: 2,343 D1 sessions, the same as the US-event counts stage.
+- **Ungraded at the end of data:** 0 in every cell. Episode collapse removed 0–2 entries per cell. Same-bar long/short ties were not counted separately (NOT CHECKED); at most 2 per cell could be affected.
+- **Leg funnel (38.2%, long / short):**
+
+  | Stage | GBP_JPY long | GBP_JPY short | GBP_AUD long | GBP_AUD short |
+  |---|---|---|---|---|
+  | Anchors | 458 | 773 | 860 | 616 |
+  | Replaced by a further extreme before qualifying | 389 | 698 | 797 | 551 |
+  | Qualified 2-ATR impulses | 66 | 69 | 60 | 61 |
+  | First touches | 56 | 65 | 50 | 48 |
+  | Against the 13-week direction (no trade) | 37 | 45 | 35 | 27 |
+  | Entries | 19 | 20 | 15 | 21 |
+
+  - Internal check: qualified = first touches + qualified expiries in every row (for example 66 = 56 + 10). That is consistent with the rule that a qualified leg cannot be replaced without first passing its level.
+  - **The trend filter removes about two-thirds of first touches.** A fresh 20-day extreme is usually against the 13-week direction.
+- **The pre-registered N guess (40–120) was too high.** The real N is 29–37 per cell: all four cells are **developing (20–59)**, none INSUFFICIENT. The power statement at the real N (power_check, SD 1.2R, α 0.0125):
+
+  | N | Smallest edge detectable at 80% power | Power for +0.15R | REFUTED needs an observed mean below |
+  |---|---|---|---|
+  | 29–30 | +0.68 to +0.69R | 6% | about −0.13R |
+  | 36–37 | +0.61 to +0.62R | 7% | about −0.10R |
+
+  - **Read this before the result:** SUPPORTED needs an edge of roughly +0.6R. A real +0.15R edge has a 6–7% chance of showing.
+  - Nothing in the spec changes. The verdict rule, cells and costs stand exactly as committed.
+- **Frequency:** 3.2–4.1 episodes a year per cell. That is below the 8 a year that data_map_spec §1 sets for splitting the sealed exam, so any exam would be a single one.
+
+**Next:** `full`, once.
+
+## 2026-11-03 — RESULT: first pullback after a range turn — GBP/AUD 38.2% REFUTED, the other three cells INCONCLUSIVE (2005–2013 STUDY data)
+
+Run once, after the counts commit 6df4530: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/first_pullback_study.py full ~/intel_study_archives/us_event_reaction_data <worktree>/studies/first_pullback_study_result.md`, from the live project. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty, no network. The runner checked all 4 data hashes against the pinned values, and the report file did not exist beforehand. The report is byte-identical to the run's stdout (diff). Verbatim output, headings demoted two levels:
+
+### First pullback after a range turn — pre-registered test result (2005–2013 STUDY data)
+
+Spec: docs/specs/first_pullback_study_spec.md. Verdict on episode R after era spread and financing. Bonferroni one-sided lower bound at 0.9875 (4 cells), 90% upper bound for REFUTED (bar +0.15R), 20000 resamples, seed 7. Frame (data_map_spec §5): does this survive conditions it was not designed on.
+
+#### GBP_JPY
+
+##### GBP_JPY 38.2%: **INCONCLUSIVE** (developing (N 20-59))
+
+- **Primary (episode R after era spread and financing):** N 37; mean +0.073R; median +0.095R; Bonferroni lower bound -0.250R; 90% upper bound +0.266R; without best +0.004R; max DD 2.7R; win 54%; SD 0.920
+- Median winner +0.529R (N 20); median loser -0.978R (N 17); stopped 9 of 37
+- Costs per episode: spread -0.017R, financing -0.010R, mean nights 6.3, mean risk 379 pips
+- Power at this N (SD 1.2R assumed, α 0.0125): 7% for +0.15R; smallest edge detectable at 80% power +0.61R
+
+**Secondary (never changes the verdict):**
+
+- Before costs: N 37; mean +0.100R; median +0.125R
+- Flat 3.0-pip spread (present-day cost) + financing: N 37; mean +0.081R; median +0.102R; Bonferroni lower bound -0.242R; 90% upper bound +0.273R; without best +0.012R; max DD 2.6R; win 54%
+- Stops filled at the gap open: N 37; mean +0.073R; median +0.095R; stops that gapped: 0; fills through the stop: 0
+- Financing markup 0%: N 37; mean +0.082R; median +0.104R
+- Financing markup 2%: N 37; mean +0.065R; median +0.085R
+- Secondary stop below the 61.8% level: N 37; mean +0.297R; median -0.949R; Bonferroni lower bound -0.328R; 90% upper bound +0.691R; without best +0.137R; max DD 6.3R; win 43%; stopped 19
+- Long episodes: N 17; mean -0.103R; median +0.207R  (INSUFFICIENT: N<20)
+- Short episodes: N 20; mean +0.223R; median +0.057R
+- No trend filter (every first touch): N 105; mean -0.105R; median -0.137R
+- 2005-01 to 2008-06 (before the crisis): N 13; mean +0.225R; median +0.345R  (INSUFFICIENT: N<20)
+- 2008-07 to 2009-06 (the crisis): N 4; mean +0.069R; median -0.090R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 20; mean -0.024R; median +0.033R
+- By year (N, mean R): 2005 1 +0.02; 2006 5 +0.09; 2007 6 +0.42; 2008 3 -0.25; 2009 4 +0.41; 2010 4 -0.25; 2011 4 +0.63; 2012 3 -0.66; 2013 7 -0.10
+- Legs: long {'anchors': 458, 'anchors in warm-up (skipped)': 5, 'entries': 19, 'expired qualified': 10, 'expired unqualified': 3, 'first touches': 56, 'qualified impulses': 66, 'replaced by a lower low before a touch': 389, 'touches against the 13-week direction (no trade)': 37}; short {'anchors': 773, 'anchors in warm-up (skipped)': 29, 'entries': 20, 'expired qualified': 4, 'expired unqualified': 5, 'first touches': 65, 'qualified impulses': 69, 'replaced by a lower low before a touch': 698, 'touches against the 13-week direction (no trade)': 45}; ungraded at data end 0
+
+##### GBP_JPY 50.0%: **INCONCLUSIVE** (developing (N 20-59))
+
+- **Primary (episode R after era spread and financing):** N 29; mean +0.094R; median -0.042R; Bonferroni lower bound -0.361R; 90% upper bound +0.383R; without best -0.029R; max DD 3.3R; win 48%; SD 1.183
+- Median winner +1.032R (N 14); median loser -1.019R (N 15); stopped 10 of 29
+- Costs per episode: spread -0.021R, financing -0.015R, mean nights 5.9, mean risk 312 pips
+- Power at this N (SD 1.2R assumed, α 0.0125): 6% for +0.15R; smallest edge detectable at 80% power +0.69R
+
+**Secondary (never changes the verdict):**
+
+- Before costs: N 29; mean +0.130R; median -0.016R
+- Flat 3.0-pip spread (present-day cost) + financing: N 29; mean +0.103R; median -0.034R; Bonferroni lower bound -0.351R; 90% upper bound +0.392R; without best -0.019R; max DD 3.2R; win 48%
+- Stops filled at the gap open: N 29; mean +0.094R; median -0.042R; stops that gapped: 0; fills through the stop: 0
+- Financing markup 0%: N 29; mean +0.103R; median -0.032R
+- Financing markup 2%: N 29; mean +0.085R; median -0.052R
+- Secondary stop below the 61.8% level: N 29; mean +0.829R; median -1.060R; Bonferroni lower bound -0.366R; 90% upper bound +1.633R; without best +0.434R; max DD 9.1R; win 38%; stopped 18
+- Long episodes: N 14; mean -0.125R; median -0.312R  (INSUFFICIENT: N<20)
+- Short episodes: N 15; mean +0.299R; median +0.025R  (INSUFFICIENT: N<20)
+- No trend filter (every first touch): N 89; mean -0.096R; median -0.145R
+- 2005-01 to 2008-06 (before the crisis): N 8; mean +0.358R; median -0.240R  (INSUFFICIENT: N<20)
+- 2008-07 to 2009-06 (the crisis): N 4; mean +0.305R; median -0.056R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 17; mean -0.080R; median -0.042R  (INSUFFICIENT: N<20)
+- By year (N, mean R): 2006 3 -0.07; 2007 4 +0.74; 2008 3 -0.21; 2009 4 +0.81; 2010 4 -0.14; 2011 2 -0.09; 2012 3 -0.72; 2013 6 +0.05
+- Legs: long {'anchors': 458, 'anchors in warm-up (skipped)': 5, 'entries': 15, 'expired qualified': 21, 'expired unqualified': 3, 'first touches': 45, 'qualified impulses': 66, 'replaced by a lower low before a touch': 389, 'touches against the 13-week direction (no trade)': 30}; short {'anchors': 773, 'anchors in warm-up (skipped)': 29, 'entries': 15, 'expired qualified': 14, 'expired unqualified': 5, 'first touches': 55, 'qualified impulses': 69, 'replaced by a lower low before a touch': 698, 'touches against the 13-week direction (no trade)': 40}; ungraded at data end 0
+
+#### GBP_AUD
+
+##### GBP_AUD 38.2%: **REFUTED** (developing (N 20-59))
+
+- **Primary (episode R after era spread and financing):** N 36; mean -0.011R; median -0.082R; Bonferroni lower bound -0.269R; 90% upper bound +0.140R; without best -0.057R; max DD 3.2R; win 44%; SD 0.706
+- Median winner +0.580R (N 16); median loser -0.385R (N 20); stopped 5 of 36
+- Costs per episode: spread -0.030R, financing -0.004R, mean nights 6.9, mean risk 372 pips
+- Power at this N (SD 1.2R assumed, α 0.0125): 7% for +0.15R; smallest edge detectable at 80% power +0.62R
+
+**Secondary (never changes the verdict):**
+
+- Before costs: N 36; mean +0.022R; median -0.061R
+- Flat 3.0-pip spread (present-day cost) + financing: N 36; mean +0.008R; median -0.075R; Bonferroni lower bound -0.249R; 90% upper bound +0.159R; without best -0.037R; max DD 2.9R; win 44%
+- Stops filled at the gap open: N 36; mean -0.011R; median -0.082R; stops that gapped: 0; fills through the stop: 0
+- Financing markup 0%: N 36; mean +0.001R; median -0.078R
+- Financing markup 2%: N 36; mean -0.024R; median -0.086R
+- Secondary stop below the 61.8% level: N 36; mean -0.163R; median -1.043R; Bonferroni lower bound -0.645R; 90% upper bound +0.139R; without best -0.277R; max DD 12.2R; win 31%; stopped 22
+- Long episodes: N 15; mean +0.186R; median +0.186R  (INSUFFICIENT: N<20)
+- Short episodes: N 21; mean -0.152R; median -0.215R
+- No trend filter (every first touch): N 90; mean +0.041R; median -0.059R
+- 2005-01 to 2008-06 (before the crisis): N 12; mean -0.269R; median -0.394R  (INSUFFICIENT: N<20)
+- 2008-07 to 2009-06 (the crisis): N 5; mean +0.385R; median +0.297R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 19; mean +0.047R; median -0.096R  (INSUFFICIENT: N<20)
+- By year (N, mean R): 2005 2 -0.97; 2006 7 +0.03; 2007 2 -0.24; 2008 4 +0.20; 2009 4 +0.31; 2010 5 +0.25; 2011 5 +0.00; 2012 3 -0.19; 2013 4 -0.23
+- Legs: long {'anchors': 860, 'anchors in warm-up (skipped)': 16, 'entries': 15, 'expired qualified': 10, 'expired unqualified': 3, 'first touches': 50, 'qualified impulses': 60, 'replaced by a lower low before a touch': 797, 'touches against the 13-week direction (no trade)': 35}; short {'anchors': 616, 'anchors in warm-up (skipped)': 7, 'entries': 21, 'expired qualified': 13, 'expired unqualified': 3, 'first touches': 48, 'qualified impulses': 61, 'replaced by a lower low before a touch': 551, 'touches against the 13-week direction (no trade)': 27}; ungraded at data end 0
+
+##### GBP_AUD 50.0%: **INCONCLUSIVE** (developing (N 20-59))
+
+- **Primary (episode R after era spread and financing):** N 30; mean +0.017R; median -0.220R; Bonferroni lower bound -0.384R; 90% upper bound +0.276R; without best -0.088R; max DD 4.6R; win 40%; SD 1.084
+- Median winner +1.146R (N 12); median loser -0.776R (N 18); stopped 8 of 30
+- Costs per episode: spread -0.037R, financing -0.005R, mean nights 6.1, mean risk 281 pips
+- Power at this N (SD 1.2R assumed, α 0.0125): 6% for +0.15R; smallest edge detectable at 80% power +0.68R
+
+**Secondary (never changes the verdict):**
+
+- Before costs: N 30; mean +0.060R; median -0.206R
+- Flat 3.0-pip spread (present-day cost) + financing: N 30; mean +0.041R; median -0.211R; Bonferroni lower bound -0.358R; 90% upper bound +0.300R; without best -0.064R; max DD 4.4R; win 40%
+- Stops filled at the gap open: N 30; mean +0.017R; median -0.220R; stops that gapped: 0; fills through the stop: 0
+- Financing markup 0%: N 30; mean +0.031R; median -0.214R
+- Financing markup 2%: N 30; mean +0.004R; median -0.226R
+- Secondary stop below the 61.8% level: N 30; mean +0.115R; median -1.117R; Bonferroni lower bound -0.928R; 90% upper bound +0.845R; without best -0.238R; max DD 13.7R; win 17%; stopped 24
+- Long episodes: N 12; mean +0.426R; median +0.141R  (INSUFFICIENT: N<20)
+- Short episodes: N 18; mean -0.255R; median -0.536R  (INSUFFICIENT: N<20)
+- No trend filter (every first touch): N 73; mean +0.010R; median -0.222R
+- 2005-01 to 2008-06 (before the crisis): N 11; mean -0.230R; median -0.666R  (INSUFFICIENT: N<20)
+- 2008-07 to 2009-06 (the crisis): N 5; mean +0.491R; median -0.186R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 14; mean +0.043R; median -0.047R  (INSUFFICIENT: N<20)
+- By year (N, mean R): 2005 2 -0.97; 2006 6 +0.32; 2007 2 -0.74; 2008 4 +0.53; 2009 3 +0.30; 2010 3 +0.45; 2011 4 +0.23; 2012 3 -0.50; 2013 3 -0.60
+- Legs: long {'anchors': 860, 'anchors in warm-up (skipped)': 16, 'entries': 12, 'expired qualified': 18, 'expired unqualified': 3, 'first touches': 42, 'qualified impulses': 60, 'replaced by a lower low before a touch': 797, 'touches against the 13-week direction (no trade)': 30}; short {'anchors': 616, 'anchors in warm-up (skipped)': 7, 'entries': 19, 'expired qualified': 23, 'expired unqualified': 3, 'first touches': 38, 'qualified impulses': 61, 'replaced by a lower low before a touch': 551, 'touches against the 13-week direction (no trade)': 19}; ungraded at data end 0
+
+#### Summary
+
+| Cell | N | Mean R | Median R | Lower bound | Upper 90% | Without best | Max DD | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| GBP_JPY 38.2% | 37 | +0.073 | +0.095 | -0.250 | +0.266 | +0.004 | 2.7 | INCONCLUSIVE |
+| GBP_JPY 50.0% | 29 | +0.094 | -0.042 | -0.361 | +0.383 | -0.029 | 3.3 | INCONCLUSIVE |
+| GBP_AUD 38.2% | 36 | -0.011 | -0.082 | -0.269 | +0.140 | -0.057 | 3.2 | REFUTED |
+| GBP_AUD 50.0% | 30 | +0.017 | -0.220 | -0.384 | +0.276 | -0.088 | 4.6 | INCONCLUSIVE |
+
+- Descriptive only: both pairs pooled at 38.2%: N 73; mean +0.032R; median -0.029R; N required for +0.15R at 80% power (SD 1.2, α 0.0125): 609
+
+**Reading** (the verdicts above are the pre-registered ones; nothing here changes them):
+- **GBP/AUD at 38.2%, the owner's own entry on the owner's own pair: REFUTED.**
+  - Mean −0.011R, median −0.082R, 44% winners, over 36 independent episodes.
+  - The 90% upper bound is +0.140R, below the +0.15R bar, so even the optimistic end is short of an edge worth trading. Traded the same way every time on 2005–2013, the rule earned about nothing after costs.
+  - **It is a marginal refutation, and it depends on costs.** Under the pre-declared secondary 3.0-pip spread, the upper bound is +0.159R, which would read INCONCLUSIVE. The verdict uses the era spread because data_map_spec §4 is frozen (spec §5.4). Before costs the mean is +0.022R.
+  - The power statement assumed SD 1.2R. The observed SD in this cell is 0.71R, because stops are wide (mean risk 372 pips) and only 5 of 36 were hit. That narrower spread is why a mean near zero was enough to refute.
+- **The other three cells are INCONCLUSIVE:** GBP/JPY 38.2%, GBP/JPY 50% and GBP/AUD 50%.
+  - Means are +0.02R to +0.09R, and medians −0.22R to +0.10R.
+  - Without the best episode, the means are +0.004R, −0.029R and −0.088R.
+  - The Bonferroni lower bounds are −0.25R to −0.38R, far from SUPPORTED, which needed about +0.6R at these N.
+  - No cell shows an edge. A small edge of +0.15R or less cannot be ruled out in these three: at N 29–37 that was never in reach (6–7% power).
+- **Costs were small:** spread −0.02R to −0.04R and financing −0.004R to −0.015R per episode. The stops are wide, at 280–380 pips.
+- **Secondary results, descriptive only. None is a candidate, and choosing one now would be the in-sample selection R10/R17 warn against.**
+  - **The 13-week trend filter.** Without it, every first touch: GBP/JPY −0.105R (N 105) and −0.096R (N 89); GBP/AUD +0.041R (N 90) and +0.010R (N 73). On GBP/JPY the filter turned a negative set slightly positive. It removed about two-thirds of touches.
+  - **The 61.8% stop.** It lifted GBP/JPY 50% to +0.83R mean, but the median is −1.06R and 18 of 29 trades were stopped: a few large winners carry it. On GBP/AUD the same stop made both cells worse, with medians below −1R and max drawdowns of 12–14R.
+  - **Long against short** has no consistent pattern: GBP/JPY shorts did better, GBP/AUD longs did better. Every split side is N 12–21.
+  - **Sub-periods and years** swing both ways, and no period carries the result.
+- **Consequence.** On 2005–2013 data, standing aside on this setup is not shown to have cost an edge. Nothing is SUPPORTED, so no sealed-exam spec is warranted. The 2026-10-28 GBP/AUD rally is one chart; the rule traded every time did not make money on GBP/AUD. The frame is data_map_spec §5: does this survive conditions it was not designed on.
+- **Status:** recorded as R37 (GBP/AUD) and R38 (GBP/JPY) in foundation/research_findings.md; the tested-hypothesis count goes from 36 to 38. The installed skill is NOT rebuilt on this branch: `foundation/build_skill.sh` writes to `~/.claude/skills` and would install unmerged content. That rebuild is for after merge.
+
 ## 2026-11-01 — BUILT, AWAITING TEAM REVIEW: US events in the brief as context only (branch `feat/us-events-context`, NOT merged)
 
 **Spec:** `docs/specs/us_events_context_spec.md`, committed before the build (9fb643f). Protected modules touched: `calendar_fetch.py`, `news_gate.py`, `decision_brief.py`. **Do not merge without team review.**
