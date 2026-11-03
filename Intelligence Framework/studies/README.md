@@ -39,6 +39,7 @@ foundation/ cites these about 20 times. They were committed exactly as found, ea
 | `stage2_source_convert_gate.py` | `stage2_gate_report.md` | Stage 2 of docs/specs/data_map_spec.md: source conversion and the feed-overlap gate |
 | `instrument_probe.py` | `instrument_probe_report.md` | Which cross-market instruments the live account offers, their daily history, and today's financing rates (owner-approved, 2026-11-01) |
 | `us_event_reaction_test.py` | `us_event_reaction_result.md` (after the run) | Do scheduled US releases (FOMC, CPI, jobs report) widen GBP/JPY and GBP/AUD daily ranges? Pre-registered: docs/specs/us_event_reaction_spec.md; event table `us_events_2005_2013.csv` |
+| `first_pullback_study.py` | `first_pullback_study_result.md` | Does the owner's first-pullback entry (first H4 touch of 38.2% / 50% of a 2-ATR impulse off a 20-session extreme, with the 13-week direction) have an edge after costs? Pre-registered: docs/specs/first_pullback_study_spec.md. Run once 2026-11-03 |
 | `shadow_cost_regrade.py` | `shadow_cost_regrade_report.md` | The shadow ledger's graded episodes re-graded with spread and financing, read-only, beside the frozen raw R (proposal step 3) |
 
 ## Premises tested (most were refuted at honest N; see foundation/research_findings.md)
