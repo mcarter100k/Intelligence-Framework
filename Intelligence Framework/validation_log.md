@@ -4758,3 +4758,82 @@ Positive control: 28 graded rows; every raw R reproduced from freshly fetched H4
   - Long GBP/JPY earns carry (+0.02 to +0.06R) that roughly offsets its spread.
 - **For the futility checkpoint** (N=20, 90% bound vs +0.15R on raw R): costs of this size make every candidate's real edge smaller than its raw R by about 0.01–0.04R on average (EARLY_MOMENTUM_v2 −0.011R). That should be read beside any raw result near the bar.
 - Every candidate is negative before costs and more negative after, at N = 4, 1 and 2 episodes: INSUFFICIENT throughout.
+
+## 2026-11-03 — PRE-REGISTRATION: the first pullback after a range turn (GBP/AUD, GBP/JPY), 2005–2013 STUDY data
+
+**Owner request:** the framework sat out the GBP/AUD rally from the 2026-10-28 low of 1.8873 to 1.9257 on 2026-11-03. The owner's entry for it: after the turn off the range low, buy the first 4-hour pullback to 38.2% of the impulse, with the bigger trend. The question is whether that rule has an edge. This is not a protected-path change: free zone only.
+
+**Committed together, before any 2005–2013 outcome of this rule is computed:**
+
+| File | sha256 |
+|---|---|
+| `docs/specs/first_pullback_study_spec.md` | `0211a39d125467a3ad159b62f8f97fd493730a27cd5f2dbecf5ccaa9385cb72d` |
+| `studies/first_pullback_study.py` | `8549612e67e28659cc57f2331a0181815b89568860284887872511c1a128f169` |
+| `tests/test_first_pullback_selftest.py` | `3fb554c1dbc67200e710c29b0f87fff6370df2a83776145700302ebae1f88e2d` |
+
+The runner also imports these unchanged files: `studies/history_study_convert.py` `584ff76d…a553`, `studies/shadow_cost_regrade.py` (`rollover_nights`) `6cb2e4c9…1fdf`, `studies/policy_rates_2003_2014.json` `5df23e18…eacf`, `foundation/tools/power_check.py` `4afaf1ca…6d09`, `foundation/tools/episodes.py` `92cd1e89…bcd0`.
+
+**Data.** The data is the STUDY partition already fetched by the US-event study through the embargo-guarded fetch, in `~/intel_study_archives/us_event_reaction_data/`. The runner pins the four sha256 values recorded in the 2026-11-01 counts entry above. VERIFIED this session: `shasum -a 256` of all four files matches `data_hashes.json` and those values exactly. The H4 files run from 2005-01-02 to 2013-12-30 18:00 UTC. No network call; no SEALED EXAM or USED data.
+
+**The rule (spec §4–§5), four cells: {GBP_AUD, GBP_JPY} × {38.2%, 50%}, long and short pooled.**
+- **Anchor:** an H4 low strictly below the previous 119 bars (20 sessions).
+- **Impulse:** the highest high after the anchor bar must reach at least 2.0 × D1 ATR(14), with the ATR taken from completed sessions.
+- **Entry:** from each H4 close once the impulse qualifies, a limit rests at B − f(B − A). The first touch is the pullback and fills at min(open, level). It consumes the leg. It must come within 60 bars of the anchor.
+- **With the trend:** the 13-week direction (65 completed sessions) must be > 0 for longs and < 0 for shorts. If the first touch comes against it, there is no trade.
+- **Stop:** the primary stop is the impulse origin − 0.1 ATR. The secondary stop is the 61.8% level − 0.1 ATR.
+- **Horizon:** the fill bar plus 30 H4 bars, graded on the stop. A stop is −1R.
+- **Short side:** the exact mirror (price negation).
+- **Episodes:** the first trade per 30-bar horizon on the bar index.
+- **Costs:** the era spread (data_map_spec §4: GBP/AUD 10/7, GBP/JPY 6/5), plus financing at the policy-rate gap, side-signed, less a 1% markup, with 17:00 New York rollovers and Wednesday counted ×3.
+  - **Deviation from the request:** the request named a 3.0-pip spread. data_map_spec §4 is frozen and requires the era schedule for every STUDY computation, so 3.0 pips is a pre-declared secondary, reported for every cell.
+- **Verdicts:**
+  - N<20: INSUFFICIENT.
+  - SUPPORTED: Bonferroni lower bound (0.9875, one-sided, percentile bootstrap, 20,000 resamples, seed 7) > 0, and the mean without the best episode > 0.
+  - REFUTED: 90% upper bound < +0.15R (the futility standard).
+  - INCONCLUSIVE: otherwise.
+- **How this differs from R20, and why it is not a re-test:** spec §2. R20 was descriptive, every cell had N<30 and it was half in-sample. The prior from R20, R14 and R17 is against this rule, and the spec states that.
+
+**Power (spec §9, power_check, SD 1.2R, α 0.0125):**
+- N required for a +0.15R edge at 80% power: **609 episodes per cell**. That is unreachable.
+- The expected N, a guess to be replaced by the counts stage, is 40–120 per cell. At those N the smallest detectable edge is +0.58R to +0.34R.
+- A real +0.15R edge would almost certainly read INCONCLUSIVE.
+
+**Self-test:** `SELFTEST OK`, 53 checks (OBSERVED). It covers:
+- the leg detector on a replica of the owner's leg (entry 1.9110312);
+- the fill, the stop and the horizon;
+- the short mirror;
+- costs;
+- completed-session context;
+- episode collapse, checked against `episodes.count_episodes`;
+- the verdict rule with the Bonferroni correction;
+- the embargo, sealed-exam and hash refusals.
+
+**Mutation test:** 22 mutants were run in a disposable copy, with PYTHONDONTWRITEBYTECODE=1 and under `/bin/bash`, and each one was confirmed applied. **All 22 were caught** (OBSERVED). 21 were caught by at least one FAIL line. M4 (an order resting before the impulse qualifies) was caught by a crash in the mutated code: it uses an unset extreme.
+- The mutants:
+  - a non-strict anchor;
+  - a 100-bar range;
+  - the anchor bar's high counted;
+  - no qualification before the order rests;
+  - a gap filled at the level;
+  - a filtered touch not consuming the leg;
+  - context lookahead into the bar's own session;
+  - a flat trend accepted;
+  - the horizon one bar short;
+  - no stop check on the fill bar;
+  - the spread sign flipped;
+  - the markup sign flipped;
+  - no Bonferroni;
+  - the embargo check removed;
+  - episodes needing > rather than ≥ 30 bars;
+  - the without-best test dropped;
+  - the mirror without the high/low swap;
+  - an exclusive leg window;
+  - the hash check disabled;
+  - REFUTED at ≤ instead of <;
+  - the stop buffer dropped;
+  - a 1.5-ATR impulse minimum.
+- The original file was unchanged after the run (hash compared).
+
+**Full suite on the branch:** 899 passed, 8 skipped, 2 deselected.
+
+**Next:** the `counts` stage through `scripts/reality_run.py --no-env`, which prints legs, entries and episodes only, with no R. It is recorded here before `full` runs once.
