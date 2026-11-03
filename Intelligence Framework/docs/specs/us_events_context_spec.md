@@ -18,6 +18,27 @@ rebuild. Changes, old → new:
   label lines.
 - §2 I1 and I3: rewritten to match. §3 lists the test changes.
 
+**Revision 2 (2026-11-03, after re-review; owner approved).** The code
+reviewer approved Rev 1. The adversarial reviewer returned REQUEST CHANGES
+(rule 12 FAIL on the digest path): a trigger phrase glued to a preceding
+letter or digit (`xWATCH FOR`, `xFramework error`, `9DECISION`) passed the
+Rev 1 sanitizer, which used `\b`. The 07:30 DIGEST and `latest_view` match
+those phrases anywhere in the text. Changes, old → new:
+- §1.3 titles:
+  - Trigger phrases are rewritten wherever they occur, in the exact casing
+    the consumers match (all case-sensitive), with no word boundaries, after
+    the capitals rule, repeated until nothing changes.
+  - Accented letters are transliterated (NFKD) before the allow-list, not
+    dropped.
+- §1.3 grouping: every time slot is shown, up to 4 slots. Each slot shows up
+  to 3 titles, then `+k more`. Slots beyond 4 become `+N later`. Before Rev 2,
+  a busy first slot could hide a later slot's time.
+- §1.1: the fetch's skip notes are reduced to the allow-list and truncated.
+- §1.5 (new): `scripts/daily_digest.py` and `scripts/latest_view.py` are
+  anchored to label lines, as the wrapper was in Rev 1.
+- I3a gains a real `scheduled_brief.sh digest` run.
+- §3 lists the test changes.
+
 **Owner decisions behind it** (driver-coverage proposal §7, 2026-11-01):
 - US events come in as **context first**.
 - Gating is decided from evidence. The pre-registered study (R35, R36) found
@@ -88,6 +109,17 @@ rebuild. Changes, old → new:
         word in any casing. Short acronyms (FOMC, CPI, ISM) are kept.
      5. Titles over 60 characters are cut at a word boundary, followed by `...`.
      6. An empty result becomes `US release`.
+   - **Rev 2:**
+     - Step 0: NFKD-transliterate (é → e) before the allow-list.
+     - Step 4 also rewrites every consumer trigger phrase in its exact
+       casing wherever it occurs, with no word boundary, until a pass
+       changes nothing: `DECISION`, `ALERT`, `SHADOW SIGNALS`,
+       `Framework error`, `EXIT IF`, `WATCH FOR`, `STAND ASIDE`,
+       `STAND DOWN`, `REASON`. So `xWATCH FOR` → `xWatch For`.
+     - The capitals rule runs first, so `FRAMEWORK error` → `Framework error`
+       is then caught as well.
+     - Grouping: up to 4 time slots, each with up to 3 titles then `+k more`;
+       `+N later` for further slots.
    - **Untimed events:** the feed carries no all-day marker. Observed
      2026-11-01: "Congressional Elections" arrives as `10:16` ET, and real
      releases also land on odd minutes (03:50, 18:50). So the feed's time is
@@ -102,6 +134,16 @@ rebuild. Changes, old → new:
    | `no_us_rows` | `not checked — the saved news calendar holds no US events (it refreshes when over a day old).` (Rev 1; was "it refreshes Sundays", which is wrong: `scripts/scheduled_brief.sh:46` re-fetches whenever the file is over 24 h old) |
    | `stale` | `not checked — news calendar out of date.` |
    | `missing` | `not checked — news calendar missing.` (Rev 1; was shown as "out of date") |
+
+5. **`scripts/daily_digest.py` and `scripts/latest_view.py` (free zone,
+   rule 12; Rev 2).** These match brief text too. Their patterns become:
+   - error: `^ ? ?REASON +Framework error` (was `"Framework error" in text`);
+   - watch: `^ ? ?(?:EXIT IF|WATCH FOR)` (was unanchored);
+   - decision: `^ ? ?DECISION` (was `^\s*`, which matches any indent and
+     even newlines);
+   - pair header: `^ ? ?(GBP/[A-Z]{3})\s+\|`;
+   - market closed: `^ ? ?Market closed — …`.
+   All use multi-line mode. Empty output still reads "run failed".
 
 4. **`scripts/scheduled_brief.sh` (free zone, rule 12; Rev 1)**
    - Every trigger read from the brief's stdout is anchored to a real label
@@ -170,6 +212,17 @@ rebuild. Changes, old → new:
     its control are replaced by I3a and I3b above. Neither was a floor test.
   - All existing `tests/test_wrapper_behavior.py` cases must pass unchanged
     under the anchored wrapper.
+- **Rev 2:**
+  - `tests/test_daily_digest.py::test_framework_error_reads_as_failed_run`
+    (or whichever test feeds the bare `"... Framework error — do not trade
+    ..."` string). Old: a bare phrase anywhere means "run failed". New: the
+    fixture is a real error-page REASON line. Wording elsewhere must not
+    fail the digest. Not a floor test.
+  - The I3b corpus gains prefix-glued titles.
+  - The grouping test expectation follows the new slot rule.
+  - The I1 test comment is corrected: it calls `_confine_context_rows`
+    directly, so it catches a mutant inside the function. Removing the call
+    from `fetch_calendar` is caught by the dropped-row test.
 
 ## 4. Verification
 
