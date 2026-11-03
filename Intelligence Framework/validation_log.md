@@ -4923,3 +4923,39 @@ Positive control: 28 graded rows; every raw R reproduced from freshly fetched H4
 4. An I3a run with the `digest` argument asserting the DIGEST text and its ledger row match a control.
 
 **Non-blocking:** "+N more" says when the hidden releases are; accented characters transliterated, not dropped; the fetch skip note sanitized or truncated; the I1 test comment corrected; a test that narrative lines (2-space continuation) carry no feed titles.
+
+## 2026-11-03 — REBUILT (Rev 2), AWAITING RE-REVIEW: US events in the brief, digest-path fixes (branch `feat/us-events-context`, NOT merged)
+
+**Owner approved Rev 2.** Spec Rev 2 `67f75c4` was committed before the build `9c496d0`. `main` was merged in at `4c638e4`, with this log's conflict resolved: both sides kept, main first, 0 deletions against either parent.
+
+**Process note (logged, not hidden):** `docs/specs/README.md` says spec bodies are frozen and that a later change gets its own spec. Rev 1 and Rev 2 were written into the body of the still-unmerged `us_events_context_spec.md`. Earlier texts survive in git: original `9fb643f`, Rev 1 `cbf7fb2`. The index row will record this at merge.
+
+**Changes (the four blocking items plus non-blocking items):**
+1. Trigger phrases rewritten in their exact consumer casing with no word boundary, after the capitals rule, looped to a fixpoint. `xWATCH FOR` becomes `xWatch For`.
+2. `daily_digest.py` and `latest_view.py` anchored with `^ ? ?` for the REASON Framework error, EXIT IF / WATCH FOR, DECISION, pair-header and market-closed lines. `^\s*DECISION` was effectively unanchored.
+3. I3b corpus +9 prefix-glued titles: 26 × 40 paddings.
+4. New I3a test runs the real `scheduled_brief.sh digest`. The DIGEST ledger row with unsanitized glued and wrapped triggers equals a control's.
+5. Non-blocking:
+   - every time slot keeps its time (max 4 slots × 3 titles, then `+k more` / `+N later`);
+   - NFKD transliteration;
+   - fetch skip notes reduced to plain characters;
+   - I1 test comment corrected.
+
+**Test changed old → new:** `test_daily_digest.py::test_digest_failed_run` used a bare `"... Framework error — do not trade ..."`. It now uses a real error-page REASON line, plus a new test that feed text never steers the digest or marks a latest-view run as error, with a real-error control. Not a floor test.
+
+**Gate 1:**
+- Branch suite 933 passed before the merge, **966 passed, 8 skipped, 2 deselected** after merging main.
+- **Mutation: 31 run, 30 caught.**
+  - Every Rev 1 mutant re-run and caught, including S2a (in-function) and S2b (call removed, caught by the dropped-row test).
+  - New: T1 word boundaries back, T3 no transliteration, G1–G3 grouping, D1–D6 digest and latest-view anchors, F1 raw skip note. All caught.
+  - **D3 (digest `^\s*DECISION`) first SURVIVED.** The digest test had no DECISION at a wrapped line's start. That case was added, then D3 was caught; reverted → 21 passed.
+  - **T2 (single pass, no fixpoint) SURVIVED as an equivalent mutant.** A rewrite only lowers capitals, and every consumer phrase is all-caps or exactly `Framework error`, so a rewrite cannot create one. The loop is kept as a guard.
+
+**Gate 2 — REALITY:**
+- `reality_run.py --code <worktree> brief` on the real fetched calendar, copied in for the run and removed after: exit 0, stderr 0 bytes, `project files : UNCHANGED (verified by hash)`.
+  - Header: `GBP/AUD | Tue 03 Nov 2026 3:14 PM PST` / `Price: 1.9259` / `US DATA    none in the next 24 hours.` The next US release is Fri 13:30 UTC, more than 24 h away.
+- That real brief's stdout through the **branch** and **main** `daily_digest.py`: byte-identical. `GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE — watch: daily chart trend strength drops below 18 or 4-hour chart resolves to clean trend — revisit then`.
+- `latest_view.py` on the real `logs/`, branch vs main: byte-identical (123 lines). The anchors change nothing on genuine output.
+- Live checkout `git status`: clean.
+
+**Gate 3 — PENDING LIVE CONFIRMATION (after merge):** unchanged from Rev 1 (first fetch writes USD rows; next brief renders them; no notification caused by the line), plus the first 07:30 DIGEST after merge matching the brief's real decisions.
