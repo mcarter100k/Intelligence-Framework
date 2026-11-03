@@ -4758,3 +4758,24 @@ Positive control: 28 graded rows; every raw R reproduced from freshly fetched H4
   - Long GBP/JPY earns carry (+0.02 to +0.06R) that roughly offsets its spread.
 - **For the futility checkpoint** (N=20, 90% bound vs +0.15R on raw R): costs of this size make every candidate's real edge smaller than its raw R by about 0.01–0.04R on average (EARLY_MOMENTUM_v2 −0.011R). That should be read beside any raw result near the bar.
 - Every candidate is negative before costs and more negative after, at N = 4, 1 and 2 episodes: INSUFFICIENT throughout.
+
+## 2026-11-03 — SPEC APPROVED TO BUILD: direction-honest REASON for range + volatile 4-hour stand-asides (v4 over v3; not built)
+
+**Trigger:** the owner saw "Range breaking down — 4-hour chart volatile inside daily chart range" in every GBP/AUD brief from 2026-11-01 18:00 to 11-03 07:33 PST, while price rose 1.9042 → 1.9233 (brief logs). The phrase carries no direction, but it read as bearish (AGENTS rule 4).
+
+**Review history (four rounds, one code reviewer; bodies frozen per `docs/specs/README.md`):**
+- **v1 `bc4ceff`: CHANGES NEEDED.** Its single neutral sentence ("swinging hard … no settled direction") was false for the case that prompted it. The 4-hour state was UNCONFIRMED_TREND at strength 29 → 38: a one-way move whose swing pattern had not confirmed.
+- **v2 `6d477b8`: CHANGES NEEDED.** Its two volatility sentences keyed on the daily ATR ratio, which a daily RANGING label already bounds, so they could never render. The 4-hour ratio is local to `get_regime` (`regime_detection.py:968`). Two 4-hour states are unreachable because the slope is forced from structure (`:971-976`; live log: STRUCTURE_DISAGREES 0).
+- **v3 `ee639a2`: wording APPROVED; two tests CHANGES NEEDED.** W5's target set ignored the four early-return branches (`decision_brief.py:504/515/518/522`). The unreachability pin swept `_classify_ex`, which takes slope as an argument.
+- **v4 `6180a56`: APPROVED TO BUILD.**
+  - W5 targets are the cells where `main` rendered "Range breaking down", and every other cell is hash-identical.
+  - Unreachability is pinned through `get_regime` with a recorder, plus the slope-forcing mutant.
+  - The grid gains `stand_down_reason`, a string `filter_block` and the fixed fields.
+  - "well outside" becomes "outside its normal range".
+  - Build-time addition from the approval: `atr_compression` ∈ {False, True}. VERIFIED: `_render_reason` reads `regime.get("atr_compression")` at `decision_brief.py:494`.
+
+**Approved wording, for the rally case:** "The 4-hour chart has been rising — up N pips over the last 40 hours — but its swing pattern hasn't confirmed a trend yet, inside a sideways daily chart (daily trend strength X/100). Standing aside until it confirms." The direction words come only from the already-approved `_unconfirmed_fact` helper, with a 10-pip floor.
+
+**Not built.** The build is a separate step on a new branch, needing the owner's go-ahead, Gate 1/2 evidence and review of the build.
+
+**What this does not change:** when the framework stands aside. That is a strategy question; see R37/R38 and the missed-moves report.
