@@ -27,7 +27,7 @@ for _p in (_ROOT, _HERE):                     # display_time / ledger_io, daily_
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from daily_digest import pair_decisions      # the one decision parser
+from daily_digest import pair_decisions, _ERROR   # the one decision parser and error-line anchor
 
 _HDR = re.compile(r"(?m)^=====\s*(\d{4}-\d{2}-\d{2}) ([0-9:]{8}) ([A-Z]{2,5})\s*=====\s*$")
 _SIGNAL = ("ALERT:", "RECOVERED", "##ALERT##")
@@ -96,7 +96,7 @@ def build_view(blocks, sources, today: str, fallback=None) -> str:
         out.append("── TODAY SO FAR " + "─" * 30)
         for hdr, block, _src in blocks[:-1]:
             ts = hdr.strip("= ").strip()
-            if "Framework error" in block:
+            if _ERROR.search(block):           # a label line, never feed text (spec §1.5)
                 out.append(f"{ts}  error")
                 continue
             decs = pair_decisions(block)

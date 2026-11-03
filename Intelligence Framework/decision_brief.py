@@ -69,6 +69,7 @@ class DecisionBrief:
     entry_line:           str             = ""   # LONG/SHORT: trigger + level
     target_line:          str             = ""   # LONG/SHORT: honest target note
     news_note:            str             = ""   # stale/missing-calendar honesty line
+    us_events_line:       str             = ""   # US DATA context (us_events_context_spec)
     price_basis:          str             = "unknown"   # data_at_source_spec P1
 
     def format(self) -> str:
@@ -141,6 +142,12 @@ class DecisionBrief:
         # doesn't have: stale/missing calendar = event risk UNCHECKED, no gating.
         if self.news_note:
             lines.insert(3, f"  ⚠ {self.news_note}")
+        # US releases: information only, never a stand-aside
+        # (docs/specs/us_events_context_spec.md).
+        # Placed below every warning note above (team review 2026-11-01).
+        if self.us_events_line:
+            lines.insert(lines.index(border, 1),
+                         f"  US DATA    {self._wrap(self.us_events_line, 37, 13)}")
 
         # Session delta line — inserted between MARKET STATE and EXIT IF
         if self.session_delta:
@@ -437,12 +444,93 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
             news_note=((regime.get("news_gate") or {}).get("note", "")
                        if not (regime.get("news_gate") or {}).get("active", True)
                        else ""),
+            us_events_line=_us_events_line(),
             entry_line=entry_line,
             target_line=target_line,
         )
 
     except Exception as e:
         return _error_brief(instrument, timestamp, str(e))
+
+
+# Phrases the notification wrapper, the digest or the latest view react to
+# (scripts/scheduled_brief.sh, daily_digest.py, latest_view.py), in the exact,
+# case-sensitive form they match. A US title never carries one
+# (us_events_context_spec §1.3, Rev 2).
+_US_TRIGGER_PHRASES = ("DECISION", "ALERT", "SHADOW SIGNALS", "Framework error",
+                       "EXIT IF", "WATCH FOR", "STAND ASIDE", "STAND DOWN", "REASON")
+_US_TITLE_MAX = 60
+_US_SLOTS = 4            # time slots shown
+_US_PER_SLOT = 3         # titles shown per slot
+
+
+def _us_title(title) -> str:
+    """A feed title made safe for the brief, by allow-list: accents
+    transliterated; ASCII letters, digits and plain punctuation only; "/" only
+    inside m/m-style ratios, so no XXX/YYY pair-header shape; long all-capital
+    words capitalised; every trigger phrase rewritten wherever it occurs, with
+    no word boundary (Rev 2: "xWATCH FOR" passed Rev 1); at most 60 characters."""
+    import re
+    import unicodedata
+    t = title if isinstance(title, str) else ""
+    t = "".join(ch for ch in unicodedata.normalize("NFKD", t)
+                if not unicodedata.combining(ch))
+    t = re.sub(r"[^A-Za-z0-9 .,&()'%+:/-]", " ", t)
+    t = re.sub(r"(?<![a-z0-9])/|/(?![a-z0-9])", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    cap = lambda m: " ".join(w.capitalize() for w in m.group(0).split())
+    t = re.sub(r"\b[A-Z]{5,}\b", cap, t)
+    changed = True
+    while changed:                       # a rewrite can never re-create a phrase,
+        before = t                       # but loop to a fixpoint rather than assume
+        for phrase in _US_TRIGGER_PHRASES:
+            t = re.sub(re.escape(phrase), cap, t)
+        changed = t != before
+    if len(t) > _US_TITLE_MAX:
+        t = t[:_US_TITLE_MAX].rsplit(" ", 1)[0].rstrip(" ,.:-") + "..."
+    return t or "US release"
+
+
+def _us_events_line(now=None, calendar_path=None) -> str:
+    """The US DATA line (docs/specs/us_events_context_spec.md §1.3). Context
+    only: it never feeds a decision. Never raises."""
+    try:
+        from datetime import datetime, timedelta, timezone
+        from itertools import groupby
+        from display_time import to_display
+        from news_gate import us_event_context, US_CONTEXT_HOURS
+        now = now or datetime.now(timezone.utc)
+        ctx = us_event_context(now=now, calendar_path=calendar_path)
+        st = ctx["status"]
+        if st == "missing":
+            return "not checked — news calendar missing."
+        if st == "stale":
+            return "not checked — news calendar out of date."
+        if st == "no_us_rows":
+            return ("not checked — the saved news calendar holds no US events "
+                    "(it refreshes when over a day old).")
+        if ctx["events"]:
+            slots = [(dt, [name for _, name in group])
+                     for dt, group in groupby(ctx["events"], key=lambda ev: ev[0])]
+            parts = []
+            for dt, names in slots[:_US_SLOTS]:      # every slot keeps its time
+                shown = ", ".join(_us_title(n) for n in names[:_US_PER_SLOT])
+                if len(names) > _US_PER_SLOT:
+                    shown += f" +{len(names) - _US_PER_SLOT} more"
+                when = to_display(dt, style="day_time") or "time not shown"
+                parts.append(f"{shown} {when}")
+            later = sum(len(names) for _, names in slots[_US_SLOTS:])
+            if later:
+                parts.append(f"+{later} later")
+            return (f"{' · '.join(parts)} — for information; the framework does "
+                    f"not stand aside for US releases.")
+        horizon = now.astimezone(timezone.utc).replace(tzinfo=None) + timedelta(hours=US_CONTEXT_HOURS)
+        if ctx["covered_through"] is not None and ctx["covered_through"] < horizon:
+            return (f"none before {to_display(ctx['covered_through'], style='day_time')}; "
+                    f"later days are not in this week's calendar yet.")
+        return f"none in the next {US_CONTEXT_HOURS} hours."
+    except Exception:
+        return "not checked — news calendar could not be read."
 
 
 def _last_expected_d1_close(now, close_hour: int):

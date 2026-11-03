@@ -18,6 +18,7 @@ refuses to run inside the project.
 | `decision_gate_replay.py` | `decision_gate_replay_report.md` | How many DECISION notifications the market-closed gate removes, replayed on real day-log text |
 | `decision_channel_followups.py` | `decision_channel_followups_report.md` | Every open-market directional decision; episode count under both concurrent-run handlings |
 | `long_side_diagnosis.py` | `long_side_diagnosis_report.md` | Why all 16 open-market decisions were SHORT: the funnel, plus a mirror test of the decision path |
+| `missed_moves.py` | `missed_moves_report.md` | Every move of 2+ normal days' range the framework sat out, lined up with what it said; "not running" kept apart from "stood aside" (descriptive; hindsight size is not profit) |
 
 ## GBP/AUD profile series (prior-session; committed 2026-10-18 for citation integrity, not re-verified)
 
@@ -38,6 +39,7 @@ foundation/ cites these about 20 times. They were committed exactly as found, ea
 | `stage2_source_convert_gate.py` | `stage2_gate_report.md` | Stage 2 of docs/specs/data_map_spec.md: source conversion and the feed-overlap gate |
 | `instrument_probe.py` | `instrument_probe_report.md` | Which cross-market instruments the live account offers, their daily history, and today's financing rates (owner-approved, 2026-11-01) |
 | `us_event_reaction_test.py` | `us_event_reaction_result.md` (after the run) | Do scheduled US releases (FOMC, CPI, jobs report) widen GBP/JPY and GBP/AUD daily ranges? Pre-registered: docs/specs/us_event_reaction_spec.md; event table `us_events_2005_2013.csv` |
+| `first_pullback_study.py` | `first_pullback_study_result.md` | Does the owner's first-pullback entry (first H4 touch of 38.2% / 50% of a 2-ATR impulse off a 20-session extreme, with the 13-week direction) have an edge after costs? Pre-registered: docs/specs/first_pullback_study_spec.md. Run once 2026-11-03 |
 | `shadow_cost_regrade.py` | `shadow_cost_regrade_report.md` | The shadow ledger's graded episodes re-graded with spread and financing, read-only, beside the frozen raw R (proposal step 3) |
 
 ## Premises tested (most were refuted at honest N; see foundation/research_findings.md)

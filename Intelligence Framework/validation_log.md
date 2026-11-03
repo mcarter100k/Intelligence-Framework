@@ -4759,6 +4759,495 @@ Positive control: 28 graded rows; every raw R reproduced from freshly fetched H4
 - **For the futility checkpoint** (N=20, 90% bound vs +0.15R on raw R): costs of this size make every candidate's real edge smaller than its raw R by about 0.01–0.04R on average (EARLY_MOMENTUM_v2 −0.011R). That should be read beside any raw result near the bar.
 - Every candidate is negative before costs and more negative after, at N = 4, 1 and 2 episodes: INSUFFICIENT throughout.
 
+## 2026-11-03 — Missed-moves study: what standing aside cost (report-only, descriptive)
+
+**What:** `studies/missed_moves.py` (report `studies/missed_moves_report.md`). Every move of at least 2.0 x daily ATR(14) on GBP/AUD and GBP/JPY, from one zig-zag swing to the next on H4 mid closes (reversal threshold 1.0 x the daily ATR in force; no look-ahead), lined up with what the framework said: the regime log, the brief day logs (DECISION and REASON) and the trade-signal log, plus shadow fires. Parameters fixed in the study docstring and committed (9ef24f5) before the real run. It writes no ledger and nothing on the live path imports it. A hindsight move size is not an achievable profit; the report says so.
+
+**Rule 9 design:** a bar with no run in force (12 h limit), or with an error page or a market-closed read in force, counts as "framework not running", never as "stood aside". The decision of record is the brief's DECISION line. Without a brief, a matched trade signal decides. Without either, the regime row decides: stand_down True means stand aside, and stand_down False is NOT RECORDED, never a trade. The real run found 16 GBP/JPY rows (2026-09-15 to 09-30, before the 2026-09-30 logic) where the row said stand_down False and the brief said STAND ASIDE.
+
+**Gate 1 (VERIFIED):** `tests/test_missed_moves.py`, 33 tests on synthetic bars and ledgers. They cover move detection (size filter, reversal parameter, still-running leg, ATR with no look-ahead) and alignment (decision of record, the disagreement count, with/against/both, reasons, shadow with/against, re-run collapse). They also check the parsing of day-log zones, per-pair blocks, error pages and closed banners; that exclusions are respected for the regime row and its brief block and for a trade signal, each with an empty-registry positive control; and that the trader-facing part passes `_assert_clean` and contains no ATR. Rule-9 positive control: the same move reads NOT_RUNNING with no runs and SAT_OUT once reads exist. Mutants: 10 applied in a disposable copy (PYTHONDONTWRITEBYTECODE=1, `/bin/bash`), each confirmed applied, **10 of 10 caught**: stale limit removed, errors counted as reads, registry ignored, stand_down False read as stand aside, ATR look-ahead, still-running leg dropped, an excluded row's brief block kept, raw pair id rendered, re-runs not collapsed, shadow with/against swapped.
+
+**Gate 2 (VERIFIED):** `python3 scripts/reality_run.py --code <worktree> script -- <worktree>/studies/missed_moves.py --brief-logs <project>/logs --out missed_moves_report.md`. Exit code 0, stderr empty, `project files : UNCHANGED (verified by hash)`. Real OANDA H4 and D bars, 1308 H4 bars per pair. Sources: 248 regime rows (1 excluded), 13 trade signals (1 excluded), 36 shadow rows, and 586 day-log pair blocks.
+- Moves found: 20 (GBP/AUD 12, GBP/JPY 8); out of scope (started before the first run): 11 GBP/AUD, 14 GBP/JPY.
+- Sat out: 10 (entirely: 1; partly while not running: 9). Traded with: 1. Against: 3. Framework not running for the whole move: 6.
+- Main reasons when it sat out: the daily chart gave no clear trend (7), the 4-hour chart did not line up (2), and the move was judged too stretched to chase (1).
+- Pips sat out: GBP/AUD 2161, GBP/JPY 1342 (hindsight, not profit).
+- Coverage: a read was in force for 39% of the H4 bars in each pair's window. The rest: the 2026-06-29 to 07-28 gap (130 bars); error pages (177 GBP/AUD, 179 GBP/JPY), mostly August, the OANDA-not-configured outage; and smaller gaps.
+- **Positive control (OBSERVED):** the GBP/AUD rally appears as move 20: up 1.88829 → 1.92569 (closes) from Wed 28 Oct 6:00 PM PDT, still running at Tue 03 Nov, 374 pips, 3.7 x a normal day. The framework sat out: it stood aside on 12 of 12 runs, with a read in force for 96% of the move (the rest is the Monday-reopen bar under a weekend market-closed read). The reasons were "4-hour chart did not line up" 6 (the brief's "Range breaking down — 4-hour chart volatile inside daily chart range"), "daily chart gave no clear trend" 5, and a big news event (the brief: "Cash Rate in 88 minutes") 1.
+
+**Deferred for team review:**
+- The first regime rows (2026-06-28, both pairs) carry the same round-value signature as the excluded 2026-06-28 trade signal (price 1.91, ATR 95.0) but are NOT in the registry. They set the coverage start, which puts moves 1 and 2 in scope; both read "framework not running", so no verdict depends on them.
+- K, the reversal threshold and the use of closes rather than highs and lows were fixed by judgement, not validated. N = 20 moves is a list of cases, not evidence about what the framework is blind to.
+
+**Full suite on the branch:** 930 passed, 8 skipped, 2 deselected (before the study commit).
+
+## 2026-11-03 — PRE-REGISTRATION: the first pullback after a range turn (GBP/AUD, GBP/JPY), 2005–2013 STUDY data
+
+**Owner request:** the framework sat out the GBP/AUD rally from the 2026-10-28 low of 1.8873 to 1.9257 on 2026-11-03. The owner's entry for it: after the turn off the range low, buy the first 4-hour pullback to 38.2% of the impulse, with the bigger trend. The question is whether that rule has an edge. This is not a protected-path change: free zone only.
+
+**Committed together, before any 2005–2013 outcome of this rule is computed:**
+
+| File | sha256 |
+|---|---|
+| `docs/specs/first_pullback_study_spec.md` | `0211a39d125467a3ad159b62f8f97fd493730a27cd5f2dbecf5ccaa9385cb72d` |
+| `studies/first_pullback_study.py` | `8549612e67e28659cc57f2331a0181815b89568860284887872511c1a128f169` |
+| `tests/test_first_pullback_selftest.py` | `3fb554c1dbc67200e710c29b0f87fff6370df2a83776145700302ebae1f88e2d` |
+
+The runner also imports these unchanged files: `studies/history_study_convert.py` `584ff76d…a553`, `studies/shadow_cost_regrade.py` (`rollover_nights`) `6cb2e4c9…1fdf`, `studies/policy_rates_2003_2014.json` `5df23e18…eacf`, `foundation/tools/power_check.py` `4afaf1ca…6d09`, `foundation/tools/episodes.py` `92cd1e89…bcd0`.
+
+**Data.** The data is the STUDY partition already fetched by the US-event study through the embargo-guarded fetch, in `~/intel_study_archives/us_event_reaction_data/`. The runner pins the four sha256 values recorded in the 2026-11-01 counts entry above. VERIFIED this session: `shasum -a 256` of all four files matches `data_hashes.json` and those values exactly. The H4 files run from 2005-01-02 to 2013-12-30 18:00 UTC. No network call; no SEALED EXAM or USED data.
+
+**The rule (spec §4–§5), four cells: {GBP_AUD, GBP_JPY} × {38.2%, 50%}, long and short pooled.**
+- **Anchor:** an H4 low strictly below the previous 119 bars (20 sessions).
+- **Impulse:** the highest high after the anchor bar must reach at least 2.0 × D1 ATR(14), with the ATR taken from completed sessions.
+- **Entry:** from each H4 close once the impulse qualifies, a limit rests at B − f(B − A). The first touch is the pullback and fills at min(open, level). It consumes the leg. It must come within 60 bars of the anchor.
+- **With the trend:** the 13-week direction (65 completed sessions) must be > 0 for longs and < 0 for shorts. If the first touch comes against it, there is no trade.
+- **Stop:** the primary stop is the impulse origin − 0.1 ATR. The secondary stop is the 61.8% level − 0.1 ATR.
+- **Horizon:** the fill bar plus 30 H4 bars, graded on the stop. A stop is −1R.
+- **Short side:** the exact mirror (price negation).
+- **Episodes:** the first trade per 30-bar horizon on the bar index.
+- **Costs:** the era spread (data_map_spec §4: GBP/AUD 10/7, GBP/JPY 6/5), plus financing at the policy-rate gap, side-signed, less a 1% markup, with 17:00 New York rollovers and Wednesday counted ×3.
+  - **Deviation from the request:** the request named a 3.0-pip spread. data_map_spec §4 is frozen and requires the era schedule for every STUDY computation, so 3.0 pips is a pre-declared secondary, reported for every cell.
+- **Verdicts:**
+  - N<20: INSUFFICIENT.
+  - SUPPORTED: Bonferroni lower bound (0.9875, one-sided, percentile bootstrap, 20,000 resamples, seed 7) > 0, and the mean without the best episode > 0.
+  - REFUTED: 90% upper bound < +0.15R (the futility standard).
+  - INCONCLUSIVE: otherwise.
+- **How this differs from R20, and why it is not a re-test:** spec §2. R20 was descriptive, every cell had N<30 and it was half in-sample. The prior from R20, R14 and R17 is against this rule, and the spec states that.
+
+**Power (spec §9, power_check, SD 1.2R, α 0.0125):**
+- N required for a +0.15R edge at 80% power: **609 episodes per cell**. That is unreachable.
+- The expected N, a guess to be replaced by the counts stage, is 40–120 per cell. At those N the smallest detectable edge is +0.58R to +0.34R.
+- A real +0.15R edge would almost certainly read INCONCLUSIVE.
+
+**Self-test:** `SELFTEST OK`, 53 checks (OBSERVED). It covers:
+- the leg detector on a replica of the owner's leg (entry 1.9110312);
+- the fill, the stop and the horizon;
+- the short mirror;
+- costs;
+- completed-session context;
+- episode collapse, checked against `episodes.count_episodes`;
+- the verdict rule with the Bonferroni correction;
+- the embargo, sealed-exam and hash refusals.
+
+**Mutation test:** 22 mutants were run in a disposable copy, with PYTHONDONTWRITEBYTECODE=1 and under `/bin/bash`, and each one was confirmed applied. **All 22 were caught** (OBSERVED). 21 were caught by at least one FAIL line. M4 (an order resting before the impulse qualifies) was caught by a crash in the mutated code: it uses an unset extreme.
+- The mutants:
+  - a non-strict anchor;
+  - a 100-bar range;
+  - the anchor bar's high counted;
+  - no qualification before the order rests;
+  - a gap filled at the level;
+  - a filtered touch not consuming the leg;
+  - context lookahead into the bar's own session;
+  - a flat trend accepted;
+  - the horizon one bar short;
+  - no stop check on the fill bar;
+  - the spread sign flipped;
+  - the markup sign flipped;
+  - no Bonferroni;
+  - the embargo check removed;
+  - episodes needing > rather than ≥ 30 bars;
+  - the without-best test dropped;
+  - the mirror without the high/low swap;
+  - an exclusive leg window;
+  - the hash check disabled;
+  - REFUTED at ≤ instead of <;
+  - the stop buffer dropped;
+  - a 1.5-ATR impulse minimum.
+- The original file was unchanged after the run (hash compared).
+
+**Full suite on the branch:** 899 passed, 8 skipped, 2 deselected.
+
+**Next:** the `counts` stage through `scripts/reality_run.py --no-env`, which prints legs, entries and episodes only, with no R. It is recorded here before `full` runs once.
+
+## 2026-11-03 — First pullback after a range turn: counts stage (before any outcome)
+
+Run: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/first_pullback_study.py counts ~/intel_study_archives/us_event_reaction_data`, from the live project. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty, no network. The runner verified all 4 data hashes against the pinned values. Counts only: no R, no stop, no outcome printed. This was run after the pre-registration commit 87ed920.
+
+| Cell | Entries (graded) | **Episodes N** (long / short) | Tier | Episodes/yr | No trend filter (secondary), episodes |
+|---|---|---|---|---|---|
+| GBP_JPY 38.2% | 39 | **37** (17 / 20) | developing | 4.1 | 105 |
+| GBP_JPY 50% | 30 | **29** (14 / 15) | developing | 3.2 | 89 |
+| GBP_AUD 38.2% | 36 | **36** (15 / 21) | developing | 4.0 | 90 |
+| GBP_AUD 50% | 31 | **30** (12 / 18) | developing | 3.3 | 73 |
+
+- **Bars:** H4 2005-01-02 22:00 → 2013-12-30 18:00 UTC.
+  - GBP_JPY: 14,028 bars; 710 Sunday H4 bars folded, 453 Saturday dropped.
+  - GBP_AUD: 14,030 bars; 771 folded, 480 dropped.
+  - Both pairs: 2,343 D1 sessions, the same as the US-event counts stage.
+- **Ungraded at the end of data:** 0 in every cell. Episode collapse removed 0–2 entries per cell. Same-bar long/short ties were not counted separately (NOT CHECKED); at most 2 per cell could be affected.
+- **Leg funnel (38.2%, long / short):**
+
+  | Stage | GBP_JPY long | GBP_JPY short | GBP_AUD long | GBP_AUD short |
+  |---|---|---|---|---|
+  | Anchors | 458 | 773 | 860 | 616 |
+  | Replaced by a further extreme before qualifying | 389 | 698 | 797 | 551 |
+  | Qualified 2-ATR impulses | 66 | 69 | 60 | 61 |
+  | First touches | 56 | 65 | 50 | 48 |
+  | Against the 13-week direction (no trade) | 37 | 45 | 35 | 27 |
+  | Entries | 19 | 20 | 15 | 21 |
+
+  - Internal check: qualified = first touches + qualified expiries in every row (for example 66 = 56 + 10). That is consistent with the rule that a qualified leg cannot be replaced without first passing its level.
+  - **The trend filter removes about two-thirds of first touches.** A fresh 20-day extreme is usually against the 13-week direction.
+- **The pre-registered N guess (40–120) was too high.** The real N is 29–37 per cell: all four cells are **developing (20–59)**, none INSUFFICIENT. The power statement at the real N (power_check, SD 1.2R, α 0.0125):
+
+  | N | Smallest edge detectable at 80% power | Power for +0.15R | REFUTED needs an observed mean below |
+  |---|---|---|---|
+  | 29–30 | +0.68 to +0.69R | 6% | about −0.13R |
+  | 36–37 | +0.61 to +0.62R | 7% | about −0.10R |
+
+  - **Read this before the result:** SUPPORTED needs an edge of roughly +0.6R. A real +0.15R edge has a 6–7% chance of showing.
+  - Nothing in the spec changes. The verdict rule, cells and costs stand exactly as committed.
+- **Frequency:** 3.2–4.1 episodes a year per cell. That is below the 8 a year that data_map_spec §1 sets for splitting the sealed exam, so any exam would be a single one.
+
+**Next:** `full`, once.
+
+## 2026-11-03 — RESULT: first pullback after a range turn — GBP/AUD 38.2% REFUTED, the other three cells INCONCLUSIVE (2005–2013 STUDY data)
+
+Run once, after the counts commit 6df4530: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/first_pullback_study.py full ~/intel_study_archives/us_event_reaction_data <worktree>/studies/first_pullback_study_result.md`, from the live project. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty, no network. The runner checked all 4 data hashes against the pinned values, and the report file did not exist beforehand. The report is byte-identical to the run's stdout (diff). Verbatim output, headings demoted two levels:
+
+### First pullback after a range turn — pre-registered test result (2005–2013 STUDY data)
+
+Spec: docs/specs/first_pullback_study_spec.md. Verdict on episode R after era spread and financing. Bonferroni one-sided lower bound at 0.9875 (4 cells), 90% upper bound for REFUTED (bar +0.15R), 20000 resamples, seed 7. Frame (data_map_spec §5): does this survive conditions it was not designed on.
+
+#### GBP_JPY
+
+##### GBP_JPY 38.2%: **INCONCLUSIVE** (developing (N 20-59))
+
+- **Primary (episode R after era spread and financing):** N 37; mean +0.073R; median +0.095R; Bonferroni lower bound -0.250R; 90% upper bound +0.266R; without best +0.004R; max DD 2.7R; win 54%; SD 0.920
+- Median winner +0.529R (N 20); median loser -0.978R (N 17); stopped 9 of 37
+- Costs per episode: spread -0.017R, financing -0.010R, mean nights 6.3, mean risk 379 pips
+- Power at this N (SD 1.2R assumed, α 0.0125): 7% for +0.15R; smallest edge detectable at 80% power +0.61R
+
+**Secondary (never changes the verdict):**
+
+- Before costs: N 37; mean +0.100R; median +0.125R
+- Flat 3.0-pip spread (present-day cost) + financing: N 37; mean +0.081R; median +0.102R; Bonferroni lower bound -0.242R; 90% upper bound +0.273R; without best +0.012R; max DD 2.6R; win 54%
+- Stops filled at the gap open: N 37; mean +0.073R; median +0.095R; stops that gapped: 0; fills through the stop: 0
+- Financing markup 0%: N 37; mean +0.082R; median +0.104R
+- Financing markup 2%: N 37; mean +0.065R; median +0.085R
+- Secondary stop below the 61.8% level: N 37; mean +0.297R; median -0.949R; Bonferroni lower bound -0.328R; 90% upper bound +0.691R; without best +0.137R; max DD 6.3R; win 43%; stopped 19
+- Long episodes: N 17; mean -0.103R; median +0.207R  (INSUFFICIENT: N<20)
+- Short episodes: N 20; mean +0.223R; median +0.057R
+- No trend filter (every first touch): N 105; mean -0.105R; median -0.137R
+- 2005-01 to 2008-06 (before the crisis): N 13; mean +0.225R; median +0.345R  (INSUFFICIENT: N<20)
+- 2008-07 to 2009-06 (the crisis): N 4; mean +0.069R; median -0.090R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 20; mean -0.024R; median +0.033R
+- By year (N, mean R): 2005 1 +0.02; 2006 5 +0.09; 2007 6 +0.42; 2008 3 -0.25; 2009 4 +0.41; 2010 4 -0.25; 2011 4 +0.63; 2012 3 -0.66; 2013 7 -0.10
+- Legs: long {'anchors': 458, 'anchors in warm-up (skipped)': 5, 'entries': 19, 'expired qualified': 10, 'expired unqualified': 3, 'first touches': 56, 'qualified impulses': 66, 'replaced by a lower low before a touch': 389, 'touches against the 13-week direction (no trade)': 37}; short {'anchors': 773, 'anchors in warm-up (skipped)': 29, 'entries': 20, 'expired qualified': 4, 'expired unqualified': 5, 'first touches': 65, 'qualified impulses': 69, 'replaced by a lower low before a touch': 698, 'touches against the 13-week direction (no trade)': 45}; ungraded at data end 0
+
+##### GBP_JPY 50.0%: **INCONCLUSIVE** (developing (N 20-59))
+
+- **Primary (episode R after era spread and financing):** N 29; mean +0.094R; median -0.042R; Bonferroni lower bound -0.361R; 90% upper bound +0.383R; without best -0.029R; max DD 3.3R; win 48%; SD 1.183
+- Median winner +1.032R (N 14); median loser -1.019R (N 15); stopped 10 of 29
+- Costs per episode: spread -0.021R, financing -0.015R, mean nights 5.9, mean risk 312 pips
+- Power at this N (SD 1.2R assumed, α 0.0125): 6% for +0.15R; smallest edge detectable at 80% power +0.69R
+
+**Secondary (never changes the verdict):**
+
+- Before costs: N 29; mean +0.130R; median -0.016R
+- Flat 3.0-pip spread (present-day cost) + financing: N 29; mean +0.103R; median -0.034R; Bonferroni lower bound -0.351R; 90% upper bound +0.392R; without best -0.019R; max DD 3.2R; win 48%
+- Stops filled at the gap open: N 29; mean +0.094R; median -0.042R; stops that gapped: 0; fills through the stop: 0
+- Financing markup 0%: N 29; mean +0.103R; median -0.032R
+- Financing markup 2%: N 29; mean +0.085R; median -0.052R
+- Secondary stop below the 61.8% level: N 29; mean +0.829R; median -1.060R; Bonferroni lower bound -0.366R; 90% upper bound +1.633R; without best +0.434R; max DD 9.1R; win 38%; stopped 18
+- Long episodes: N 14; mean -0.125R; median -0.312R  (INSUFFICIENT: N<20)
+- Short episodes: N 15; mean +0.299R; median +0.025R  (INSUFFICIENT: N<20)
+- No trend filter (every first touch): N 89; mean -0.096R; median -0.145R
+- 2005-01 to 2008-06 (before the crisis): N 8; mean +0.358R; median -0.240R  (INSUFFICIENT: N<20)
+- 2008-07 to 2009-06 (the crisis): N 4; mean +0.305R; median -0.056R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 17; mean -0.080R; median -0.042R  (INSUFFICIENT: N<20)
+- By year (N, mean R): 2006 3 -0.07; 2007 4 +0.74; 2008 3 -0.21; 2009 4 +0.81; 2010 4 -0.14; 2011 2 -0.09; 2012 3 -0.72; 2013 6 +0.05
+- Legs: long {'anchors': 458, 'anchors in warm-up (skipped)': 5, 'entries': 15, 'expired qualified': 21, 'expired unqualified': 3, 'first touches': 45, 'qualified impulses': 66, 'replaced by a lower low before a touch': 389, 'touches against the 13-week direction (no trade)': 30}; short {'anchors': 773, 'anchors in warm-up (skipped)': 29, 'entries': 15, 'expired qualified': 14, 'expired unqualified': 5, 'first touches': 55, 'qualified impulses': 69, 'replaced by a lower low before a touch': 698, 'touches against the 13-week direction (no trade)': 40}; ungraded at data end 0
+
+#### GBP_AUD
+
+##### GBP_AUD 38.2%: **REFUTED** (developing (N 20-59))
+
+- **Primary (episode R after era spread and financing):** N 36; mean -0.011R; median -0.082R; Bonferroni lower bound -0.269R; 90% upper bound +0.140R; without best -0.057R; max DD 3.2R; win 44%; SD 0.706
+- Median winner +0.580R (N 16); median loser -0.385R (N 20); stopped 5 of 36
+- Costs per episode: spread -0.030R, financing -0.004R, mean nights 6.9, mean risk 372 pips
+- Power at this N (SD 1.2R assumed, α 0.0125): 7% for +0.15R; smallest edge detectable at 80% power +0.62R
+
+**Secondary (never changes the verdict):**
+
+- Before costs: N 36; mean +0.022R; median -0.061R
+- Flat 3.0-pip spread (present-day cost) + financing: N 36; mean +0.008R; median -0.075R; Bonferroni lower bound -0.249R; 90% upper bound +0.159R; without best -0.037R; max DD 2.9R; win 44%
+- Stops filled at the gap open: N 36; mean -0.011R; median -0.082R; stops that gapped: 0; fills through the stop: 0
+- Financing markup 0%: N 36; mean +0.001R; median -0.078R
+- Financing markup 2%: N 36; mean -0.024R; median -0.086R
+- Secondary stop below the 61.8% level: N 36; mean -0.163R; median -1.043R; Bonferroni lower bound -0.645R; 90% upper bound +0.139R; without best -0.277R; max DD 12.2R; win 31%; stopped 22
+- Long episodes: N 15; mean +0.186R; median +0.186R  (INSUFFICIENT: N<20)
+- Short episodes: N 21; mean -0.152R; median -0.215R
+- No trend filter (every first touch): N 90; mean +0.041R; median -0.059R
+- 2005-01 to 2008-06 (before the crisis): N 12; mean -0.269R; median -0.394R  (INSUFFICIENT: N<20)
+- 2008-07 to 2009-06 (the crisis): N 5; mean +0.385R; median +0.297R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 19; mean +0.047R; median -0.096R  (INSUFFICIENT: N<20)
+- By year (N, mean R): 2005 2 -0.97; 2006 7 +0.03; 2007 2 -0.24; 2008 4 +0.20; 2009 4 +0.31; 2010 5 +0.25; 2011 5 +0.00; 2012 3 -0.19; 2013 4 -0.23
+- Legs: long {'anchors': 860, 'anchors in warm-up (skipped)': 16, 'entries': 15, 'expired qualified': 10, 'expired unqualified': 3, 'first touches': 50, 'qualified impulses': 60, 'replaced by a lower low before a touch': 797, 'touches against the 13-week direction (no trade)': 35}; short {'anchors': 616, 'anchors in warm-up (skipped)': 7, 'entries': 21, 'expired qualified': 13, 'expired unqualified': 3, 'first touches': 48, 'qualified impulses': 61, 'replaced by a lower low before a touch': 551, 'touches against the 13-week direction (no trade)': 27}; ungraded at data end 0
+
+##### GBP_AUD 50.0%: **INCONCLUSIVE** (developing (N 20-59))
+
+- **Primary (episode R after era spread and financing):** N 30; mean +0.017R; median -0.220R; Bonferroni lower bound -0.384R; 90% upper bound +0.276R; without best -0.088R; max DD 4.6R; win 40%; SD 1.084
+- Median winner +1.146R (N 12); median loser -0.776R (N 18); stopped 8 of 30
+- Costs per episode: spread -0.037R, financing -0.005R, mean nights 6.1, mean risk 281 pips
+- Power at this N (SD 1.2R assumed, α 0.0125): 6% for +0.15R; smallest edge detectable at 80% power +0.68R
+
+**Secondary (never changes the verdict):**
+
+- Before costs: N 30; mean +0.060R; median -0.206R
+- Flat 3.0-pip spread (present-day cost) + financing: N 30; mean +0.041R; median -0.211R; Bonferroni lower bound -0.358R; 90% upper bound +0.300R; without best -0.064R; max DD 4.4R; win 40%
+- Stops filled at the gap open: N 30; mean +0.017R; median -0.220R; stops that gapped: 0; fills through the stop: 0
+- Financing markup 0%: N 30; mean +0.031R; median -0.214R
+- Financing markup 2%: N 30; mean +0.004R; median -0.226R
+- Secondary stop below the 61.8% level: N 30; mean +0.115R; median -1.117R; Bonferroni lower bound -0.928R; 90% upper bound +0.845R; without best -0.238R; max DD 13.7R; win 17%; stopped 24
+- Long episodes: N 12; mean +0.426R; median +0.141R  (INSUFFICIENT: N<20)
+- Short episodes: N 18; mean -0.255R; median -0.536R  (INSUFFICIENT: N<20)
+- No trend filter (every first touch): N 73; mean +0.010R; median -0.222R
+- 2005-01 to 2008-06 (before the crisis): N 11; mean -0.230R; median -0.666R  (INSUFFICIENT: N<20)
+- 2008-07 to 2009-06 (the crisis): N 5; mean +0.491R; median -0.186R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 14; mean +0.043R; median -0.047R  (INSUFFICIENT: N<20)
+- By year (N, mean R): 2005 2 -0.97; 2006 6 +0.32; 2007 2 -0.74; 2008 4 +0.53; 2009 3 +0.30; 2010 3 +0.45; 2011 4 +0.23; 2012 3 -0.50; 2013 3 -0.60
+- Legs: long {'anchors': 860, 'anchors in warm-up (skipped)': 16, 'entries': 12, 'expired qualified': 18, 'expired unqualified': 3, 'first touches': 42, 'qualified impulses': 60, 'replaced by a lower low before a touch': 797, 'touches against the 13-week direction (no trade)': 30}; short {'anchors': 616, 'anchors in warm-up (skipped)': 7, 'entries': 19, 'expired qualified': 23, 'expired unqualified': 3, 'first touches': 38, 'qualified impulses': 61, 'replaced by a lower low before a touch': 551, 'touches against the 13-week direction (no trade)': 19}; ungraded at data end 0
+
+#### Summary
+
+| Cell | N | Mean R | Median R | Lower bound | Upper 90% | Without best | Max DD | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| GBP_JPY 38.2% | 37 | +0.073 | +0.095 | -0.250 | +0.266 | +0.004 | 2.7 | INCONCLUSIVE |
+| GBP_JPY 50.0% | 29 | +0.094 | -0.042 | -0.361 | +0.383 | -0.029 | 3.3 | INCONCLUSIVE |
+| GBP_AUD 38.2% | 36 | -0.011 | -0.082 | -0.269 | +0.140 | -0.057 | 3.2 | REFUTED |
+| GBP_AUD 50.0% | 30 | +0.017 | -0.220 | -0.384 | +0.276 | -0.088 | 4.6 | INCONCLUSIVE |
+
+- Descriptive only: both pairs pooled at 38.2%: N 73; mean +0.032R; median -0.029R; N required for +0.15R at 80% power (SD 1.2, α 0.0125): 609
+
+**Reading** (the verdicts above are the pre-registered ones; nothing here changes them):
+- **GBP/AUD at 38.2%, the owner's own entry on the owner's own pair: REFUTED.**
+  - Mean −0.011R, median −0.082R, 44% winners, over 36 independent episodes.
+  - The 90% upper bound is +0.140R, below the +0.15R bar, so even the optimistic end is short of an edge worth trading. Traded the same way every time on 2005–2013, the rule earned about nothing after costs.
+  - **It is a marginal refutation, and it depends on costs.** Under the pre-declared secondary 3.0-pip spread, the upper bound is +0.159R, which would read INCONCLUSIVE. The verdict uses the era spread because data_map_spec §4 is frozen (spec §5.4). Before costs the mean is +0.022R.
+  - The power statement assumed SD 1.2R. The observed SD in this cell is 0.71R, because stops are wide (mean risk 372 pips) and only 5 of 36 were hit. That narrower spread is why a mean near zero was enough to refute.
+- **The other three cells are INCONCLUSIVE:** GBP/JPY 38.2%, GBP/JPY 50% and GBP/AUD 50%.
+  - Means are +0.02R to +0.09R, and medians −0.22R to +0.10R.
+  - Without the best episode, the means are +0.004R, −0.029R and −0.088R.
+  - The Bonferroni lower bounds are −0.25R to −0.38R, far from SUPPORTED, which needed about +0.6R at these N.
+  - No cell shows an edge. A small edge of +0.15R or less cannot be ruled out in these three: at N 29–37 that was never in reach (6–7% power).
+- **Costs were small:** spread −0.02R to −0.04R and financing −0.004R to −0.015R per episode. The stops are wide, at 280–380 pips.
+- **Secondary results, descriptive only. None is a candidate, and choosing one now would be the in-sample selection R10/R17 warn against.**
+  - **The 13-week trend filter.** Without it, every first touch: GBP/JPY −0.105R (N 105) and −0.096R (N 89); GBP/AUD +0.041R (N 90) and +0.010R (N 73). On GBP/JPY the filter turned a negative set slightly positive. It removed about two-thirds of touches.
+  - **The 61.8% stop.** It lifted GBP/JPY 50% to +0.83R mean, but the median is −1.06R and 18 of 29 trades were stopped: a few large winners carry it. On GBP/AUD the same stop made both cells worse, with medians below −1R and max drawdowns of 12–14R.
+  - **Long against short** has no consistent pattern: GBP/JPY shorts did better, GBP/AUD longs did better. Every split side is N 12–21.
+  - **Sub-periods and years** swing both ways, and no period carries the result.
+- **Consequence.** On 2005–2013 data, standing aside on this setup is not shown to have cost an edge. Nothing is SUPPORTED, so no sealed-exam spec is warranted. The 2026-10-28 GBP/AUD rally is one chart; the rule traded every time did not make money on GBP/AUD. The frame is data_map_spec §5: does this survive conditions it was not designed on.
+- **Status:** recorded as R37 (GBP/AUD) and R38 (GBP/JPY) in foundation/research_findings.md; the tested-hypothesis count goes from 36 to 38. The installed skill is NOT rebuilt on this branch: `foundation/build_skill.sh` writes to `~/.claude/skills` and would install unmerged content. That rebuild is for after merge.
+
+## 2026-11-01 — BUILT, AWAITING TEAM REVIEW: US events in the brief as context only (branch `feat/us-events-context`, NOT merged)
+
+**Spec:** `docs/specs/us_events_context_spec.md`, committed before the build (9fb643f). Protected modules touched: `calendar_fetch.py`, `news_gate.py`, `decision_brief.py`. **Do not merge without team review.**
+
+**Change.**
+- `calendar_fetch` keeps HIGH-impact USD rows; at least one GBP/AUD/JPY row is still required.
+- `news_gate.us_event_context()` is new and read-only. `check_news_gate` and `PAIR_CURRENCIES` are unchanged.
+- The brief gets one `US DATA` line: information only, sanitized against the wrapper's DECISION/ALERT triggers. It says "not checked" unless the calendar is current and carries USD rows.
+
+**Gate 1** (`tests/test_us_events_context.py`, 15 new tests; one listed test changed old → new per spec §3):
+- I1/I2: `check_news_gate` is identical with and without USD rows across 60 random calendars × a 47-minute sweep of a feed week × both pairs. That is over 10,000 comparisons, with active, stale and gating branches all exercised.
+- I3: the wrapper's own DECISION pipeline (asserted verbatim from `scripts/scheduled_brief.sh`) does not fire on a stand-aside brief carrying a `FED RATE DECISION ##ALERT##` title. Positive control: the unsanitized title does fire it. Nothing is written to stderr.
+- I4: the banned-token floor (`_assert_clean`) passes on every rendered state.
+- I5: "none" comes only from status `ok`.
+- **Mutation:** 9 of 9 caught. USD in `PAIR_CURRENCIES` (2 failed); sanitizer removed (1); "none" for `no_us_rows` (1); USD-only feed accepted (1); medium-impact USD counted (1); USD dropped at fetch (2); line placed above the news note (1); no coverage-end branch (1); past events listed (3). Reverted → 33 passed.
+- **Harness note:** the first mutation pass reported "no tests ran" for every mutant. zsh does not word-split an unquoted `$T`, so pytest got one bogus path. It was re-run under `/bin/bash` with the results above. A "no tests ran" line is a failed measurement, not a pass.
+- Full suite on the branch: 913 passed, 8 skipped (the gitignored ledgers are absent in a worktree), 2 deselected.
+
+**Gate 2 — REALITY** (all through `scripts/reality_run.py --code <worktree>`; every run exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty):
+1. Real brief, worktree with no calendar: `⚠ news calendar missing — event risk unchecked` / `US DATA    not checked — news calendar out of date.`
+2. Real brief on a copy of the live `calendar.csv` (last week's file, so stale): `⚠ news calendar stale — event risk unchecked` / `US DATA    not checked — news calendar out of date.`
+3. Real ForexFactory fetch into a temp file: `calendar.csv updated: 10 high-impact GBP/AUD/JPY events and 4 US events (context only) through 2026-11-06 16:00 UTC.` The USD rows were Congressional Elections (11-03), and Average Hourly Earnings m/m, Non-Farm Employment Change and Unemployment Rate (11-06 13:30).
+   - The real brief against it: `US DATA    none in the next 24 hours.` for both pairs.
+   - Against the same file without USD rows: `US DATA    not checked — this calendar carries…`.
+   - DECISION / REASON / CONFIDENCE / POSITION identical with vs without USD rows for both pairs: `True`. The market was closed (Sunday), so both briefs stood aside; I1 is the stronger proof.
+4. The line from the real fetched calendar at pinned clocks:
+   - Thu 18:00 UTC: `Average Hourly Earnings m/m Fri 5:30 AM PST · Non-Farm Employment Change Fri 5:30 AM PST · Unemployment Rate Fri 5:30 AM PST — for information; the framework does not stand aside for US releases.`
+   - Mon 18:00 UTC: `Congressional Elections Tue 7:16 AM PST — …`
+   - Sat 18:00 UTC: `none before Sat 8:59 PM PST; later days are not in this week's calendar yet.`
+
+**Found along the way (pre-existing, deferred):** with `--code <worktree>`, `reality_run.py brief` reads no calendar. `news_gate._CALENDAR_FILE` is module-relative, so it resolves to the worktree, where `calendar.csv` is gitignored and absent. Earlier `--code` brief runs therefore exercised the "calendar missing" path, visibly marked in the output. A fix (copy the live calendar into the run, or make the path cwd-relative under reality_run) is a separate change.
+
+**Gate 3 — PENDING LIVE CONFIRMATION (after merge only):** the first Sunday calendar fetch after merge writes USD rows; the next brief renders real US events; no DECISION notification is ever sent because of the line.
+
+## 2026-11-01 — CORRECTION: team review of `feat/us-events-context` found two overclaims in the entry above; REQUEST CHANGES
+
+**What was claimed without sufficient evidence (entry above, and the team brief of the same day):**
+1. *"Decisions can't change"* (spec I1). False on the fetch side. `calendar_fetch._parse_events` now parses the date of every USD row it keeps and raises on a bad one (calendar_fetch.py:91-94); before the change USD rows were dropped before the date check. One malformed USD row therefore rejects the whole week's feed, the gated GBP/AUD/JPY calendar goes stale, and a stale calendar fails open (I28): news stand-asides stop.
+   - Observed 2026-11-01 (pure function, temp cwd, no network): feed = one valid GBP row + one USD row dated `"Tentative"`. Branch → `REJECTED: unparseable event date: 'Tentative'`; main → `parsed 1`. Control: the GBP row alone parses on both.
+   - I1's test is also conditional: `check_news_gate` takes staleness from the newest row of any currency, and the test filters out USD rows beyond the own rows' feed week (test_us_events_context.py:98-100). The adversarial reviewer observed a next-week USD row flip `stale` → `active`. It holds only while the feed is one week, which nothing enforces.
+2. *"The line cannot trigger a false DECISION alert"* (spec I3, labelled VERIFIED). False.
+   - `_us_title` strips `#` after replacing the trigger words (decision_brief.py:460-462). Observed: `_us_title("FED DECI#SION LONG")` → `'FED DECISION LONG'`; `_us_title("AL#ERT")` → `'ALERT'`.
+   - The wrapper reacts to more than DECISION. The adversarial reviewer ran the real `scheduled_brief.sh` and observed: a `SHADOW SIGNALS` title sends a SHADOW notification; a `Framework error` title over 2 runs sends "BRIEF UNHEALTHY"; a wrapped line beginning `XXX/YYY` is read as a pair header and the notification names `USD/JPY LONG`.
+   - The I3 test does not pin the live trigger. It asserts the pipeline string occurs somewhere in the wrapper, and line 129 (the suppression check) carries the same string as the real trigger at line 151. A reviewer mutated line 151 to `grep -i 'DECISION'` and I3 still passed.
+3. *Counts.* "15 new tests": `pytest --collect-only tests/test_us_events_context.py` → 17 collected (14 functions, parametrized). "Reverted → 33 passed": a reviewer got 34 on the same three files.
+
+**What held up (re-checked by reviewers):** full branch suite `913 passed, 8 skipped, 2 deselected` (reproduced twice independently); mutants M1 sanitizer removed, M2 USD-only feed accepted and M3 USD in `PAIR_CURRENCIES` each re-run and caught; `check_news_gate` and `PAIR_CURRENCIES` untouched; rejecting a USD-only feed agreed correct; 24-hour window agreed (briefs run 18:00, 02:30, 07:30 Pacific).
+
+**Review verdicts:** code reviewer REQUEST CHANGES; adversarial reviewer rule 12 FAIL. **Not mergeable as built.** Requested changes, both reviewers unless noted:
+1. A malformed USD row is skipped (logged), never fails the gated fetch; test: valid GBP + malformed USD → write succeeds.
+2. Enforce the single-feed-week assumption (`_validate`), or drop I1's filter so the case fails visibly.
+3. Sanitizer becomes an allow-list (character set, length cap, `/` and `|` neutralized), stripping before case-folding, covering every wrapper and digest token.
+4. Anchor the wrapper's DECISION, SHADOW SIGNALS and Framework error greps to their label lines (free-zone, `test_wrapper_behavior.py`). Rebuild I3 on that harness over an adversarial title corpus, with an open-market LONG control, asserting the notification and the notification ledger.
+5. Same-time grouping plus "+N more" instead of a silent cap at 3 (code reviewer).
+6. US DATA moves below the market-closed and price-source notes (code reviewer, observed above them).
+7. Wording: "(it refreshes Sundays)" is wrong, since the wrapper re-fetches when the file is over 24 h old (scheduled_brief.sh:46); a missing calendar should not read "out of date"; untimed events should not render as exact times.
+
+**Gate 3 entry above is void** until a rebuilt branch passes review.
+
+## 2026-11-01 — REBUILT (Rev 1), AWAITING RE-REVIEW: US events in the brief, the team's requested changes (branch `feat/us-events-context`, NOT merged)
+
+**Owner approved the rebuild.** Spec Rev 1 was committed before the build (spec `cbf7fb2`, then build `b6262e9`). `main` was merged into the branch (`6ca1ce4`) to settle the append-only conflict in this log: both sides kept, main's entries first, 0 deletions against either parent (`git diff --numstat`).
+
+**Changes, one per requested item (see the CORRECTION entry above):**
+1. A USD row that can't be read is skipped and counted, never fatal. That covers an unparseable or missing date, a date with no UTC offset, and a non-text title or forecast. The GBP/AUD/JPY parsing block is byte-identical to `main`'s (compared programmatically).
+2. USD rows later than `covered_through(newest own row)` are dropped by `calendar_fetch._confine_context_rows`. I1 now runs its USD rows through that function, not a test-side filter.
+3. Allow-list sanitizer (`_us_title`):
+   - ASCII letters, digits and `.,&()'%+:/-` only;
+   - `/` only inside `m/m`-style ratios;
+   - capitals ≥ 5 letters and every trigger phrase capitalised;
+   - capped at 60 characters.
+4. `scheduled_brief.sh`: every stdout trigger is anchored to label lines with `^ ? ?` (labels start 0–2 spaces in, continuations 13–15). This covers DECISION, SHADOW SIGNALS, REASON Framework error and the pair header, in the closed-market gate, the suppression line, the ledger state, the category and the summary.
+5. Same-time releases are grouped, max 4 titles, then `+N more`.
+6. The line goes immediately before the header border, below every warning.
+7. Wording: missing → "news calendar missing", and "refreshes when over a day old" replaces "refreshes Sundays". Untimed events are **not fixable from this source**: the feed has no all-day marker. Observed in the raw feed 2026-11-01: "Congressional Elections" arrives as `2026-11-03T10:16:00-05:00`, and real releases also sit on odd minutes (03:50, 18:50).
+
+**Gate 1:**
+- `tests/test_us_events_context.py`: 26 tests.
+  - I1b: 5 malformed-USD variants; the dirty feed writes a file byte-identical to the clean feed's.
+  - An own-currency malformed row still rejects the feed.
+  - A next-week USD row is dropped, and coverage is the own rows' week.
+  - I3b: 17 attack titles × 40 paddings = 680 rendered briefs. None carries a trigger phrase, `#`, `|`, `_` or `XXX/YYY`.
+  - Ordinary titles survive unchanged. Grouping and placement are each pinned.
+- `tests/test_wrapper_behavior.py`: 5 new I3a tests, run on the **real** wrapper under `/bin/bash`, with the US line **unsanitized** and each trigger starting a wrapped line (a precondition test asserts it does).
+  - Stand-aside brief, two runs: no notification, no ledger row, 0 health failures.
+  - LONG: ledger `GBP_JPY=LONG/open`, summary exactly `GBP/JPY LONG`.
+  - Closed-market LONG: suppressed.
+  - Control without the US line: identical notification.
+  - All existing wrapper tests pass unchanged under the anchors.
+- **Mutation: 19 of 19 caught.** Each mutant was confirmed applied, run under `/bin/bash` with `PYTHONDONTWRITEBYTECODE=1`, reverted byte-identical with caches cleared. The reverted copy gave 93 passed.
+  - Wrapper: W1 DECISION, W2 SHADOW and W3 error greps unanchored; W4 ledger header, W5 summary DECISION, W6 summary header, W7 closed-gate header and W10 ledger error each set back to `^ *`.
+  - Fetch: S1 a malformed USD row raises again; S2 confinement removed. S2 was caught by I1 itself and by the dropped-row test.
+  - Sanitizer: S3 `/` rule removed; S4 phrase capitalisation removed; S5 `#` allowed; S6 length cap removed.
+  - Display: S7 grouping removed; S8 silent cap; S9 line placed above the warnings; S10 missing shown as out of date.
+  - Gate: S11 USD added to `PAIR_CURRENCIES`.
+- Full suite on the merged branch: **928 passed, 8 skipped, 2 deselected** (8 skips: gitignored ledgers absent in a worktree).
+
+**Gate 2 — REALITY** (`scripts/reality_run.py --code <worktree>`; every run exit 0, `project files : UNCHANGED (verified by hash)`, stderr 0 bytes):
+1. Real ForexFactory fetch with the branch code into the temp dir: `calendar.csv updated: 10 high-impact GBP/AUD/JPY events and 4 US events (context only) through 2026-11-06 16:00 UTC.` The US rows were Congressional Elections (11-03 15:16 UTC) and AHE m/m, NFP and Unemployment Rate (11-06 13:30).
+2. The line from that real file:
+   - at Thu 18:00 UTC: `Average Hourly Earnings m/m, Non-Farm Employment Change, Unemployment Rate Fri 5:30 AM PST — for information; the framework does not stand aside for US releases.`
+   - at Sat 18:00 UTC: `none before Sat 8:59 PM PST; later days are not in this week's calendar yet.`
+   - from the same file without US rows: `not checked — the saved news calendar holds no US events (it refreshes when over a day old).`
+   - with no file: `not checked — news calendar missing.`
+3. Real brief on the fetched calendar (copied into the worktree for the run, removed after; the worktree status was clean). Header:
+   `Market closed — analysis based on last close. Next open Sun 2:00 PM PST.` / `US DATA    none in the next 24 hours.` / border. The line sits below the warning.
+4. DECISION / REASON / CONFIDENCE / POSITION identical with vs without US rows, both pairs: `True`. Caveat: Sunday, market closed, so both stood aside. I1 is the stronger proof.
+5. The anchored triggers on the real output: 0 non-stand-aside DECISION lines, 0 SHADOW / error label lines.
+
+**Deferred (spec §5 Rev 1):**
+- "released at …" for the last 2 hours (optional);
+- splitting the heartbeat's event count;
+- committing a mutation runner;
+- the `reality_run --code` calendar gap (known since 2026-10-18; this run worked around it again by copying the calendar in).
+
+**Gate 3 — PENDING LIVE CONFIRMATION (after merge only):**
+- The first calendar fetch after merge (Sunday's job, or the brief's re-fetch of a file over 24 h old) writes USD rows.
+- The next brief renders them.
+- No notification is ever caused by the line.
+
+## 2026-11-02 — CORRECTION + RE-REVIEW of Rev 1: code reviewer APPROVE WITH CHANGES; adversarial reviewer REQUEST CHANGES (rule 12 FAIL, digest path). NOT merged
+
+**Overclaims in the Rev 1 entry above:**
+1. **Spec §1.3 / I3b, "a US title never carries a trigger phrase in its trigger casing":** false. The phrase and capitals rules use `\b`, so a phrase glued to a preceding letter or digit passes untouched. Observed 2026-11-02: `_us_title("xFramework error review")` → `'xFramework error review'`; likewise `aEXIT IF`, `xWATCH FOR a 500 pip drop`, `9DECISION`.
+   - The wrapper anchors are unaffected. But `scripts/daily_digest.py` is not anchored (`"Framework error" in text`, `(?:EXIT IF|WATCH FOR)`), nor is `latest_view.py` (display only).
+   - The reviewer ran the real `scheduled_brief.sh digest`. `xFramework error review` gave the DIGEST "run failed — see the log". `xWATCH FOR a 500 pip drop` replaced the real watch in the DIGEST.
+   - I3b's corpus had no prefix-glued titles, and no I3a test ran the `digest` path.
+2. **S2, "caught by I1 itself":** true only for a mutant *inside* `_confine_context_rows`, which is the S2 that was run. Removing the *call* from `fetch_calendar` is caught by `test_a_usd_row_after_the_feed_week_is_dropped`, not by I1. I1 calls the function directly, so the test comment "removing it in calendar_fetch fails here" (test_us_events_context.py:160) overstates.
+
+**What held (both reviewers, independently):**
+- Requested changes 1–6 fixed. Suite 928 passed.
+- Wrapper anchors work with BSD grep and awk under `/bin/bash`, and no real trigger was lost: the error page ALERT, real SHADOW output, open SHORT, closed-market suppression.
+- Feed-week boundary correct at Sat 23:59 / Sun 00:00 Eastern.
+- Reviewers' own mutants W1, W4, S2 (both forms), placement and `RE_DECISION` were all caught.
+
+**Blocking for Rev 2:**
+1. Trigger phrases matched with no `\b`.
+2. `daily_digest.py` (and `latest_view.py`) anchored to label lines.
+3. Prefix-glued titles added to I3b.
+4. An I3a run with the `digest` argument asserting the DIGEST text and its ledger row match a control.
+
+**Non-blocking:** "+N more" says when the hidden releases are; accented characters transliterated, not dropped; the fetch skip note sanitized or truncated; the I1 test comment corrected; a test that narrative lines (2-space continuation) carry no feed titles.
+
+## 2026-11-03 — REBUILT (Rev 2), AWAITING RE-REVIEW: US events in the brief, digest-path fixes (branch `feat/us-events-context`, NOT merged)
+
+**Owner approved Rev 2.** Spec Rev 2 `67f75c4` was committed before the build `9c496d0`. `main` was merged in at `4c638e4`, with this log's conflict resolved: both sides kept, main first, 0 deletions against either parent.
+
+**Process note (logged, not hidden):** `docs/specs/README.md` says spec bodies are frozen and that a later change gets its own spec. Rev 1 and Rev 2 were written into the body of the still-unmerged `us_events_context_spec.md`. Earlier texts survive in git: original `9fb643f`, Rev 1 `cbf7fb2`. The index row will record this at merge.
+
+**Changes (the four blocking items plus non-blocking items):**
+1. Trigger phrases rewritten in their exact consumer casing with no word boundary, after the capitals rule, looped to a fixpoint. `xWATCH FOR` becomes `xWatch For`.
+2. `daily_digest.py` and `latest_view.py` anchored with `^ ? ?` for the REASON Framework error, EXIT IF / WATCH FOR, DECISION, pair-header and market-closed lines. `^\s*DECISION` was effectively unanchored.
+3. I3b corpus +9 prefix-glued titles: 26 × 40 paddings.
+4. New I3a test runs the real `scheduled_brief.sh digest`. The DIGEST ledger row with unsanitized glued and wrapped triggers equals a control's.
+5. Non-blocking:
+   - every time slot keeps its time (max 4 slots × 3 titles, then `+k more` / `+N later`);
+   - NFKD transliteration;
+   - fetch skip notes reduced to plain characters;
+   - I1 test comment corrected.
+
+**Test changed old → new:** `test_daily_digest.py::test_digest_failed_run` used a bare `"... Framework error — do not trade ..."`. It now uses a real error-page REASON line, plus a new test that feed text never steers the digest or marks a latest-view run as error, with a real-error control. Not a floor test.
+
+**Gate 1:**
+- Branch suite 933 passed before the merge, **966 passed, 8 skipped, 2 deselected** after merging main.
+- **Mutation: 31 run, 30 caught.**
+  - Every Rev 1 mutant re-run and caught, including S2a (in-function) and S2b (call removed, caught by the dropped-row test).
+  - New: T1 word boundaries back, T3 no transliteration, G1–G3 grouping, D1–D6 digest and latest-view anchors, F1 raw skip note. All caught.
+  - **D3 (digest `^\s*DECISION`) first SURVIVED.** The digest test had no DECISION at a wrapped line's start. That case was added, then D3 was caught; reverted → 21 passed.
+  - **T2 (single pass, no fixpoint) SURVIVED as an equivalent mutant.** A rewrite only lowers capitals, and every consumer phrase is all-caps or exactly `Framework error`, so a rewrite cannot create one. The loop is kept as a guard.
+
+**Gate 2 — REALITY:**
+- `reality_run.py --code <worktree> brief` on the real fetched calendar, copied in for the run and removed after: exit 0, stderr 0 bytes, `project files : UNCHANGED (verified by hash)`.
+  - Header: `GBP/AUD | Tue 03 Nov 2026 3:14 PM PST` / `Price: 1.9259` / `US DATA    none in the next 24 hours.` The next US release is Fri 13:30 UTC, more than 24 h away.
+- That real brief's stdout through the **branch** and **main** `daily_digest.py`: byte-identical. `GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE — watch: daily chart trend strength drops below 18 or 4-hour chart resolves to clean trend — revisit then`.
+- `latest_view.py` on the real `logs/`, branch vs main: byte-identical (123 lines). The anchors change nothing on genuine output.
+- Live checkout `git status`: clean.
+
+**Gate 3 — PENDING LIVE CONFIRMATION (after merge):** unchanged from Rev 1 (first fetch writes USD rows; next brief renders them; no notification caused by the line), plus the first 07:30 DIGEST after merge matching the brief's real decisions.
+
+## 2026-11-03 — TEAM REVIEW GIVEN: US events in the brief (Rev 2) approved; merging
+
+**Round 3 verdicts on Rev 2** (`9c496d0`, with main merged in at `4c638e4`):
+- **Code reviewer: APPROVE.** Suite reproduced at 966 passed.
+  - Real-log regression check: old vs new `daily_digest` over all 96 `logs/brief_*.log` files (293 brief blocks). The error check, `build_digest` and `pair_decisions` gave **0 differences**. Coverage: 133 error blocks, 45 market-closed, 160 with a watch, 30 LONG/SHORT.
+  - Every real label line in the logs sits at 2 spaces.
+- **Adversarial reviewer: APPROVE WITH CHANGES (non-blocking); rule 12 PASS.**
+  - Every digest attack was neutralized through the sanitizer and, separately, by the anchors alone, on the real `scheduled_brief.sh digest`.
+  - Real error page, closed market and LONG controls still reach the owner.
+  - Fuzz: 0 of 300,000 sanitized titles kept a consumer phrase, against 102,290 raw inputs that contained one.
+  - Re-ran D1, D3, its own Dw and Tx: all caught.
+  - **Agrees T2 is equivalent:** single-pass and fixpoint outputs were identical on all 300,000.
+
+**Owner's standing instruction (2026-11-02):** "re-review, then merge" if both approve. Both did. Merged by that instruction.
+
+**Non-blocking follow-ups (not in this merge):**
+1. The wrapper's summary grep `EARLY_MOMENTUM|THRUST_PULLBACK|MOMENTUM_JOIN` is still unanchored. A raw candidate name in feed text could add text to a DECISION summary that was already firing. Today only the sanitizer (no `_`) defends it.
+2. Cap the US DATA line's total length. The worst case, 4 slots × 3 sixty-character titles, is about 26 header lines.
+3. Earlier non-blocking items still open: "released at …"; splitting the heartbeat count; committing a mutation runner; the `reality_run --code` calendar gap.
+
+**Process record:** the spec body was revised in place twice during review. This is recorded in `docs/specs/README.md`; the original is `9fb643f`.
+
+**Gate 3 — PENDING LIVE CONFIRMATION:**
+1. The first calendar fetch after merge writes USD rows (Sunday's job, or the brief's re-fetch of a file over 24 h old).
+2. The next brief renders them.
+3. No notification is ever caused by the line.
+4. The first 07:30 DIGEST after merge matches the brief's real decisions.
+
 ## 2026-11-03 — SPEC APPROVED TO BUILD: direction-honest REASON for range + volatile 4-hour stand-asides (v4 over v3; not built)
 
 **Trigger:** the owner saw "Range breaking down — 4-hour chart volatile inside daily chart range" in every GBP/AUD brief from 2026-11-01 18:00 to 11-03 07:33 PST, while price rose 1.9042 → 1.9233 (brief logs). The phrase carries no direction, but it read as bearish (AGENTS rule 4).
