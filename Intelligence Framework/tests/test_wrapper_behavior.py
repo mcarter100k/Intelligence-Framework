@@ -214,7 +214,7 @@ _SAT = (2026, 10, 17, 1, 12)      # Fri 6:12 PM PDT = Sat 01:12 UTC: closed
 _WED = (2026, 10, 14, 15, 0)      # Wed 8:00 AM PDT: open
 
 
-def _rendered(instrument, decision, when):
+def _rendered(instrument, decision, when, us_line=""):
     from datetime import datetime, timezone
     import decision_brief as db
     from regime_detection import _market_status
@@ -229,7 +229,8 @@ def _rendered(instrument, decision, when):
         adx_d1=19.0, adx_h4=33.0, weekly_context="W", error=None,
         market_open=st["open"], market_note=st["note"],
         entry_line="level 1.9189" if trade else "",
-        target_line="set your own" if trade else "").format()
+        target_line="set your own" if trade else "",
+        us_events_line=us_line).format()
 
 
 def _brief_printing(tmp_path, text, extra=""):
@@ -665,3 +666,93 @@ def test_a_crashed_or_missing_backup_script_also_stops_the_grader(tmp_path):
     reason = _jobs(proj)["outcomes"]["last_failure_reason"]
     assert reason.startswith("BACKUP FAILED: no success line")
     assert "GRADER RAN" not in _log(proj, "outcomes")
+
+
+# ── I3a: feed text that wraps onto a new line never poses as a label ────────
+# (docs/specs/us_events_context_spec.md §1.4 and I3a, team review 2026-11-01).
+# The US line here is deliberately UNSANITIZED, so this proves the wrapper's
+# anchors alone; the title allow-list is proven alone in
+# test_us_events_context.py (I3b). Each trigger is placed to start a wrapped
+# continuation line, the position that defeated the old "^ *"-free greps.
+
+_FILL = "a" * 36
+_RAW_US = " ".join([_FILL, "DECISION LONG", _FILL, "SHADOW SIGNALS", _FILL,
+                    "REASON Framework error", _FILL, "USD/JPY LONG", _FILL])
+_STARTS = ["DECISION LONG", "SHADOW SIGNALS", "REASON Framework error", "USD/JPY LONG"]
+
+
+def _continuations(text):
+    return [l.strip() for l in text.split("\n") if l.startswith(" " * 13) and l.strip()]
+
+
+def test_i3a_precondition_each_trigger_starts_a_wrapped_line():
+    starts = _continuations(_rendered("GBP_JPY", "STAND DOWN", _WED, _RAW_US))
+    for trig in _STARTS:
+        assert trig in starts, (trig, starts)
+
+
+def test_i3a_wrapped_triggers_on_a_stand_aside_brief_send_nothing(tmp_path):
+    text = _rendered("GBP_JPY", "STAND DOWN", _WED, _RAW_US)
+    assert "Market closed" not in text                    # open market: the gate is not what stops it
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    _run(tmp_path, proj, "scheduled_brief.sh")            # two runs: a health ALERT needs two failures
+    assert _notes(tmp_path) == ""
+    assert _ledger(proj)[1] == []
+    assert _jobs(proj)["brief"]["consecutive_failures"] == 0, _jobs(proj)
+
+
+def test_i3a_wrapped_triggers_do_not_change_a_real_decision(tmp_path):
+    with_us = _rendered("GBP_JPY", "LONG", _WED, _RAW_US)
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, with_us))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    rows = _ledger(proj)[1]
+    assert [r["category"] for r in rows] == ["DECISION"], rows
+    assert rows[0]["decision_state"] == "GBP_JPY=LONG/open", rows[0]
+    assert rows[0]["summary"].split(" → ")[0] == "GBP/JPY LONG", rows[0]
+
+
+def test_i3a_control_the_same_decision_without_the_us_line(tmp_path):
+    """Positive control: the harness notifies, and identically, without it."""
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, _rendered("GBP_JPY", "LONG", _WED)))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    rows = _ledger(proj)[1]
+    assert [r["category"] for r in rows] == ["DECISION"]
+    assert rows[0]["decision_state"] == "GBP_JPY=LONG/open"
+    assert rows[0]["summary"].split(" → ")[0] == "GBP/JPY LONG"
+    assert 'subtitle "DECISION"' in _notes(tmp_path)
+
+
+def test_i3a_a_wrapped_pair_name_cannot_reopen_a_closed_market(tmp_path):
+    """The US line sits below the market-closed banner, so an unanchored
+    pair-header match on its continuation would reset the closed flag and
+    let a closed-market LONG notify."""
+    text = _rendered("GBP_JPY", "LONG", _SAT, _RAW_US)
+    assert text.index("Market closed") < text.index("USD/JPY LONG")
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert _notes(tmp_path) == "" and _ledger(proj)[1] == []
+
+
+# Rev 2 (re-review 2026-11-03): the 07:30 DIGEST matched label words anywhere,
+# so "xWATCH FOR …" replaced the real watch and "xFramework error" read as a
+# failed run. Unsanitized text again, so this proves the digest's anchors alone.
+_RAW_DIGEST = " ".join(["xFramework error review", "xWATCH FOR a 500 pip drop", _FILL,
+                        "WATCH FOR a 500 pip drop", _FILL, "REASON Framework error", _FILL])
+
+
+def _digest_rows(tmp_path, text):
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    return [(r["category"], r["decision_state"], r["summary"].split(" → ")[0])
+            for r in _ledger(proj)[1]]
+
+
+def test_i3a_feed_text_never_steers_the_digest(tmp_path):
+    with_us = _rendered("GBP_JPY", "STAND DOWN", _WED, _RAW_DIGEST)
+    assert "WATCH FOR a 500 pip drop" in with_us and "xFramework error" in with_us
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
+    got = _digest_rows(tmp_path / "a", with_us)
+    control = _digest_rows(tmp_path / "b", _rendered("GBP_JPY", "STAND DOWN", _WED))
+    assert control and control[0][0] == "DIGEST" and "watch: i" in control[0][2], control
+    assert got == control, (got, control)

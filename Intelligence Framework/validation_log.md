@@ -5040,3 +5040,210 @@ Spec: docs/specs/first_pullback_study_spec.md. Verdict on episode R after era sp
   - **Sub-periods and years** swing both ways, and no period carries the result.
 - **Consequence.** On 2005–2013 data, standing aside on this setup is not shown to have cost an edge. Nothing is SUPPORTED, so no sealed-exam spec is warranted. The 2026-10-28 GBP/AUD rally is one chart; the rule traded every time did not make money on GBP/AUD. The frame is data_map_spec §5: does this survive conditions it was not designed on.
 - **Status:** recorded as R37 (GBP/AUD) and R38 (GBP/JPY) in foundation/research_findings.md; the tested-hypothesis count goes from 36 to 38. The installed skill is NOT rebuilt on this branch: `foundation/build_skill.sh` writes to `~/.claude/skills` and would install unmerged content. That rebuild is for after merge.
+
+## 2026-11-01 — BUILT, AWAITING TEAM REVIEW: US events in the brief as context only (branch `feat/us-events-context`, NOT merged)
+
+**Spec:** `docs/specs/us_events_context_spec.md`, committed before the build (9fb643f). Protected modules touched: `calendar_fetch.py`, `news_gate.py`, `decision_brief.py`. **Do not merge without team review.**
+
+**Change.**
+- `calendar_fetch` keeps HIGH-impact USD rows; at least one GBP/AUD/JPY row is still required.
+- `news_gate.us_event_context()` is new and read-only. `check_news_gate` and `PAIR_CURRENCIES` are unchanged.
+- The brief gets one `US DATA` line: information only, sanitized against the wrapper's DECISION/ALERT triggers. It says "not checked" unless the calendar is current and carries USD rows.
+
+**Gate 1** (`tests/test_us_events_context.py`, 15 new tests; one listed test changed old → new per spec §3):
+- I1/I2: `check_news_gate` is identical with and without USD rows across 60 random calendars × a 47-minute sweep of a feed week × both pairs. That is over 10,000 comparisons, with active, stale and gating branches all exercised.
+- I3: the wrapper's own DECISION pipeline (asserted verbatim from `scripts/scheduled_brief.sh`) does not fire on a stand-aside brief carrying a `FED RATE DECISION ##ALERT##` title. Positive control: the unsanitized title does fire it. Nothing is written to stderr.
+- I4: the banned-token floor (`_assert_clean`) passes on every rendered state.
+- I5: "none" comes only from status `ok`.
+- **Mutation:** 9 of 9 caught. USD in `PAIR_CURRENCIES` (2 failed); sanitizer removed (1); "none" for `no_us_rows` (1); USD-only feed accepted (1); medium-impact USD counted (1); USD dropped at fetch (2); line placed above the news note (1); no coverage-end branch (1); past events listed (3). Reverted → 33 passed.
+- **Harness note:** the first mutation pass reported "no tests ran" for every mutant. zsh does not word-split an unquoted `$T`, so pytest got one bogus path. It was re-run under `/bin/bash` with the results above. A "no tests ran" line is a failed measurement, not a pass.
+- Full suite on the branch: 913 passed, 8 skipped (the gitignored ledgers are absent in a worktree), 2 deselected.
+
+**Gate 2 — REALITY** (all through `scripts/reality_run.py --code <worktree>`; every run exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty):
+1. Real brief, worktree with no calendar: `⚠ news calendar missing — event risk unchecked` / `US DATA    not checked — news calendar out of date.`
+2. Real brief on a copy of the live `calendar.csv` (last week's file, so stale): `⚠ news calendar stale — event risk unchecked` / `US DATA    not checked — news calendar out of date.`
+3. Real ForexFactory fetch into a temp file: `calendar.csv updated: 10 high-impact GBP/AUD/JPY events and 4 US events (context only) through 2026-11-06 16:00 UTC.` The USD rows were Congressional Elections (11-03), and Average Hourly Earnings m/m, Non-Farm Employment Change and Unemployment Rate (11-06 13:30).
+   - The real brief against it: `US DATA    none in the next 24 hours.` for both pairs.
+   - Against the same file without USD rows: `US DATA    not checked — this calendar carries…`.
+   - DECISION / REASON / CONFIDENCE / POSITION identical with vs without USD rows for both pairs: `True`. The market was closed (Sunday), so both briefs stood aside; I1 is the stronger proof.
+4. The line from the real fetched calendar at pinned clocks:
+   - Thu 18:00 UTC: `Average Hourly Earnings m/m Fri 5:30 AM PST · Non-Farm Employment Change Fri 5:30 AM PST · Unemployment Rate Fri 5:30 AM PST — for information; the framework does not stand aside for US releases.`
+   - Mon 18:00 UTC: `Congressional Elections Tue 7:16 AM PST — …`
+   - Sat 18:00 UTC: `none before Sat 8:59 PM PST; later days are not in this week's calendar yet.`
+
+**Found along the way (pre-existing, deferred):** with `--code <worktree>`, `reality_run.py brief` reads no calendar. `news_gate._CALENDAR_FILE` is module-relative, so it resolves to the worktree, where `calendar.csv` is gitignored and absent. Earlier `--code` brief runs therefore exercised the "calendar missing" path, visibly marked in the output. A fix (copy the live calendar into the run, or make the path cwd-relative under reality_run) is a separate change.
+
+**Gate 3 — PENDING LIVE CONFIRMATION (after merge only):** the first Sunday calendar fetch after merge writes USD rows; the next brief renders real US events; no DECISION notification is ever sent because of the line.
+
+## 2026-11-01 — CORRECTION: team review of `feat/us-events-context` found two overclaims in the entry above; REQUEST CHANGES
+
+**What was claimed without sufficient evidence (entry above, and the team brief of the same day):**
+1. *"Decisions can't change"* (spec I1). False on the fetch side. `calendar_fetch._parse_events` now parses the date of every USD row it keeps and raises on a bad one (calendar_fetch.py:91-94); before the change USD rows were dropped before the date check. One malformed USD row therefore rejects the whole week's feed, the gated GBP/AUD/JPY calendar goes stale, and a stale calendar fails open (I28): news stand-asides stop.
+   - Observed 2026-11-01 (pure function, temp cwd, no network): feed = one valid GBP row + one USD row dated `"Tentative"`. Branch → `REJECTED: unparseable event date: 'Tentative'`; main → `parsed 1`. Control: the GBP row alone parses on both.
+   - I1's test is also conditional: `check_news_gate` takes staleness from the newest row of any currency, and the test filters out USD rows beyond the own rows' feed week (test_us_events_context.py:98-100). The adversarial reviewer observed a next-week USD row flip `stale` → `active`. It holds only while the feed is one week, which nothing enforces.
+2. *"The line cannot trigger a false DECISION alert"* (spec I3, labelled VERIFIED). False.
+   - `_us_title` strips `#` after replacing the trigger words (decision_brief.py:460-462). Observed: `_us_title("FED DECI#SION LONG")` → `'FED DECISION LONG'`; `_us_title("AL#ERT")` → `'ALERT'`.
+   - The wrapper reacts to more than DECISION. The adversarial reviewer ran the real `scheduled_brief.sh` and observed: a `SHADOW SIGNALS` title sends a SHADOW notification; a `Framework error` title over 2 runs sends "BRIEF UNHEALTHY"; a wrapped line beginning `XXX/YYY` is read as a pair header and the notification names `USD/JPY LONG`.
+   - The I3 test does not pin the live trigger. It asserts the pipeline string occurs somewhere in the wrapper, and line 129 (the suppression check) carries the same string as the real trigger at line 151. A reviewer mutated line 151 to `grep -i 'DECISION'` and I3 still passed.
+3. *Counts.* "15 new tests": `pytest --collect-only tests/test_us_events_context.py` → 17 collected (14 functions, parametrized). "Reverted → 33 passed": a reviewer got 34 on the same three files.
+
+**What held up (re-checked by reviewers):** full branch suite `913 passed, 8 skipped, 2 deselected` (reproduced twice independently); mutants M1 sanitizer removed, M2 USD-only feed accepted and M3 USD in `PAIR_CURRENCIES` each re-run and caught; `check_news_gate` and `PAIR_CURRENCIES` untouched; rejecting a USD-only feed agreed correct; 24-hour window agreed (briefs run 18:00, 02:30, 07:30 Pacific).
+
+**Review verdicts:** code reviewer REQUEST CHANGES; adversarial reviewer rule 12 FAIL. **Not mergeable as built.** Requested changes, both reviewers unless noted:
+1. A malformed USD row is skipped (logged), never fails the gated fetch; test: valid GBP + malformed USD → write succeeds.
+2. Enforce the single-feed-week assumption (`_validate`), or drop I1's filter so the case fails visibly.
+3. Sanitizer becomes an allow-list (character set, length cap, `/` and `|` neutralized), stripping before case-folding, covering every wrapper and digest token.
+4. Anchor the wrapper's DECISION, SHADOW SIGNALS and Framework error greps to their label lines (free-zone, `test_wrapper_behavior.py`). Rebuild I3 on that harness over an adversarial title corpus, with an open-market LONG control, asserting the notification and the notification ledger.
+5. Same-time grouping plus "+N more" instead of a silent cap at 3 (code reviewer).
+6. US DATA moves below the market-closed and price-source notes (code reviewer, observed above them).
+7. Wording: "(it refreshes Sundays)" is wrong, since the wrapper re-fetches when the file is over 24 h old (scheduled_brief.sh:46); a missing calendar should not read "out of date"; untimed events should not render as exact times.
+
+**Gate 3 entry above is void** until a rebuilt branch passes review.
+
+## 2026-11-01 — REBUILT (Rev 1), AWAITING RE-REVIEW: US events in the brief, the team's requested changes (branch `feat/us-events-context`, NOT merged)
+
+**Owner approved the rebuild.** Spec Rev 1 was committed before the build (spec `cbf7fb2`, then build `b6262e9`). `main` was merged into the branch (`6ca1ce4`) to settle the append-only conflict in this log: both sides kept, main's entries first, 0 deletions against either parent (`git diff --numstat`).
+
+**Changes, one per requested item (see the CORRECTION entry above):**
+1. A USD row that can't be read is skipped and counted, never fatal. That covers an unparseable or missing date, a date with no UTC offset, and a non-text title or forecast. The GBP/AUD/JPY parsing block is byte-identical to `main`'s (compared programmatically).
+2. USD rows later than `covered_through(newest own row)` are dropped by `calendar_fetch._confine_context_rows`. I1 now runs its USD rows through that function, not a test-side filter.
+3. Allow-list sanitizer (`_us_title`):
+   - ASCII letters, digits and `.,&()'%+:/-` only;
+   - `/` only inside `m/m`-style ratios;
+   - capitals ≥ 5 letters and every trigger phrase capitalised;
+   - capped at 60 characters.
+4. `scheduled_brief.sh`: every stdout trigger is anchored to label lines with `^ ? ?` (labels start 0–2 spaces in, continuations 13–15). This covers DECISION, SHADOW SIGNALS, REASON Framework error and the pair header, in the closed-market gate, the suppression line, the ledger state, the category and the summary.
+5. Same-time releases are grouped, max 4 titles, then `+N more`.
+6. The line goes immediately before the header border, below every warning.
+7. Wording: missing → "news calendar missing", and "refreshes when over a day old" replaces "refreshes Sundays". Untimed events are **not fixable from this source**: the feed has no all-day marker. Observed in the raw feed 2026-11-01: "Congressional Elections" arrives as `2026-11-03T10:16:00-05:00`, and real releases also sit on odd minutes (03:50, 18:50).
+
+**Gate 1:**
+- `tests/test_us_events_context.py`: 26 tests.
+  - I1b: 5 malformed-USD variants; the dirty feed writes a file byte-identical to the clean feed's.
+  - An own-currency malformed row still rejects the feed.
+  - A next-week USD row is dropped, and coverage is the own rows' week.
+  - I3b: 17 attack titles × 40 paddings = 680 rendered briefs. None carries a trigger phrase, `#`, `|`, `_` or `XXX/YYY`.
+  - Ordinary titles survive unchanged. Grouping and placement are each pinned.
+- `tests/test_wrapper_behavior.py`: 5 new I3a tests, run on the **real** wrapper under `/bin/bash`, with the US line **unsanitized** and each trigger starting a wrapped line (a precondition test asserts it does).
+  - Stand-aside brief, two runs: no notification, no ledger row, 0 health failures.
+  - LONG: ledger `GBP_JPY=LONG/open`, summary exactly `GBP/JPY LONG`.
+  - Closed-market LONG: suppressed.
+  - Control without the US line: identical notification.
+  - All existing wrapper tests pass unchanged under the anchors.
+- **Mutation: 19 of 19 caught.** Each mutant was confirmed applied, run under `/bin/bash` with `PYTHONDONTWRITEBYTECODE=1`, reverted byte-identical with caches cleared. The reverted copy gave 93 passed.
+  - Wrapper: W1 DECISION, W2 SHADOW and W3 error greps unanchored; W4 ledger header, W5 summary DECISION, W6 summary header, W7 closed-gate header and W10 ledger error each set back to `^ *`.
+  - Fetch: S1 a malformed USD row raises again; S2 confinement removed. S2 was caught by I1 itself and by the dropped-row test.
+  - Sanitizer: S3 `/` rule removed; S4 phrase capitalisation removed; S5 `#` allowed; S6 length cap removed.
+  - Display: S7 grouping removed; S8 silent cap; S9 line placed above the warnings; S10 missing shown as out of date.
+  - Gate: S11 USD added to `PAIR_CURRENCIES`.
+- Full suite on the merged branch: **928 passed, 8 skipped, 2 deselected** (8 skips: gitignored ledgers absent in a worktree).
+
+**Gate 2 — REALITY** (`scripts/reality_run.py --code <worktree>`; every run exit 0, `project files : UNCHANGED (verified by hash)`, stderr 0 bytes):
+1. Real ForexFactory fetch with the branch code into the temp dir: `calendar.csv updated: 10 high-impact GBP/AUD/JPY events and 4 US events (context only) through 2026-11-06 16:00 UTC.` The US rows were Congressional Elections (11-03 15:16 UTC) and AHE m/m, NFP and Unemployment Rate (11-06 13:30).
+2. The line from that real file:
+   - at Thu 18:00 UTC: `Average Hourly Earnings m/m, Non-Farm Employment Change, Unemployment Rate Fri 5:30 AM PST — for information; the framework does not stand aside for US releases.`
+   - at Sat 18:00 UTC: `none before Sat 8:59 PM PST; later days are not in this week's calendar yet.`
+   - from the same file without US rows: `not checked — the saved news calendar holds no US events (it refreshes when over a day old).`
+   - with no file: `not checked — news calendar missing.`
+3. Real brief on the fetched calendar (copied into the worktree for the run, removed after; the worktree status was clean). Header:
+   `Market closed — analysis based on last close. Next open Sun 2:00 PM PST.` / `US DATA    none in the next 24 hours.` / border. The line sits below the warning.
+4. DECISION / REASON / CONFIDENCE / POSITION identical with vs without US rows, both pairs: `True`. Caveat: Sunday, market closed, so both stood aside. I1 is the stronger proof.
+5. The anchored triggers on the real output: 0 non-stand-aside DECISION lines, 0 SHADOW / error label lines.
+
+**Deferred (spec §5 Rev 1):**
+- "released at …" for the last 2 hours (optional);
+- splitting the heartbeat's event count;
+- committing a mutation runner;
+- the `reality_run --code` calendar gap (known since 2026-10-18; this run worked around it again by copying the calendar in).
+
+**Gate 3 — PENDING LIVE CONFIRMATION (after merge only):**
+- The first calendar fetch after merge (Sunday's job, or the brief's re-fetch of a file over 24 h old) writes USD rows.
+- The next brief renders them.
+- No notification is ever caused by the line.
+
+## 2026-11-02 — CORRECTION + RE-REVIEW of Rev 1: code reviewer APPROVE WITH CHANGES; adversarial reviewer REQUEST CHANGES (rule 12 FAIL, digest path). NOT merged
+
+**Overclaims in the Rev 1 entry above:**
+1. **Spec §1.3 / I3b, "a US title never carries a trigger phrase in its trigger casing":** false. The phrase and capitals rules use `\b`, so a phrase glued to a preceding letter or digit passes untouched. Observed 2026-11-02: `_us_title("xFramework error review")` → `'xFramework error review'`; likewise `aEXIT IF`, `xWATCH FOR a 500 pip drop`, `9DECISION`.
+   - The wrapper anchors are unaffected. But `scripts/daily_digest.py` is not anchored (`"Framework error" in text`, `(?:EXIT IF|WATCH FOR)`), nor is `latest_view.py` (display only).
+   - The reviewer ran the real `scheduled_brief.sh digest`. `xFramework error review` gave the DIGEST "run failed — see the log". `xWATCH FOR a 500 pip drop` replaced the real watch in the DIGEST.
+   - I3b's corpus had no prefix-glued titles, and no I3a test ran the `digest` path.
+2. **S2, "caught by I1 itself":** true only for a mutant *inside* `_confine_context_rows`, which is the S2 that was run. Removing the *call* from `fetch_calendar` is caught by `test_a_usd_row_after_the_feed_week_is_dropped`, not by I1. I1 calls the function directly, so the test comment "removing it in calendar_fetch fails here" (test_us_events_context.py:160) overstates.
+
+**What held (both reviewers, independently):**
+- Requested changes 1–6 fixed. Suite 928 passed.
+- Wrapper anchors work with BSD grep and awk under `/bin/bash`, and no real trigger was lost: the error page ALERT, real SHADOW output, open SHORT, closed-market suppression.
+- Feed-week boundary correct at Sat 23:59 / Sun 00:00 Eastern.
+- Reviewers' own mutants W1, W4, S2 (both forms), placement and `RE_DECISION` were all caught.
+
+**Blocking for Rev 2:**
+1. Trigger phrases matched with no `\b`.
+2. `daily_digest.py` (and `latest_view.py`) anchored to label lines.
+3. Prefix-glued titles added to I3b.
+4. An I3a run with the `digest` argument asserting the DIGEST text and its ledger row match a control.
+
+**Non-blocking:** "+N more" says when the hidden releases are; accented characters transliterated, not dropped; the fetch skip note sanitized or truncated; the I1 test comment corrected; a test that narrative lines (2-space continuation) carry no feed titles.
+
+## 2026-11-03 — REBUILT (Rev 2), AWAITING RE-REVIEW: US events in the brief, digest-path fixes (branch `feat/us-events-context`, NOT merged)
+
+**Owner approved Rev 2.** Spec Rev 2 `67f75c4` was committed before the build `9c496d0`. `main` was merged in at `4c638e4`, with this log's conflict resolved: both sides kept, main first, 0 deletions against either parent.
+
+**Process note (logged, not hidden):** `docs/specs/README.md` says spec bodies are frozen and that a later change gets its own spec. Rev 1 and Rev 2 were written into the body of the still-unmerged `us_events_context_spec.md`. Earlier texts survive in git: original `9fb643f`, Rev 1 `cbf7fb2`. The index row will record this at merge.
+
+**Changes (the four blocking items plus non-blocking items):**
+1. Trigger phrases rewritten in their exact consumer casing with no word boundary, after the capitals rule, looped to a fixpoint. `xWATCH FOR` becomes `xWatch For`.
+2. `daily_digest.py` and `latest_view.py` anchored with `^ ? ?` for the REASON Framework error, EXIT IF / WATCH FOR, DECISION, pair-header and market-closed lines. `^\s*DECISION` was effectively unanchored.
+3. I3b corpus +9 prefix-glued titles: 26 × 40 paddings.
+4. New I3a test runs the real `scheduled_brief.sh digest`. The DIGEST ledger row with unsanitized glued and wrapped triggers equals a control's.
+5. Non-blocking:
+   - every time slot keeps its time (max 4 slots × 3 titles, then `+k more` / `+N later`);
+   - NFKD transliteration;
+   - fetch skip notes reduced to plain characters;
+   - I1 test comment corrected.
+
+**Test changed old → new:** `test_daily_digest.py::test_digest_failed_run` used a bare `"... Framework error — do not trade ..."`. It now uses a real error-page REASON line, plus a new test that feed text never steers the digest or marks a latest-view run as error, with a real-error control. Not a floor test.
+
+**Gate 1:**
+- Branch suite 933 passed before the merge, **966 passed, 8 skipped, 2 deselected** after merging main.
+- **Mutation: 31 run, 30 caught.**
+  - Every Rev 1 mutant re-run and caught, including S2a (in-function) and S2b (call removed, caught by the dropped-row test).
+  - New: T1 word boundaries back, T3 no transliteration, G1–G3 grouping, D1–D6 digest and latest-view anchors, F1 raw skip note. All caught.
+  - **D3 (digest `^\s*DECISION`) first SURVIVED.** The digest test had no DECISION at a wrapped line's start. That case was added, then D3 was caught; reverted → 21 passed.
+  - **T2 (single pass, no fixpoint) SURVIVED as an equivalent mutant.** A rewrite only lowers capitals, and every consumer phrase is all-caps or exactly `Framework error`, so a rewrite cannot create one. The loop is kept as a guard.
+
+**Gate 2 — REALITY:**
+- `reality_run.py --code <worktree> brief` on the real fetched calendar, copied in for the run and removed after: exit 0, stderr 0 bytes, `project files : UNCHANGED (verified by hash)`.
+  - Header: `GBP/AUD | Tue 03 Nov 2026 3:14 PM PST` / `Price: 1.9259` / `US DATA    none in the next 24 hours.` The next US release is Fri 13:30 UTC, more than 24 h away.
+- That real brief's stdout through the **branch** and **main** `daily_digest.py`: byte-identical. `GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE — watch: daily chart trend strength drops below 18 or 4-hour chart resolves to clean trend — revisit then`.
+- `latest_view.py` on the real `logs/`, branch vs main: byte-identical (123 lines). The anchors change nothing on genuine output.
+- Live checkout `git status`: clean.
+
+**Gate 3 — PENDING LIVE CONFIRMATION (after merge):** unchanged from Rev 1 (first fetch writes USD rows; next brief renders them; no notification caused by the line), plus the first 07:30 DIGEST after merge matching the brief's real decisions.
+
+## 2026-11-03 — TEAM REVIEW GIVEN: US events in the brief (Rev 2) approved; merging
+
+**Round 3 verdicts on Rev 2** (`9c496d0`, with main merged in at `4c638e4`):
+- **Code reviewer: APPROVE.** Suite reproduced at 966 passed.
+  - Real-log regression check: old vs new `daily_digest` over all 96 `logs/brief_*.log` files (293 brief blocks). The error check, `build_digest` and `pair_decisions` gave **0 differences**. Coverage: 133 error blocks, 45 market-closed, 160 with a watch, 30 LONG/SHORT.
+  - Every real label line in the logs sits at 2 spaces.
+- **Adversarial reviewer: APPROVE WITH CHANGES (non-blocking); rule 12 PASS.**
+  - Every digest attack was neutralized through the sanitizer and, separately, by the anchors alone, on the real `scheduled_brief.sh digest`.
+  - Real error page, closed market and LONG controls still reach the owner.
+  - Fuzz: 0 of 300,000 sanitized titles kept a consumer phrase, against 102,290 raw inputs that contained one.
+  - Re-ran D1, D3, its own Dw and Tx: all caught.
+  - **Agrees T2 is equivalent:** single-pass and fixpoint outputs were identical on all 300,000.
+
+**Owner's standing instruction (2026-11-02):** "re-review, then merge" if both approve. Both did. Merged by that instruction.
+
+**Non-blocking follow-ups (not in this merge):**
+1. The wrapper's summary grep `EARLY_MOMENTUM|THRUST_PULLBACK|MOMENTUM_JOIN` is still unanchored. A raw candidate name in feed text could add text to a DECISION summary that was already firing. Today only the sanitizer (no `_`) defends it.
+2. Cap the US DATA line's total length. The worst case, 4 slots × 3 sixty-character titles, is about 26 header lines.
+3. Earlier non-blocking items still open: "released at …"; splitting the heartbeat count; committing a mutation runner; the `reality_run --code` calendar gap.
+
+**Process record:** the spec body was revised in place twice during review. This is recorded in `docs/specs/README.md`; the original is `9fb643f`.
+
+**Gate 3 — PENDING LIVE CONFIRMATION:**
+1. The first calendar fetch after merge writes USD rows (Sunday's job, or the brief's re-fetch of a file over 24 h old).
+2. The next brief renders them.
+3. No notification is ever caused by the line.
+4. The first 07:30 DIGEST after merge matches the brief's real decisions.

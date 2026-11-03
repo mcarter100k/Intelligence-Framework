@@ -19,18 +19,23 @@ import re
 import sys
 
 
-_CLOSED = re.compile(r"Market closed — analysis based on last close\. Next open (.+?)\.\s*$", re.M)
+# Every pattern is anchored to a LABEL line (0-2 leading spaces): wrapped
+# continuation lines start with 13+ spaces, so feed text in a brief (a US
+# event title, a news REASON) can never pose as a label
+# (docs/specs/us_events_context_spec.md §1.5, team review 2026-11-03).
+_CLOSED = re.compile(r"^ ? ?Market closed — analysis based on last close\. Next open (.+?)\.\s*$", re.M)
+_ERROR = re.compile(r"^ ? ?REASON +Framework error", re.M)
 
 
 def _sections(text: str) -> list:
     """(pair, block) per pair; a block runs from its header to the next."""
-    starts = [(m.group(1), m.start()) for m in re.finditer(r"(GBP/[A-Z]{3})\s+\|", text)]
+    starts = [(m.group(1), m.start()) for m in re.finditer(r"^ ? ?(GBP/[A-Z]{3})\s+\|", text, re.M)]
     return [(name, text[start:starts[i + 1][1] if i + 1 < len(starts) else len(text)])
             for i, (name, start) in enumerate(starts)]
 
 
 def _decision(name: str, block: str) -> str:
-    dm = re.search(r"^\s*DECISION\s+(LONG|SHORT|STAND ASIDE)\b", block, re.M)
+    dm = re.search(r"^ ? ?DECISION\s+(LONG|SHORT|STAND ASIDE)\b", block, re.M)
     return f"{name} {dm.group(1)}" if dm else f"{name} ?"
 
 
@@ -64,14 +69,14 @@ def _head(text: str) -> str:
 
 def build_digest(text: str) -> str:
     try:
-        if "Framework error" in text or not text.strip():
+        if _ERROR.search(text) or not text.strip():
             return "run failed — see the log"
         head = _head(text) or "no pairs rendered"
 
         # watch condition from EXIT IF sections (unwrap the rendered lines)
         watches = []
         for m in re.finditer(
-                r"(?:EXIT IF|WATCH FOR)\s+(.*?)(?:\n\s*\n|═)", text, re.S):
+                r"^ ? ?(?:EXIT IF|WATCH FOR)\s+(.*?)(?:\n\s*\n|═)", text, re.S | re.M):
             watches.append(re.sub(r"\s+", " ", m.group(1)).strip())
         watch = ""
         for w in watches:                     # prefer a concrete pivot watch

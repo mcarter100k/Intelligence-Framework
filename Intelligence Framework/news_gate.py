@@ -170,3 +170,63 @@ def check_news_gate(instrument: str, now: Optional[datetime] = None,
                        event_time_utc=dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
                        pre_release=upcoming is not None)
     return _result(active=True)
+
+
+# ── US events: context only, never gating (docs/specs/us_events_context_spec.md)
+# PAIR_CURRENCIES and check_news_gate above are deliberately untouched: USD
+# events gate neither pair. The pre-registered study (foundation R35, R36)
+# found US releases INCONCLUSIVE on both crosses, so the brief only shows them.
+
+US_CONTEXT_HOURS = 24
+
+
+def us_event_context(now: Optional[datetime] = None,
+                     calendar_path: Optional[str] = None,
+                     hours: int = US_CONTEXT_HOURS) -> Dict:
+    """
+    Upcoming HIGH-impact USD events for the brief's US DATA line. Returns
+      status          : "ok" | "no_us_rows" | "stale" | "missing"
+      events          : [(event_time_utc naive datetime, title)], soonest
+                        first, within the next `hours` (status "ok" only)
+      covered_through : naive-UTC end of the calendar's coverage, or None
+    "ok" requires at least one USD row in the file, so "no events" is only
+    ever reported from a calendar shown able to carry them (AGENTS rule 9).
+    Never raises and never gates.
+    """
+    out = {"status": "missing", "events": [], "covered_through": None}
+    path = calendar_path or _CALENDAR_FILE
+    if not os.path.exists(path):
+        return out
+    if now is None:
+        now = datetime.now(timezone.utc)
+    now_naive = now.astimezone(timezone.utc).replace(tzinfo=None)
+    rows, newest = [], None
+    try:
+        with open(path, newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                try:
+                    dt = datetime.strptime(row["time"].strip()[:16], "%Y-%m-%d %H:%M")
+                except (KeyError, ValueError, AttributeError):
+                    continue
+                if newest is None or dt > newest:
+                    newest = dt
+                rows.append((dt, (row.get("currency") or "").strip().upper(),
+                             (row.get("event") or "").strip(),
+                             (row.get("impact") or "").strip().lower()))
+    except Exception:
+        return out
+    if newest is None:
+        return out
+    out["covered_through"] = covered_through(newest)
+    if now_naive > out["covered_through"]:
+        out["status"] = "stale"
+        return out
+    usd = [(dt, name) for dt, ccy, name, impact in rows if ccy == "USD" and impact == "high"]
+    if not usd:
+        out["status"] = "no_us_rows"
+        return out
+    out["status"] = "ok"
+    horizon = now_naive + timedelta(hours=hours)
+    out["events"] = sorted((dt, name or "US release") for dt, name in usd
+                           if now_naive <= dt <= horizon)
+    return out
