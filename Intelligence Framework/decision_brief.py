@@ -453,29 +453,39 @@ def get_decision_brief(instrument: str = "GBP_AUD") -> DecisionBrief:
         return _error_brief(instrument, timestamp, str(e))
 
 
-# Phrases the notification wrapper or the digest react to
-# (scripts/scheduled_brief.sh, scripts/daily_digest.py). A US title never
-# carries one in its trigger casing (us_events_context_spec §1.3, Rev 1).
-_US_TRIGGER_PHRASES = ("DECISION", "ALERT", "SHADOW SIGNALS", "FRAMEWORK ERROR",
+# Phrases the notification wrapper, the digest or the latest view react to
+# (scripts/scheduled_brief.sh, daily_digest.py, latest_view.py), in the exact,
+# case-sensitive form they match. A US title never carries one
+# (us_events_context_spec §1.3, Rev 2).
+_US_TRIGGER_PHRASES = ("DECISION", "ALERT", "SHADOW SIGNALS", "Framework error",
                        "EXIT IF", "WATCH FOR", "STAND ASIDE", "STAND DOWN", "REASON")
 _US_TITLE_MAX = 60
-_US_MAX_TITLES = 4
+_US_SLOTS = 4            # time slots shown
+_US_PER_SLOT = 3         # titles shown per slot
 
 
 def _us_title(title) -> str:
-    """A feed title made safe for the brief, by allow-list: ASCII letters,
-    digits and plain punctuation only; "/" only inside m/m-style ratios, so no
-    XXX/YYY pair-header shape; long all-capital words and every trigger phrase
-    capitalised; at most 60 characters."""
+    """A feed title made safe for the brief, by allow-list: accents
+    transliterated; ASCII letters, digits and plain punctuation only; "/" only
+    inside m/m-style ratios, so no XXX/YYY pair-header shape; long all-capital
+    words capitalised; every trigger phrase rewritten wherever it occurs, with
+    no word boundary (Rev 2: "xWATCH FOR" passed Rev 1); at most 60 characters."""
     import re
+    import unicodedata
     t = title if isinstance(title, str) else ""
+    t = "".join(ch for ch in unicodedata.normalize("NFKD", t)
+                if not unicodedata.combining(ch))
     t = re.sub(r"[^A-Za-z0-9 .,&()'%+:/-]", " ", t)
     t = re.sub(r"(?<![a-z0-9])/|/(?![a-z0-9])", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
     cap = lambda m: " ".join(w.capitalize() for w in m.group(0).split())
     t = re.sub(r"\b[A-Z]{5,}\b", cap, t)
-    for phrase in _US_TRIGGER_PHRASES:
-        t = re.sub(r"\b" + r"\s+".join(phrase.split()) + r"\b", cap, t, flags=re.I)
+    changed = True
+    while changed:                       # a rewrite can never re-create a phrase,
+        before = t                       # but loop to a fixpoint rather than assume
+        for phrase in _US_TRIGGER_PHRASES:
+            t = re.sub(re.escape(phrase), cap, t)
+        changed = t != before
     if len(t) > _US_TITLE_MAX:
         t = t[:_US_TITLE_MAX].rsplit(" ", 1)[0].rstrip(" ,.:-") + "..."
     return t or "US release"
@@ -500,16 +510,18 @@ def _us_events_line(now=None, calendar_path=None) -> str:
             return ("not checked — the saved news calendar holds no US events "
                     "(it refreshes when over a day old).")
         if ctx["events"]:
-            parts, shown = [], 0
-            for dt, group in groupby(ctx["events"], key=lambda ev: ev[0]):
-                names = [_us_title(name) for _, name in group][:_US_MAX_TITLES - shown]
-                if not names:
-                    break
-                shown += len(names)
+            slots = [(dt, [name for _, name in group])
+                     for dt, group in groupby(ctx["events"], key=lambda ev: ev[0])]
+            parts = []
+            for dt, names in slots[:_US_SLOTS]:      # every slot keeps its time
+                shown = ", ".join(_us_title(n) for n in names[:_US_PER_SLOT])
+                if len(names) > _US_PER_SLOT:
+                    shown += f" +{len(names) - _US_PER_SLOT} more"
                 when = to_display(dt, style="day_time") or "time not shown"
-                parts.append(f"{', '.join(names)} {when}")
-            if len(ctx["events"]) > shown:
-                parts.append(f"+{len(ctx['events']) - shown} more")
+                parts.append(f"{shown} {when}")
+            later = sum(len(names) for _, names in slots[_US_SLOTS:])
+            if later:
+                parts.append(f"+{later} later")
             return (f"{' · '.join(parts)} — for information; the framework does "
                     f"not stand aside for US releases.")
         horizon = now.astimezone(timezone.utc).replace(tzinfo=None) + timedelta(hours=US_CONTEXT_HOURS)

@@ -105,6 +105,16 @@ def test_a_malformed_usd_row_is_skipped_not_fatal(tmp_path, capsys, bad):
     assert "skipped 1 US row(s)" in capsys.readouterr().out
 
 
+def test_the_skip_note_carries_no_feed_markup(tmp_path, capsys):
+    bad = {"title": "##ALERT## FED DECISION | GBP/JPY", "country": "USD", "impact": "High",
+           "date": "Tentative \u2014 ##ALERT##"}
+    assert calendar_fetch.fetch_calendar(calendar_path=str(tmp_path / "c.csv"), now=NOW,
+                                         fetcher=lambda: json.dumps([_feed_event(5, "GBP"), bad])) is True
+    out = capsys.readouterr().out
+    assert "skipped 1 US row(s)" in out
+    assert not re.search(r"[#|/\u2014]", out.split("skipped", 1)[1]), out
+
+
 def test_a_malformed_own_currency_row_still_rejects_the_feed(tmp_path):
     p = tmp_path / "calendar.csv"
     p.write_text("time,currency,event,actual,forecast,previous,impact\n"
@@ -156,8 +166,10 @@ def test_gate_output_identical_with_and_without_usd_rows(tmp_path):
     compared = active = stale = gating = 0
     for k in range(60):
         own, usd = _random_calendar(r, base)
-        # USD rows go through the fetch's own confinement (spec §1.1, Rev 1),
-        # not a test-side filter: removing it in calendar_fetch fails here
+        # USD rows go through the fetch's own confinement function (spec
+        # §1.1), not a test-side filter: a defect INSIDE _confine_context_rows
+        # fails here. Removing its call from fetch_calendar is caught by
+        # test_a_usd_row_after_the_feed_week_is_dropped instead (corrected Rev 2).
         usd = _confined(own, usd)
         a = _write(tmp_path / f"a{k}.csv", own)
         b = _write(tmp_path / f"b{k}.csv", own + usd)
@@ -246,20 +258,27 @@ def test_none_names_the_coverage_end_when_the_week_ends_within_24h(tmp_path, pac
 
 # ── grouping and "+N more" (Rev 1) ──────────────────────────────────────────
 
-def test_same_time_releases_are_grouped_and_extras_counted(tmp_path, pacific):
-    nfp = datetime(2026, 11, 4, 13, 30)
-    p = _write(tmp_path / "c.csv", [
-        (datetime(2026, 11, 4, 9, 30), "GBP", "UK CPI", "High"),
-        (nfp, "USD", "Average Hourly Earnings m/m", "High"),
-        (nfp, "USD", "Non-Farm Employment Change", "High"),
-        (nfp, "USD", "Unemployment Rate", "High"),
-        (datetime(2026, 11, 4, 19, 0), "USD", "FOMC Statement", "High"),
-        (datetime(2026, 11, 4, 19, 30), "USD", "FOMC Press Conference", "High")])
-    line = db._us_events_line(now=NOW, calendar_path=p)
-    assert line == ("Average Hourly Earnings m/m, Non-Farm Employment Change, Unemployment Rate "
-                    "Wed 5:30 AM PST · FOMC Statement Wed 11:00 AM PST · +1 more — for "
-                    "information; the framework does not stand aside for US releases.")
+def test_every_time_slot_keeps_its_time_and_extras_are_counted(tmp_path, pacific):
+    nfp, fomc = datetime(2026, 11, 4, 13, 30), datetime(2026, 11, 4, 19, 0)
+    rows = [(datetime(2026, 11, 4, 9, 30), "GBP", "UK CPI", "High")]
+    rows += [(nfp, "USD", n, "High") for n in ("CPI m/m", "CPI y/y", "Core CPI m/m", "Core CPI y/y")]
+    rows += [(fomc, "USD", "FOMC Statement", "High")]
+    rows += [(datetime(2026, 11, 4, 20 + k, 0), "USD", f"Speech {k}", "High") for k in range(4)]
+    line = db._us_events_line(now=NOW, calendar_path=_write(tmp_path / "c.csv", rows))
+    # Rev 1 hid the 11:00 FOMC behind "+N more"; every slot now shows its time
+    assert line == ("CPI m/m, CPI y/y, Core CPI m/m +1 more Wed 5:30 AM PST · FOMC Statement "
+                    "Wed 11:00 AM PST · Speech 0 Wed 12:00 PM PST · Speech 1 Wed 1:00 PM PST · "
+                    "+2 later — for information; the framework does not stand aside for US releases.")
     _assert_clean(line)
+
+
+def test_the_jobs_report_trio_shows_in_full(tmp_path, pacific):
+    nfp = datetime(2026, 11, 4, 13, 30)
+    p = _write(tmp_path / "c.csv", [(datetime(2026, 11, 4, 9, 30), "GBP", "UK CPI", "High")]
+               + [(nfp, "USD", n, "High") for n in ("Average Hourly Earnings m/m",
+                  "Non-Farm Employment Change", "Unemployment Rate")])
+    assert db._us_events_line(now=NOW, calendar_path=p).startswith(
+        "Average Hourly Earnings m/m, Non-Farm Employment Change, Unemployment Rate Wed 5:30 AM PST — ")
 
 
 # ── I3b: the title allow-list (the wrapper layer is I3a, test_wrapper_behavior) ──
@@ -270,7 +289,10 @@ _CORPUS = ["FED RATE DECISION ##ALERT##", "FED DECI#SION LONG", "AL#ERT", "SHADO
            "FOMC\nSHADOW SIGNALS", "Framework error review", "USD/JPY intervention",
            "GBP/AUD | LONG", "MOMENTUM_JOIN LONG fired", "exit if watch for", "decision long",
            "D\u0415CISION LONG", "STAND ASIDE DECISION", "reason: stand down",
-           "Market closed \u2014 analysis based on last close.", "\x00ALERT\x07", "A" * 200]
+           "Market closed \u2014 analysis based on last close.", "\x00ALERT\x07", "A" * 200,
+           # prefix-glued (re-review 2026-11-03: these passed Rev 1's \\b rules)
+           "xFramework error review", "aEXIT IF", "xWATCH FOR a 500 pip drop", "9DECISION",
+           "FRAMEWORK error", "xSHADOW SIGNALS", "1STAND ASIDE", "zALERTz", "qREASONq"]
 
 
 def _stand_aside_brief(us_line):
@@ -307,8 +329,10 @@ def test_no_title_can_carry_a_trigger_at_any_wrap_position(tmp_path, pacific):
 
 def test_ordinary_titles_survive_the_allow_list():
     for t in ("FOMC Statement", "CPI m/m", "Average Hourly Earnings m/m", "ISM Services PMI",
-              "Non-Farm Employment Change", "Core PCE Price Index y/y", "Fed Chair Powell Speaks"):
+              "Non-Farm Employment Change", "Core PCE Price Index y/y", "Fed Chair Powell Speaks",
+              "S&P Global Services PMI", "Prelim UoM Consumer Sentiment", "Treasury Currency Report"):
         assert db._us_title(t) == t
+    assert db._us_title("Pr\u00e9sident Speaks") == "President Speaks"     # transliterated (Rev 2)
 
 
 def test_line_never_writes_to_stderr(tmp_path, capsys):

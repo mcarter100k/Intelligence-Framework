@@ -224,8 +224,13 @@ def fetch_calendar(calendar_path: Optional[str] = None,
         return False
 
     n_own = sum(r["currency"] in CURRENCIES for r in rows)
+    # Feed text in the note is cut to plain characters: this line lands in the
+    # brief day log, which latest_view reads (spec §1.1, Rev 2).
+    import re
+    detail = re.sub(r"[^A-Za-z0-9 .,()'%+:-]", " ", "; ".join(skipped))
+    detail = re.sub(r"\s+", " ", detail).strip()[:200]
     note = (f"; skipped {len(skipped)} US row(s) (unreadable or outside "
-            f"this calendar's week): {'; '.join(skipped)[:300]}" if skipped else "")
+            f"this calendar's week): {detail}" if skipped else "")
     print(f"calendar.csv updated: {n_own} high-impact GBP/AUD/JPY events "
           f"and {len(rows) - n_own} US events (context only){note} "
           f"through {rows[-1]['time']} UTC.")

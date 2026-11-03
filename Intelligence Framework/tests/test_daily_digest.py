@@ -133,9 +133,43 @@ def test_an_unrecognised_decision_word_still_shows_a_question_mark():
 
 
 def test_digest_failed_run():
-    assert dd.build_digest("... Framework error — do not trade ...") == \
+    # Old (to 2026-11-03): the bare phrase anywhere meant a failed run, so a
+    # news or US title containing it failed the digest. New: only the error
+    # page's REASON label line does (us_events_context_spec §1.5, Rev 2).
+    assert dd.build_digest("  GBP/AUD  |  x\n  DECISION     STAND DOWN\n\n"
+                           "  REASON       Framework error — do not trade: OANDA\n") == \
         "run failed — see the log"
     assert dd.build_digest("") == "run failed — see the log"
+
+
+def test_label_words_in_feed_text_never_steer_the_digest():
+    """Prefix-glued and wrapped phrases (re-review 2026-11-03) are text, not labels."""
+    feed = ("  US DATA    xFramework error review Wed 11:00 AM — x xWATCH FOR a 500\n"
+            "             WATCH FOR a 500 pip drop DECISION LONG\n"
+            "             REASON Framework error\n"
+            "             DECISION LONG at a wrapped line's start\n"
+            "             GBP/JPY  | Market closed — analysis based on last close. Next open never.\n")
+    price = "  Price: 1.8762  |  ATR: 83.3 pips\n"
+    assert _BRIEF.count(price) == 1
+    with_feed = _BRIEF.replace(price, price + feed)     # where the US DATA line really sits
+    assert with_feed.index(feed) > with_feed.index("GBP/AUD  |")
+    assert dd.build_digest(with_feed) == dd.build_digest(_BRIEF)
+    assert dd.pair_decisions(with_feed) == dd.pair_decisions(_BRIEF)
+
+
+def test_feed_text_never_marks_a_latest_view_run_as_error():
+    blocks = [("===== 2026-11-03 02:30:00 PST =====",
+               "  GBP/AUD  |  x\n  US DATA    xFramework error review\n"
+               "             REASON Framework error\n  DECISION     STAND ASIDE — no\n", "f"),
+              ("===== 2026-11-03 07:30:00 PST =====",
+               "  GBP/AUD  |  x\n  DECISION     STAND ASIDE — no\n", "f"),
+              ("===== 2026-11-03 18:00:00 PST =====",
+               "  GBP/AUD  |  x\n  DECISION     STAND DOWN\n"
+               "  REASON       Framework error — do not trade: x\n", "f")]
+    v = lv.build_view(blocks + blocks[1:2], ["f"], "2026-11-03")
+    assert "2026-11-03 02:30:00 PST  GBP/AUD STAND ASIDE" in v       # feed text: not an error
+    assert "2026-11-03 18:00:00 PST  error" in v                     # control: a real error page is
+
 
 
 # ── latest-view builder: display-day grouping across files ────────────────────

@@ -732,3 +732,27 @@ def test_i3a_a_wrapped_pair_name_cannot_reopen_a_closed_market(tmp_path):
     proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
     _run(tmp_path, proj, "scheduled_brief.sh")
     assert _notes(tmp_path) == "" and _ledger(proj)[1] == []
+
+
+# Rev 2 (re-review 2026-11-03): the 07:30 DIGEST matched label words anywhere,
+# so "xWATCH FOR …" replaced the real watch and "xFramework error" read as a
+# failed run. Unsanitized text again, so this proves the digest's anchors alone.
+_RAW_DIGEST = " ".join(["xFramework error review", "xWATCH FOR a 500 pip drop", _FILL,
+                        "WATCH FOR a 500 pip drop", _FILL, "REASON Framework error", _FILL])
+
+
+def _digest_rows(tmp_path, text):
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    return [(r["category"], r["decision_state"], r["summary"].split(" → ")[0])
+            for r in _ledger(proj)[1]]
+
+
+def test_i3a_feed_text_never_steers_the_digest(tmp_path):
+    with_us = _rendered("GBP_JPY", "STAND DOWN", _WED, _RAW_DIGEST)
+    assert "WATCH FOR a 500 pip drop" in with_us and "xFramework error" in with_us
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir()
+    got = _digest_rows(tmp_path / "a", with_us)
+    control = _digest_rows(tmp_path / "b", _rendered("GBP_JPY", "STAND DOWN", _WED))
+    assert control and control[0][0] == "DIGEST" and "watch: i" in control[0][2], control
+    assert got == control, (got, control)
