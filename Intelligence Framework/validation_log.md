@@ -5341,3 +5341,9 @@ Spec: docs/specs/first_pullback_study_spec.md. Verdict on episode R after era sp
    - W5 storage: v4 said a plain key list; the build uses a hash of the sorted list plus its count.
 
 **Not changed:** the grid does not gain a daily-strength or override axis. Each would add about 30–60 s to every suite run; the exhaustion band is pinned by item 1 instead.
+
+## 2026-11-03 — MERGED: truthful REASON for range + volatile 4-hour stand-asides
+
+- Owner approved the merge (2026-11-03), after both reviewers returned APPROVE WITH CHANGES (non-blocking, rule 12 PASS) and the changes were made and logged (entry above, `5b4684d`).
+- Branch suite **991 passed**. `main` is merged in before the merge if it moved.
+- **Gate 3:** none needed. The next brief with a pair in RANGING D1 + VOLATILE H4 shows the new sentence. GBP/AUD was in that state at the 2026-11-03 Gate 2 run.
