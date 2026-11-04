@@ -756,3 +756,43 @@ def test_i3a_feed_text_never_steers_the_digest(tmp_path):
     control = _digest_rows(tmp_path / "b", _rendered("GBP_JPY", "STAND DOWN", _WED))
     assert control and control[0][0] == "DIGEST" and "watch: i" in control[0][2], control
     assert got == control, (got, control)
+
+
+# ── range + volatile REASON (docs/specs/range_volatile_wording_v3_spec.md W4) ──
+# The new sentences render inside a stand-aside brief's REASON line; they must
+# never cause a notification (rule 12). Control: an open-market LONG notifies.
+
+def _range_volatile_brief(when):
+    from datetime import datetime, timezone
+    import decision_brief as db
+    from regime_detection import _market_status
+    st = _market_status(_now=datetime(*when, tzinfo=timezone.utc))
+    why = db._render_reason(
+        {"regime_d1": "RANGING", "regime_h4": "VOLATILE", "regime_h4_subtype": "UNCONFIRMED_TREND",
+         "h4_change_pips_10": 190, "adx": 14.8, "timeframe_conflict": True,
+         "conflict_type": "RANGING_D1_VOLATILE_H4", "atr_vs_avg": 1.0},
+        {"reason": ""}, "STAND DOWN", False)
+    assert why.startswith("The 4-hour chart has been rising")
+    return db.DecisionBrief(
+        instrument="GBP_AUD", timestamp="t", price=1.9259, atr_pips=109.6,
+        decision="STAND DOWN", reason=why, conviction=0, grade="C", size_pct=0,
+        market_state="m", invalidation="i", regime_log="l", stand_down=True,
+        override_fired=False, execution_mode="STAND_DOWN", adx_d1=14.8, adx_h4=33.0,
+        weekly_context="W", error=None, market_open=st["open"], market_note=st["note"]).format()
+
+
+def test_range_volatile_reason_sends_nothing(tmp_path):
+    text = _range_volatile_brief(_WED)
+    assert "The 4-hour chart has been rising" in text and "Market closed" not in text
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    rows = _ledger(proj)[1]
+    assert [r["category"] for r in rows] == ["DIGEST"], rows          # the daily digest only
+    assert rows[0]["decision_state"] == "GBP_AUD=STAND ASIDE/open"
+    assert 'subtitle "DECISION"' not in _notes(tmp_path) and 'subtitle "ALERT"' not in _notes(tmp_path)
+
+
+def test_range_volatile_control_a_long_still_notifies(tmp_path):
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, _rendered("GBP_AUD", "LONG", _WED)))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert [r["category"] for r in _ledger(proj)[1]] == ["DECISION"]
