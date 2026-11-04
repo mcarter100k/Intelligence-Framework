@@ -553,6 +553,57 @@ def _last_expected_d1_close(now, close_hour: int):
     return c
 
 
+# Range + volatile 4-hour stand-asides: one true sentence per 4-hour state
+# (docs/specs/range_volatile_wording_v3_spec.md §3, amended by v4 §1). The
+# old "Range breaking down" read as bearish while GBP/AUD rallied ~370 pips
+# (2026-11-01 → 03). Words only: no decision depends on this text.
+_RV_EXHAUSTION = "overextended in a violent one-way move (not chased)"
+_RV_FACT_MIN_PIPS = 10          # below this, "up 2 pips" is not presented as a move
+
+
+def _range_volatile_reason(regime: dict, adx_d1=None) -> str:
+    import math
+    sub = regime.get("regime_h4_subtype", "")
+    fact = _unconfirmed_fact(regime, tf="h4") if sub == "UNCONFIRMED_TREND" else None
+    if fact is not None:
+        try:
+            chg = float(regime.get("h4_change_pips_10"))
+            if not math.isfinite(chg) or abs(chg) < _RV_FACT_MIN_PIPS:
+                fact = None               # never "up nan pips" (review 2026-11-03)
+        except (TypeError, ValueError):
+            fact = None
+    if sub == "EXHAUSTION":                       # W6: never contradict exhaustion
+        opening, ending = (f"The 4-hour chart is {_RV_EXHAUSTION},",
+                           "Standing aside until the 4-hour picture changes.")
+    elif fact is not None:
+        opening, ending = (f"The 4-hour chart has been {fact[0]} — {fact[1]} — but "
+                           f"its swing pattern hasn't confirmed a trend yet,",
+                           "Standing aside until it confirms.")
+    elif sub == "UNCONFIRMED_TREND":
+        opening, ending = ("The 4-hour chart is moving strongly but its swing "
+                           "pattern hasn't confirmed a direction yet,",
+                           "Standing aside until it confirms.")
+    elif sub == "TRANSITION_ZONE":
+        opening, ending = ("The 4-hour chart has no clear direction yet,",
+                           "Standing aside until a direction emerges.")
+    elif sub == "":
+        opening, ending = ("The 4-hour chart's volatility is outside its normal range,",
+                           "Standing aside until the 4-hour picture settles.")
+    elif sub == "STRUCTURE_DISAGREES":            # unreachable on H4 (v3 §0.2)
+        opening, ending = ("On the 4-hour chart the swing pattern and the "
+                           "momentum point opposite ways,",
+                           "Standing aside until the 4-hour picture changes.")
+    else:                                         # unreachable fallback
+        opening, ending = ("The 4-hour chart is unsettled,",
+                           "Standing aside until the 4-hour picture changes.")
+    daily = ("a daily chart that is overextended in a violent one-way move, not chased"
+             if regime.get("regime_d1_subtype") == "EXHAUSTION"   # no "(…) (…)"
+             else "a sideways daily chart")
+    strength = (f" (daily trend strength {float(adx_d1):.1f}/100)"
+                if adx_d1 is not None else "")
+    return f"{opening} inside {daily}{strength}. {ending}"
+
+
 def _render_reason(regime: dict, decision: dict, decision_str: str,
                    override: bool) -> str:
     """The REASON line exactly as the brief prints it — the one pipeline, so
@@ -620,9 +671,7 @@ def _build_reason(regime: dict, decision: dict,
             return (f"D1 and H4 trending in opposite directions "
                     f"({d1} vs {h4}) — structural disagreement, no edge.")
         elif "RANGING" in conflict_t and "VOLATILE" in conflict_t:
-            return (f"Range breaking down — H4 volatile inside D1 "
-                    f"range (ADX {adx_d1:.1f}). "
-                    f"Wait for resolution before engaging.")
+            return _range_volatile_reason(regime, adx_d1)
         else:
             return (f"Timeframe conflict ({d1} D1, {h4} H4) — "
                     f"no clean directional edge.")
@@ -682,8 +731,7 @@ def _build_reason(regime: dict, decision: dict,
 
     if decision_str == "STAND DOWN":
         if d1 == "RANGING" and h4 == "VOLATILE":
-            return (f"Range breaking down — H4 volatile inside D1 range. "
-                    f"Wait for resolution before engaging.")
+            return _range_volatile_reason(regime)
         if stand_rsn:
             return stand_rsn
         # Filter allowed but decision engine found no tradeable signal
