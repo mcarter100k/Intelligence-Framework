@@ -106,6 +106,35 @@ def summarize(is_target):
     }, targets, rows
 
 
+def changed_cells(rows, golden_commit):
+    """Only on a W5 mismatch: re-render every cell with decision_brief.py as of
+    `golden_commit` (from git, in a temp module) and name the non-target cells
+    whose REASON differs. Slow; never runs on a pass."""
+    import importlib.util
+    import subprocess
+    import tempfile
+    src = subprocess.run(["git", "-C", ROOT, "show",
+                          f"{golden_commit}:./decision_brief.py"],
+                         capture_output=True, text=True, check=True).stdout
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "decision_brief_golden.py")
+        open(path, "w").write(src)
+        spec = importlib.util.spec_from_file_location("decision_brief_golden", path)
+        old = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = old          # dataclasses need the module registered
+        try:
+            spec.loader.exec_module(old)
+        finally:
+            sys.modules.pop(spec.name, None)
+    want = {}
+    for key, regime, dec in cells():
+        reason = old._render_reason(regime, {"reason": ""}, dec, False)
+        if not reason.startswith(TARGET_PREFIX):
+            want[key] = hashlib.sha256(reason.encode()).hexdigest()
+    got = dict(r.split("\t") for r in rows)
+    return sorted(k for k in set(want) | set(got) if want.get(k) != got.get(k))
+
+
 if __name__ == "__main__":
     summary, targets, _ = summarize(lambda r: r.startswith(TARGET_PREFIX))
     summary["has_conflict_path"] = any(k.split("|")[5] == "1" for k in targets)

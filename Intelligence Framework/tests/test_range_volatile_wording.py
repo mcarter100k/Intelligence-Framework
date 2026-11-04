@@ -37,6 +37,7 @@ _spec = importlib.util.spec_from_file_location(
 grid = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(grid)
 
+GOLDEN_COMMIT = "47903d7"     # decision_brief.py as on main when the golden was made
 _ENDINGS = ("Standing aside until it confirms.", "Standing aside until a direction emerges.",
             "Standing aside until the 4-hour picture settles.",
             "Standing aside until the 4-hour picture changes.")
@@ -152,6 +153,25 @@ def test_w6_an_exhausted_daily_chart_is_not_called_sideways():
     assert "sideways" not in why and "overextended in a violent one-way move" in why
 
 
+def test_w6_an_exhausted_daily_chart_at_real_exhaustion_strength_keeps_the_new_sentence():
+    """Review 2026-11-03 (mutant G3 survived): W5's grid fixes daily strength
+    at 14.5, so the real exhaustion band (35+) is pinned here, on both paths."""
+    why = _reason(_rv(regime_d1_subtype="EXHAUSTION", adx=45.0,
+                      regime_h4_subtype="UNCONFIRMED_TREND", h4_change_pips_10=-1234))
+    assert why == ("The 4-hour chart has been falling — down 1234 pips over the last 40 hours "
+                   "— but its swing pattern hasn't confirmed a trend yet, inside a daily chart "
+                   "that is overextended in a violent one-way move, not chased (daily trend "
+                   "strength 45.0/100). Standing aside until it confirms.")
+    assert ") (" not in why
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), "abc", None, 0, 9.6])
+def test_the_fact_needs_a_real_move_of_at_least_10_pips(bad):
+    why = _reason(_rv(regime_h4_subtype="UNCONFIRMED_TREND", h4_change_pips_10=bad))
+    assert why.startswith("The 4-hour chart is moving strongly"), why
+    assert "nan" not in why and "inf" not in why
+
+
 def test_w6_an_exhausted_4_hour_chart_is_not_called_unsettled():
     why = _reason(_rv(regime_h4_subtype="EXHAUSTION"))
     assert why.startswith("The 4-hour chart is overextended in a violent one-way move")
@@ -239,6 +259,10 @@ def test_the_two_fallback_states_cannot_come_out_of_get_regime():
 # ── W5: exactly the target cells changed (golden from main, 47903d7) ─────────
 
 def test_w5_only_the_old_range_breaking_down_cells_changed():
+    """Exact over the grid's varied fields (tests/golden/reason_grid.py). Fields
+    the grid FIXES (daily strength 14.5, override False, execution_mode
+    STAND_DOWN, structure TRANSITIONAL) are not covered here; the build touched
+    only the two returns, and the exhaustion band is pinned separately."""
     golden = json.load(open(os.path.join(ROOT, "tests", "golden", "reason_grid_main.json")))
     assert golden["targets"] > 0 and golden["has_conflict_path"] and golden["has_stand_down_path"]
     summary, targets, _rows = grid.summarize(_is_new_sentence)
@@ -246,4 +270,6 @@ def test_w5_only_the_old_range_breaking_down_cells_changed():
     assert {k.split("|")[5] for k in targets} == {"0", "1"}       # both paths changed
     assert summary["targets"] == golden["targets"], (summary, golden)
     assert summary["target_keys_sha256"] == golden["target_keys_sha256"]
-    assert summary["non_target_sha256"] == golden["non_target_sha256"]
+    if summary["non_target_sha256"] != golden["non_target_sha256"]:
+        pytest.fail("non-target REASONs changed; cells: " + ", ".join(
+            grid.changed_cells(_rows, golden_commit=GOLDEN_COMMIT)[:20]))

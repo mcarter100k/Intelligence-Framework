@@ -562,12 +562,14 @@ _RV_FACT_MIN_PIPS = 10          # below this, "up 2 pips" is not presented as a 
 
 
 def _range_volatile_reason(regime: dict, adx_d1=None) -> str:
+    import math
     sub = regime.get("regime_h4_subtype", "")
     fact = _unconfirmed_fact(regime, tf="h4") if sub == "UNCONFIRMED_TREND" else None
     if fact is not None:
         try:
-            if abs(float(regime.get("h4_change_pips_10"))) < _RV_FACT_MIN_PIPS:
-                fact = None
+            chg = float(regime.get("h4_change_pips_10"))
+            if not math.isfinite(chg) or abs(chg) < _RV_FACT_MIN_PIPS:
+                fact = None               # never "up nan pips" (review 2026-11-03)
         except (TypeError, ValueError):
             fact = None
     if sub == "EXHAUSTION":                       # W6: never contradict exhaustion
@@ -594,8 +596,8 @@ def _range_volatile_reason(regime: dict, adx_d1=None) -> str:
     else:                                         # unreachable fallback
         opening, ending = ("The 4-hour chart is unsettled,",
                            "Standing aside until the 4-hour picture changes.")
-    daily = (f"a daily chart that is {_RV_EXHAUSTION}"
-             if regime.get("regime_d1_subtype") == "EXHAUSTION"
+    daily = ("a daily chart that is overextended in a violent one-way move, not chased"
+             if regime.get("regime_d1_subtype") == "EXHAUSTION"   # no "(…) (…)"
              else "a sideways daily chart")
     strength = (f" (daily trend strength {float(adx_d1):.1f}/100)"
                 if adx_d1 is not None else "")

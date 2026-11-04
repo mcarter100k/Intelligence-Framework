@@ -5317,3 +5317,27 @@ Spec: docs/specs/first_pullback_study_spec.md. Verdict on episode R after era sp
 - Caveat: the worktree has no news calendar (the `reality_run --code` gap known since 2026-10-18), so the news gate was not exercised in the build run. Its branches precede the target path and are pinned by W5.
 
 **Gate 3:** none needed. Visible on the next brief in this cell after merge.
+
+## 2026-11-03 — REVIEW of the range-wording build: both reviewers APPROVE WITH CHANGES (non-blocking); changes made
+
+**Verdicts on `6b820e9`:**
+- **Code reviewer: APPROVE WITH CHANGES.** Suite reproduced at 984. The state-by-state match with the spec was verified. Its own non-target mutant was caught by W5, and M11 was caught by the `get_regime` pin.
+- **Adversarial reviewer: rule 12 PASS; APPROVE WITH CHANGES.**
+  - Real `scheduled_brief.sh` runs, with and without `digest`, including an em dash starting a wrapped line, a closed market and a LONG: no triggered, suppressed or altered notification.
+  - Offline sweep: 144,048 rendered briefs (29,932 distinct reasons, pips −3000 to +3000) with **0** trigger hits. Positive control flagged.
+  - M7 and M11 re-run and caught.
+  - **Mutant G3 SURVIVED the full suite:** the target path cut off at daily strength 40+, the real exhaustion band, because the W5 grid fixes daily strength at 14.5. G1/G2, rewordings in fixed-field cells, also survived; they show W5's scope, not a defect.
+
+**Changes made (each checked):**
+1. **G3 closed.** An exact-sentence test for an exhausted daily chart at strength 45 on the conflict path. G3 re-applied → caught; reverted byte-identical.
+2. **Pip fact guarded with `math.isfinite`.** NaN and inf no longer render "up nan pips". Test: nan, inf, "abc", None, 0 and 9.6 all fall back to "moving strongly".
+3. **No double parenthesis.** The exhausted daily phrase reads "overextended in a violent one-way move, not chased (daily trend strength X/100)".
+4. **A W5 failure now names its cells.** It re-renders with `decision_brief.py` from the golden commit `47903d7`, via git.
+   - **The first version crashed on the failure path** (`AttributeError: 'NoneType' object has no attribute '__dict__'`: a dataclass loaded from a module not in `sys.modules`). Caught by deliberately triggering a W5 failure; on a passing run it would never have shown.
+   - Fixed. Re-check: a non-target rewording fails with `non-target REASONs changed; cells: RANGING|EXHAUSTION|…`. Reverted byte-identical.
+5. **W5's claim is narrowed in its docstring.** It is exact over the grid's varied fields. The fixed fields (daily strength, override, execution mode, structure) are not covered by it, and the exhaustion band is pinned separately.
+6. **Recorded old → new**, as both reviewers asked:
+   - W6: v3 said "no §3 sentence renders" for EXHAUSTION. The build instead uses the brief's existing overextension wording inside the new sentence, because `main` itself rendered "Range breaking down" for those cells.
+   - W5 storage: v4 said a plain key list; the build uses a hash of the sorted list plus its count.
+
+**Not changed:** the grid does not gain a daily-strength or override axis. Each would add about 30–60 s to every suite run; the exhaustion band is pinned by item 1 instead.
