@@ -5268,3 +5268,52 @@ Spec: docs/specs/first_pullback_study_spec.md. Verdict on episode R after era sp
 **Not built.** The build is a separate step on a new branch, needing the owner's go-ahead, Gate 1/2 evidence and review of the build.
 
 **What this does not change:** when the framework stands aside. That is a strategy question; see R37/R38 and the missed-moves report.
+
+## 2026-11-03 — BUILT, AWAITING REVIEW: truthful REASON for range + volatile 4-hour stand-asides (branch `feat/range-wording-build`, NOT merged)
+
+**Spec:** `docs/specs/range_volatile_wording_v3_spec.md` as amended by v4 (approved to build 2026-11-03). Golden committed from `main` before the build (`47903d7`), then the build (`6b820e9`). Protected module touched: `decision_brief.py`, REASON text only.
+
+**Change:**
+- `_range_volatile_reason()` replaces both "Range breaking down" returns: the conflict path, with daily strength, and the STAND DOWN path, without.
+- One sentence per 4-hour state. The direction comes only from the approved `_unconfirmed_fact`, with a 10-pip floor.
+- The STAND DOWN path keeps `main`'s exact condition. It compares the local `d1`/`h4`, which are already rewritten for EXHAUSTION, so cells outside the target set cannot change.
+
+**Two interpretations for the reviewer:**
+1. **W6.** Where a timeframe's subtype is EXHAUSTION, the brief's existing phrase "overextended in a violent one-way move (not chased)" replaces "sideways" (daily) or the opening (4-hour).
+   - Reason: `main` rendered "Range breaking down" even for an EXHAUSTION daily chart (the conflict branch checks raw regimes). Calling that chart "sideways" would be a new false statement.
+   - These are target cells and are counted in W5's 12,224.
+2. **W5 storage.**
+   - v4 said "target keys stored as a plain list". Old → new: a sha256 of the sorted list plus its count. It is equally exact and keeps about 1 MB out of the repo.
+   - The grid adds `atr_compression` per the approval.
+   - `instrument` enters only through each pair's real `atr_spike_multiplier`, because `_render_reason` never reads `instrument`.
+
+**Gate 1:**
+- `tests/test_range_volatile_wording.py`: 14 tests.
+  - The exact sentences for every reachable state on both paths.
+  - W1: no input mutation. W2: `_assert_clean`.
+  - W3: direction words only from the helper, and matching the sign (fixtures +190, −190, +4, None; synthetic, modelled on the 2026-11-03 row).
+  - W4: no trigger text. W6: both EXHAUSTION cases. W7: the filter's own string and the composite note never reach the REASON.
+  - An unreachable-fallback test, labelled as not coverage.
+  - **The unreachability pin through the real `get_regime`:** 60 seeded synthetic 4-hour series, feeds mocked, `_classify_ex` recorded.
+    - Asserts the slope sign matches a confirmed structure, and that STRUCTURE_DISAGREES and the residual `""` never occur.
+    - Preconditions, so it can't pass vacuously: at least 5 confirmed structures at strength 25+, and at least one raw 10-bar move against its structure.
+  - **W5:** all 1,382,400 cells re-rendered.
+    - The target-key hash, the count (12,224) and the non-target hash all match `main`'s golden exactly.
+    - Both paths are present.
+- `tests/test_wrapper_behavior.py`: the real `scheduled_brief.sh digest` on a stand-aside brief with the new sentence gives exactly one DIGEST row, `GBP_AUD=STAND ASIDE/open`, with no DECISION or ALERT. Control: an open LONG notifies.
+- **Mutation: 12 of 12 caught.** Each was confirmed applied, run under `/bin/bash` with `PYTHONDONTWRITEBYTECODE=1`, and reverted (16 passed).
+  - M1/M2: old sentence back on each path. M3: subtype dispatch removed. M4: direction inverted. M5: floor removed. M6: endings swapped.
+  - M7: `_plain()` bypassed. **The first M7 was a syntax error ("1 error" at collection), which is a failed measurement, not a catch.** It was redone as a compiling mutant (`lambda _x: _x`) and caught by W5.
+  - M8a/M8b: each EXHAUSTION guard removed. M9: a non-target cell reworded, caught by W5. M10: both paths old (empty target set).
+  - M11: the 4-hour slope not forced from structure (`regime_detection.py`), caught by the `get_regime` pin.
+- Full suite on the branch: **984 passed, 8 skipped, 2 deselected**. W5 adds about 30 s.
+
+**Gate 2 — REALITY:**
+- `reality_run.py brief --code <worktree>` and `reality_run.py brief` on `main`, back to back, 2026-11-03 evening PST. Both exit 0, stderr 0 bytes, `project files : UNCHANGED (verified by hash)`.
+- GBP/AUD was in this cell, live:
+  - **main:** `Range breaking down — 4-hour chart volatile inside daily chart range (trend strength 15.9/100). Wait for resolution before engaging.`
+  - **build:** `The 4-hour chart has been rising — up 197 pips over the last 40 hours — but its swing pattern hasn't confirmed a trend yet, inside a sideways daily chart (daily trend strength 15.9/100). Standing aside until it confirms.`
+- DECISION (`STAND ASIDE`), CONFIDENCE (`0/100 | Rating: C`) and POSITION (`0%`) were identical for both pairs. GBP/JPY's REASON was identical.
+- Caveat: the worktree has no news calendar (the `reality_run --code` gap known since 2026-10-18), so the news gate was not exercised in the build run. Its branches precede the target path and are pinned by W5.
+
+**Gate 3:** none needed. Visible on the next brief in this cell after merge.
