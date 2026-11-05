@@ -5614,3 +5614,21 @@ No protected module was edited. Two new cwd-relative, append-only ledgers: `idea
   - `reality_run --code` should hash the code directory too.
 
 **PENDING (Gate 3):** the first real idea, score and weekly review by the owner. Nothing about the trader can be concluded below 20 scored trades (§5).
+
+## 2026-11-05 — SPECS PROPOSED (not built): alerts open the latest run; short block; WATCH FOR defect
+
+**Trigger:** the owner pasted the 2026-11-03 day log and asked whether it is easily understood and why it is so long. Measured: 341 lines, three runs, 565 words a run, every decision STAND ASIDE. Owner approved the plan on 2026-11-05 ("yes").
+
+**CORRECTION (chat, same day):** I told the owner that repointing alerts to the latest run was free-zone work I could do now. It is in `scripts/`, but `docs/specs/daily_digest_spec.md` and this log's 2026-09-09 addendum hold "the full every-run regeneration and repointing of all notifications" for review. Found on reading the spec, before any build (rule 5). **Nothing was built.** It is now `docs/specs/latest_view_every_run_spec.md`, awaiting review.
+
+**DEFECT FOUND, not fixed (protected):** WATCH FOR on a RANGING daily chart reads "daily chart trend strength drops below 18 or 4-hour chart resolves to clean trend", and the 07:30 digest quotes it (`notification_log.csv`, 2026-11-04T16:37:24Z). Neither clause leads to a trade.
+- OBSERVED: 15 and 17 in the 2026-11-03 log, already below 18. At 18:00 that day GBP/JPY's 4-hour read "trending up" and the decision stayed STAND ASIDE.
+- OBSERVED: `session_context_log.csv`, logic `p5-2026-09-30`: 58 RANGING-daily rows, 0 allowed. The 19 allowed RANGING rows are all September, unversioned, before that logic.
+- OBSERVED: the same ledger's 93 RANGING rows split 49 below 18 and 44 at 35 or more.
+- INFERRED (code read, `regime_detection.py:709-722`): trending needs strength 25+ with agreeing swing pattern and slope. The truth sweep in `docs/specs/brief_summary_block_spec.md` §6 is what would verify this.
+
+**Checked:** terminal-notifier's permission is on (read-only, `com.apple.ncprefs.plist` allow flag set); a human confirmed click-through in this log's 2026-09-09 checklist. That the owner reached the day log by clicking is INFERRED from the wiring; it was not asked.
+
+**Open:** owner's decision on shadow notifications (off, or digest only). No change until then.
+
+**Files:** the two specs, the specs index, this entry. No code changed.
