@@ -5632,3 +5632,30 @@ No protected module was edited. Two new cwd-relative, append-only ledgers: `idea
 **Open:** owner's decision on shadow notifications (off, or digest only). No change until then.
 
 **Files:** the two specs, the specs index, this entry. No code changed.
+
+## 2026-11-05 — TEAM REVIEW of the two proposed specs: neither approved as written; §2 of the block spec partly false; new defects found
+
+**Owner decisions (2026-11-05):** run the team review now ("yes"); shadow-signal alerts go to the **digest only** (answer to the question "off, digest only, or keep"). The shadow change is not built: it needs its own spec and the rule-12 test.
+
+**Verdicts:**
+- `latest_view_every_run_spec.md`: code reviewer APPROVE WITH CHANGES; adversarial reviewer **REJECT as written**. A click on an older DECISION or ALERT opens a view later runs have overwritten. Demonstrated on temp logs: an 18:00 LONG with its exit level vanishes from the view after the next run (`mentions LONG: False`). Fix proposed: one never-overwritten file per run.
+- `brief_summary_block_spec.md`: both APPROVE WITH CHANGES for the block; the adversarial reviewer REJECTS the §2 replacement wording and question 4 (ship WATCH FOR alone first) until §2 is rewritten.
+
+**CORRECTION (my spec and my chat claim):** §2 said daily strength 18–25 is "still stand aside", and I told the owner a daily chart counts as trending "only from strength 25 upward". Both reviewers independently found this false. The counter-trend override trades from a VOLATILE daily at strength 18–25, or after a volatility jump at any strength under 32, when the 4-hour trends at 25+ and the weekly and daily structure agree (grade B, 0.35×). Shown by sweeps through the real `_classify_ex`, filter and official decision: 0 trades from 193,536 RANGING-daily cells; override trades from transition-zone and spike cells. The proposed wording "reaches 25 with its swing pattern agreeing" would itself be a false promise. **What holds:** a RANGING daily never trades (0 cells; 58 ledger rows under p5, 0 allowed); "drops below 18" cannot produce a trade. "4-hour resolves to clean trend" is half of the override route, insufficient alone. I also told the owner "neither clause leads to a trade": that is true of each clause alone, not of the second clause with the other override conditions.
+
+**New defects (not fixed):**
+1. **Evening runs are never compared, so they can never raise a flip alert** (`session_memory.py`, protected). `_get_today_rows` uses the UTC date. UTC midnight is 16:00 PST, between the 07:30 and 18:00 runs, so at 18:00 `get_session_delta` returns None and `_machine_flags` emits nothing.
+   - VERIFIED by both reviewers on temp ledger copies.
+   - OBSERVED by me: code at `session_memory.py:347`; `logs/brief_2026-11-04.log` has SESSION lines only for the 02:33 and 08:37 runs.
+   - OBSERVED by reviewers: no ALERT ever sent at the evening run's hour; GBP/JPY's 4-hour went VOLATILE → TRENDING_UP between 15:33Z 11-03 and 02:00Z 11-04 with no ALERT.
+   - Rule 9: a zero from a path that cannot fire.
+2. **`get_session_delta` cannot tell first run, missing ledger and failed read apart** (all None). When this run's row was not written, it compares two older rows and still says "Conditions unchanged" (reproduced).
+3. **"Conditions unchanged" ignores price.** OBSERVED: GBP/AUD moved 137 pips (ATR 114) between the 02:44 and 07:33 runs on 11-05 under that line.
+4. **`notify.sh` writes a failed ledger write into the file the notification opens.** For DIGEST that is `logs/latest_brief.log`, overwritten next run, so the failure never reaches the day log (demonstrated).
+5. **DIGEST can open a stale view:** `latest_view.py` always exits 0 and the wrapper only checks that the file exists.
+6. **View alert lines carry no run time.** OBSERVED: the live view showed the 07:33 run on top and a 02:44 regime-change alert at the bottom.
+7. **`scripts/trader_review.py` (merged 2026-11-04) reads an error page as the framework's STAND ASIDE** (demonstrated). An idea logged after a failed run would be scored "against the framework".
+8. **The SHADOW summary grep is unanchored** (`scheduled_brief.sh:178`, already a logged follow-up). OBSERVED: SHADOW summaries quote THE FULL PICTURE text.
+9. **`studies/missed_moves.py` pair-header pattern is unanchored** (demonstrated with a pipe-separated line). Study-only.
+
+**Status:** both specs stay PROPOSED and unbuilt. A revised spec is a new file (`docs/specs/README.md`). Reviewer scratch work: `/private/tmp/claude-501/advrev/` and the session scratchpad; no repo file was changed by either review (adversarial reviewer's project hash identical before and after, with a positive control).
