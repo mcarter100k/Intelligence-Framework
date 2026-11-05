@@ -461,6 +461,45 @@ def test_d3_a_failed_ledger_write_is_in_the_day_log_and_the_notification_still_g
     assert "NOTIFICATION LEDGER WRITE FAILED" in _log(proj, "brief")
 
 
+def _digest_pointer(tmp_path):
+    notes = [ln for ln in _notes(tmp_path).splitlines() if 'subtitle "DIGEST"' in ln]
+    assert len(notes) == 1, notes
+    return notes[0].split(" → ", 1)[1].split('"', 1)[0]
+
+
+def test_a_fresh_view_is_what_the_digest_opens(tmp_path):
+    """Positive control for the stale-view check: a normal digest run regenerates
+    the view, its first line is this run, and the click goes there."""
+    proj = _project(tmp_path)
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    assert _digest_pointer(tmp_path) == "logs/latest_brief.log"
+    first = (proj / "logs" / "latest_brief.log").read_text().splitlines()[0]
+    assert first.startswith("LATEST RUN — ") and first[len("LATEST RUN — "):] in _log(proj, "brief")
+
+
+def test_a_stale_view_is_never_what_the_digest_opens(tmp_path):
+    """latest_view.py always exits 0 and leaves the old file when it fails (team
+    review 2026-11-05, defect 5): the digest must then open the day log."""
+    proj = _project(tmp_path)
+    (proj / "scripts" / "latest_view.py").write_text("import sys\nsys.exit(0)\n")   # fails silently
+    (proj / "logs" / "latest_brief.log").write_text(
+        "LATEST RUN — 2026-11-04 07:33:53 PST\n  GBP/AUD  |  old\n  DECISION     LONG\n")
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    assert _digest_pointer(tmp_path).startswith("logs/brief_")
+
+
+def test_a_failed_ledger_write_for_the_digest_lands_in_the_day_log(tmp_path):
+    """notify.sh wrote the failure into the file the notification opens; for the
+    DIGEST that is the view the next run overwrites (team review 2026-11-05,
+    defect 4). The record must reach the append-only day log."""
+    proj = _project(tmp_path)
+    (proj / "notification_log.csv").mkdir()           # unwritable as a file
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    assert _digest_pointer(tmp_path) == "logs/latest_brief.log"     # the view path was taken
+    assert "NOTIFICATION LEDGER WRITE FAILED" in _log(proj, "brief")
+    assert "NOTIFICATION LEDGER WRITE FAILED" not in (proj / "logs" / "latest_brief.log").read_text()
+
+
 def test_digest_is_sent_only_with_the_digest_argument(tmp_path):
     proj = _project(tmp_path)
     _run(tmp_path, proj, "scheduled_brief.sh")

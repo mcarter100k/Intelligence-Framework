@@ -240,10 +240,18 @@ def framework_read(pair: str, direction: str, now: datetime) -> Dict[str, str]:
                 "stack_id": r.get("stack_id", ""),
             }
     if os.path.exists(BRIEF_FILE):
-        from daily_digest import pair_decisions
+        from daily_digest import _ERROR, _sections, pair_decisions
         text = open(BRIEF_FILE, encoding="utf-8").read()
         head = re.search(r"^LATEST RUN — (.+)$", text, re.M)
         name = pair.replace("_", "/")
+        # An error page renders "DECISION STAND ASIDE" too: a failed run is no
+        # read at all, never a stand-aside to agree or disagree with (team
+        # review 2026-11-05, defect 7).
+        if any(n == name and _ERROR.search(block) for n, block in _sections(text)):
+            return {"framework_read": "not recorded (the latest brief run failed)",
+                    "framework_read_source":
+                        f"brief of {head.group(1) if head else 'unknown time'}",
+                    "agrees_with_framework": "", "stack_id": ""}
         for d in pair_decisions(text):
             if d.startswith(name + " "):
                 call = d[len(name) + 1:]

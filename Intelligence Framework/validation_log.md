@@ -5659,3 +5659,19 @@ No protected module was edited. Two new cwd-relative, append-only ledgers: `idea
 9. **`studies/missed_moves.py` pair-header pattern is unanchored** (demonstrated with a pipe-separated line). Study-only.
 
 **Status:** both specs stay PROPOSED and unbuilt. A revised spec is a new file (`docs/specs/README.md`). Reviewer scratch work: `/private/tmp/claude-501/advrev/` and the session scratchpad; no repo file was changed by either review (adversarial reviewer's project hash identical before and after, with a positive control).
+
+## 2026-11-05 — FIXED (free zone): three defects from the team review (branch `fix/alert-plumbing`)
+
+Owner approved ("yes", 2026-11-05) after the review entry above. Defect numbers refer to that entry.
+
+1. **Defect 7: `scripts/trader_review.py` read an error page as the framework's STAND ASIDE.** VERIFIED before the fix: a real `decision_brief._error_brief(...).format()` renders `DECISION     STAND ASIDE` and parses as `GBP/AUD STAND ASIDE`. Now, when the pair's section of the latest run carries the error label, the idea records `not recorded (the latest brief run failed)` with no agree/disagree. Test uses a real rendered error page.
+2. **Defect 5: the DIGEST could open a stale view.** The wrapper stamps the run header once (`RUN_STAMP`). The digest opens `logs/latest_brief.log` only when its first line is exactly `LATEST RUN — <this run's stamp>`; otherwise it opens the day log. Positive control: a normal digest run opens the view, whose first line is this run.
+3. **Defect 4: a failed notification-ledger write was written into the file the notification opens** (for the DIGEST, the view the next run overwrites). `notify` takes an optional 6th argument, where to record failures (default unchanged); the DIGEST passes the day log.
+
+**Checks:**
+- Mutation, 4/4 caught: freshness check removed, notify recording into the click target, digest call without the day log, error check removed. Each target string occurred once and was replaced; restored byte-identical; 79 passed after.
+- Gate 2 (real text, before and after, the 2026-09 precedent): the last 40 real runs from `logs/brief_2026-1*.log` replayed through `main`'s wrappers and this branch's, in sandboxes with stub notifiers, digest mode. **40/40 identical** categories, summaries and notification-ledger states. Branch pointers: DIGEST → `logs/latest_brief.log` in 28; SHADOW → day log in 5 (unchanged until its own spec).
+- OBSERVED, existing, not changed: in 12 of the 40 the osascript fallback's 220-character cut removes the `→ file` pointer from the DIGEST text. The terminal-notifier path carries the click target separately.
+- `/bin/bash -n` (3.2) clean on both scripts. Full suite on the branch: 1019 passed, 10 skipped, 2 deselected.
+
+**Not fixed here (in the specs round):** the other six defects.

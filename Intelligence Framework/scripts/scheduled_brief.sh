@@ -57,7 +57,9 @@ fi
 ERRTMP="$(mktemp)"
 OUT="$(python3 decision_brief.py GBP_AUD GBP_JPY 2>"$ERRTMP")"
 BRC=$?
-{ echo "===== $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="; echo "$OUT"; echo; } >> "$LOG"
+# The header is stamped once: the digest's freshness check below matches it.
+RUN_STAMP="$(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z')"
+{ echo "===== $RUN_STAMP ====="; echo "$OUT"; echo; } >> "$LOG"
 if [ -s "$ERRTMP" ]; then
     { echo "----- stderr (exit $BRC) -----"; cat "$ERRTMP"; echo; } >> "$LOG"
 fi
@@ -193,8 +195,13 @@ if [ "${1:-}" = "digest" ]; then
     DIGEST="$(printf '%s
 ' "$OUT" | python3 scripts/daily_digest.py)"
     [ -z "$DIGEST" ] && DIGEST="digest unavailable — see the log"
-    if [ -f "logs/latest_brief.log" ]; then
-        notify "DIGEST" "$DIGEST" "logs/latest_brief.log" "$PAIRS" "$DSTATE"
+    # latest_view.py always exits 0 and keeps the old file on failure, so the
+    # view is used only when its first line is THIS run (team review
+    # 2026-11-05, defect 5); otherwise the click opens the day log. Ledger
+    # failures always go to the day log (notify's 6th argument).
+    if [ -f "logs/latest_brief.log" ] \
+       && [ "$(head -n 1 logs/latest_brief.log)" = "LATEST RUN — $RUN_STAMP" ]; then
+        notify "DIGEST" "$DIGEST" "logs/latest_brief.log" "$PAIRS" "$DSTATE" "$LOG"
     else
         notify "DIGEST" "$DIGEST" "$LOG" "$PAIRS" "$DSTATE"
     fi

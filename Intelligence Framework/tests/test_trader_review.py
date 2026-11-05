@@ -157,6 +157,20 @@ def test_idea_falls_back_to_the_latest_brief(project):
     assert row["agrees_with_framework"] == "NO"
 
 
+def test_a_failed_brief_run_is_not_a_framework_read(project):
+    """A real error page says "DECISION STAND ASIDE"; it must read as no read,
+    never as a stand-aside the idea disagrees with (review 2026-11-05)."""
+    import decision_brief
+    page = decision_brief._error_brief("GBP_JPY", "2026-11-04T15:33:53Z", "OANDA unreachable").format()
+    assert "STAND ASIDE" in page and "Framework error" in page      # the trap is real
+    os.makedirs("logs")
+    with open(tr.BRIEF_FILE, "w") as f:
+        f.write("LATEST RUN — 2026-11-04 07:33:53 PST\n" + page)
+    row = tr.log_idea(ask=scripted(*TAKEN_LONG), now=WED)
+    assert row["framework_read"] == "not recorded (the latest brief run failed)"
+    assert row["agrees_with_framework"] == ""
+
+
 def test_a_stop_on_the_wrong_side_is_asked_again(project):
     answers = list(TAKEN_LONG)
     answers[5:5] = ["212.17", "212.50", "213.78"]       # stop above a long entry
