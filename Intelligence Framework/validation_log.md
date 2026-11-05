@@ -5378,3 +5378,30 @@ Spec: docs/specs/first_pullback_study_spec.md. Verdict on episode R after era sp
 **CORRECTION (chat only, 2026-11-03):** I told the owner the 18:00 PST brief on 11-03 would re-download the calendar. It did not. `calendar.csv` was written 2026-11-02 18:01:44, so at 18:00:05 it was under the `-mmin +1440` threshold in `scheduled_brief.sh`. The first re-fetch was the 02:33 run above.
 
 **NOT CHECKED, noted:** the 2026-11-04 morning run was late. The digest went out at 08:37 PST (07:30 and 07:33 on the two days before); the GBP/AUD section is stamped 7:47 AM and GBP/JPY 8:37 AM. A sleeping machine is one possible cause; not investigated.
+
+## 2026-11-04 — PRE-REGISTERED: frozen shadow candidates on the 2005–2013 STUDY data (study FCS-1; branch `feat/frozen-candidates-study`)
+
+**Owner request (2026-11-04):** "start with 1 and 2". Item 2 was a pre-registered test of joining momentum on 2005–2013 data, with costs. `data_map_spec.md` §8 (team amendment 2026-09-11) already names the STUDY's purpose as exactly this: the three frozen candidates, each its own question, parameters byte-identical, live grading rule. No new rule is introduced. Item 3 (checking candidates on every live H4 bar) is left for the team.
+
+**No 2005–2013 fire or outcome of any candidate has been computed.** The study's code has run only on synthetic bars. The STUDY data files were hashed and not opened.
+
+**Files and sha256 (this commit):**
+- `docs/specs/frozen_candidates_study_spec.md` 7a101eb316e249531f81df9da04bd771385f5ce1581995ae225ab85fd5cf6c1c
+- `studies/frozen_candidates_study.py` de244dd58d453cc499778dfe8c587e1d3df1f95d8131fc0d6c5fbfd64b157d41
+- `tests/test_frozen_candidates_selftest.py` c2d85a3351a02898a84b1f8097a71a08343fee2886578462135978ce5bd54def
+- Code under test, unchanged: `shadow_signals.py` b27d1aa12d87deaf438dd92fd001af062b3c1b94db16329f977c5e68409ab3ba; `regime_detection.py` 4723b8f7d23a395a88e8b7a12b855c4a82f967b9fc9710a1d2ea85dfb3fb68c6; `studies/first_pullback_study.py` 8549612e67e28659cc57f2331a0181815b89568860284887872511c1a128f169; `studies/history_study_convert.py` 584ff76da113d3ab8d8eae277f95b6596981badfb8923634063b87de044ea553; `studies/policy_rates_2003_2014.json` 5df23e1891630678f2c10184ba8b261498d8a56193a6cc81710f6a83d6a6eacf
+- Data (`~/intel_study_archives/us_event_reaction_data/`), equal to the pinned values: GBP_AUD_D 661a9d49…d939, GBP_AUD_H4 a59db994…ff77, GBP_JPY_D ca160240…000a, GBP_JPY_H4 f06892d1…3764
+
+**Self-test (`SELFTEST OK`, 22 checks, synthetic series seed 68 on the real H4 calendar):**
+- The context equals `shadow_signals._load_ctx` field for field.
+- 26 fires equal `check_shadow_signals` bar by bar (MOMENTUM_JOIN 3, THRUST_PULLBACK 5, EARLY_MOMENTUM_v2 18).
+- 26 grades equal `grade_pending_shadow` on a temporary ledger, and episodes equal `graded_episodes`.
+- Hand cases: grades, `cell_trades` costs (7 nights, not 10, at a rollover edge), episode spacing, the invalid-row drop, the verdict boundaries with Bonferroni, and the refusals.
+
+**Mutation (13 mutants):** first pass 10 caught, 3 survived. M6 (episode spacing 29), M7 (financing clock from the fire bar) and M10 (invalid rows kept) were not reached by the synthetic series. Three hand checks were added. Second pass: **13/13 caught**. Each mutant's target string occurred exactly once and was replaced. Restored byte-identical; 2 passed after.
+
+**Suite (branch):** 993 passed, 8 skipped, 2 deselected.
+
+**Power (spec §9):** N required for +0.15R at 80% power, α 0.01: 643. SUPPORTED needs a large edge (about +0.24R at N 250); REFUTED is reachable.
+
+**Next:** the counts stage (`data_map_spec` §9: fires and episodes only), run through `scripts/reality_run.py`, logged and committed before the single full run.
