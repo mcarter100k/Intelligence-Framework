@@ -1,6 +1,6 @@
 # What a sharp FX trader reads, and what this framework covers
 
-**As of 2026-10-31.** This list comes from reading the code and the
+**As of 2026-10-31; rows updated 2026-11-04 carry that date.** This list comes from reading the code and the
 foundation docs, not from running anything. Re-check a row before relying
 on it. "Have" means the framework covers the area, not that it has been
 shown to help: nothing here is VALIDATED.
@@ -20,7 +20,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 |---|---|---|
 | Central-bank policy (BoE, RBA, BoJ): rate path and what the market prices | MANUAL | Written weekly in `storylines.md`. **Stale since 2026-09-10.** No data feed |
 | Inflation, growth, jobs (CPI, GDP, employment) | MANUAL | Narrative only, in `storylines.md` |
-| Economic calendar and event risk | HAVE | `news_gate.py` stands aside around high-impact GBP/AUD/JPY events. **USD events missing.** Tested 2026-11-01 (R35, R36): scheduled US releases are INCONCLUSIVE on both pairs, so they come in as context, not a gate |
+| Economic calendar and event risk | HAVE | `news_gate.py` stands aside around high-impact GBP/AUD/JPY events. Tested 2026-11-01 (R35, R36): scheduled US releases are INCONCLUSIVE on both pairs, so they come in as context, not a gate. **US events shown as context since 2026-11-03** (`US DATA` line in the brief, merge `99919de`); first live render 2026-11-04 after the 02:33 PST calendar fetch wrote 4 US events |
 | Surprise vs forecast (actual minus consensus) | MISSING | `calendar.csv` stores forecast and previous, but nothing uses them. The feed has no actual values, and the file is overwritten every fetch, so no history builds up |
 | Interest-rate differentials and carry | TESTED | Carry after a quiet week: GBP/JPY REFUTED (R33), GBP/AUD INCONCLUSIVE (R34). Not a live input |
 | Government action (yen intervention, fiscal news) | MANUAL | Intervention watch flag in `storylines.md`, read by `setup_check.py` |
@@ -41,7 +41,8 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 |---|---|---|
 | Trend vs sideways, across weekly / daily / 4-hour | HAVE | `regime_detection.py` (thresholds are INFORMED PRIOR) |
 | Exhausted, overextended moves (GBP/JPY) | HAVE | Exhaustion subtype; the framework stands aside on it |
-| Key levels | HAVE | `levels_context.py`. Turns happen at levels about 90% of the time, but timing is unpredictable |
+| Key levels | HAVE | `levels_context.py`: previous day and week highs and lows, session high and low, Asian range. Turns happen at levels about 90% of the time, but timing is unpredictable |
+| Swing structure levels, zones, Fibonacci (a hand markup) | MANUAL (method only) | Added 2026-11-04: `foundation/chart_reading_method.md`, every rule tagged UNTESTED or with its finding. Nothing in the brief draws swing levels, zones or Fibonacci lines. Pullback depth is descriptive only (R39: most first pullbacks reach 38.2%); buying the touch shows no edge (R37, R38) |
 | Volatility (how far the pair typically moves) | HAVE | ATR-based; spike and compression stand-downs |
 | Entry timing on hourly / 15-minute bars | HAVE | `entry_confirmation.py` |
 | Profit targets | MISSING, by design | "Set your own; it must pay at least 1.5R after spread" |
@@ -72,7 +73,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 |---|---|---|
 | Honest sample counting, power checks, pre-registration | HAVE | `foundation/tools/`, `foundation/methodology.md`. This is the framework's strongest part |
 | Forward test of candidates | HAVE | `shadow_signals.py`. As of 2026-10-19: EARLY_MOMENTUM_v2 3 episodes (avg −0.20R), THRUST_PULLBACK 1, MOMENTUM_JOIN 1 |
-| Tested ideas (34, most refuted) | HAVE | `foundation/research_findings.md`. Check here before testing an idea |
+| Tested ideas (39, most refuted; count updated 2026-11-04) | HAVE | `foundation/research_findings.md`. Check here before testing an idea |
 | Long-history test with costs (OANDA 2014–2021) | MISSING | The audit's recommended next evidence source |
 | A proven edge | MISSING | |
 
@@ -85,8 +86,8 @@ need a spec and team review first (AGENTS.md).
    size.
 2. **Refresh the macro read, then measure it.** Bring `storylines.md`
    current and log agree/conflict per decision so the market grades it.
-3. **Add cross-market context**: USD events in the news gate, and a
-   US-yields / risk-tone line in the brief as context only.
+3. **Add cross-market context**: a US-yields / risk-tone line in the brief
+   as context only. (USD events: done as context 2026-11-03.)
 4. **Count costs**: spread and financing in shadow grading.
 5. **Wire the circuit breaker** before any real money.
 6. **Run the long-history cost-aware test** for honest sample size fast.
