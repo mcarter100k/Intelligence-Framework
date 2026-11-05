@@ -5405,3 +5405,26 @@ Spec: docs/specs/first_pullback_study_spec.md. Verdict on episode R after era sp
 **Power (spec §9):** N required for +0.15R at 80% power, α 0.01: 643. SUPPORTED needs a large edge (about +0.24R at N 250); REFUTED is reachable.
 
 **Next:** the counts stage (`data_map_spec` §9: fires and episodes only), run through `scripts/reality_run.py`, logged and committed before the single full run.
+
+## 2026-11-04 — COUNTS (FCS-1, data_map_spec §9): fires and episodes per cell, before any R
+
+Run, after the pre-registration commit `81f25bb`: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/frozen_candidates_study.py counts ~/intel_study_archives/us_event_reaction_data`, from the live project. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty. The runner verified all 4 data hashes. Output verbatim (no R, no stop, no outcome is printed by this stage):
+
+```
+Data hashes verified against the pinned values (4 files).
+GBP_AUD: H4 bars 14030 (2005-01-02T22:00:00+00:00 to 2013-12-30T18:00:00+00:00); replayed from bar 299; weekend rule: 771 Sunday H4 folded, 480 Saturday H4 dropped
+GBP_JPY: H4 bars 14028 (2005-01-02T22:00:00+00:00 to 2013-12-30T18:00:00+00:00); replayed from bar 299; weekend rule: 710 Sunday H4 folded, 453 Saturday H4 dropped
+CELL MOMENTUM_JOIN GBP_AUD: fires 416; invalid dropped 0; graded fires 415; ungraded at data end 1; EPISODES N 98 (long 44, short 54); episodes/yr 10.9; exam-split flag (>= 8/yr): yes; per year {2005: 14, 2006: 11, 2007: 10, 2008: 6, 2009: 10, 2010: 12, 2011: 9, 2012: 12, 2013: 14}
+CELL MOMENTUM_JOIN GBP_JPY: fires 381; invalid dropped 0; graded fires 381; ungraded at data end 0; EPISODES N 96 (long 52, short 44); episodes/yr 10.7; exam-split flag (>= 8/yr): yes; per year {2005: 7, 2006: 13, 2007: 8, 2008: 12, 2009: 12, 2010: 10, 2011: 9, 2012: 13, 2013: 12}
+CELL THRUST_PULLBACK GBP_AUD: fires 75; invalid dropped 0; graded fires 75; ungraded at data end 0; EPISODES N 51 (long 24, short 27); episodes/yr 5.7; exam-split flag (>= 8/yr): no; per year {2005: 7, 2006: 5, 2007: 7, 2008: 8, 2009: 7, 2010: 2, 2011: 6, 2012: 5, 2013: 4}
+CELL THRUST_PULLBACK GBP_JPY: fires 53; invalid dropped 0; graded fires 53; ungraded at data end 0; EPISODES N 39 (long 15, short 24); episodes/yr 4.3; exam-split flag (>= 8/yr): no; per year {2005: 6, 2006: 4, 2007: 5, 2008: 5, 2009: 3, 2010: 4, 2011: 6, 2012: 2, 2013: 4}
+CELL EARLY_MOMENTUM_v2 GBP_JPY: fires 1955; invalid dropped 0; graded fires 1955; ungraded at data end 0; EPISODES N 246 (long 147, short 99); episodes/yr 27.3; exam-split flag (>= 8/yr): yes; per year {2005: 21, 2006: 25, 2007: 27, 2008: 32, 2009: 27, 2010: 30, 2011: 28, 2012: 30, 2013: 26}
+```
+
+**§9 reading:** every cell is above 20 episodes, so the full run covers all five. None is near the "~25: too selective to validate on history" mark. THRUST_PULLBACK is the thinnest (GBP_JPY 39, GBP_AUD 51).
+
+**Exam-split flags (data_map_spec §1):** MOMENTUM_JOIN both pairs and EARLY_MOMENTUM_v2 yes (10.7–27.3 episodes a year); THRUST_PULLBACK both pairs no (4.3–5.7). These only matter if the team ever opens the sealed exam for a candidate.
+
+**Power at these N (spec §9; SD 1.2R, α 0.01):** about 6–21% for +0.15R. SUPPORTED would need roughly +0.6R (N 39) down to +0.24R (N 246).
+
+**Next:** `full`, once.
