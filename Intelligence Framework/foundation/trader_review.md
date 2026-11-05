@@ -12,6 +12,26 @@ in the framework (`setup_check.py`, `trade_management.py`, `risk_config.py`
 and `session_guard.py`; see `risk_and_execution.md`) rather than inventing new
 ones.
 
+## 0. How to run it (tool added 2026-11-04: `scripts/trader_review.py`)
+
+Run every command from the Intelligence Framework folder. The tool refuses to
+write anywhere else.
+
+| When | Command | What it records |
+|---|---|---|
+| Before a trade (recommended) | `python3 setup_check.py GBP_JPY LONG --target 213.78` | The six lines and **the framework's read**, live |
+| Every idea, taken or passed | `python3 scripts/trader_review.py idea` | Your plan: play, zone, trigger, entry, stop, target, grade, feeling. It copies the framework's read from a pre-trade check of the same pair and direction in the last 6 hours, or else from the latest brief, or else marks it "not recorded" |
+| Entering and exiting a taken trade | `python3 trade_logger.py open`, later `close` | Your real fills (size 0.0 for a practice trade) |
+| When an idea is over | `python3 scripts/trader_review.py score` | Taken: R from the trades.csv fills only (never from memory), the five process questions, rule breaks. Passed: R on paper from your plan prices, less the 4-pip spread, or "never filled" |
+| Anytime | `python3 scripts/trader_review.py list` | Ideas still waiting for a score |
+| Weekend | `python3 scripts/trader_review.py review` | Steps 1–6 below, then ONE lesson and AT MOST ONE rule change. A week can only be written once it has ended, and only once. `--no-write` shows the numbers without writing; `--week 2026-W45` picks a week |
+
+Ledgers: `idea_journal.csv` (an IDEA row, then a SCORE row; scoring never
+edits the IDEA row) and `trader_review_log.csv` (one row per week). Both are
+gitignored, append-only and backed up nightly. The tool sends no
+notifications. §5's monthly check prints its own `power_check.py` command once
+there are 20 scored trades.
+
 ---
 
 ## 1. Before the trade: six lines, each answerable in words

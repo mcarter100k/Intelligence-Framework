@@ -65,7 +65,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 | Daily loss limit, position cap, two GBP pairs counted as one exposure | NOT WIRED | `session_guard.py`. Limits are **not enforced**. Must be wired before the first real-money trade |
 | Trade management (breakeven, partials, trailing) | HAVE, as rules | `foundation/risk_and_execution.md` |
 | Pre-trade checklist and journal | MANUAL | `setup_check.py`, `trade_logger.py`. Zero real trades so far (one paper test) |
-| Grading the trader (process separate from outcome, weekly review) | NOT WIRED | Designed in `foundation/trader_review.md`, never run. The foundation calls this the biggest gap |
+| Grading the trader (process separate from outcome, weekly review) | MANUAL (built 2026-11-04, not yet used) | `scripts/trader_review.py`: log every idea taken or passed, score outcome R and process separately, weekly review with one lesson and at most one rule change (`foundation/trader_review.md` §0). Zero real ideas logged so far: it starts counting when the owner uses it |
 
 ## Evidence: knowing what actually pays
 

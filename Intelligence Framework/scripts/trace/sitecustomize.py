@@ -25,7 +25,8 @@ _OUT = os.environ.get("TRACE_OUT")
 _PROG = os.path.basename(sys.argv[0]) if sys.argv and sys.argv[0] else "python"
 _LEDGERS = ("regime_classification_log.csv", "session_context_log.csv",
             "shadow_signal_log.csv", "trade_signal_log.csv", "health_state.json",
-            "excluded_rows.csv", "trades.csv", "pre_trade_journal.csv", "trade_log.csv")
+            "excluded_rows.csv", "trades.csv", "pre_trade_journal.csv", "trade_log.csv",
+            "idea_journal.csv", "trader_review_log.csv")
 
 
 def _emit(event, **kw):

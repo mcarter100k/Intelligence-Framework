@@ -41,6 +41,7 @@ EVIDENCE = [
     "shadow_signal_log.csv", "trade_signal_log.csv", "excluded_rows.csv",
     "trades.csv", "pre_trade_journal.csv", "trade_log.csv",
     "notification_log.csv",   # docs/specs/notification_ledger_spec.md
+    "idea_journal.csv", "trader_review_log.csv",   # scripts/trader_review.py
     os.path.join("logs", "health_state.json"),
 ]
 

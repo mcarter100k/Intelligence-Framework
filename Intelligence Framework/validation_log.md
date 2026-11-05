@@ -5570,3 +5570,47 @@ Spec: docs/specs/frozen_candidates_study_spec.md. Every H4 bar, live candidate c
 - Observed, not investigated: 0 stops gapped through the stop in any cell (the gap logic is checked on synthetic bars; real H4 bars open at the previous close almost always).
 
 **Recorded:** R40–R42 in `foundation/research_findings.md`; `foundation/candidates.md`; `docs/capability_inventory.md`; specs index status.
+## 2026-11-04 — BUILT, NOT MERGED: the trader review loop (free zone; branch `feat/trader-review-loop`)
+
+**Trigger:** the owner chose "start the trader-review loop" (capability inventory: "Grading the trader — NOT WIRED, never run"; `foundation/trader_review.md` calls it the biggest gap).
+
+**What it is:** `scripts/trader_review.py` with `idea`, `score`, `list` and `review`. It reuses the existing tools:
+- `setup_check.py` supplies the framework's read: its row for the same pair and direction from the last 6 hours, else the latest brief's DECISION, else "not recorded".
+- `trade_logger.py` supplies real fills.
+- `trade_management` supplies after-spread reward to risk, pip size and the 4-pip spread.
+- `risk_config` supplies grade → risk %.
+- `ledger_io` handles every write.
+- `exclusions`, `display_time` and `daily_digest.pair_decisions` are reused unchanged.
+
+No protected module was edited. Two new cwd-relative, append-only ledgers: `idea_journal.csv` (IDEA then SCORE rows) and `trader_review_log.csv` (one row per week). Both are registered in `.gitignore`, `tests/test_ledger_headers.py`, `scripts/backup_ledgers.py` and the tracer. No notifications are sent.
+
+**Protections, each with a test and a caught mutant** (`tests/test_trader_review.py`, 22 tests; mutants applied with a per-mutant line diff, run with `PYTHONDONTWRITEBYTECODE=1`, restored byte-identical, 22 passed after):
+- M1 a taken idea scored from its plan instead of trades.csv → 2 failed
+- M2 scoring rewrites instead of appending → 5 failed
+- M3 a review written mid-week → 1 failed
+- M4 a second review for the same week → 1 failed
+- M5 the project-folder guard removed → 1 failed
+- M6 a missing framework read counted as disagreement → 1 failed
+- M7 a missing journal shown as a week of zeros → 1 failed
+- M8 the paper spread dropped → 2 failed
+- M9 the SHORT sign ignored in R → 3 failed
+- M10 a stale (over 6 h) pre-trade check used → 1 failed
+- M11 a fill opened before the idea matched → 1 failed
+
+**Suite (branch):** 1013 passed, 10 skipped, 2 deselected (2026-11-04).
+
+**REALITY GATE** (`scripts/reality_run.py --code <worktree> script -- tr_gate2.py`, run from the live project): live `setup_check GBP_JPY LONG` (rated C, against the framework) → `idea` taken GBP/JPY long 212.17 / 211.45 / 213.78 and passed GBP/AUD short → `trade_logger open/close` (size 0.0, temp copy) → `score` → `review`.
+- Real output: `Framework's read: NO TRADE (grade C) (pre-trade check 20261105T072035Z_GBP_JPY_LONG)`; `Scored …GBP_JPY_LONG: +2.00R (FILL (trades.csv)), process 0.8`; `Scored …GBP_AUD_SHORT: -1.07R (PAPER: plan prices less the 4-pip spread)`.
+- Review: `1 IDEAS 2 logged: 1 taken, 1 passed. Trades against the framework's read: 1; framework read not recorded for 1.`
+- `2026-W45 is not over yet …` (refused); `Review for 2026-W44 recorded`; second attempt `already reviewed` (refused).
+- `project files: UNCHANGED (verified by hash)`. A separate hash of the worktree before and after showed no change; a positive control (a planted file) was detected.
+
+**CORRECTION / FINDING (first Gate 2 attempt):**
+- `setup_check.append_journal(stack, path=JOURNAL_FILE)` binds its default when the module is imported. Reassigning `setup_check.JOURNAL_FILE` does not redirect `main()`'s write.
+- The first run's pre-trade row therefore landed in the `--code` worktree, not the temp copy. `reality_run` hashes only the project, not the `--code` directory, so it reported UNCHANGED.
+- The live project was not touched. The stray worktree file held exactly that run's one row and was removed. The second run redirected the default and hashed the worktree too.
+- Two items for the team, not changed here:
+  - `setup_check.py` is protected; the default binding also defeats conftest's `_ABSOLUTE_WRITERS` redirect for `main()`.
+  - `reality_run --code` should hash the code directory too.
+
+**PENDING (Gate 3):** the first real idea, score and weekly review by the owner. Nothing about the trader can be concluded below 20 scored trades (§5).
