@@ -5769,3 +5769,20 @@ Not inventoried: entry/target text, the US DATA line, the news note, the stale-f
 **Evidence status:** reviewer sweeps and reproductions ran on copies under `/private/tmp/claude-501/rev2/` and `/advrev2/`. Both reviewers report the project unchanged: the adversarial reviewer by hash over 923 files with a positive control; the code reviewer by `git status` and `find -newer` with a positive control. I re-ran only inventory item 1. All other inventory counts are the reviewer's, OBSERVED by them, not re-run by me.
 
 **Status:** all four specs stay PROPOSED and unbuilt. Revisions go in new spec files.
+
+## 2026-11-05 — FIXED (free zone): the digest's watch clause names its pair and comes from it; owner decisions on the round-2 findings
+
+**Owner decisions (2026-11-05, after round 2):**
+1. Decision flips (filter allowed ↔ stand aside, and exit-watch) always alert, whatever the gap size. Only character changes (regime-only, STAND ASIDE both sides) are gated. The owner withdrew the size gate: "a size threshold that silences 2 of 3 decision flips is a bad trade at any price."
+2. Option (a): evening alerts only for decision flips and exit-watch; character changes go to the digest. **Sequencing: this fix must land before (a) ships**, so information is not routed into a defective channel.
+3. Override wording as the reviewers proposed ("one recorded use, May 2026, before this framework's records and under earlier rules: lost"). It is hard-coded by necessity, so add a test that fails if a second override trade ever appears in the ledger.
+4. Run files live outside `logs/`, kept 90 days. Before moving them, confirm nothing reads them as the record. Today: run files do not exist yet. `studies/decision_channel_inventory.py`, `scripts/run_count.py` and `studies/missed_moves.py` read `logs/brief_*.log` (reviewer code read), so the revised spec must require that check again at build.
+5. Method: display claims that can be checked by rendering states should be, and the inventory re-run when display logic changes. To be proposed as a standing test.
+
+**Fix:** see `docs/specs/digest_watch_attribution_spec.md`. The real 2026-10-12 digest read `GBP/JPY SHORT — watch: daily chart trend strength crosses 25 …`, which is GBP/AUD's condition. It now reads `GBP/JPY SHORT — GBP/JPY exit if: 4-hour chart breaks above range resistance before entry — …`.
+
+**Checks:**
+- New tests fail on `main`'s builder: 7 failed, 17 passed. Pass on the branch: 86 passed across the digest, state-label and wrapper tests.
+- Mutation 5/5 caught: section search widened to the whole run; call priority removed; label fixed to "watch"; pair name dropped; pivot preference removed. Restored byte-identical; 86 passed after.
+- Gate 2: 40 real runs through `main` and the branch, sandboxed with stub notifiers. Categories, non-digest summaries and ledger state identical in 40/40. Digest: the same clause with its pair label added in 40/40, 12 of them cut by the existing 220-character osascript limit. Decision head unchanged in 40/40. None of the 40 had a LONG or SHORT.
+- Gate 3 PENDING: the first call-day digest.

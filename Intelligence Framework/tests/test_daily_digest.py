@@ -58,7 +58,7 @@ _BRIEF = """═════════
 
 def test_digest_both_pairs_and_concrete_watch():
     line = dd.build_digest(_BRIEF)
-    assert line == ("GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE — watch: "
+    assert line == ("GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE — GBP/AUD watch: "
                     "The low near 1.8732 confirms as a swing low — it "
                     "stays the lowest point for 2 more sessions and a "
                     "session then closes above it — with the 4-hour chart "
@@ -68,7 +68,7 @@ def test_digest_generic_watch_fallback():
     # kill the concrete-pivot marker (mind the line wrap in the fixture)
     text = _BRIEF.replace("swing low", "resolved level")
     line = dd.build_digest(text)
-    assert line.startswith("GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE — watch: ")
+    assert line.startswith("GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE — GBP/AUD watch: ")
     assert "resolved level" in line
 
 def test_digest_long_short_decisions():
@@ -90,9 +90,17 @@ def _fixture(name):
         return f.read()
 
 
+# Old (to 2026-11-05): "GBP/AUD STAND ASIDE · GBP/JPY SHORT — watch: daily chart
+# trend strength crosses 25 …" — GBP/AUD's stand-aside condition, unlabelled, and
+# the SHORT's own exit dropped. New: the call's own exit condition, named
+# (docs/specs/digest_watch_attribution_spec.md; owner 2026-11-05).
+_JPY_EXIT_1012 = ("GBP/AUD STAND ASIDE · GBP/JPY SHORT — GBP/JPY exit if: 4-hour chart breaks "
+                  "above range resistance before entry — pullback extends into trend reversal territory")
+
+
 def test_real_2026_10_12_digest_names_the_gbpjpy_short():
     line = dd.build_digest(_fixture("brief_2026-10-12_digest_run.txt"))
-    assert line.startswith("GBP/AUD STAND ASIDE · GBP/JPY SHORT — watch: "), line
+    assert line == _JPY_EXIT_1012, line
 
 
 def test_real_2026_10_17_digest_names_the_gbpaud_long():
@@ -273,7 +281,7 @@ def test_a_closed_market_digest_says_so_and_makes_no_call():
 def test_an_open_market_digest_is_unchanged():
     line = dd.build_digest(_fixture("brief_2026-10-12_digest_run.txt"))
     assert "MARKET CLOSED" not in line and "last read" not in line
-    assert line.startswith("GBP/AUD STAND ASIDE · GBP/JPY SHORT — watch: "), line
+    assert line == _JPY_EXIT_1012, line            # old → new: see _JPY_EXIT_1012
 
 
 def test_one_closed_pair_never_renders_as_a_bare_direction():
@@ -284,3 +292,33 @@ def test_one_closed_pair_never_renders_as_a_bare_direction():
     line = dd.build_digest(text[:eol] + banner + text[eol:])
     assert "GBP/JPY last read short (market closed)" in line, line
     assert "GBP/JPY SHORT" not in line and line.startswith("GBP/AUD STAND ASIDE · "), line
+
+
+# ── attribution (docs/specs/digest_watch_attribution_spec.md, owner 2026-11-05) ──
+
+def _two(aud_dec, aud_watch, jpy_dec, jpy_watch, aud_label="WATCH FOR", jpy_label="WATCH FOR"):
+    return (f"  GBP/AUD  |  x\n  DECISION     {aud_dec}\n\n  {aud_label:<12} {aud_watch}\n\n"
+            f"  GBP/JPY  |  x\n  DECISION     {jpy_dec}\n\n  {jpy_label:<12} {jpy_watch}\n\n")
+
+
+def test_a_call_shows_its_own_exit_even_when_the_other_pair_has_a_pivot_watch():
+    text = _two("STAND ASIDE — no", "The low near 1.8732 confirms as a swing low. Revisit then.",
+                "LONG  ▲ — look for buy entries", "Price closes below confirmed swing low at 211.5500.",
+                jpy_label="EXIT IF")
+    assert dd.build_digest(text) == ("GBP/AUD STAND ASIDE · GBP/JPY LONG — GBP/JPY exit if: "
+                                     "Price closes below confirmed swing low at 211.5500")
+
+
+def test_the_clause_comes_from_the_named_pairs_own_section():
+    text = _two("STAND ASIDE — no", "AUD condition. Revisit then.",
+                "STAND ASIDE — no", "The high near 213.78 confirms as a swing high. Revisit then.")
+    assert dd.build_digest(text).endswith("— GBP/JPY watch: The high near 213.78 confirms as a swing high")
+    plain = _two("STAND ASIDE — no", "AUD condition. Revisit then.", "STAND ASIDE — no", "JPY condition.")
+    assert dd.build_digest(plain).endswith("— GBP/AUD watch: AUD condition")
+
+
+def test_a_watch_never_appears_without_a_pair_name():
+    import re
+    for fx in ("brief_2026-10-12_digest_run.txt", "brief_2026-10-17_digest_run.txt"):
+        line = dd.build_digest(_fixture(fx))
+        assert re.search(r" — GBP/(AUD|JPY) (watch|exit if): ", line), line
