@@ -48,6 +48,9 @@ LEDGERS = [
     ("excluded_rows.csv",             "exclusions",               "FIELDS"),
     # docs/specs/notification_ledger_spec.md; the writer lives in scripts/
     ("notification_log.csv",          "notification_ledger",      "FIELDS"),
+    # foundation/trader_review.md; the writer lives in scripts/
+    ("idea_journal.csv",              "trader_review",            "IDEA_FIELDS"),
+    ("trader_review_log.csv",         "trader_review",            "REVIEW_FIELDS"),
 ]
 
 

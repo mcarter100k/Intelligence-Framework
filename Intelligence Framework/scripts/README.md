@@ -32,5 +32,6 @@ it, and add a Gate 3 PENDING entry until the next scheduled run fires.
 ## Manual tools
 
 - `reality_run.py`: runs real code on real data with every side effect neutralized (the Gate 2 tool); fails if the project changed.
+- `trader_review.py`: the trader review loop: log every idea (taken or passed), score it, and write the weekly review (`foundation/trader_review.md` §0).
 - `trace/`: a process and lock tracer for concurrency investigations.
 - `launchd/install.sh`, `launchd/uninstall.sh`: install or remove the scheduled jobs.
