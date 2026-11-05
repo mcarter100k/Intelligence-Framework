@@ -5675,3 +5675,22 @@ Owner approved ("yes", 2026-11-05) after the review entry above. Defect numbers 
 - `/bin/bash -n` (3.2) clean on both scripts. Full suite on the branch: 1019 passed, 10 skipped, 2 deselected.
 
 **Not fixed here (in the specs round):** the other six defects.
+## 2026-11-05 — SPECS PROPOSED (not built), review round 2: session compare, shadow digest-only, WATCH FOR truth, alert opens its own run
+
+Owner approved the plan (2026-11-05, "yes"): free-zone fixes now on a separate branch; these four specs for one team review round. Docs only; no code changed.
+
+- `docs/specs/session_compare_spec.md`: previous-run comparison regardless of UTC day; explicit status (compared / first run / not checked / market closed); own-row check; price column (additive) shown with "unchanged"; rule-12 table for the new evening alerts. **VERIFIED** (read-only count of `session_context_log.csv`, 2026-09-09 → 11-05): 76 first-of-UTC-day rows, 34 changed versus the previous row (gap under 12 h: 56 rows, 23 changed; over 36 h: 18 rows, 10 changed). None of these was ever compared.
+- `docs/specs/shadow_digest_only_spec.md`: owner decision "Digest only". **VERIFIED** (count of `notification_log.csv`): 14 of 37 notifications ever sent were SHADOW. The unanchored candidate-name grep goes; the shadow-candidate ERROR health path is unchanged.
+- `docs/specs/watch_for_truth_spec.md`: supersedes §2 and the §6 sweep of `brief_summary_block_spec.md`. **VERIFIED** by sweep (real `_classify_ex` → composite → conflict → `apply_filter` → official decision; 3,175,200 cells, 56,028 trading; `/private/tmp/claude-501/specs-round/wf_sweep.py`, `wf_sweep2.py`, network blocked, run outside the project). Every trade satisfies N1–N7, each with 0 counter-cells:
+  - daily not RANGING (strength 18+ or a volatility jump);
+  - daily structure confirmed in the trade's direction;
+  - daily trending that way, or the 4-hour trending that way at 25+ with the daily under 32 and the weekly agreeing;
+  - weekly not against;
+  - 4-hour not against and not exhausted;
+  - volatility under 2×;
+  - GBP/JPY under 35.
+  
+  **Not necessary:** daily 25+ (10,800 counter-cells), daily trending (16,884), daily slope agreeing with structure (12,168; the override trades from STRUCTURE_DISAGREES in 1,368 cells). **INFERRED, to sweep:** the GBP/JPY compression floor.
+- `docs/specs/alert_opens_own_run_spec.md`: supersedes the rejected `latest_view_every_run_spec.md`. One never-overwritten file per run (stamp + PID); `live_guard` alerts stay on the day log; signal lines carry run time; depends on part 1's `notify.sh` record-path fix.
+
+Suite on the branch before commit (rule 2): see the commit.
