@@ -5378,3 +5378,195 @@ Spec: docs/specs/first_pullback_study_spec.md. Verdict on episode R after era sp
 **CORRECTION (chat only, 2026-11-03):** I told the owner the 18:00 PST brief on 11-03 would re-download the calendar. It did not. `calendar.csv` was written 2026-11-02 18:01:44, so at 18:00:05 it was under the `-mmin +1440` threshold in `scheduled_brief.sh`. The first re-fetch was the 02:33 run above.
 
 **NOT CHECKED, noted:** the 2026-11-04 morning run was late. The digest went out at 08:37 PST (07:30 and 07:33 on the two days before); the GBP/AUD section is stamped 7:47 AM and GBP/JPY 8:37 AM. A sleeping machine is one possible cause; not investigated.
+
+## 2026-11-04 — PRE-REGISTERED: frozen shadow candidates on the 2005–2013 STUDY data (study FCS-1; branch `feat/frozen-candidates-study`)
+
+**Owner request (2026-11-04):** "start with 1 and 2". Item 2 was a pre-registered test of joining momentum on 2005–2013 data, with costs. `data_map_spec.md` §8 (team amendment 2026-09-11) already names the STUDY's purpose as exactly this: the three frozen candidates, each its own question, parameters byte-identical, live grading rule. No new rule is introduced. Item 3 (checking candidates on every live H4 bar) is left for the team.
+
+**No 2005–2013 fire or outcome of any candidate has been computed.** The study's code has run only on synthetic bars. The STUDY data files were hashed and not opened.
+
+**Files and sha256 (this commit):**
+- `docs/specs/frozen_candidates_study_spec.md` 7a101eb316e249531f81df9da04bd771385f5ce1581995ae225ab85fd5cf6c1c
+- `studies/frozen_candidates_study.py` de244dd58d453cc499778dfe8c587e1d3df1f95d8131fc0d6c5fbfd64b157d41
+- `tests/test_frozen_candidates_selftest.py` c2d85a3351a02898a84b1f8097a71a08343fee2886578462135978ce5bd54def
+- Code under test, unchanged: `shadow_signals.py` b27d1aa12d87deaf438dd92fd001af062b3c1b94db16329f977c5e68409ab3ba; `regime_detection.py` 4723b8f7d23a395a88e8b7a12b855c4a82f967b9fc9710a1d2ea85dfb3fb68c6; `studies/first_pullback_study.py` 8549612e67e28659cc57f2331a0181815b89568860284887872511c1a128f169; `studies/history_study_convert.py` 584ff76da113d3ab8d8eae277f95b6596981badfb8923634063b87de044ea553; `studies/policy_rates_2003_2014.json` 5df23e1891630678f2c10184ba8b261498d8a56193a6cc81710f6a83d6a6eacf
+- Data (`~/intel_study_archives/us_event_reaction_data/`), equal to the pinned values: GBP_AUD_D 661a9d49…d939, GBP_AUD_H4 a59db994…ff77, GBP_JPY_D ca160240…000a, GBP_JPY_H4 f06892d1…3764
+
+**Self-test (`SELFTEST OK`, 22 checks, synthetic series seed 68 on the real H4 calendar):**
+- The context equals `shadow_signals._load_ctx` field for field.
+- 26 fires equal `check_shadow_signals` bar by bar (MOMENTUM_JOIN 3, THRUST_PULLBACK 5, EARLY_MOMENTUM_v2 18).
+- 26 grades equal `grade_pending_shadow` on a temporary ledger, and episodes equal `graded_episodes`.
+- Hand cases: grades, `cell_trades` costs (7 nights, not 10, at a rollover edge), episode spacing, the invalid-row drop, the verdict boundaries with Bonferroni, and the refusals.
+
+**Mutation (13 mutants):** first pass 10 caught, 3 survived. M6 (episode spacing 29), M7 (financing clock from the fire bar) and M10 (invalid rows kept) were not reached by the synthetic series. Three hand checks were added. Second pass: **13/13 caught**. Each mutant's target string occurred exactly once and was replaced. Restored byte-identical; 2 passed after.
+
+**Suite (branch):** 993 passed, 8 skipped, 2 deselected.
+
+**Power (spec §9):** N required for +0.15R at 80% power, α 0.01: 643. SUPPORTED needs a large edge (about +0.24R at N 250); REFUTED is reachable.
+
+**Next:** the counts stage (`data_map_spec` §9: fires and episodes only), run through `scripts/reality_run.py`, logged and committed before the single full run.
+
+## 2026-11-04 — COUNTS (FCS-1, data_map_spec §9): fires and episodes per cell, before any R
+
+Run, after the pre-registration commit `81f25bb`: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/frozen_candidates_study.py counts ~/intel_study_archives/us_event_reaction_data`, from the live project. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty. The runner verified all 4 data hashes. Output verbatim (no R, no stop, no outcome is printed by this stage):
+
+```
+Data hashes verified against the pinned values (4 files).
+GBP_AUD: H4 bars 14030 (2005-01-02T22:00:00+00:00 to 2013-12-30T18:00:00+00:00); replayed from bar 299; weekend rule: 771 Sunday H4 folded, 480 Saturday H4 dropped
+GBP_JPY: H4 bars 14028 (2005-01-02T22:00:00+00:00 to 2013-12-30T18:00:00+00:00); replayed from bar 299; weekend rule: 710 Sunday H4 folded, 453 Saturday H4 dropped
+CELL MOMENTUM_JOIN GBP_AUD: fires 416; invalid dropped 0; graded fires 415; ungraded at data end 1; EPISODES N 98 (long 44, short 54); episodes/yr 10.9; exam-split flag (>= 8/yr): yes; per year {2005: 14, 2006: 11, 2007: 10, 2008: 6, 2009: 10, 2010: 12, 2011: 9, 2012: 12, 2013: 14}
+CELL MOMENTUM_JOIN GBP_JPY: fires 381; invalid dropped 0; graded fires 381; ungraded at data end 0; EPISODES N 96 (long 52, short 44); episodes/yr 10.7; exam-split flag (>= 8/yr): yes; per year {2005: 7, 2006: 13, 2007: 8, 2008: 12, 2009: 12, 2010: 10, 2011: 9, 2012: 13, 2013: 12}
+CELL THRUST_PULLBACK GBP_AUD: fires 75; invalid dropped 0; graded fires 75; ungraded at data end 0; EPISODES N 51 (long 24, short 27); episodes/yr 5.7; exam-split flag (>= 8/yr): no; per year {2005: 7, 2006: 5, 2007: 7, 2008: 8, 2009: 7, 2010: 2, 2011: 6, 2012: 5, 2013: 4}
+CELL THRUST_PULLBACK GBP_JPY: fires 53; invalid dropped 0; graded fires 53; ungraded at data end 0; EPISODES N 39 (long 15, short 24); episodes/yr 4.3; exam-split flag (>= 8/yr): no; per year {2005: 6, 2006: 4, 2007: 5, 2008: 5, 2009: 3, 2010: 4, 2011: 6, 2012: 2, 2013: 4}
+CELL EARLY_MOMENTUM_v2 GBP_JPY: fires 1955; invalid dropped 0; graded fires 1955; ungraded at data end 0; EPISODES N 246 (long 147, short 99); episodes/yr 27.3; exam-split flag (>= 8/yr): yes; per year {2005: 21, 2006: 25, 2007: 27, 2008: 32, 2009: 27, 2010: 30, 2011: 28, 2012: 30, 2013: 26}
+```
+
+**§9 reading:** every cell is above 20 episodes, so the full run covers all five. None is near the "~25: too selective to validate on history" mark. THRUST_PULLBACK is the thinnest (GBP_JPY 39, GBP_AUD 51).
+
+**Exam-split flags (data_map_spec §1):** MOMENTUM_JOIN both pairs and EARLY_MOMENTUM_v2 yes (10.7–27.3 episodes a year); THRUST_PULLBACK both pairs no (4.3–5.7). These only matter if the team ever opens the sealed exam for a candidate.
+
+**Power at these N (spec §9; SD 1.2R, α 0.01):** about 6–21% for +0.15R. SUPPORTED would need roughly +0.6R (N 39) down to +0.24R (N 246).
+
+**Next:** `full`, once.
+
+## 2026-11-04 — RESULT (FCS-1): no frozen candidate shows an edge on 2005–2013; MOMENTUM_JOIN GBP_AUD, THRUST_PULLBACK GBP_AUD and EARLY_MOMENTUM_v2 REFUTED, the two other cells INCONCLUSIVE
+
+Run once, after the counts commit `af004a3`: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/frozen_candidates_study.py full ~/intel_study_archives/us_event_reaction_data <worktree>/studies/frozen_candidates_study_result.md`, from the live project. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr empty, stdout byte-identical to the report (`cmp`). Frame (data_map_spec §5): does this survive conditions it was not designed on. Output verbatim:
+
+```
+# Frozen shadow candidates on the 2005–2013 STUDY data — pre-registered result (FCS-1)
+
+Spec: docs/specs/frozen_candidates_study_spec.md. Every H4 bar, live candidate code, live grading rule. Verdict on episode R after era spread and financing. Bonferroni one-sided lower bound at 0.99 (5 cells), 90% upper bound for REFUTED (bar +0.15R), 20000 resamples, seed 7. Frame (data_map_spec §5): does this survive conditions it was not designed on.
+
+## MOMENTUM_JOIN GBP_AUD: **REFUTED**
+
+- **Primary (episode R after era spread and financing):** N 98; mean -0.095R; median -1.060R; Bonferroni lower bound -0.445R; 90% upper bound +0.117R; without best -0.164R; max DD 12.4R; win 33%; SD 1.614
+- Median winner +1.510R (N 32); median loser -1.084R (N 66); stopped 64 of 98
+- Costs per episode: spread -0.079R, financing -0.012R, mean nights 3.6, mean risk 122 pips
+- Power at this N (SD 1.2R assumed, α 0.010): 14% for +0.15R; smallest edge detectable at 80% power +0.38R
+
+**Secondary (never changes the verdict):**
+
+- Before costs (live rule only): N 98; mean -0.004R; median -1.000R
+- Flat 3.0-pip spread + financing: N 98; mean -0.045R; median -1.017R
+- Stops filled at the gap open: N 98; mean -0.095R; median -1.060R; stops that gapped: 0
+- Financing markup 0%: N 98; mean -0.077R; median -1.050R
+- Financing markup 2%: N 98; mean -0.113R; median -1.066R
+- Long episodes: N 44; mean -0.047R; median -1.081R
+- Short episodes: N 54; mean -0.134R; median -1.055R
+- 2005-01 to 2008-06 (before the crisis): N 38; mean -0.241R; median -1.085R
+- 2008-07 to 2009-06 (the crisis): N 6; mean +1.106R; median +0.357R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 54; mean -0.126R; median -1.056R
+- By year (N, mean R): 2005 14 -0.23; 2006 11 -0.28; 2007 10 +0.04; 2008 6 +0.50; 2009 10 -0.16; 2010 12 +0.07; 2011 9 -0.46; 2012 12 +0.21; 2013 14 -0.28
+- Fires: 416; invalid dropped 0; graded 415; ungraded at data end 1
+
+## MOMENTUM_JOIN GBP_JPY: **INCONCLUSIVE**
+
+- **Primary (episode R after era spread and financing):** N 96; mean -0.012R; median -1.042R; Bonferroni lower bound -0.408R; 90% upper bound +0.222R; without best -0.071R; max DD 20.6R; win 29%; SD 1.764
+- Median winner +2.185R (N 28); median loser -1.052R (N 68); stopped 66 of 96
+- Costs per episode: spread -0.055R, financing -0.001R, mean nights 3.5, mean risk 121 pips
+- Power at this N (SD 1.2R assumed, α 0.010): 14% for +0.15R; smallest edge detectable at 80% power +0.39R
+
+**Secondary (never changes the verdict):**
+
+- Before costs (live rule only): N 96; mean +0.044R; median -1.000R
+- Flat 3.0-pip spread + financing: N 96; mean +0.013R; median -1.020R
+- Stops filled at the gap open: N 96; mean -0.012R; median -1.042R; stops that gapped: 0
+- Financing markup 0%: N 96; mean +0.005R; median -1.038R
+- Financing markup 2%: N 96; mean -0.028R; median -1.045R
+- Long episodes: N 52; mean +0.200R; median -1.039R
+- Short episodes: N 44; mean -0.262R; median -1.047R
+- 2005-01 to 2008-06 (before the crisis): N 33; mean +0.440R; median -0.886R
+- 2008-07 to 2009-06 (the crisis): N 14; mean -0.845R; median -1.029R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 49; mean -0.078R; median -1.055R
+- By year (N, mean R): 2005 7 +0.71; 2006 13 -0.16; 2007 8 +1.82; 2008 12 -0.63; 2009 12 -0.88; 2010 10 +0.27; 2011 9 +0.10; 2012 13 +0.11; 2013 12 -0.45
+- Fires: 381; invalid dropped 0; graded 381; ungraded at data end 0
+
+## THRUST_PULLBACK GBP_AUD: **REFUTED**
+
+- **Primary (episode R after era spread and financing):** N 51; mean -0.130R; median -0.163R; Bonferroni lower bound -0.421R; 90% upper bound +0.035R; without best -0.183R; max DD 12.3R; win 41%; SD 0.921
+- Median winner +0.748R (N 21); median loser -1.033R (N 30); stopped 19 of 51
+- Costs per episode: spread -0.040R, financing -0.013R, mean nights 5.5, mean risk 267 pips
+- Power at this N (SD 1.2R assumed, α 0.010): 8% for +0.15R; smallest edge detectable at 80% power +0.53R
+
+**Secondary (never changes the verdict):**
+
+- Before costs (live rule only): N 51; mean -0.077R; median -0.136R
+- Flat 3.0-pip spread + financing: N 51; mean -0.104R; median -0.138R
+- Stops filled at the gap open: N 51; mean -0.130R; median -0.163R; stops that gapped: 0
+- Financing markup 0%: N 51; mean -0.117R; median -0.147R
+- Financing markup 2%: N 51; mean -0.144R; median -0.179R
+- Long episodes: N 24; mean -0.218R; median -0.739R
+- Short episodes: N 27; mean -0.052R; median -0.142R
+- 2005-01 to 2008-06 (before the crisis): N 25; mean -0.239R; median -0.386R
+- 2008-07 to 2009-06 (the crisis): N 5; mean -0.262R; median -0.142R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 21; mean +0.031R; median -0.042R
+- By year (N, mean R): 2005 7 +0.26; 2006 5 -0.08; 2007 7 -0.88; 2008 8 -0.19; 2009 7 -0.49; 2010 2 +0.31; 2011 6 +0.65; 2012 5 -0.29; 2013 4 -0.02
+- Fires: 75; invalid dropped 0; graded 75; ungraded at data end 0
+
+## THRUST_PULLBACK GBP_JPY: **INCONCLUSIVE**
+
+- **Primary (episode R after era spread and financing):** N 39; mean +0.056R; median -0.256R; Bonferroni lower bound -0.369R; 90% upper bound +0.312R; without best -0.064R; max DD 5.6R; win 46%; SD 1.253
+- Median winner +0.909R (N 18); median loser -1.033R (N 21); stopped 15 of 39
+- Costs per episode: spread -0.028R, financing -0.029R, mean nights 5.4, mean risk 230 pips
+- Power at this N (SD 1.2R assumed, α 0.010): 6% for +0.15R; smallest edge detectable at 80% power +0.61R
+
+**Secondary (never changes the verdict):**
+
+- Before costs (live rule only): N 39; mean +0.113R; median -0.231R
+- Flat 3.0-pip spread + financing: N 39; mean +0.069R; median -0.250R
+- Stops filled at the gap open: N 39; mean +0.056R; median -0.256R; stops that gapped: 0
+- Financing markup 0%: N 39; mean +0.068R; median -0.248R
+- Financing markup 2%: N 39; mean +0.044R; median -0.264R
+- Long episodes: N 15; mean -0.163R; median -1.012R  (INSUFFICIENT: N<20)
+- Short episodes: N 24; mean +0.193R; median -0.009R
+- 2005-01 to 2008-06 (before the crisis): N 17; mean +0.126R; median -0.357R  (INSUFFICIENT: N<20)
+- 2008-07 to 2009-06 (the crisis): N 5; mean -0.045R; median +0.168R  (INSUFFICIENT: N<20)
+- 2009-07 to 2013-12 (after): N 17; mean +0.016R; median -0.256R  (INSUFFICIENT: N<20)
+- By year (N, mean R): 2005 6 -0.72; 2006 4 +0.68; 2007 5 +0.70; 2008 5 +0.12; 2009 3 -0.54; 2010 4 +0.05; 2011 6 -0.40; 2012 2 +0.43; 2013 4 +0.66
+- Fires: 53; invalid dropped 0; graded 53; ungraded at data end 0
+
+## EARLY_MOMENTUM_v2 GBP_JPY: **REFUTED**
+
+- **Primary (episode R after era spread and financing):** N 246; mean -0.099R; median -1.019R; Bonferroni lower bound -0.340R; 90% upper bound +0.042R; without best -0.139R; max DD 39.9R; win 31%; SD 1.718
+- Median winner +1.202R (N 77); median loser -1.045R (N 169); stopped 139 of 246
+- Costs per episode: spread -0.080R, financing -0.007R, mean nights 4.1, mean risk 172 pips
+- Power at this N (SD 1.2R assumed, α 0.010): 36% for +0.15R; smallest edge detectable at 80% power +0.24R
+
+**Secondary (never changes the verdict):**
+
+- Before costs (live rule only): N 246; mean -0.012R; median -1.000R
+- Flat 3.0-pip spread + financing: N 246; mean -0.063R; median -1.004R
+- Stops filled at the gap open: N 246; mean -0.099R; median -1.019R; stops that gapped: 0
+- Financing markup 0%: N 246; mean -0.084R; median -1.014R
+- Financing markup 2%: N 246; mean -0.113R; median -1.022R
+- Long episodes: N 147; mean -0.167R; median -1.012R
+- Short episodes: N 99; mean +0.003R; median -1.029R
+- 2005-01 to 2008-06 (before the crisis): N 92; mean -0.084R; median -1.004R
+- 2008-07 to 2009-06 (the crisis): N 28; mean -0.237R; median -1.012R
+- 2009-07 to 2013-12 (after): N 126; mean -0.078R; median -1.034R
+- By year (N, mean R): 2005 21 -0.22; 2006 25 -0.01; 2007 27 +0.07; 2008 32 -0.24; 2009 27 +0.07; 2010 30 -0.24; 2011 28 -0.60; 2012 30 -0.12; 2013 26 +0.47
+- Fires: 1955; invalid dropped 0; graded 1955; ungraded at data end 0
+
+## Summary
+
+| Cell | N | Mean R | Median R | Lower bound | Upper 90% | Without best | Max DD | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| MOMENTUM_JOIN GBP_AUD | 98 | -0.095 | -1.060 | -0.445 | +0.117 | -0.164 | 12.4 | REFUTED |
+| MOMENTUM_JOIN GBP_JPY | 96 | -0.012 | -1.042 | -0.408 | +0.222 | -0.071 | 20.6 | INCONCLUSIVE |
+| THRUST_PULLBACK GBP_AUD | 51 | -0.130 | -0.163 | -0.421 | +0.035 | -0.183 | 12.3 | REFUTED |
+| THRUST_PULLBACK GBP_JPY | 39 | +0.056 | -0.256 | -0.369 | +0.312 | -0.064 | 5.6 | INCONCLUSIVE |
+| EARLY_MOMENTUM_v2 GBP_JPY | 246 | -0.099 | -1.019 | -0.340 | +0.042 | -0.139 | 39.9 | REFUTED |
+
+- N required for +0.15R at 80% power (SD 1.2, α 0.010): 643
+```
+
+**Reading (what the pre-registered rule says, and only that):**
+- **REFUTED (90% upper bound under +0.15R):** MOMENTUM_JOIN GBP_AUD (upper +0.117R), THRUST_PULLBACK GBP_AUD (+0.035R), EARLY_MOMENTUM_v2 GBP_JPY (+0.042R, N 246, the best-powered cell). An edge worth trading is excluded on this data for these three.
+- **INCONCLUSIVE:** MOMENTUM_JOIN GBP_JPY (mean −0.012R, upper +0.222R) and THRUST_PULLBACK GBP_JPY (+0.056R, upper +0.312R, N 39). No edge shown; +0.15R not excluded.
+- **No cell SUPPORTED.** Before costs, every cell's mean is between −0.08R and +0.11R: costs did not erase an edge, there was none to erase.
+- **Not findings:** MOMENTUM_JOIN GBP_JPY long +0.200R (N 52) and pre-crisis +0.440R (N 33) are secondary splits chosen after nothing; they are not candidates. A new rule from them would be in-sample selection (rule 3).
+- **What happens next is the team's decision** (spec §8): the REFUTED cells are evidence on candidates that are frozen and still logging live. Retiring any is not done here. None qualifies for a sealed-exam proposal.
+- Observed, not investigated: 0 stops gapped through the stop in any cell (the gap logic is checked on synthetic bars; real H4 bars open at the previous close almost always).
+
+**Recorded:** R40–R42 in `foundation/research_findings.md`; `foundation/candidates.md`; `docs/capability_inventory.md`; specs index status.

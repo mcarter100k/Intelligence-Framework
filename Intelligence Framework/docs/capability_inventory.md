@@ -73,9 +73,9 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 |---|---|---|
 | Honest sample counting, power checks, pre-registration | HAVE | `foundation/tools/`, `foundation/methodology.md`. This is the framework's strongest part |
 | Forward test of candidates | HAVE | `shadow_signals.py`. As of 2026-10-19: EARLY_MOMENTUM_v2 3 episodes (avg −0.20R), THRUST_PULLBACK 1, MOMENTUM_JOIN 1 |
-| Tested ideas (39, most refuted; count updated 2026-11-04) | HAVE | `foundation/research_findings.md`. Check here before testing an idea |
-| Long-history test with costs (OANDA 2014–2021) | MISSING | The audit's recommended next evidence source |
-| A proven edge | MISSING | |
+| Tested ideas (42, most refuted; count updated 2026-11-04) | HAVE | `foundation/research_findings.md`. Check here before testing an idea |
+| Long-history test with costs | TESTED for the candidates (2026-11-04) | The three frozen candidates on 2005–2013 STUDY data, every H4 bar, era costs and financing (FCS-1, R40–R42): no edge; 3 of 5 cells REFUTED, 2 INCONCLUSIVE. The 2014–2021 SEALED EXAM stays closed (only the team opens it, for one candidate) |
+| A proven edge | MISSING | Still none after FCS-1 (2026-11-04) |
 
 ## What would sharpen us most, in order
 
