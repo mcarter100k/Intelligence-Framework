@@ -4,14 +4,16 @@ Per docs/specs/daily_digest_spec.md. stdin = the run's stdout; stdout =
 the single digest line. Never raises to the caller; always exits 0.
 
 Line shape:
-  GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE — watch: <condition>
+  GBP/AUD STAND ASIDE · GBP/JPY SHORT — GBP/JPY exit if: <its own condition>
+  GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE — GBP/AUD watch: <condition>
 With the market closed (every pair's block carries the closed banner):
   MARKET CLOSED until Sun 2:00 PM PDT — no live calls · last read:
-  GBP/AUD long, GBP/JPY stand aside — watch: <condition>
+  GBP/AUD long, GBP/JPY stand aside — GBP/AUD exit if: <condition>
 A closed pair never shows as a bare direction (shadow_tally_spec §3).
-The watch clause prefers a concrete pending-pivot sentence ("confirms as
-a swing ...") from either pair's EXIT IF; else the first EXIT IF sentence;
-a failed run digests as "run failed — see the log".
+The clause always names its pair and comes from that pair's own section
+(docs/specs/digest_watch_attribution_spec.md): a pair with a call first,
+then a concrete pending-pivot sentence ("confirms as a swing ..."), then
+the first pair's; a failed run digests as "run failed — see the log".
 """
 from __future__ import annotations
 
@@ -67,27 +69,40 @@ def _head(text: str) -> str:
     return " · ".join(p + " (market closed)" if c else p for c, p in parts)
 
 
+_WATCH = re.compile(r"^ ? ?(?:EXIT IF|WATCH FOR)\s+(.*?)(?:\n\s*\n|═)", re.S | re.M)
+
+
+def _clauses(text: str) -> list:
+    """(pair, decision word, first sentence of its EXIT IF / WATCH FOR), each
+    read from that pair's OWN section (unwrapped), in brief order."""
+    out = []
+    for name, block in _sections(text):
+        m = _WATCH.search(block)
+        if m:
+            sentence = re.sub(r"\s+", " ", m.group(1)).strip().split(". ")[0].rstrip(".")
+            out.append((name, _decision(name, block)[len(name) + 1:], sentence))
+    return out
+
+
 def build_digest(text: str) -> str:
     try:
         if _ERROR.search(text) or not text.strip():
             return "run failed — see the log"
         head = _head(text) or "no pairs rendered"
 
-        # watch condition from EXIT IF sections (unwrap the rendered lines)
-        watches = []
-        for m in re.finditer(
-                r"^ ? ?(?:EXIT IF|WATCH FOR)\s+(.*?)(?:\n\s*\n|═)", text, re.S | re.M):
-            watches.append(re.sub(r"\s+", " ", m.group(1)).strip())
-        watch = ""
-        for w in watches:                     # prefer a concrete pivot watch
-            if "confirms as a swing" in w:
-                watch = w
-                break
-        if not watch and watches:
-            watch = watches[0]
-        if watch:
-            watch = watch.split(". ")[0].rstrip(".")
-            return f"{head} — watch: {watch}"
+        # One clause, always naming its pair (docs/specs/digest_watch_attribution_spec.md).
+        # A pair with a call shows its own exit condition first; else a concrete
+        # pivot watch; else the first pair's watch. The old builder searched the
+        # whole run, so a GBP/JPY SHORT morning (2026-10-12) showed GBP/AUD's
+        # stand-aside condition, unlabelled, and dropped the SHORT's exit.
+        clauses = _clauses(text)
+        pick = (next((c for c in clauses if c[1] in ("LONG", "SHORT")), None)
+                or next((c for c in clauses if "confirms as a swing" in c[2]), None)
+                or (clauses[0] if clauses else None))
+        if pick:
+            name, call, sentence = pick
+            label = "exit if" if call in ("LONG", "SHORT") else "watch"
+            return f"{head} — {name} {label}: {sentence}"
         return head
     except Exception:
         return "digest unavailable — see the log"
