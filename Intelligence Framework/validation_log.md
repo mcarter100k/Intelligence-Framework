@@ -5694,3 +5694,78 @@ Owner approved the plan (2026-11-05, "yes"): free-zone fixes now on a separate b
 - `docs/specs/alert_opens_own_run_spec.md`: supersedes the rejected `latest_view_every_run_spec.md`. One never-overwritten file per run (stamp + PID); `live_guard` alerts stay on the day log; signal lines carry run time; depends on part 1's `notify.sh` record-path fix.
 
 Suite on the branch before commit (rule 2): see the commit.
+
+## 2026-11-05 — TEAM REVIEW round 2 (four specs) and the owner's display-claim question: no spec approved as written
+
+**Owner decisions (2026-11-05, before the verdicts):**
+1. Weekend/gap flips alert only when material: a pre-registered size threshold (example: half an ATR), never because a gap exists.
+2. Remove the outcomes "shadow graded" alert only when the weekly heartbeat reports grading counts (rule 8).
+3. WATCH FOR names the counter-trend override with its record ("counter-trend override — 1 live trade, lost").
+4. Own-run files are convenience, not evidence; retention 90 days.
+5. Extra question: how many other display lines make a claim nobody checked against the code?
+
+**Verdicts:**
+
+| Spec | Code reviewer | Adversarial reviewer |
+|---|---|---|
+| `session_compare_spec.md` | APPROVE WITH CHANGES | APPROVE WITH CHANGES |
+| `shadow_digest_only_spec.md` | APPROVE WITH CHANGES (length budget blocking) | APPROVE WITH CHANGES |
+| `watch_for_truth_spec.md` | APPROVE WITH CHANGES | **REJECT as written** |
+| `alert_opens_own_run_spec.md` | APPROVE WITH CHANGES | APPROVE WITH CHANGES |
+
+None passes rule 12 as written.
+
+**Findings that bear on the owner's decisions (for the owner to confirm):**
+- **On 1:** a size gate would have silenced 2 of the 3 filter flips seen after gaps (09-14 GBP/AUD deteriorated, 0.17 ATR; 10-09 GBP/JPY now allows a trade, 0.42 ATR; demonstrated from day-log prices). Suppression is also permanent: the next run compares with the gap-side row and says unchanged. Adversarial reviewer: the gate must never apply to filter flips or exit-watch. Code reviewer applied the gate as stated and added: compare prices only when both rows are live (`price_basis`).
+- **On 3:** no ledger holds the 2026-05-15 trade. Its only sources are AGENTS.md:58-60 and R13 ("pre-repo trading", under the May rules). Both reviewers: the wording must say pre-repo and earlier rules, be cited (a test that the R13 row exists and says lost), not hard-coded, and not go stale at the next override signal.
+- **On 4:** AGENTS.md lists everything under `logs/` as evidence agents never delete. Both reviewers: keep run files outside `logs/`, or amend AGENTS.md in the same branch.
+- **On 2:** confirmed necessary. With the feed broken, `grade_pending_shadow` returns 0 and prints nothing, and the heartbeat looks the same as a quiet week (demonstrated). The heartbeat must add rows graded in 7 days, rows overdue, and the last grade time, with positive and dead-grader controls.
+
+**Other required changes, highlights:**
+- **session_compare.**
+  - Identify a run's own row by run id, not timestamp: three wrappers wrote same-second rows on 2026-09-14 (observed).
+  - "Filter not compared (rules changed)" across `logic_version`s: demonstrated that `get_session_delta` says unchanged across a rules change.
+  - Rule-12 row for the dominant new case: regime-only change with STAND ASIDE both sides is 14 of the 16 new alerts since 09-30 and all 5 historical ALERTs. The owner chooses between alerting only on filter flips and exit-watch, or text saying the decision is still stand aside.
+  - "Since Fri 6:00 PM" cannot occur (Friday 18:00 PT is market-closed).
+  - Gaps over 7 days are not "first run".
+  - Keep the exclusions filter.
+  - Manual runs consume the comparison.
+- **shadow_digest_only.**
+  - The shadow clause is dropped exactly when WATCH FOR is long. Measured: 312 characters with it against the 300 budget; the closed-market line is already 305. A never-dropped short marker is needed.
+  - "No fires" must be told apart from "not checked" (`run_and_report` failures are swallowed; demonstrated).
+  - Read fires from `shadow_signal_log.csv`, deduplicated.
+- **watch_for_truth.**
+  - N1–N7 hold. The GBP/JPY compression floor is a further necessary condition (verified, 0 counter-cells).
+  - 40% of trending-daily stand-asides, plus news-window and missing-data states, fail none of the listed conditions: grade-C, news and data branches need their own sentence.
+  - STRUCTURE_DISAGREES never comes out of `get_regime`.
+  - THE FULL PICTURE's "This changes when <WATCH FOR>" asserts sufficiency in 100% of stand-aside cells (614,712 rendered).
+  - EXHAUSTION wording must match REASON's "fade, don't follow".
+  - Rounding still shows 18.0 beside "below 18".
+  - Its `_machine_flags` change has no rule-12 table.
+- **alert_opens_own_run.**
+  - The run file must include this run's stderr: alert lines and tracebacks are not in `$OUT`.
+  - Build earlier-run lines from run files, not by parsing the day log (the 09-14 parse renders garbage; demonstrated).
+  - Lock sidecar files.
+  - The click on a pruned file needs defined behaviour.
+- **Cross-spec:** digest length; status text consistent with `brief_summary_block_spec.md`; merge order for the two specs that edit `_machine_flags`.
+
+**Owner's question: display claims nobody checked (code reviewer's inventory, from a 653,184-cell render sweep; ranked):**
+1. **The digest's watch clause names no pair.** VERIFIED by me: GBP/AUD stand-aside + GBP/JPY LONG gives `GBP/AUD STAND ASIDE · GBP/JPY LONG — watch: D1 ADX drops below 18 or H4 resolves to clean trend — revisit then`. It quotes the stand-aside pair's condition, and the LONG's exit level is dropped. `scripts/daily_digest.py`; no test.
+2. The WATCH FOR family, including FULL PICTURE's "This changes when": covered by the WATCH FOR spec.
+3. Override trade REASON "Counter-trend override: D1 transition but …" is false in 2,304 of 3,672 override trades (63%): the daily is a volatility spike, not a transition.
+4. "Strong uptrend on all timeframes" (weekly label) is false in 216,300 of the 217,728 cells that render it.
+5. SESSION notes:
+   - "stable and trending" on exhaustion and unconfirmed days;
+   - "just crossed the trend threshold (25 → 25)" from rounding;
+   - an unreachable "entered compression zone" branch;
+   - "Conditions unchanged" ignores price.
+6. The spike REASON "too high for reliable signals regardless of trend strength", while the override trades spike cells.
+7. Research claims stated as fact, since demoted to INFORMED PRIOR: "no statistical edge", "both signals historically fail here", "historically precedes a fake move".
+8. The shadow block's "evidence accumulating" omits R40–R42 (all three refuted in history); "still open" counts overdue rows as open.
+9. Checked true or pinned: the FULL PICTURE alignment sentences (0 false cells); DATA BASIS; the grade-C REASON.
+
+Not inventoried: entry/target text, the US DATA line, the news note, the stale-feed warning, entry_confirmation wording, the pre-trade check.
+
+**Evidence status:** reviewer sweeps and reproductions ran on copies under `/private/tmp/claude-501/rev2/` and `/advrev2/`. Both reviewers report the project unchanged: the adversarial reviewer by hash over 923 files with a positive control; the code reviewer by `git status` and `find -newer` with a positive control. I re-ran only inventory item 1. All other inventory counts are the reviewer's, OBSERVED by them, not re-run by me.
+
+**Status:** all four specs stay PROPOSED and unbuilt. Revisions go in new spec files.
