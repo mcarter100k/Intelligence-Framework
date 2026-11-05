@@ -1,6 +1,6 @@
 ---
 name: trading-foundation
-description: A solo FX trader's proven research discipline and knowledge base, distilled from the Intelligence Framework (GBP/AUD, GBP/JPY on OANDA). It covers honest evidence rules (non-overlapping N, INFORMED PRIOR vs VALIDATED, pre-registration, statistical power, costs and swap), 38 already-tested hypotheses (most refuted: don't re-test them), exact risk and trade-management rules, a trader review loop, and a catalogue of silent failures to avoid. Use this skill whenever the user evaluates a trade idea, setup, indicator or strategy; asks "does this work" or "is this an edge"; designs a backtest, study or forward test; reads a win rate or sample size; grades or journals trades; does a weekly or monthly trading review; sizes a position or sets stops and targets; or changes code that produces or grades trading evidence, even if they don't mention the framework by name.
+description: A solo FX trader's proven research discipline and knowledge base, distilled from the Intelligence Framework (GBP/AUD, GBP/JPY on OANDA). It covers honest evidence rules (non-overlapping N, INFORMED PRIOR vs VALIDATED, pre-registration, statistical power, costs and swap), 39 already-tested hypotheses (most refuted: don't re-test them), exact risk and trade-management rules, a top-down chart-reading method (structure, Fibonacci, zones; untested), a trader review loop, and a catalogue of silent failures to avoid. Use this skill whenever the user evaluates a trade idea, setup, indicator or strategy; asks "does this work" or "is this an edge"; designs a backtest, study or forward test; reads a win rate or sample size; grades or journals trades; does a weekly or monthly trading review; sizes a position or sets stops and targets; marks up a chart or asks where to draw a Fibonacci or a level; or changes code that produces or grades trading evidence, even if they don't mention the framework by name.
 ---
 
 # Trading Foundation
@@ -21,13 +21,14 @@ or holding a more confident-sounding guess?
 
 | File | Read when |
 |---|---|
-| `references/research_findings.md` | **Any new idea, before testing it.** 38 prior tests with honest N. Refuted premises include compression-precedes-moves, fakeout-then-go, structural precursors, level fades and first-bounce entries |
+| `references/research_findings.md` | **Any new idea, before testing it.** 39 prior tests with honest N. Refuted premises include compression-precedes-moves, fakeout-then-go, structural precursors, level fades and first-bounce entries |
 | `references/methodology.md` | Designing any study or backtest, judging any result, writing a verdict. 39 principles, each with the incident that produced it |
 | `references/risk_and_execution.md` | Sizing, stops, targets, daily limits, in-trade management |
 | `references/trader_review.md` | Journaling, grading trades, weekly or monthly review, "how am I doing" |
 | `references/market_data_facts.md` | Touching OANDA data, bar times, sessions and DST, pip scale, spreads, data feeds |
 | `references/candidates.md` | The frozen shadow candidates (EARLY_MOMENTUM_v2, THRUST_PULLBACK, MOMENTUM_JOIN): specs and evidence |
 | `references/incident_catalogue.md` | Changing code that writes, grades or displays evidence, or runs unattended |
+| `references/chart_reading_method.md` | Marking up a chart: top-down order, swings, when and how to draw a Fibonacci, how deep pullbacks go (R39), zones. A method, not a tested edge: each rule is tagged UNTESTED or with its finding |
 
 ## Tools
 
@@ -160,6 +161,15 @@ that passes for the wrong reason. The controls that work:
 - **Get the price and pip scale right.** Use the real price at signal time,
   not the last closed bar. Pip size is 0.01 for JPY, 0.0001 otherwise.
 - **Fix the class of bug with a test,** not with another standing rule.
+
+### 7. Marking up a chart
+
+Use `chart_reading_method.md`. Read top-down (weekly, daily, 4-hour, hourly),
+give each timeframe its direction, last break and the level where that read
+fails, then build zones where several reasons overlap. Get exact swing
+prices from OANDA candles, not a screenshot. Say plainly which parts are
+tested (levels give location, not timing; most first pullbacks reach 38.2%;
+buying the touch shows no edge) and which are judgement.
 
 ## Output shape for an idea or result evaluation
 

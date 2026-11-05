@@ -5347,3 +5347,34 @@ Spec: docs/specs/first_pullback_study_spec.md. Verdict on episode R after era sp
 - Owner approved the merge (2026-11-03), after both reviewers returned APPROVE WITH CHANGES (non-blocking, rule 12 PASS) and the changes were made and logged (entry above, `5b4684d`).
 - Branch suite **991 passed**. `main` is merged in before the merge if it moved.
 - **Gate 3:** none needed. The next brief with a pair in RANGING D1 + VOLATILE H4 shows the new sentence. GBP/AUD was in that state at the 2026-11-03 Gate 2 run.
+
+## 2026-11-04 — Chart-reading method, finding R39, capability inventory refresh (free zone; branch `feat/chart-reading-method`)
+
+**Trigger:** the owner asked for a top-down markup of GBP/JPY, then asked how to draw a Fibonacci, how to trade levels and whether a pullback stops at 23.6% or 38.2%, then "does the framework have all of this knowledge". It did not: nothing in the code or `foundation/` covered Fibonacci anchoring, swing markup or zones, and the pullback-depth figures existed only as raw leg counts in `studies/first_pullback_study_result.md`.
+
+**Changes (docs only, free zone):**
+- `foundation/chart_reading_method.md` (new): top-down order, swings, Fibonacci (when, anchors, redraw/delete), zones, trading a zone, a GBP/JPY 2026-11-04 worked example, open questions. Every rule is tagged UNTESTED or with its finding. Status: INFORMED PRIOR.
+- `foundation/research_findings.md`: **R39**, how deep the first pullback goes (descriptive).
+- `foundation/skills/trading-foundation/SKILL.md`: the new reference row, working mode 7 (marking up a chart), the count 38 → 39, and chart markup added to the trigger description. `foundation/README.md`: same row and count.
+- `docs/capability_inventory.md`: US events marked live as context (it still said "USD events missing"); `levels_context.py` contents spelled out; a new MANUAL row for swing levels, zones and Fibonacci; tested-ideas count 34 → 39.
+
+**R39 evidence:** a script parsed the `- Legs:` line of each of the 4 cells (result file lines 29, 53, 79, 103) and asserted touched + expired = qualified for all 8 side-cells (it held). Shares of qualified impulses whose first pullback reached the level within 60 H4 bars of the anchor, level measured from the running extreme:
+- GBP_JPY 38.2%: long 56/66, short 65/69 → **121/135 = 89.6%**. 50%: 45/66, 55/69 → **100/135 = 74.1%**.
+- GBP_AUD 38.2%: 50/60, 48/61 → **98/121 = 81.0%**. 50%: 42/60, 38/61 → **80/121 = 66.1%**.
+- 23.6% was not measured; by construction it is reached at least as often as 38.2%. Legs are not graded episodes; long and short legs can overlap in time. Learning data only.
+
+**CORRECTION (chat only, not previously logged):** I told the owner these shares were "before making a new extreme". That is wrong. The detector counts a touch within 60 H4 bars of the anchor, and the level moves with the running extreme. R39 states the correct definition.
+
+**Checks:**
+- Branch suite: **991 passed, 8 skipped, 2 deselected** (2026-11-04).
+- Mutation: the new SKILL.md reference row deleted (`git diff --numstat` showed the edit) → `tests/test_skill_build.py` **1 failed** (`assert ['chart_reading_method.md'] == []`). Restored byte-identical (`cmp`) → 3 passed.
+
+**Gate 3 progress, US events in the brief (2026-11-03 merge entry, `99919de` merged 15:29 PST):**
+1. **PERFORMED.** The first calendar fetch after merge wrote US rows: `logs/brief_2026-11-04.log` line 2, 02:33:21 PST, `6 high-impact GBP/AUD/JPY events and 4 US events (context only) through 2026-11-06 16:00 UTC`. `calendar.csv` holds Congressional Elections plus Fri 2026-11-06 13:30 UTC average hourly earnings, non-farm employment change and unemployment rate.
+2. **PERFORMED.** Every 2026-11-04 brief (02:33, 07:47/08:37, 18:00 PST), both pairs: `US DATA    none in the next 24 hours.` That is correct: the next US release is 13:30 UTC Friday, more than 24 h after each run.
+3. **OBSERVED so far, stays PENDING** (it says "never"): the only 2026-11-04 notification was the DIGEST.
+4. **PERFORMED.** The first digest after merge, `2026-11-04T16:37:24Z`: `GBP_AUD=STAND ASIDE/open;GBP_JPY=STAND ASIDE/open`, matching both pairs' DECISION in the 08:37 brief.
+
+**CORRECTION (chat only, 2026-11-03):** I told the owner the 18:00 PST brief on 11-03 would re-download the calendar. It did not. `calendar.csv` was written 2026-11-02 18:01:44, so at 18:00:05 it was under the `-mmin +1440` threshold in `scheduled_brief.sh`. The first re-fetch was the 02:33 run above.
+
+**NOT CHECKED, noted:** the 2026-11-04 morning run was late. The digest went out at 08:37 PST (07:30 and 07:33 on the two days before); the GBP/AUD section is stamped 7:47 AM and GBP/JPY 8:37 AM. A sleeping machine is one possible cause; not investigated.
