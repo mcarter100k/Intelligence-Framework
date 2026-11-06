@@ -6385,3 +6385,86 @@ Both runner files are byte-identical to commit 2f7c68b (sha256 `2302ab42…935d`
 3. **A Q4 reading for the team.** Decomposing in US-dollar terms leaves the dollar in both residuals: −AUD/USD and USD/JPY both carry USD. So a non-zero residual correlation may be the dollar itself rather than "something else". The spec should say how that reading is made before the result exists. The requester's expected result is recorded as given, unchanged.
 
 **Also for the spec:** FORWARD holds 40 daily and about 8 weekly returns, and its stress quintile would hold about 2 weeks. Those cells would be INSUFFICIENT (N < 20) and carry no verdict.
+
+## 2026-11-05 — STUDY RUN (descriptive and risk, free zone): currency-leg decomposition and pair correlation (branch `feat/leg-study-run`)
+
+**What:** how much of GBP/AUD and GBP/JPY is the GBP leg, and whether holding both is one position or two, per period, never pooled.
+- Spec: `docs/specs/leg_decomposition_study_spec.md`.
+- Report: `studies/leg_decomposition_report.md`.
+- **`risk_config` is not changed. No trading rule is proposed.** No SEALED EXAM bar was used. M40 governs.
+
+**Design points resolved** by the owner's "Commit the spec and run" (2026-11-05), adopting the recommendations put to them:
+- Phase 3 uses lagged legs alone, because the identity makes same-day legs determine the cross.
+- Gold starts at the 2006-03-21 session, with one weekly-correlation question.
+- Q4 is reported as "the remaining link, which includes the US dollar".
+
+**Ordering:**
+- Spec 671033a: **23:33:58 PST**. The runner was absent (`ls`).
+- Runner af4b95e: 23:36:12 PST.
+- **First computation: 23:36:13 PST.**
+- One run, through `reality_run.py --no-env`: exit 0, stderr 0 bytes, project UNCHANGED.
+
+**Positive control, the identity check: PASS in every period and pair.**
+- Correlation of actual and reconstructed daily returns: 0.99943–0.99996.
+- Median |residual|: 0.07–0.47 bp.
+- 9 of 7,550 pair-days above 10 bp (largest 87.8 bp).
+- With the legs shifted one date, the correlation falls to −0.15 to +0.04, so the check detects misalignment.
+- No D1 bar was left out of the aligned set in any period.
+
+**Results** (per period; FORWARD weekly cells are INSUFFICIENT):
+
+| Question | GBP/AUD, 2005–2013 | GBP/AUD, 2021–2026 | GBP/JPY, 2005–2013 | GBP/JPY, 2021–2026 |
+|---|---|---|---|---|
+| Q1: daily R² on GBP/USD | 0.009 | 0.023 | 0.386 | 0.164 |
+| Q2: own-leg R² | 0.584 | 0.347 | 0.521 | 0.393 |
+
+- The GBP/AUD Q1 figure was cross-checked: it follows exactly from the legs' own variances and their correlation (+0.57, +0.71). The shared dollar cancels.
+
+| Question | 2005–2013 | 2021–2026 |
+|---|---|---|
+| Q3: weekly cross-to-cross correlation | −0.009 [−0.100, +0.082] (N 469) | +0.199 [+0.084, +0.309] (N 281) |
+| Q4: daily residual correlation (includes the US dollar) | −0.224 | +0.124 |
+| Q5: stress weeks, cross-to-cross | −0.095 [−0.292, +0.110] (N 94) | +0.325 [+0.068, +0.542] (N 56) |
+| Q5: stress weeks, residual | −0.269 | +0.239 |
+| **Risk verdict** (fixed in advance) | **OVER-CONSERVATIVE** | **BETWEEN**: effective independent positions 2/(1+ρ) = **1.51** |
+
+- FORWARD has no verdict (2 stress weeks).
+- **The verdicts differ between eras: a stability finding.** In neither era does ρ reach the 0.7 that "count as one" requires.
+- The rule is not wired and limits position count, not size.
+
+**Expected result** (the requester's, read numerically in advance): **NOT MET** in 2005–2013 and 2021–2026 on all three readings (high shared-leg share, mid correlation, residual near zero).
+
+**Phase 3, one lag, daily, Šidák α 0.0085 over 6 cells:**
+- GBP/JPY: NO LEAD DETECTED in any period.
+- **GBP/AUD: LEAD DETECTED in 2005–2013 (F 13.16, p < 0.0001, predictive R² 0.011) and 2021–2026 (F 5.02, p 0.0068, R² 0.007).** NO LEAD in FORWARD (N 38).
+- **Recorded as a hypothesis only, not built on.** It is tiny, measured on mid closes, and possibly a closing-quote effect. It needs its own pre-registered run.
+
+**G1, gold (weekly, descriptive):**
+- corr(GBP/AUD, XAU/USD): −0.136 (2005–2013), −0.225 (2021–2026).
+- corr(GBP/JPY, XAU/USD): +0.057, −0.010.
+
+**Hypotheses recorded, not computed** (report):
+- the GBP/AUD next-day effect (own autocorrelation, or close-timing reversion; does it survive costs);
+- AUD and JPY as opposite risk currencies offsetting the shared GBP;
+- the change in correlation between eras;
+- the residual sign flip;
+- AUD as the gold channel.
+
+**Tests:** `tests/test_leg_decomposition_study.py`, 10 tests.
+- Identity on synthetic crosses; failure on misalignment and on a sign error.
+- The F(2, d2) tail checked against scipy where installed.
+- A planted lead found, and none found where there is none.
+- Stress quintile, verdict boundaries.
+- 6 of 6 mutants killed.
+- **Two tests failed on first run:**
+  - one expectation of mine (the top quintile of 0–99 is 20 values, not 21);
+  - a real edge case: a perfect correlation's Fisher interval fell below r. That was fixed in the code before the run.
+
+| # | Claim | Status | Evidence | Could it fail? |
+|---|---|---|---|---|
+| 1 | The spec preceded every statistic | VERIFIED | 671033a 23:33:58 PST; first computation 23:36:13 PST; runner absent at the spec commit | ordering checked |
+| 2 | The data align: the identity holds to quote noise | VERIFIED | identity table, all PASS | a one-date shift drops the correlation to about 0; tests fail on misalignment and on a sign error |
+| 3 | The reported statistics are the spec's computations | VERIFIED | 10 tests, 6 mutants killed; the Q1 GBP/AUD figure reproduced independently from leg covariances | mutants |
+| 4 | The report's tables are the run's output | VERIFIED | embedded stdout compared byte-identical | any byte change fails |
+| 5 | The GBP/AUD lead is real and usable | NOT CHECKED | hypothesis only, by the spec | n/a |
+| 6 | Individual price values are correct | NOT CHECKED | consistency only; no second source | n/a |

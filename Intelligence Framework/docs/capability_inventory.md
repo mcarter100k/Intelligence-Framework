@@ -62,7 +62,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 | Area | Status | What we have / what's missing |
 |---|---|---|
 | Position sizing, stops, reward-to-risk | HAVE | `trade_management.py`, `risk_config.py` |
-| Daily loss limit, position cap, two GBP pairs counted as one exposure | NOT WIRED | `session_guard.py`. Limits are **not enforced**. Must be wired before the first real-money trade |
+| Daily loss limit, position cap, two GBP pairs counted as one exposure | NOT WIRED | `session_guard.py`. Limits are **not enforced**. Must be wired before the first real-money trade. **Measured 2026-11-05** (`studies/leg_decomposition_report.md`): in stress weeks the two crosses correlate −0.10 (2005–2013) and +0.33 (2021–2026); "count as one" is not supported in either era (needs ≥ 0.7); 2021–2026 reads as about 1.5 independent positions. Team to rule |
 | Trade management (breakeven, partials, trailing) | HAVE, as rules | `foundation/risk_and_execution.md` |
 | Pre-trade checklist and journal | MANUAL | `setup_check.py`, `trade_logger.py`. Zero real trades so far (one paper test) |
 | Grading the trader (process separate from outcome, weekly review) | MANUAL (built 2026-11-04, not yet used) | `scripts/trader_review.py`: log every idea taken or passed, score outcome R and process separately, weekly review with one lesson and at most one rule change (`foundation/trader_review.md` §0). Zero real ideas logged so far: it starts counting when the owner uses it |
