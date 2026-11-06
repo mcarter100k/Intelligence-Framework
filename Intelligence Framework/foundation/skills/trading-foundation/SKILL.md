@@ -73,6 +73,14 @@ Pre-register the following before looking at results (details in
   change means a new id and a fresh ledger.
 - **Data partition:** keep study data separate from the one-shot exam
   data. Data already looked at is "learning only, never proof".
+- **The sealed exam (2014–2021) is irreversible. Never propose spending it
+  unless:**
+  - the candidate is SUPPORTED on study data; AND
+  - the spec states, before opening, the expected N and the minimum
+    detectable edge at that N.
+  - At swing frequency, +0.15R needs about 396 episodes, which the exam
+    cannot supply.
+  - Rule M40 in `methodology.md`; `data_map_spec.md` §11.6.
 - **Episodes, not rows:** set the horizon in bars on the real bar index. A
   30-bar H4 horizon is about 168 clock hours, not 120. Count graded
   episodes only.

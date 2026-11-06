@@ -21,6 +21,8 @@ It follows the team ruling of 2026-11-05: **A + D**, recorded in
 - **The 2026-09-10 boundary session** belongs to no span. This is the first
   application of §11.6 rule 5, because §1 gives that day to both USED and
   FORWARD. It is **flagged for the team to confirm.**
+  - **Confirmed by the team, 2026-11-05:** the day is stored in neither
+    period. One day per pair is a trivial cost for an unambiguous seam.
 - **The reserved label `SEEN_NOT_PROOF`** is for a spent exam (§11.6 rule 4).
   It is unused.
 
@@ -87,8 +89,31 @@ It follows the team ruling of 2026-11-05: **A + D**, recorded in
 - A wrong hourly value that leaves its 4-hour and daily bars unchanged is
   undetectable. The first, badly aimed price control, a +1 pip on a bar
   that was not its bucket's high, passed for exactly this reason.
-- The STUDY feed itself was validated against the held 4-hour bars in the
-  session movement study.
+- The STUDY feed itself was checked against the held 4-hour bars in the
+  session movement study. That check has the same limit as this one (below).
+
+**What "consistent" leaves unverified** (added 2026-11-05, team review):
+- **What each check proves.** The hourly → 4-hour check proves four values
+  per 4-hour block: the first hourly open, the last hourly close, the single
+  highest hourly high and the single lowest hourly low. The 4-hour → daily
+  check does the same one level up.
+- **What it leaves unproven:**
+  - **Other hourly highs.** Every other hourly high is only proven to be at
+    or below its block's high, by any amount.
+  - **Other hourly lows.** The same holds for lows, above the block's low.
+  - **Intermediate opens and closes.** These are not checked at all.
+  - **Within-block timing.** Which hour inside a block made the block's
+    high or low is not proven.
+- **What this means for users of the archive:**
+  - **Hourly range and timing figures** rest mostly on unproven values.
+    Examples: each hour's high minus low, the hour an extreme formed, hourly
+    ATR.
+  - **4-hour and daily values** rest on proven ones.
+  - **The session movement study's Q1** is exactly such a figure.
+- **Both sides are OANDA data,** so an error in OANDA's own records would
+  pass.
+- **What would close the gap:** a second, independent data source for the
+  same spans, compared hour by hour. None has been sourced.
 
 ## How to use it
 

@@ -6199,3 +6199,57 @@ Both reviewers report the project unchanged: 943 files hashed before and after, 
 | 3 | The loader serves only named spans and refuses SEALED | VERIFIED | real-archive load counts; refusals observed | tests with mutants killed |
 | 4 | The archive's prices are correct against an outside source | NOT CHECKED | consistency only; STUDY's feed was validated against the held H4 earlier | n/a |
 | 5 | The 2026-09-10 embargo is what the team intends | PENDING | team confirmation | n/a |
+
+## 2026-11-05 — SKILL REBUILT with M40; boundary day CONFIRMED; verification caveat ADDED to two reports; modern replication STOPPED on a premise (free zone; branch `docs/verification-caveat`)
+
+**Part 1 — the installed skill now carries M40:**
+- **Before overwriting:** `build_skill.sh` was first run into a temp directory and diffed against `~/.claude/skills`. The only difference was `trading-foundation/references/methodology.md`, the M40 row. The rebuild therefore destroyed no local edit.
+- **The installed rebuild:**
+  - Sha256 of all 14 installed files before and after: **exactly one changed**, `references/methodology.md` (`2af2882f…` → `ee6a99a3…`).
+  - M40 rows in the installed copy: 0 before, **1 after**. The installed file is byte-identical to `foundation/methodology.md`.
+- **The build test** (`tests/test_skill_build.py`) passes, 3 of 3. **It did not catch M40, and cannot.**
+  - M40 was added to a file that was already shipped, so the reference set did not change.
+  - The test compares file names in both directions, not contents.
+  - Shown this session: with the M40 row deleted, the test still passed 3 of 3.
+  - So the test proves the file set, and only the installed-tree hash diff proves the rule was delivered.
+  - Nothing checks that the installed skill is current with `foundation/`. That gap is recorded here, not built.
+- **SKILL.md now states the exam rule in its body.** Agents load SKILL.md first and open `references/` only on demand. A one-paragraph pointer to M40 was added to the data-partition item of SKILL.md (this branch). The skill is reinstalled from `main` after merge.
+
+**Boundary day (team confirmation, 2026-11-05):** the 2026-09-10 session is stored in **neither** USED nor FORWARD. This is the correct application of exam rule 5 (`data_map_spec.md` §11.6). It clears the PENDING row 5 of the research-archive entry above.
+
+**Part 2 — what the data check did not verify** (`studies/session_movement_report.md` §6 and a correction note beside its Phase 1 verdict; `studies/research_archive_report.md` beside its verification claims):
+- **What the check proves.** The hourly → 4-hour check proves four values per 4-hour block: the first hourly open, the last hourly close, the highest hourly high and the lowest hourly low.
+- **What it leaves unproven:**
+  - Every other hourly high, which is proven only to be at or below the block's high.
+  - Every other hourly low, the same way.
+  - All intermediate opens and closes.
+  - Which hour inside a block made its extreme.
+- **What this touches in the session study:**
+  - **Q1** (hourly high minus low) is built almost entirely from unproven values.
+  - **Q3/Q4** are proven to the 4-hour block, not the hour.
+  - **Q2** depends partly on unproven values.
+  - **Hourly ATR** is unproven. 4-hour and daily ATR rest on checked bars.
+- **Both sides are OANDA data.**
+- **CORRECTION:** the session report's Phase 1 verdict, "the H1 feed is validated by construction", overstated this. A dated correction note now stands beside it; the original line is kept.
+  - The correct wording: the hourly figures are **consistent with the verified 4-hour data, not verified bar by bar.**
+  - The study was not re-run. No figure or conclusion changed. The report's verbatim output was re-checked byte-identical.
+- **What would close the gap:** a second, independent data source for the same span, compared hour by hour. None has been sourced.
+
+**Part 3 — modern replication: STOPPED before anything was committed, fetched or computed (rule 5).**
+
+**Premise that failed:** "the SAME runner code, unmodified" cannot run on 2021–2026 data. Two things are written into the code:
+- `session_movement_study.py:40-46` holds the six 2005–2013 file hashes and exits on any other data.
+- `session_movement_data.py:43-44` fixes the day window to 2005-01-03 → 2013-12-30.
+
+Both runner files are byte-identical to commit 2f7c68b (sha256 `2302ab42…935d`, `3f2d4314…55ff1`). The instruction said to stop rather than adjust, so no addendum spec was committed and the thresholds remain unspent.
+
+**Other premise notes for the team:**
+1. **The motivation misreads the earlier report.** It says the 2005–2013 study concluded "these pairs are poorly suited to day trading". The report drew no such conclusion: it states it cannot answer that, and its gate read CONCENTRATED.
+2. **The modern ATR figures are unchecked.** "~104" (GBP/AUD) and "~136" (GBP/JPY) daily ATR "now" were not checked. Q5 would measure the USED-span means.
+3. **The Sidak tool fits only half the task.** `power_check.py --cells 20` gives a per-comparison α of 0.0026 and a family-wise rate of 64% at 0.05 each. Its α feeds a one-sided test of mean R; the proposed period comparisons are two-sided differences of proportions. An addendum spec would have to state the test (for example, a two-sided two-proportion z test at α 0.0026).
+
+**Options, for the owner and the team:**
+- **(a) Parameter wrapper (recommended).** A new file imports the unmodified runner and rebinds only its inputs: the hash table and the two day-window dates. It then calls the same `run()`, on `~/intel_study_archives/modern_data/`, which starts at the first USED candle so ATR has no 2014–2021 jump.
+  - **Proof that the code is the same:** both runner files re-hashed equal to 2f7c68b.
+  - **Proof that the path is the same:** a control run through the wrapper with the 2005–2013 inputs must reproduce the published output byte-for-byte, before the modern run.
+- **(b) Edit the runner to take parameters.** This is a code change, which the instruction says invalidates the comparison.

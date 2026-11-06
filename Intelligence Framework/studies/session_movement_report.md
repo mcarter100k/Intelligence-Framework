@@ -73,6 +73,13 @@ lowest low.
   15,162 (GBP/AUD) and 14,695 of 15,098 (GBP/JPY) buckets mismatch.
 - **Verdict:** the H1 feed is validated by construction against the
   framework's H4.
+  - **Correction, added 2026-11-05 after the run (team review):** "validated
+    by construction" overstates it.
+  - The check proves four values per 4-hour block: the first hourly open,
+    the last hourly close, the highest hourly high and the lowest hourly low.
+  - It does not prove the other hourly values, which most of Q1 is built
+    from. See §6, "What the data check did not verify".
+  - The figures below are unchanged.
 
 **Gaps.** A gap is a missing hour inside the weekly market window, Sun
 17:00 → Fri 17:00 New York.
@@ -269,6 +276,41 @@ Each of these would need its own pre-registered run.
 - **N:** every weekday cell holds 463–466 complete days, and every hourly
   cell at least 34 bars. The smallest is Monday 21:00 UTC, because winter
   Mondays open at 22:00 UTC. No cell is below N = 20.
+- **What the data check did not verify** (added 2026-11-05, team review; the
+  figures are unchanged and the study was not re-run).
+  - **What was compared.** The Phase 1 check compared each 4-hour block
+    built from hourly bars with the 4-hour bar OANDA serves. It proves four
+    values per block:
+    - the first hour's open;
+    - the last hour's close;
+    - the single highest hourly high;
+    - the single lowest hourly low.
+  - **What it leaves unchecked:**
+    - **Other hourly highs.** Every other hourly high in the block is only
+      proven to be at or below the block's high. It could be wrong by any
+      amount under that ceiling and the check would still pass.
+    - **Other hourly lows.** The same holds for lows, above the block's low.
+    - **Intermediate opens and closes.** These are not checked at all.
+  - **Why it matters here.** Q1 measures each hour's high minus its low. So
+    it is built almost entirely from values the check did not prove. If an
+    hour's high were too low and its low too high, its range would be wrong
+    and the check would still match exactly.
+  - **The same limit, elsewhere in the study:**
+    - **Q3 and Q4:** the day's high and low values are proven, but only to
+      the 4-hour block they sit in. Which hour inside that block made them
+      rests on the unproven hourly values.
+    - **Q2:** it uses session blocks that do not line up with the 4-hour
+      blocks, so it too depends partly on unproven hourly values.
+    - **Q5:** the 4-hour and daily figures rest on bars that were checked;
+      the hourly figure does not.
+  - **Both series come from one source.** Both sides of the check are
+    OANDA data. An error present in OANDA's own records would pass.
+  - **The right word is "consistent", not "verified".** The hourly data is
+    probably fine, but "probably fine" is not "verified". This report's
+    hourly figures are **consistent with the verified 4-hour data**, not
+    verified bar by bar.
+  - **What would close the gap:** a second, independent data source for the
+    same 2005–2013 span, compared hour by hour. None has been sourced.
 
 ---
 
