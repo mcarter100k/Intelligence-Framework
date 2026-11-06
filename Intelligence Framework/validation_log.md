@@ -6468,3 +6468,71 @@ Both runner files are byte-identical to commit 2f7c68b (sha256 `2302ab42…935d`
 | 4 | The report's tables are the run's output | VERIFIED | embedded stdout compared byte-identical | any byte change fails |
 | 5 | The GBP/AUD lead is real and usable | NOT CHECKED | hypothesis only, by the spec | n/a |
 | 6 | Individual price values are correct | NOT CHECKED | consistency only; no second source | n/a |
+
+## 2026-11-06 — READINESS (A1–A5), JOURNAL SCORING (B), BREADTH GO/NO-GO (C): states checked, two specs committed, gate stopped at C1 on a premise (branch `feat/readiness-breadth`)
+
+**Part A, state found before any build:**
+- **A1 (wire the circuit breaker):** not wired; no live caller. Spec PROPOSED: `docs/specs/circuit_breaker_wiring_spec.md`. Its open points are the balance input, the shared-currency rule (in light of the 2026-11-05 leg study) and the order relative to the A2 migration. Not built.
+- **A2 (planned entry) and A4 (stop in the brief): BUILT 2026-10-15 on `feat/decision-reasoning`, never merged, never reviewed.**
+  - The branch is 13 commits, 23 files, 7 protected modules, merge-base a3e070b. Its own log entry ("Merge HELD for team review") and its spec exist only on the branch; `main`'s log has no record.
+  - A2 adds `price_at_check`, `planned_entry` and `planned_entry_source`, with the UNOBSERVED / no-backfill clause.
+  - A4 repoints the "stop … proven wrong" sentence to the EXIT IF line (spec 5F).
+  - **No duplicate specs written.** The team chooses: review as is, split A2+A4 into a re-based slice, or reject and re-spec. Any merge needs a re-base: `main` moved its tests to `tests/` and changed `decision_brief.py` since.
+- **A3 (broker):** `studies/broker_capability_probe.py`, GET only, through `reality_run.py` (exit 0, stderr empty, project UNCHANGED). No order placed; balance and account id not printed.
+  - The account: live USD, hedging off, guaranteed stops disabled. Both pairs: minimum 1 unit, whole units, margin 0.05 each.
+  - Orders, trades and positions endpoints answer with 0 items. `/positions` (every instrument ever held, per OANDA's documentation; INFERRED) is empty, so the account appears never to have traded.
+  - **Order placement is NOT VERIFIED;** only placing an order could show it.
+- **A5 (computed size):** `risk_config.calculate_lot_size` exists but has no caller. It needs a balance source (A1), stop distance from the market (A2), pip value in USD via AUD/USD and USD/JPY (its $10-a-lot default overstates both), units instead of 0.01-lot rounding, and the real spread. Not built; waits for A1.
+- Report: `docs/execution_readiness_2026-11-06.md`.
+
+**Part B, journal scoring (read-only; temp copy byte-identical after the run):** `studies/journal_scoring.py`, report `studies/journal_scoring_report.md`.
+- **Premise:** 6 rows, not 4. That is four distinct ideas: rows 2–4 are one idea re-checked. Row 1 has no stop and is ungradeable. Rows 2–5 have no target; the standard 30-bar rule uses none, so they grade unchanged.
+- **FINDING:**
+  - The price setup_check measured every distance from **equals the previous D1 close**: 0.00 pips on four rows, 0.40 on one (4-decimal rounding).
+  - It lies outside the check hour's real range on all five. This is the pre-2026-09-30 `current_price` (data_at_source_spec P1).
+  - **Every recorded stop_pips, stop_atr_multiple and "stop inside noise" verdict in the journal is a distance from yesterday's close:** "7.2 pips" was really 0.2–1.1; "92.6" was really about 106–115.
+  - Not corrected: the journal is append-only, and an annotation would go through the protected exclusion registry. For the team.
+- **Scores** (entry E2 = close of the check's H4 bar; E3 = next H1 open):
+
+  | Idea | Result |
+  |---|---|
+  | 2 (rows 2–4) | −1.00 / −1.00 on every row |
+  | 3 (row 5) | −1.00 / −1.00 |
+  | 4 (row 6, with the framework) | +0.90 / +1.06, target not reached |
+  | 1 | ungradeable |
+
+  - Sensitivity: 0R for ideas 2–3; 0.16R for idea 4. The stale-price distance would have read +1.36R.
+  - Horizons overlap: at most one independent episode. **No verdict.**
+
+**Part C, breadth go/no-go:**
+- **Gate spec committed before any measurement:** `docs/specs/breadth_gate_spec.md`.
+  - The bands are as ruled.
+  - The ruling's arithmetic is reproduced: ceilings 781 / 521 / 391; break-evens 0.108 (10 pairs) and 0.155 (20 pairs).
+  - Two notes: at exactly ρ̄ 0.11, 10 pairs give 392.5, below 396. At α 0.01 the 10-pair break-even is 0.024.
+  - The return-correlation proxy is typically, not provably, an upper bound.
+  - Three definitions are PROPOSED for confirmation: ρ̄ as the mean of |ρ|; the verdict on the larger of STUDY and USED; the weekly construction.
+- **C1, real spreads:** `studies/universe_spread_probe.py`, read-only, through `reality_run.py`.
+  - Bid/ask H1 closes for all 68 account pairs, 2026-10-07 → 2026-11-06. Spreads only; prices discarded; no 2014–2021 bar requested.
+  - **GBP/AUD median spread 5.1 pips** (4.9 London/NY) against the 3.0 assumed in studies and 4.0 in risk_config. GBP/JPY 3.5 against 3.0. For the team; one month is not a re-grading.
+- **C1, the ruled criteria applied literally:**
+  - The list: GBP_AUD, GBP_JPY, HKD_JPY, EUR_HKD, EUR_JPY, EUR_DKK, GBP_HKD, CAD_SGD, AUD_NZD, SGD_CHF. The currency cap is met (maximum 3).
+  - **STOPPED (rule 5): the list defeats the ruling's purpose.** HKD is held to the US dollar and DKK to the euro (public currency regimes, not measured here). Four of the eight new pairs are dollar or euro pairs in disguise, and GBP_HKD behaves as the excluded GBP_USD.
+- **Amendments proposed:** pegs count as their anchor, and same-anchor pairs are dropped.
+  - Illustration on the same spreads: GBP_AUD, GBP_JPY, EUR_JPY, SGD_JPY, EUR_GBP, EUR_CHF, CAD_SGD, AUD_NZD, SGD_CHF, AUD_CAD.
+  - Cautions: SGD is managed (3 pairs). EUR/CHF had a floor from 2011-09 to 2015-01, part of STUDY.
+- **Partition ruling requested** (decision 3 is still open). The request is `docs/breadth_universe_request.md`.
+- **No pair has been fetched for measurement; ρ̄ is not measured.** GO / PARTIAL / NO-GO is PENDING the two rulings.
+
+**Tests:**
+- `tests/test_journal_scoring.py` (5) and `tests/test_universe_spread_probe.py` (5).
+- 4 of 4 mutants killed in each. One survivor in the journal scorer (a `>=` → `>` stop touch on shorts) was caught after an exact-touch test was added.
+
+| # | Claim | Status | Evidence | Could it fail? |
+|---|---|---|---|---|
+| 1 | A2 and A4 were built on an unmerged, unreviewed branch | VERIFIED | branch diff and log entry; `git branch --merged main` lacks it | the merged-branch check could have listed it |
+| 2 | The journal's distances were measured from the previous D1 close | VERIFIED | recovered price = prior D1 close (0.00 / 0.40 pip) on 5 of 5 rows; outside the hour's range on 5 of 5 | a live-price measurement would have lain inside the hour's range |
+| 3 | The idea scores follow the standard 30-bar rule | VERIFIED | 5 tests; mutants killed incl. the exact-touch case | mutants |
+| 4 | The literal C1 list meets the currency cap | VERIFIED | probe output, maximum 3 | selection tests fail on cap violations |
+| 5 | The literal C1 list is fit for purpose | NOT MET | pegged currencies (HKD, DKK) | n/a; stopped |
+| 6 | The account can place orders | NOT CHECKED | placing one was out of bounds | n/a |
+| 7 | Breadth GO / PARTIAL / NO-GO | PENDING | needs the universe and partition rulings | n/a |
