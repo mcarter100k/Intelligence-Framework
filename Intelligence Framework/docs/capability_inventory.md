@@ -51,7 +51,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 
 | Area | Status | What we have / what's missing |
 |---|---|---|
-| Sessions and time of day (Tokyo, London, New York) | PARTIAL | Asian-session range used as a level only |
+| Sessions and time of day (Tokyo, London, New York) | PARTIAL | Asian-session range used as a level only (live). **Described 2026-11-05** on 2005–2013 hourly data (`studies/session_movement_report.md`, descriptive, not a strategy): two busy windows (London morning 07–09 UTC, London/New York overlap 12–15 UTC; peak 14:00 UTC = 06:00 PST), busiest hour about 1.8–1.9× the quietest; by 07:00 PST about 7 days in 10 already have their high, and the same for their low. Not used by the live path. Asian-range breakout question spec'd, not run |
 | Fixes and month-end flows (London 4pm, Tokyo fix) | MISSING | |
 | Spread | PARTIAL | Fixed assumption (3.0 pips in studies, 4.0 in execution tools). Never measured live |
 | Overnight financing (swap) | PARTIAL | Known to matter (R32: about 0.1R per 5-day GBP/JPY hold). **Not counted in the shadow ledger grading.** Today's broker rates (2026-11-01): GBP/JPY long +1.6%/yr, GBP/AUD long −1.89%/yr |

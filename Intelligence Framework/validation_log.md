@@ -6043,3 +6043,92 @@ Both reviewers report the project unchanged: 943 files hashed before and after, 
 - All four specs stay PROPOSED.
 - The merged test stands: it guards today's 16 known-false claims and fails on unregistered claim words in renders. Its weaknesses are recorded above.
 - Revisions go in new files.
+
+## 2026-11-05 — STUDY RUN (descriptive, free zone): session movement, when GBP/AUD and GBP/JPY move (branch `feat/session-movement-study`)
+
+**What:** a descriptive study of WHEN the two pairs move during the day, on the 2005–2013 STUDY partition. It has no entry, no direction, no costs and no strategy, and it does not say whether day trading would make money. Report: `studies/session_movement_report.md`. Spec: `docs/specs/session_movement_study_spec.md`. The SEALED EXAM was not sourced, counted, opened or touched.
+
+**Premise checks (rule 5):**
+- The instruction cited `instrument_probe_report.md` for "OANDA history from 2002-05-06". That date is for the USD legs at daily granularity.
+- `history_depth_report.md` §1 shows H1 for GBP/AUD from 2004-05-31 and GBP/JPY from 2002-05-07. Both cover the STUDY start, so the work went ahead.
+- "Pipeline is daily and 4-hour only" is not exact: `oanda_feed.get_hourly_bars` and a 2022–2026 H1 cache exist. No STUDY-era H1 existed.
+- The gotobi rejection the instruction mentions is not recorded anywhere in the repo. Gotobi is named only as a candidate in `docs/driver_coverage_proposal.md`.
+
+**Phase 1: hourly data, validated by aggregation (commit 0a38135):**
+- **Fetch:** OANDA H1 mid through the embargo-guarded STUDY fetch, run via `reality_run.py`. Exit 0, stderr empty, project UNCHANGED by hash, 212 requests.
+  - GBP/AUD: 58,729 candles. GBP/JPY: 58,594.
+  - Both span 2005-01-02 10:00 PST → 2013-12-30 13:00 PST.
+  - **0 candles inside the embargo/sealed block.**
+  - Stored outside the repo, `~/intel_study_archives/session_movement_data/`. sha256: GBP_AUD_H1 `9f930362…f4c3`, GBP_JPY_H1 `e00361f2…99cf` (full values in the spec §2).
+- **Aggregation:** raw H1 summed into the framework's H4 slots, compared with the held STUDY H4 (hashes verified).
+  - **GBP/AUD: 15,281 of 15,281 exact on open, high, low and close. GBP/JPY: 15,191 of 15,191.**
+  - 0 orphans either side. 0 nonzero differences in pips.
+- **Positive control:** a 1-pip defect planted on the defining bar of 20 buckets per pair was caught 20 of 20, at the right bucket and field. A one-hour slot shift mismatches 14,732 of 15,162 and 14,695 of 15,098 buckets.
+- **Gaps:** 18 runs (227 h) for GBP/AUD and 13 runs (231 h) for GBP/JPY, every one a Christmas or New Year holiday. Listed in `studies/session_movement_gaps_*.csv`.
+- **Complete study days** (21:00 → 21:00 UTC, Mon–Fri, approved weekend rule applied): **GBP/AUD 2,325, GBP/JPY 2,327.**
+
+**Ordering (spec before any statistic):**
+- Spec commit 85e5c19: **2026-11-05 20:52:58 PST**.
+- The runner did not exist at that commit. It was committed in 2f7c68b at 20:56:29 PST.
+- **First computation: 20:56:37 PST** (the runner's own UTC stamp, 04:56:37Z).
+- One run only: `reality_run.py --no-env`. Exit 0, stderr 0 bytes, project UNCHANGED by hash.
+- The report embeds the stdout byte-identical (checked by string comparison, 32,748 bytes).
+
+**Results (per pair; full tables, by weekday, in the report):**
+- **Q1, hourly range:**
+  - Two busy windows: London morning (07–09 UTC) and the London/New York overlap (12–15 UTC).
+  - Peak hour: 14:00 UTC (06:00 PST) in both pairs, at 60.2 pips (GBP/AUD) and 53.5 pips (GBP/JPY).
+  - Quietest hour: 04:00 UTC for GBP/AUD (34.1) and 21:00 UTC for GBP/JPY (27.9).
+  - Busiest/quietest ratio: **1.77 and 1.92**.
+- **Q2, block share of the day's range (medians):**
+
+  | Block | GBP/AUD | GBP/JPY |
+  |---|---|---|
+  | SYDNEY | 0.30 | 0.26 |
+  | TOKYO | 0.48 | 0.46 |
+  | LONDON | 0.53 | 0.57 |
+  | LDN_NY | 0.52 | 0.54 |
+  | NY_PM | 0.39 | 0.36 |
+
+- **Q3, block of the daily high and low:** each block holds 17–25% of highs and of lows. Both fall in the same block on 3.6% (GBP/AUD) and 4.7% (GBP/JPY) of days.
+- **Q4, share of days with the extreme already set:**
+
+  | By | Highs (GBP/AUD, GBP/JPY) | Lows (GBP/AUD, GBP/JPY) |
+  |---|---|---|
+  | 03:00 UTC | 34%, 30% | 28%, 29% |
+  | 09:00 UTC | 51%, 48% | 44%, 49% |
+  | 15:00 UTC (07:00 PST) | 72%, 72% | 69%, 75% |
+
+- **Q5, mean ATR(14) in pips** (numbers only, no rule proposed): GBP/AUD H1 46.2, H4 89.5, D1 216.5. GBP/JPY 39.8, 79.7, 200.6.
+- **Day of week:**
+  - Friday's overlap is the busiest window of the week. Monday's is the quietest.
+  - The Monday day-start block holds the high on 30% and 32% of Mondays, against 16–20% on other days. That is partly the folded 2005–2013 weekend quoting.
+  - GBP/JPY peaks at the London open on Monday to Wednesday.
+- **Reading rules fixed in the spec:**
+  - **DST (§5):** no boundary step is sharp (all are 0.81–1.24), so no DST-aware re-run is called for. The steepest rise, at 06:00 UTC, lies inside the TOKYO block.
+  - **Phase 3 gate (§6): CONCENTRATED.** The Asian-range breakout question is not moot.
+
+**Phase 3:** `docs/specs/asian_range_london_direction_spec.md` was committed with the Phase 2 spec, before any result. It is **NOT RUN**, and running it is the team's decision.
+
+**Hypotheses recorded, not computed** (report §5):
+1. A random-walk baseline for Q3/Q4. Extremes cluster at window edges by chance, so the block percentages are not yet session effects.
+2. Friday overlap concentration and US releases.
+3. The Monday day-start block and the fold artifact.
+4. DST-aware blocks.
+5. Era stability.
+6. The GBP/JPY early-week London-open peak.
+
+**Tests:**
+- `tests/test_session_movement_data.py` (7) and `tests/test_session_movement_study.py` (10).
+- Mutation: 4 of 4 and 6 of 6 mutants killed. Each revert was confirmed byte-identical, caches were cleared, and the tests re-passed.
+- The ATR copy is pinned equal to `regime_detection.compute_atr_series`.
+- **Full suite on the branch, 2026-11-05 about 21:00 PST: 1054 passed, 10 skipped, 3 deselected, 16 xfailed.**
+
+| # | Claim | Status | Evidence | Could it fail? |
+|---|---|---|---|---|
+| 1 | STUDY H1 aggregates exactly into the held H4 for both pairs | VERIFIED | validate run: 15,281/15,281 and 15,191/15,191 exact | planted 1-pip defects caught 20/20 per pair; slot shift mismatches about 97% |
+| 2 | No sealed-exam or embargo candle was fetched or stored | VERIFIED | fetch and validate: 0 candles in the block; the guard refuses before sending | this session: the guard refused 3 of 3 block-touching windows and allowed a STUDY window; the count went 0 → 1 with a planted 2017 candle |
+| 3 | The spec was committed before any statistic was computed | VERIFIED | 85e5c19 at 20:52:58 PST; first computation at 20:56:37 PST; runner absent at the spec commit (`ls`) | the timestamps could have been in the other order; they were checked |
+| 4 | The five answers are exactly the spec's computation | OBSERVED | runner + 17 tests, 10 mutants killed | the tests pin the helpers, not the end-to-end tables |
+| 5 | The report's tables are the run's output | VERIFIED | embedded stdout compared byte-identical | the comparison returns False on any byte change |
+| 6 | Whether these hours make day trading viable or profitable | NOT CHECKED | out of scope by design | n/a |
