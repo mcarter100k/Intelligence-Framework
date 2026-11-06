@@ -5826,3 +5826,67 @@ Control: the pre-registered column reproduces the published bounds in 5/5 cells 
 **CORRECTION 2.** In conversation I told the owner that the two GBP/JPY cells I proposed keeping were "most of what's been pinging you". Wrong: since 2026-10-01 they are 3 of the 15 shadow rows. EARLY_MOMENTUM_v2 is 12 of the 15, and 24 of 36 overall.
 
 **Status:** PROPOSED; to the code and adversarial reviewers, then the owner.
+
+## 2026-11-05 — SPECS PROPOSED (not built): v2 of session compare, WATCH FOR truth, alert opens own run (round-2 changes and owner decisions applied)
+
+**Owner (2026-11-05):** "three of four can be finalised now; the shadow one waits on retirement." The shadow-digest spec is untouched.
+
+**New files** (the v1 bodies are unchanged; their index rows are marked "Superseded by v2 (not built)"):
+
+**`docs/specs/session_compare_v2_spec.md`.** Changes from v1:
+- **Run identity.**
+  - Run id, not timestamp, identifies a run (S1; same-second rows observed 2026-09-14).
+  - An mkdir run lock in the wrapper.
+  - The read of the previous row happens under the append's lock.
+- **Run source.** Scheduled runs compare with the previous scheduled row; manual runs never use up the comparison (S6).
+- **Statuses.**
+  - `compared`, `compared, rules changed` (filter not compared, S2), `first run` (no earlier row ever, S5), `no recent run` (more than 7 days), `not checked` (reason to stderr), `market closed`.
+  - These are the only source for `brief_summary_block_spec.md` §3's change status ("first run today" and "no change since" superseded).
+  - Examples use "since Fri 7:33 AM", never Fri 6:00 PM.
+- **Exclusions** filter kept, with a mutant.
+- **Price.** New `price`, `price_basis` and `atr_pips` columns; a move is shown only when both rows are live, otherwise "not comparable" or "not recorded", never 0.
+- **Classification.** A `changes` list replaces summary parsing. `_machine_flags`'s "CONDITIONS IMPROVED/DETERIORATED" elif branches are unreachable today (`session_memory.py:319-325` emits those words only under `filter_changed`) and are removed.
+- **Owner decisions 1–2.**
+  - Decision flips and exit-watch always alert, with no gap or size gate.
+  - Character changes (STAND ASIDE both sides) never notify; they go to the digest.
+  - The digest builds that clause from `session_context_log.csv` since the previous DIGEST row, with a marker that is never dropped and goes before the watch clause because of the 220 cut.
+  - The rule applies to every run; this reading of "evening alerts" is put to the team, and it removes today's 02:30/07:30 regime-only ALERTs (all 5 historical ALERTs were that kind).
+- **Rule 12.** An 18-row table, including the closed-weekend sequence (S7) and same-second catch-up runs.
+- **Test harness.** Gate 1 includes the real `__main__` with a mocked `get_regime`, through the real wrapper (code review 8).
+
+**`docs/specs/watch_for_truth_v2_spec.md`.** Changes from v1:
+- **N8**, the GBP/JPY compression floor.
+- **Ten ordered branches.** Error, missing data, news window, compression, exhaustion, quiet range, VOLATILE subtypes, trending-with-a-failing-clause, grade C (all conditions met), fallback. Each has a sentence, and every stand-aside cell must land in exactly one branch.
+- **STRUCTURE_DISAGREES.** Its sentence is deleted and its unreachability pinned.
+- **FULL PICTURE.** "This changes when" becomes "To watch: … A trade needs that, but it is not enough on its own."
+- **EXHAUSTION.** The wording agrees with REASON's "don't follow"; REASON's "fade" advice is flagged to the display-claims spec.
+- **Numbers** are rounded down to one decimal wherever a threshold is named.
+- **Exit-watch flags.**
+  - E1 (structure confirmed) is kept and reworded.
+  - "Crossed 25" is removed: not necessary, 4,644 counter-cells.
+  - New E2: every condition now met, grade still blocks. It adds an additive `conditions_met` column.
+  - A 10-row rule-12 table.
+- **Evidence label.** N1–N8 relabelled INFERRED until Gate 1 runs an extracted real input builder (W5).
+- **Owner decision 3: the override record.**
+  - It lives in one constant citing R13.
+  - Tripwire test: fails when `trade_signal_log.csv` holds any row with `regime_d1 == VOLATILE` and direction LONG/SHORT. The override is the only route by which a VOLATILE daily trades (`no_trade_filter.py:266-271`). `trades.csv` has no regime column. It has a positive control and an invariant sweep.
+  - OBSERVED today: 13 signal rows, all trending dailies, so the tripwire reads 0.
+- **Merge order.** This spec, then session_compare_v2, then the display-claims spec.
+
+**`docs/specs/alert_opens_own_run_v2_spec.md`.** Changes from v1:
+- **Location and retention.** Run files live in `views/runs/` (gitignored, outside `logs/`; AGENTS.md gains one non-evidence line), kept 90 days. Pruned files become tombstones naming the day log, so an old click has a defined result.
+- **Contents.**
+  - The file includes this run's stderr: `rm -f "$ERRTMP"` moves after the view step.
+  - Earlier-run lines come from run files, never from the day log.
+- **Writing.**
+  - Exclusive create, with no `ledger_io` lock sidecars.
+  - The file is written before the health notify, so RECOVERED and health ALERTs can point to it.
+  - The pointer length is pinned: 219 characters at a 5-digit PID, against the 220 cut.
+- **Readers re-verified by grep today.** decision_channel_inventory `:65`, decision_gate_replay `:102`, missed_moves `:227`, run_count `:118`, latest_view `:45-62`, trader_review `:62`, followups and long_side via `parse_runs`. None reads `views/`. Only `test_wrapper_behavior.py:400` and `:488` read the pointer text. The build must re-run the grep.
+
+**Evidence status:**
+- Code line citations were checked by reading the files on 2026-11-05.
+- The sweep counts quoted in the specs are the round-2 reviewers' (OBSERVED by them, not re-run here).
+- Not checked: the 120-second lock wait (a proposal), and the claim that `cut -c` counts bytes under launchd (labelled INFERRED in the spec).
+
+**Status:** all three PROPOSED, awaiting team review; nothing built.
