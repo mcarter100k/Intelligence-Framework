@@ -325,3 +325,70 @@ with GBP/JPY and GBP/AUD each as its own cell.
   the span's first purpose.
 - **The SEALED EXAM is untouched.** Opening it for any candidate still
   requires §7.
+
+### 11.6 — 2026-11-05: the sealed exam stays sealed; exam power rules; one research archive (team ruling)
+
+**Ruling: A + D.** The SEALED EXAM stays sealed. A research archive is built
+around it now, with the 2014–2021 gap left in place. The exam is kept for a
+candidate that earns it. Spending it on MOMENTUM_JOIN GBP/JPY (option B)
+and retiring it untested (option C) were both rejected.
+
+**Why B failed (the arithmetic, reproduced 2026-11-05):**
+- **Assumptions:** an expected N of about 78 episodes (10.7 a year over
+  7.30 years), a per-episode SD of 1.2R, one-sided α = 0.05.
+- **Power for +0.15R:** 29.4%.
+- **Minimum edge detectable at 80% power:** +0.338R.
+- **At the α = 0.01 that FCS-1 used,** the case is stronger: power 11.1%,
+  minimum detectable edge +0.430R.
+- **Against the study result:** MOMENTUM_JOIN GBP/JPY's STUDY mean was
+  −0.012R (N 96). Spending a one-shot exam on a test this underpowered, for
+  a candidate with no edge shown, is the worst available use of it.
+
+**Structural finding.** At 80% power and one-sided α = 0.05, detecting
++0.15R needs about 396 independent episodes (642 at α = 0.01). Over the
+exam's 7.30 years, that requires about 54 episodes a year. The frozen
+candidates' cells produce 4.3–27.3 a year (FCS-1 counts). **At the +0.15R
+bar, the exam cannot validate any swing-frequency candidate.** This is a
+mismatch between the validation threshold and trade frequency, not a
+MOMENTUM_JOIN problem.
+
+**Binding rules for any future exam spec (added to §6 and §7):**
+1. **Two conditions before opening:**
+   - The candidate is SUPPORTED on STUDY data. The exam confirms; it does
+     not discover.
+   - AND the spec states, before opening, the expected N and the minimum
+     detectable edge at that N, with α, power and the SD assumption. It
+     must show the exam can return a meaningful verdict.
+2. **Two permitted ways to reach that bar** (the ruling names both and
+   picks neither):
+   - (a) reserve the exam for candidates that fire often enough to clear it
+     at +0.15R;
+   - (b) scale the claim to the available N (for example, +0.5R needs about
+     36 episodes at 80% power), so a low-frequency candidate is tested only
+     against a large edge claim.
+3. **Split (§1) only if each half independently clears its power bar.**
+   Both sub-exam specs must be written and committed before either is run.
+   Otherwise the second spec is informed by the first result.
+4. **A spent exam carries a permanent label.** If the span is ever spent, it
+   may join the research archive only with every bar tagged **seen, not
+   proof**, forever. Unlabelled, a later whole-archive "out-of-sample"
+   result would really be in-sample, the same provenance drift as the
+   ledger-header incident.
+5. **An ambiguous boundary candle belongs to no span.** Embargo it rather
+   than assign it.
+   - The 2021-04-25 Sunday-open candle is already embargoed by §11.2.
+   - The general principle is new.
+   - First application (2026-11-05): §1 gives USED as "→ 2026-09-10" and
+     FORWARD as "2026-09-10 →", so the **2026-09-10 session belongs to
+     neither** in the research archive. The live shadow ledger's own
+     counting is not changed by this; it is out of scope here.
+
+**The archive:**
+- **Location:** outside the repo (`~/intel_study_archives/research_archive/`).
+- **Code:** built and read by `studies/research_archive.py`.
+- **Contents:** STUDY, USED and FORWARD to the build date. Every bar is
+  labelled with its span, and every file is hash-pinned in a manifest.
+- **Refusals:** the sealed block and the embargoes are refused at fetch, at
+  build and at load. A study must name the spans it reads; there is no
+  default.
+- **Scope:** research only. The live path never reads it.

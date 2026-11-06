@@ -6132,3 +6132,70 @@ Both reviewers report the project unchanged: 943 files hashed before and after, 
 | 4 | The five answers are exactly the spec's computation | OBSERVED | runner + 17 tests, 10 mutants killed | the tests pin the helpers, not the end-to-end tables |
 | 5 | The report's tables are the run's output | VERIFIED | embedded stdout compared byte-identical | the comparison returns False on any byte change |
 | 6 | Whether these hours make day trading viable or profitable | NOT CHECKED | out of scope by design | n/a |
+
+## 2026-11-05 — TEAM RULING recorded: the sealed exam stays sealed (A + D); exam power rules; research archive BUILT (free zone; branch `feat/research-archive`)
+
+**Ruling (team, 2026-11-05), in reply to the ruling request on the sealed exam:** **A + D.**
+- The SEALED EXAM (2014–2021) stays sealed for a candidate that earns it.
+- A research archive is built around it now.
+- B (spend it on MOMENTUM_JOIN GBP/JPY) and C (retire it untested) were rejected.
+- Recorded in `docs/specs/data_map_spec.md` §11.6 (commit ecac76b) and as methodology rule M40.
+
+**The ruling's arithmetic, reproduced this session (standard normal, SD 1.2R, N 78):**
+
+| α | Power for +0.15R | Minimum detectable edge (80% power) | Episodes needed for +0.15R | Episodes needed for +0.5R |
+|---|---|---|---|---|
+| one-sided 0.05 (the ruling's figures) | 29.4% | +0.338R | 396 | 36 |
+| two-sided 0.05 | 19.6% | +0.381R | 502 | 45 |
+| one-sided 0.01 (as FCS-1 used) | 11.1% | +0.430R | 642 | 58 |
+
+- The exam spans 7.30 years, so +0.15R needs about 54 episodes a year.
+- The candidate cells produce 4.3–27.3 a year (FCS-1 counts). The ruling's "10–11 a year" is the MOMENTUM_JOIN figure.
+- Even the busiest cell (27.3 a year) gives about 199 episodes. **The structural finding holds for every frozen candidate.**
+
+**New binding exam rules (§11.6):**
+1. SUPPORTED on STUDY, AND the minimum detectable edge at the expected N stated before opening.
+2. Either reserve the exam for high-frequency candidates or scale the claim to the N available. Not chosen; both permitted.
+3. Split only if each half clears its bar, with both specs committed before either runs.
+4. A spent exam joins the archive only labelled "seen, not proof", forever.
+5. Ambiguous boundary candles are embargoed, not assigned.
+
+**CORRECTION (the ruling request, earlier today):**
+- Its question 5 said the side of the seal for the 2021-04-25 Sunday-open candle was "still open from the 2026-10-20 depth check". **That was stale.** §11.2 (2026-10-22) already embargoes that candle.
+- The team's answer matches what §11.2 does. The general principle is new.
+- The request also implied MOMENTUM_JOIN GBP/JPY was a natural exam candidate. Its STUDY result (INCONCLUSIVE, −0.012R) and the 2026-11-03 precedent ("nothing SUPPORTED, so no sealed-exam spec") already argued against it. The request was revised to say so before it went to the team.
+
+**First application of rule 5:** §1 gives USED as "→ 2026-09-10" and FORWARD as "2026-09-10 →". The 2026-09-10 session is therefore stored in neither span of the archive (1 daily, 6 four-hour and 24 hourly bars per pair). **For the team to confirm.** The live shadow ledger's counting is unchanged.
+
+**Research archive built** (`studies/research_archive.py`; report `studies/research_archive_report.md`; data in `~/intel_study_archives/research_archive/`, outside the repo):
+- **Modern fetch** (`reality_run.py`; exit 0, stderr empty, project UNCHANGED by hash; 396 requests):
+  - D, H4 and H1 for both pairs from 2021-04-26 14:00 PDT, the first USED candle.
+  - **0 candles opened before it** (checked on receipt). **0 weekend-session candles.**
+- **Archive contents, per pair:**
+
+  | Span | Daily | 4-hour | Hourly (GBP/AUD, GBP/JPY) |
+  |---|---|---|---|
+  | STUDY | 2,343 | 14,030 / 14,028 | 56,077 / 56,073 |
+  | USED | 1,395 | 8,370 | 33,477 |
+  | FORWARD (to 2026-11-05) | 40 | 240 | 960 |
+
+- **verify** (`reality_run.py --no-env`; exit 0, stderr empty, project UNCHANGED): **PASS.**
+  - Every file's hash matches the manifest.
+  - 0 span-label mismatches, 0 sealed-block bars, 0 embargoed bars, 0 weekend bars.
+  - In every span, H1 rebuilds every H4 exactly, and D1 high and low match the H4 extremes within 0.5 pip, with exact open and close.
+  - USED gaps are the Christmas and New Year closures plus two late Sunday opens.
+- **Positive controls on a copy of the real archive:**
+  - A planted 2017 bar with the manifest re-hashed → FAIL.
+  - A +1 pip on a bar that sets its 4-hour high → caught 9 of 9 (3 per span).
+  - A tampered file → FAIL.
+  - The loader refuses SEALED and an empty span set.
+- **Limit:** verify is internal consistency only. The first price control was aimed at a bar that was not its bucket's high, and it passed for that reason. A defect that changes no aggregate cannot be seen without a second source.
+- **Tests:** `tests/test_research_archive.py`, 23 tests. 6 of 6 mutants killed (embargo removed, request guard, receipt check, the loader's required spans, the price check, the loader's sealed check). Each revert was confirmed, caches cleared, and the tests re-passed.
+
+| # | Claim | Status | Evidence | Could it fail? |
+|---|---|---|---|---|
+| 1 | The archive holds no bar from the sealed block or the embargoes | VERIFIED | verify: 0 in every file; fetch: 0 before the first USED candle | planted 2017 bar → FAIL with manifest re-hashed |
+| 2 | The three spans are internally consistent across D1, H4 and H1 | VERIFIED | verify PASS, counts above | 9 of 9 planted price defects caught |
+| 3 | The loader serves only named spans and refuses SEALED | VERIFIED | real-archive load counts; refusals observed | tests with mutants killed |
+| 4 | The archive's prices are correct against an outside source | NOT CHECKED | consistency only; STUDY's feed was validated against the held H4 earlier | n/a |
+| 5 | The 2026-09-10 embargo is what the team intends | PENDING | team confirmation | n/a |
