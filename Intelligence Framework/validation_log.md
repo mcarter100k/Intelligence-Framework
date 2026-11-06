@@ -5826,3 +5826,39 @@ Control: the pre-registered column reproduces the published bounds in 5/5 cells 
 **CORRECTION 2.** In conversation I told the owner that the two GBP/JPY cells I proposed keeping were "most of what's been pinging you". Wrong: since 2026-10-01 they are 3 of the 15 shadow rows. EARLY_MOMENTUM_v2 is 12 of the 15, and 24 of 36 overall.
 
 **Status:** PROPOSED; to the code and adversarial reviewers, then the owner.
+
+## 2026-11-05 — TEAM REVIEW of the FCS-1 retirement paper: v1 not approved; v2 proposed; three corrections
+
+**Verdicts on `fcs1_retirement_decision_spec.md`:**
+
+| Reviewer | Verdict | On retiring EARLY_MOMENTUM_v2 and THRUST_PULLBACK GBP/AUD |
+|---|---|---|
+| Code reviewer | APPROVE WITH CHANGES | endorsed |
+| Adversarial reviewer | REJECT as written | endorsed |
+
+**Findings I verified myself:**
+- `data_map_spec.md:110-112`: "Modern costs on old data manufacture profit that never existed; no result computed under a different schedule is citable."
+- A grep of `shadow_signals.py` for spread, cost and financing finds nothing: the live grader is costless.
+- `scheduled_outcome_check.sh:86-94` hard-codes the candidate names, including the retired v1.
+- `notification_log.csv` 2026-11-05T23:15:08Z SHADOW reads "EARLY_MOMENTUM: 1ep avg -1.00R | EARLY_MOMENTUM_v2: 4ep avg -0.40R …".
+
+**Reviewer-observed, not re-run by me:**
+- Stacked bounds (98% at a 3-pip spread): EARLY_MOMENTUM_v2 +0.170, THRUST_PULLBACK GBP/AUD +0.166, MOMENTUM_JOIN GBP/AUD +0.301. Both reviewers report these.
+- MOMENTUM_JOIN GBP/AUD at 4.0 pips: +0.157.
+- Three suite tests assert EARLY_MOMENTUM_v2 fires through `check_shadow_signals`, and the FCS-1 self-test swaps `_CANDIDATES`.
+- Notifications since 2026-10-20: 15 SHADOW, of which 10 came from brief fires and 5 from the grader, all 5 naming EARLY_MOMENTUM_v2.
+- Both reviewers report the project unchanged by hash, with positive controls.
+
+**CORRECTION 3 (v1 paper §3).** "EARLY_MOMENTUM_v2 and THRUST_PULLBACK GBP/AUD stay refuted under every assumption" overclaimed. Each survives single relaxations, but neither survives today's spread stacked with the family correction.
+
+**CORRECTION 4 (v1 paper §4).** The v1 candidate's rows do not "stay out of every tally". The retired v1 still appears in every grader SHADOW notification, two months after its retirement.
+
+**CORRECTION 5 (v1 paper §8).** "The live candidate would trade at today's spread" was wrong as the basis for keeping MOMENTUM_JOIN GBP/AUD. The rescue is withdrawn.
+
+**v2:** `docs/specs/fcs1_retirement_decision_v2_spec.md`.
+- The pre-registered verdicts stand: retire the three REFUTED cells.
+- Retire THRUST_PULLBACK GBP/JPY as a judgment: it reaches no decision this decade, it was grid-selected, and its sibling is refuted twice.
+- Keep MOMENTUM_JOIN GBP/JPY, the only sealed-exam-eligible cell.
+- Mechanics: `_CANDIDATES` and `check_shadow_signals` stay unfiltered. Retired cells (v1 included) are filtered at `run_and_report`, `latest_pending_signal`, the grader tally and the heartbeat tally. The build spec carries a rule-12 table.
+
+**Status:** v2 PROPOSED, for the owner and the team.
