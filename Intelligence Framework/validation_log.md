@@ -6253,3 +6253,86 @@ Both runner files are byte-identical to commit 2f7c68b (sha256 `2302ab42…935d`
   - **Proof that the code is the same:** both runner files re-hashed equal to 2f7c68b.
   - **Proof that the path is the same:** a control run through the wrapper with the 2005–2013 inputs must reproduce the published output byte-for-byte, before the modern run.
 - **(b) Edit the runner to take parameters.** This is a code change, which the instruction says invalidates the comparison.
+
+## 2026-11-05 — STUDY RUN (replication, descriptive, free zone): session movement on the USED span against 2005–2013 (branch `feat/session-replication`)
+
+**What:** the five frozen questions re-computed on 2021-04-27 → 2026-09-09 (USED: learning only, never proof) and reported side by side with the published 2005–2013 run, per pair, never pooled.
+- Spec: `docs/specs/session_movement_replication_spec.md`.
+- Report: `studies/session_movement_replication_report.md`.
+- Method: option (a), approved by the team: a wrapper drives the unmodified runner, and a control run proves the wrapper changes nothing.
+- No protected module, no ledger, no SEALED EXAM.
+
+**Team corrections recorded in the spec (§8):**
+- The motivation sentence ("the earlier study concluded the pairs are poorly suited to day trading") is struck. The study drew no such conclusion.
+- "~104 / ~136" daily ATR "now" were conversation figures, not repo facts.
+- The Šidák α is reused from `power_check.py --cells 20` (0.0026; 64% family-wise at a naive 0.05). The test is a two-sided two-proportion z-test, not `power_check`'s one-sided test of mean R.
+- **Both gates are required:** a difference is MATERIAL only if it is statistically distinguishable AND at least 5 points (or at least 0.5 on the ratio).
+
+**Ordering:**
+- Spec 9d0365f: **22:40:46 PST**. The wrapper and comparison did not exist at that commit.
+- Code 398c91b: 22:42:43 PST.
+- Control run: 22:42:53 PST.
+- **Modern first computation: 22:43:15 PST.**
+
+**Control (it gates the modern run):**
+- The three code files the computation depends on hash equal to the original run (2f7c68b). The wrapper refuses to run otherwise; a test plants a change and sees the refusal.
+- The wrapper, run with the 2005–2013 inputs, reproduced the published stdout: **32,672 of 32,672 bytes**, excluding only the two timestamp lines (declared in the spec beforehand).
+- A one-digit change in a copy is caught (FAIL).
+
+**Runs:** the control, the modern run and the comparison all went through `reality_run.py --no-env`: exit 0, stderr 0 bytes, project UNCHANGED by hash. Modern complete study days: 1,386 per pair.
+
+**CORRECTION (during the run):**
+- The comparison's first output ended with a miscounted summary line: "5 of 20 Q3 comparisons and 2 ratio comparisons", while listing 3 Q3 items and 2 ratio items.
+- Table verdicts were unaffected.
+- Fixed in 4754684 (two tests) and re-run. The diff between the two outputs is that single line.
+
+**Results:**
+- **Shape holds.** The same two busy windows. The busiest hour is 14:00 UTC (06:00 PST) in both pairs and both periods.
+- **Busiest ÷ quietest hour: MATERIAL** (single gate; no spread was printed, so no test was possible).
+
+  | Pair | 2005–2013 | 2021–2026 | Difference |
+  |---|---|---|---|
+  | GBP/AUD | 1.77 | 2.40 | +0.63 |
+  | GBP/JPY | 1.92 | 2.53 | +0.61 |
+
+- **Q3, block of the daily high and low:** 17 of 20 comparisons are CONSISTENT WITH THE EARLIER PERIOD. Three are MATERIAL:
+
+  | Pair | Block, extreme | 2005–2013 | 2021–2026 | z | p |
+  |---|---|---|---|---|---|
+  | GBP/AUD | TOKYO, lows | 16.9% | 25.7% | +6.46 | < 0.0001 |
+  | GBP/AUD | NY_PM, lows | 25.2% | 18.3% | −4.86 | < 0.0001 |
+  | GBP/JPY | SYDNEY, highs | 19.6% | 14.5% | −3.94 | 0.0001 |
+
+  - GBP/AUD LDN_NY highs (+4.4, p 0.0010) passed the statistical gate only, so it is CONSISTENT.
+- **Q4 (shown, not tested):** by 15:00 UTC, highs are already set on 73.8% (GBP/AUD) and 70.0% (GBP/JPY) of days, and lows on 75.4% and 77.9%.
+- **Q5, mean ATR in pips** (numbers only):
+
+  | Pair | 1-hour | 4-hour | Daily |
+  |---|---|---|---|
+  | GBP/AUD | 46.2 → 26.5 | 89.5 → 53.8 | 216.5 → 136.3 |
+  | GBP/JPY | 39.8 → 29.7 | 79.7 → 61.3 | 200.6 → 159.2 |
+
+- **Day-trading precondition** (ratio > 2.5 AND a block ≥ 35% of highs or lows): **GBP/AUD FAIL** (2.40, 26.3%); **GBP/JPY FAIL** (2.53, 24.5%).
+- **DST boundary rule:** no sharp step in the modern run (0.72–1.49).
+- **Hypotheses recorded, not computed** (report §5):
+  - the Sydney-block fall as the disappearing weekend-fold artifact;
+  - the shift of GBP/AUD lows towards Tokyo;
+  - concentration from thinning late New York hours;
+  - weekday location of the changes.
+- **Carried limit:** hourly figures are consistent with verified 4-hour data, not verified bar by bar (`session_movement_report.md` §6).
+
+**Tests:**
+- `tests/test_session_movement_replication.py`: 16 tests.
+  - The parser is pinned to the published output.
+  - The z value is cross-checked against an independent 2×2 chi-square (√χ² = 3.5770 = z). The test's first expectation (3.55, a rough estimate) was wrong and was corrected to the computed value.
+  - Self-comparison yields 0 MATERIAL.
+- 7 of 7 mutants killed, each revert confirmed, caches cleared, tests re-passed.
+
+| # | Claim | Status | Evidence | Could it fail? |
+|---|---|---|---|---|
+| 1 | The spec was committed before any USED-span statistic | VERIFIED | 9d0365f 22:40:46 PST; first computation 22:43:15 PST; code absent at the spec commit (`ls`) | the ordering was checked |
+| 2 | The modern figures come from the same computation as 2005–2013 | VERIFIED | code pins equal; the control reproduced 32,672/32,672 bytes | one-digit change → FAIL; changed runner → refusal (test) |
+| 3 | The materiality verdicts follow the two-gate rule exactly | VERIFIED | 16 tests incl. gate truth table, Šidák α, chi-square cross-check | 7 mutants killed |
+| 4 | The report's tables are the runs' output | VERIFIED | both embedded outputs compared byte-identical | any byte change fails the comparison |
+| 5 | The ratio difference is statistically real | NOT CHECKED | single gate only; no spread in the frozen output | n/a |
+| 6 | The hourly values are correct bar by bar | NOT CHECKED | consistency with 4-hour only; no second source | n/a |
