@@ -5973,3 +5973,73 @@ Each mutant was confirmed applied by numstat and reverted byte-identical. After 
 **Not built:** the sweep stamp that would force a full re-run when display files change. That is team question 2.
 
 **Status:** spec PROPOSED, for the code and adversarial reviewers. Test merged.
+
+## 2026-11-05 — TEAM REVIEW round 3 (display claims + three v2 specs): no spec approved as written; overclaims in my display-claims spec and test
+
+**Verdicts:**
+
+| Spec | Code reviewer | Adversarial reviewer |
+|---|---|---|
+| `display_claims_spec.md` §2 wording | APPROVE WITH CHANGES | **REJECT as written** |
+| `tests/test_display_claims.py` (merged) | APPROVE WITH CHANGES | APPROVE WITH CHANGES |
+| `session_compare_v2_spec.md` | APPROVE WITH CHANGES | APPROVE WITH CHANGES |
+| `watch_for_truth_v2_spec.md` | APPROVE WITH CHANGES | APPROVE WITH CHANGES |
+| `alert_opens_own_run_v2_spec.md` | APPROVE (two small changes) | APPROVE WITH CHANGES |
+
+Both reviewers report the project unchanged: 943 files hashed before and after, with positive controls.
+
+**Verified by me** (full 653,184-cell grid through the merged test's builder; scratch `verify3.py`):
+- **"Counter-trend" is false.** The override traded in 3,672 cells. In all 3,672, the daily swing structure, the 4-hour trend and the weekly trend agree with the trade. Live reachability is INFERRED: slope restates structure.
+- **My proposed 7i wording is false on override days.** Example: GBP/AUD, daily strength 18, override LONG, while the SESSION note says the framework stands aside. Today's text says "no edge yet" in the same cell.
+- **The pointer is cut.** " → " is 5 bytes, so the own-run pointer arithmetic overruns the 220-byte cut.
+- **The tripwire skips in worktrees.** `trade_signal_log.csv` is gitignored (`.gitignore:9`). A tripwire that skips when the ledger is absent therefore skips in every worktree suite run.
+
+**CORRECTIONS (my overclaims, display_claims_spec.md and its report):**
+1. §2 says every new sentence must be true and that "§4 is the check". The test checks only the OLD triggers. None of the new sentences has a predicate.
+2. Item 6 says the test checks news and data blocks. It does not: the news gate is a constant, and no missing-data state is varied.
+3. I told the owner that "a false claim can't spread" and that "any new historically-type wording fails the suite". Both are defeated by two edits to the test file: register the phrase, then add a baseline. The code reviewer demonstrated it with an invented citation, "R99". There is also no category for claims the research supports. The claim-word list misses "usually", "tend to", "proven", "no confirmed edge" and "violently".
+4. The parity pin's 48 runs never reached compression, a spike, ≥ 2×, the override or a news block. The volatility ratio stayed between 0.90 and 1.04 (code reviewer, instrumented). "≥ 3 distinct states" proves little.
+5. Proposed wordings 7a, 7b and 7c misstate the research (adversarial reviewer, against `validation_log.md:1222-1227`):
+   - The middle band WAS tested (R1, R4, R12), never at adequate N.
+   - R7 tested failed breaks, not quiet markets.
+   - R6 measured 4-hour box tightness, not daily volatility.
+6. "Over twice" and "above the level" render at exactly the level (54,432 and 48,816 cells). The code compares with ≥.
+
+**Other required changes, highlights:**
+- **display_claims:**
+  - Drop "counter-trend" and name the daily-structure condition.
+  - Reword 7k: exhaustion is strength ≥ 35 alone, so "violent one-way run" is unshown in 599 sample cells.
+  - Register the siblings of 5a ("still active" at an exhaustion strength of 40; "conditions may be tradeable").
+  - Register the "pulling back" label on a flat 4-week trend.
+  - The release sentence "prices move violently" contradicts R35/R36.
+  - Mark 7f (`decision_brief` form), 7g and 7h as unreachable on the grid.
+  - Move item 7 ahead in the merge order.
+- **The test:**
+  - The known-false set and the baselines may only shrink, as a pinned test.
+  - A supported claim's citation must resolve to a non-refuted R-id.
+  - Add predicates for every new sentence.
+  - Run the parity pin with walks that reach every branch and minimum counts per branch, using the real compression note.
+  - Sweep with the news gate on and off.
+  - Report the xfail count in the heartbeat.
+- **session_compare_v2:**
+  - Allowed → stand-aside flips must still alert across a rules change, a gap over 7 days, and "not checked" runs. Add a health alert after 2 consecutive "not checked" runs.
+  - Define behaviour with no run id: `setup_check.py:323` and a study call it.
+  - Precedence: exit-watch before character. It contradicts watch v2's E1 today.
+- **watch_for_truth_v2:**
+  - The tripwire reads the live checkout's ledger by absolute path, read-only, and fails rather than skips when the file is absent there.
+  - The heartbeat backstop becomes mandatory.
+  - Its branch-5 "never trades the fade either" would fail the merged claim-word test.
+  - Fix the stale citations: AGENTS.md:58-60 → :72-73, which also affects R13; `decision_brief.py:292` → :410-411.
+  - The team must accept that one live override signal turns the suite red, or choose another way for it to fail.
+- **alert_opens_own_run_v2:**
+  - Tombstones by atomic replace, with an explicit marker.
+  - Prune-visible temp names.
+  - Specify file-name stamp vs modification time.
+  - Add `run_view.py` to the reader table.
+  - Pointer length in bytes.
+  - `views/` churn will trip the conftest and reality_run hashers.
+
+**Status:**
+- All four specs stay PROPOSED.
+- The merged test stands: it guards today's 16 known-false claims and fails on unregistered claim words in renders. Its weaknesses are recorded above.
+- Revisions go in new files.
