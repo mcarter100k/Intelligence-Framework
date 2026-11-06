@@ -5926,3 +5926,50 @@ Control: the pre-registered column reproduces the published bounds in 5/5 cells 
 - Not checked: the 120-second lock wait (a proposal), and the claim that `cut -c` counts bytes under launchd (labelled INFERRED in the spec).
 
 **Status:** all three PROPOSED, awaiting team review; nothing built.
+
+## 2026-11-05 — SPEC PROPOSED: display claims (inventory items 3–7), with the standing render-sweep test BUILT (free zone)
+
+**Owner (2026-11-05):** "Item 7 is worst: refuted research stated as fact. 'No statistical edge' reads as a finding and isn't one. Ship the render-sweep test with this, not after — it's what stops the list regrowing."
+
+**Spec:** `docs/specs/display_claims_spec.md`. PROPOSED. The wording fixes are protected and not built.
+
+What the spec rewrites:
+- **7a–7k:** 11 research-as-fact strings, each matched to what the record says (R1, R3, R4, R6, R7, R12), plus "fade, don't follow".
+- **Item 3:** the override REASON by cause, with the shared `_OVERRIDE_RECORD`.
+- **Item 4:** the weekly labels.
+- **Items 5a–5d:** the SESSION notes.
+- **Item 6:** the spike REASON.
+
+Item 8 waits on the retirement decision. Merge order: WATCH FOR v2, then session_compare v2, then this spec.
+
+**Test (built):** `tests/test_display_claims.py`.
+- **States:** built around the real classifier, filter and official-decision functions, and rendered through the real REASON, MARKET STATE, EXIT IF / WATCH FOR and FULL PICTURE builders. The SESSION-note functions run on their own threshold grid.
+- **Registry:** a claim registry with truth predicates, plus a claim-word check that fails on any unregistered "historically / statistical / no … edge / reliable / BoJ / coil / typically / strongest / fade".
+- **Known-false claims:** strict xfails, with false counts capped at baseline.
+- **Non-vacuity:** every trigger must fire.
+- **Parity pin:** the builder against the real `get_regime` on 48 synthetic runs, comparing 15 fields plus the official decision.
+- **Tiers:** default is a 20,000-cell fixed-seed sample (4.0 s). Full is `-m display_sweep`, all 653,184 cells (1 min 53 s). `pytest.ini` registers the marker and deselects it by default.
+
+**Observed (by me, on main 4828ab2):**
+- Full tier: override "transition" false in 2,304 of 3,672 cells, and "on all timeframes" false in 216,300 of 217,728. This reproduces the round-2 inventory exactly; those two counts were reviewer-only before.
+- Spike "regardless of trend strength": 175,824 renders, all false while the override trades spike cells.
+- SESSION notes: 5a 8/8 false, 5b 20/126, 5c 23/23, 5d 25/25.
+- True today: "All three timeframes line up" (2,856 cells, 0 false) and "pieces don't line up" (440,256 cells, 0 false).
+- Claim-word renders, full tier: 597,713, all registered, 0 unregistered.
+
+**Mutation, 7 of 7 caught:**
+- M1 unregistered research claim → claim-word test.
+- M2 override sentence removed → non-vacuity plus strict XPASS.
+- M2b another label says "on all timeframes" → spread cap.
+- M3 builder drops the filter fields → 7 failures, including the parity pin.
+- M3b builder drops compression → 3 failures.
+- M4 trigger reworded → non-vacuity plus strict XPASS.
+- M5 a claim fixed in place → strict XPASS.
+
+Each mutant was confirmed applied by numstat and reverted byte-identical. After clearing caches the result was 15 passed, 16 xfailed.
+
+**Found while building:** my first builder omitted the filter fields (`filter_allowed` and the others), so no cell traded. Non-vacuity exposed it (claims 3 and P10 fired 0 times), and the parity pin's official-decision check now guards it (M3).
+
+**Not built:** the sweep stamp that would force a full re-run when display files change. That is team question 2.
+
+**Status:** spec PROPOSED, for the code and adversarial reviewers. Test merged.
