@@ -6336,3 +6336,52 @@ Both runner files are byte-identical to commit 2f7c68b (sha256 `2302ab42…935d`
 | 4 | The report's tables are the runs' output | VERIFIED | both embedded outputs compared byte-identical | any byte change fails the comparison |
 | 5 | The ratio difference is statistically real | NOT CHECKED | single gate only; no spread in the frozen output | n/a |
 | 6 | The hourly values are correct bar by bar | NOT CHECKED | consistency with 4-hour only; no second source | n/a |
+
+## 2026-11-05 — STUDY PHASE 1 DONE (currency legs + gold data), PHASE 2 NOT STARTED: the spec stops on three premise points (free zone; branch `feat/leg-decomposition`)
+
+**What:** Phase 1 of the currency-leg decomposition and pair-correlation study. Fetch and validate GBP_USD, AUD_USD and USD_JPY (the legs) and XAU_USD (secondary) over the cross archive's spans.
+- Report: `studies/leg_data_report.md`.
+- No study statistic has been computed. No spec is committed. The SEALED EXAM was not fetched (0 candles in the block).
+
+**Premise checks:**
+1. **The rule under study:**
+   - **Where it lives:** `risk_config.py:56` (`shared_leg_counts_as_one`) and `session_guard.count_leg_grouped_positions`.
+   - **What it does:** it groups positions sharing any currency and counts them as one against `MAX_TRADES_PER_SESSION` (2). It limits position count, not size.
+   - **It is not wired:** nothing on the live path calls it (AGENTS.md, circuit-breaker prerequisite). "Costing position size" is therefore not true today. The question still matters before wiring.
+2. **Gold:**
+   - The account's instruments endpoint lists 68 instruments, all CURRENCY. Gold is not tradeable here.
+   - **But the candles endpoint serves XAU_USD, XAG_USD and XAU_GBP** (HTTP 200, a candle dated 2026-11-05).
+   - **CORRECTION to `instrument_probe_report.md` (2026-11-01):** its "NOT OFFERED" checked only the tradeable list. Its conclusion that yields, equities and commodities must come from outside sources is not established. Not re-probed here.
+
+**Validation (all through `reality_run.py`, project UNCHANGED by hash, stderr empty):**
+- **The three USD legs: PASS in every span.**
+  - H1 rebuilds every H4 exactly:
+
+    | Leg | STUDY | USED | FORWARD |
+    |---|---|---|---|
+    | GBP_USD | 14,028 | 8,370 | 240 |
+    | AUD_USD | 14,027 | 8,370 | 240 |
+    | USD_JPY | 14,025 | 8,370 | 240 |
+
+  - D1 matches its H4 in all 2,343 / 1,395 / 40 sessions.
+  - Zero nonzero differences. Gaps are holidays only.
+- **Gold: FAIL on one bar.**
+  - 12,110 of 12,111 STUDY buckets match. The failure is the bucket opening 2006-03-19 14:00 PST, gold's first session in OANDA's history.
+  - **Cause:** raw gold is consistent (12,873 / 12,873). The first hours served (2006-03-19 18:00 UTC) form an hourly bucket with no 4-hour bar. The approved weekend rule folds that Sunday-session hourly bar into Monday's first hourly bar, changing its open by $0.05. There is no Sunday 4-hour bar to fold alongside it.
+  - **Not trimmed.** Starting gold at 2006-03-21 or excluding it is for the team.
+  - Gold's history covers 2,025 of 2,343 STUDY sessions (it starts 2006-03-19).
+- **The check can fail on real data:** it caught gold's real defect.
+- **The cross archive** still verifies PASS with the extended verifier (instrument list, pip map, missing-timeframe failure, difference sizes).
+- **Limit, carried:** consistency between timeframes, not correctness of values. No second source exists.
+
+**Tests:**
+- `tests/test_leg_data.py`: 6 tests.
+- `tests/test_research_archive.py`: still 23.
+- Mutants: trim removed, weekend refusal removed and missing-timeframe failure removed were all caught. A wrong pip map first **survived**. A test planting a 1-pip USD_JPY daily error was added, and it now fails as it should.
+
+**Phase 2 not started, because of three premise points (rule 5; the spec would be spent on a flawed design):**
+1. **Phase 3 is vacuous as written.** "Lagged leg returns predict cross returns beyond the contemporaneous relationship": by the identity the study itself checks, the contemporaneous legs determine the cross return exactly. Nothing is left for a lag to predict.
+2. **Gold has no questions.** Gold is available but fails validation on one bar. If included, it has no question on the frozen list; "add gold as a secondary leg" does not say what is computed with it.
+3. **A Q4 reading for the team.** Decomposing in US-dollar terms leaves the dollar in both residuals: −AUD/USD and USD/JPY both carry USD. So a non-zero residual correlation may be the dollar itself rather than "something else". The spec should say how that reading is made before the result exists. The requester's expected result is recorded as given, unchanged.
+
+**Also for the spec:** FORWARD holds 40 daily and about 8 weekly returns, and its stress quintile would hold about 2 weeks. Those cells would be INSUFFICIENT (N < 20) and carry no verdict.
