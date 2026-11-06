@@ -75,6 +75,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 | Forward test of candidates | HAVE | `shadow_signals.py`. As of 2026-10-19: EARLY_MOMENTUM_v2 3 episodes (avg −0.20R), THRUST_PULLBACK 1, MOMENTUM_JOIN 1 |
 | Tested ideas (42, most refuted; count updated 2026-11-04) | HAVE | `foundation/research_findings.md`. Check here before testing an idea |
 | Long-history test with costs | TESTED for the candidates (2026-11-04) | The three frozen candidates on 2005–2013 STUDY data, every H4 bar, era costs and financing (FCS-1, R40–R42): no edge; 3 of 5 cells REFUTED, 2 INCONCLUSIVE. The 2014–2021 SEALED EXAM stays closed (only the team opens it, for one candidate) |
+| Long-history research archive | HAVE (2026-11-05) | `studies/research_archive.py`: daily, 4-hour and hourly GBP/AUD and GBP/JPY for 2005–2013 (STUDY), 2021-04 → 2026-09 (USED) and 2026-09-11 → build date (FORWARD), each bar labelled by span, hash-pinned, consistency-verified (`studies/research_archive_report.md`). The 2014–2021 sealed exam stays out (data_map_spec §11.6). Research only; none of it is proof |
 | A proven edge | MISSING | Still none after FCS-1 (2026-11-04) |
 
 ## What would sharpen us most, in order
