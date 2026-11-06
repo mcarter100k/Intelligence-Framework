@@ -5786,3 +5786,43 @@ Not inventoried: entry/target text, the US DATA line, the news note, the stale-f
 - Mutation 5/5 caught: section search widened to the whole run; call priority removed; label fixed to "watch"; pair name dropped; pivot preference removed. Restored byte-identical; 86 passed after.
 - Gate 2: 40 real runs through `main` and the branch, sandboxed with stub notifiers. Categories, non-digest summaries and ledger state identical in 40/40. Digest: the same clause with its pair label added in 40/40, 12 of them cut by the existing 220-character osascript limit. Decision head unchanged in 40/40. None of the 40 had a LONG or SHORT.
 - Gate 3 PENDING: the first call-day digest.
+
+## 2026-11-05 — DECISION PAPER PROPOSED: which shadow candidates keep running after FCS-1 (docs only); two corrections
+
+**Owner (2026-11-05):** sequence the work as retirement decision first, then the display claims (items 3–7) with the render-sweep test, then the three revised specs that don't depend on retirement. "Retirement — it's a decision, not a build, and it changes the other two."
+
+**Paper:** `docs/specs/fcs1_retirement_decision_spec.md`. Nothing retired, nothing built. Recommendation:
+- retire EARLY_MOMENTUM_v2 and THRUST_PULLBACK GBP/AUD;
+- keep MOMENTUM_JOIN on both pairs and THRUST_PULLBACK GBP/JPY;
+- mechanics: stop calling the retired cells, after pinning FCS-1's own candidate list.
+
+**New evidence in the paper (post-hoc, never changes a verdict):** 90% upper bounds on mean R by cost assumption, recomputed with the study's own functions through `reality_run.py --no-env` (project UNCHANGED by hash).
+
+Control: the pre-registered column reproduces the published bounds in 5/5 cells (+0.117, +0.222, +0.035, +0.312, +0.042).
+
+| Cell | Era spread | Family-corrected 98% | Flat 3 pips | No costs |
+|---|---|---|---|---|
+| EARLY_MOMENTUM_v2 GBP/JPY | +0.042 | +0.134 | +0.077 | +0.128 |
+| THRUST_PULLBACK GBP/AUD | +0.035 | +0.140 | +0.060 | +0.088 |
+| MOMENTUM_JOIN GBP/AUD | +0.117 | +0.251 | +0.166 | +0.209 |
+
+- EARLY_MOMENTUM_v2 and THRUST_PULLBACK GBP/AUD are refuted under every assumption.
+- MOMENTUM_JOIN GBP/AUD is refuted only at the era spread and the uncorrected level.
+
+**Forward ledger (read-only through `get_shadow_tally`):**
+
+| Cell | Rows | Episodes |
+|---|---|---|
+| EARLY_MOMENTUM_v2 GBP/JPY | 24 | 4 (−0.55, −0.39, +0.34, −1.00) |
+| MOMENTUM_JOIN GBP/AUD | 5 | 1 |
+| MOMENTUM_JOIN GBP/JPY | 2 | 1 |
+| THRUST_PULLBACK GBP/JPY | 2 | 2 |
+| THRUST_PULLBACK GBP/AUD | 0 | 0 |
+
+**Build prerequisite found:** FCS-1's self-test compares its replay with `check_shadow_signals` bar by bar (`studies/frozen_candidates_study.py:251-262`, run in the suite). Any harness change that skips a cell would fail it, so FCS-1 must first be pinned to its own candidate list.
+
+**CORRECTION 1.** The display-claim inventory above (2026-11-05, item 8) says the shadow block omits R40–R42, "all three refuted in history". Three of five cells were refuted. MOMENTUM_JOIN GBP/JPY and THRUST_PULLBACK GBP/JPY are INCONCLUSIVE.
+
+**CORRECTION 2.** In conversation I told the owner that the two GBP/JPY cells I proposed keeping were "most of what's been pinging you". Wrong: since 2026-10-01 they are 3 of the 15 shadow rows. EARLY_MOMENTUM_v2 is 12 of the 15, and 24 of 36 overall.
+
+**Status:** PROPOSED; to the code and adversarial reviewers, then the owner.
