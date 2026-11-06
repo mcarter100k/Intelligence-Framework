@@ -99,3 +99,19 @@ def test_precondition_needs_both_parts():
     assert K.precondition(2.5, q3_hi)[0] == "FAIL"           # ratio must exceed 2.5
     assert K.precondition(3.0, q3_lo)[0] == "FAIL"           # no block reaches 35%
     assert K.precondition(3.0, {"X": (10.0, 35.0)})[0] == "PASS"
+
+
+def test_summary_line_counts_q3_and_ratio_separately():
+    assert K.summary_line(["GBP_AUD TOKYO low", "GBP_JPY SYDNEY high"], ["GBP_AUD"]) == (
+        "MATERIAL differences: 2 of 20 Q3 comparisons (GBP_AUD TOKYO low, GBP_JPY SYDNEY high); "
+        "1 of 2 ratio comparisons, single-gate (GBP_AUD).")
+    assert K.summary_line([], []) == ("MATERIAL differences: 0 of 20 Q3 comparisons; "
+                                      "0 of 2 ratio comparisons, single-gate.")
+
+
+def test_same_run_against_itself_has_no_material_difference(capsys):
+    r = K.parse(K.stdout_from_report(open(REPORT).read()))
+    K.report(r, r)
+    out = capsys.readouterr().out
+    assert "MATERIAL differences: 0 of 20 Q3 comparisons; 0 of 2 ratio comparisons, single-gate." in out
+    assert out.count("CONSISTENT WITH THE EARLIER PERIOD") == 22

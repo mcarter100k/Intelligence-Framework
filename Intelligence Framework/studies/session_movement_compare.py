@@ -121,6 +121,12 @@ def precondition(ratio, q3):
     return ("PASS" if ratio > PRE_RATIO and top >= PRE_SHARE else "FAIL"), top
 
 
+def summary_line(material_q3, material_ratio):
+    q3 = f"{len(material_q3)} of {N_COMPARISONS} Q3 comparisons" + (f" ({', '.join(material_q3)})" if material_q3 else "")
+    rt = f"{len(material_ratio)} of 2 ratio comparisons, single-gate" + (f" ({', '.join(material_ratio)})" if material_ratio else "")
+    return f"MATERIAL differences: {q3}; {rt}."
+
+
 # ── report ───────────────────────────────────────────────────────────────────
 
 def pacific(h):
@@ -131,7 +137,7 @@ def report(old, new):
     print("# Side by side: 2005–2013 (STUDY) against 2021-04-27 → 2026-09-09 (USED)\n")
     print(f"Šidák per-comparison α for {N_COMPARISONS} comparisons: {ALPHA_SIDAK:.4f} "
           f"(family-wise rate at a naive {ALPHA} each: {1 - (1 - ALPHA) ** N_COMPARISONS:.0%}).\n")
-    material = []
+    material, material_ratio = [], []
     for pair in PAIRS:
         o, n = old[pair], new[pair]
         print(f"\n## {pair}\n")
@@ -148,7 +154,7 @@ def report(old, new):
               f"{ro[2]:02d}:00 UTC); 2021–2026 {rn[0]:.2f} (busiest {rn[1]:02d}:00, quietest "
               f"{rn[2]:02d}:00 UTC); difference {d:+.2f} → **{v}**")
         if v.startswith(MATERIAL):
-            material.append(f"{pair} ratio")
+            material_ratio.append(pair)
 
         print("\n### Q2. Median share of the day's range, per block\n")
         print("| block | 2005–2013 | 2021–2026 |")
@@ -191,8 +197,8 @@ def report(old, new):
         res, top = precondition(new[pair]["ratio"][0], new[pair]["q3"])
         print(f"| {pair} | {new[pair]['ratio'][0]:.2f} | {top:.1f}% | **{res}** |")
 
-    print(f"\n## Materiality summary\n\nMATERIAL differences: {len(material)} of {N_COMPARISONS} Q3 "
-          f"comparisons and 2 ratio comparisons" + (": " + ", ".join(material) if material else "."))
+    print("\n## Materiality summary\n")
+    print(summary_line(material, material_ratio))
 
 
 if __name__ == "__main__":
