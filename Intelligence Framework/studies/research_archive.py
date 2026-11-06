@@ -329,7 +329,7 @@ def cmd_assemble(study_held_dir, study_h1_dir, modern_dir, archive_dir):
 
 # ── verify ───────────────────────────────────────────────────────────────────
 
-def cmd_verify(archive_dir):
+def cmd_verify(archive_dir, pairs=PAIRS, pip_map=PIP):
     with open(os.path.join(archive_dir, "manifest.json")) as fh:
         man = json.load(fh)
     ok = True
@@ -357,10 +357,11 @@ def cmd_verify(archive_dir):
         if len(bars) != meta["rows"] or mis or sealed or emb or wk or rsv:
             fail(f"{name}: integrity check")
 
-    for pair in PAIRS:
+    for pair in pairs:
         if not all(f"{pair}_{g}.csv" in data for g in GRANS):
+            fail(f"{pair}: a timeframe is missing or failed its hash check")
             continue
-        pip = PIP[pair]
+        pip = pip_map[pair]
         (d1, sd1), (h4, sh4), (h1, sh1) = (data[f"{pair}_{g}.csv"] for g in GRANS)
         print(f"\n## {pair}")
         for s in SPANS:
@@ -381,6 +382,11 @@ def cmd_verify(archive_dir):
                   f"{D1_TOL_PIPS} pip {hl_ok}, open+close exact {oc_ok}, D1 with no H4 "
                   f"{len(d1s) - len(dc)} | H1 gap runs {len(gl)} ({sum(n for _, n in gl)} h), "
                   f"runs of 3 h or more {len(long_)}")
+            nz = sorted(x for d in cmp_.values() for x in d if x > 0)
+            nzd = sorted(x for d in dc.values() for x in d if x > 0)
+            if nz or nzd:
+                print(f"    nonzero |diff| pips: H1->H4 {len(nz)} values, max {max(nz) if nz else 0:.3f}; "
+                      f"D1 vs H4 {len(nzd)} values, max {max(nzd) if nzd else 0:.3f}")
             for t, n in long_:
                 if s != "STUDY":
                     print(f"    gap {D.pt(t)} -> {D.pt(t + timedelta(hours=n))}  {n} h")
