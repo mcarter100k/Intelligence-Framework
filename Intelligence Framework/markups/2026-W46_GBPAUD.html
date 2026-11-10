@@ -74,7 +74,7 @@ footer { color: var(--ink-3); font-size: .82rem; border-top: 1px solid var(--gri
 <main>
 <header>
   <h1>GBP/AUD markup · week of Nov 9, 2026</h1>
-  <div class="meta">Price at markup <span class="mono">1.94297</span> (Mon Nov 9, 7:33 PM PST). Candles are OANDA mid prices; swing points use the fixed rule (weekly k=2, daily k=3, 4-hour k=4). A hand read, not a tested edge.</div>
+  <div class="meta">Price at markup <span class="mono">1.94297</span> (Mon Nov 9, 7:33 PM PST). Each candle shows the price range of one period: one week, one day or four hours. Turning points are found by the same rule every week, so nothing is picked by eye. This is our judgement, not a proven trading method.</div>
 </header>
 
 <section aria-label="Chart">
@@ -85,9 +85,9 @@ footer { color: var(--ink-3); font-size: .82rem; border-top: 1px solid var(--gri
       <button type="button" id="tf-H4" aria-pressed="false">4-hour</button>
     </div>
     <label class="tog"><input type="checkbox" id="t-zones" checked> Zones</label>
-    <label class="tog"><input type="checkbox" id="t-wrong" checked> "Read is wrong" lines</label>
-    <label class="tog"><input type="checkbox" id="t-fib" checked> Fibonacci</label>
-    <label class="tog"><input type="checkbox" id="t-sw" checked> Swing labels</label>
+    <label class="tog"><input type="checkbox" id="t-wrong" checked> Where each trend would end</label>
+    <label class="tog"><input type="checkbox" id="t-fib" checked> Pullback levels</label>
+    <label class="tog"><input type="checkbox" id="t-sw" checked> Turning-point labels</label>
   </div>
   <div class="chart-wrap">
     <svg id="chart" tabindex="0" role="img" aria-label="GBP/AUD candlestick chart with marked zones. Use left and right arrow keys to step through candles."></svg>
@@ -95,52 +95,55 @@ footer { color: var(--ink-3); font-size: .82rem; border-top: 1px solid var(--gri
   </div>
   <div class="offchart" id="offchart" style="margin-top:.4rem"></div>
   <div class="legend" style="margin-top:.6rem">
-    <span><i class="sw" style="background:var(--up)"></i>Up candle</span>
-    <span><i class="sw" style="background:var(--down)"></i>Down candle</span>
-    <span><i class="sw" style="background:var(--zone);opacity:.32;border:2px solid var(--zone)"></i>Zone from the weekly chart (darker, thicker)</span>
-    <span><i class="sw" style="background:var(--zone);opacity:.14;border:1px solid var(--zone)"></i>Zone from the daily chart (lighter)</span>
-    <span><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="26" y2="5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 3"/></svg>"Read is wrong" line</span>
-    <span><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="26" y2="5" stroke="currentColor" stroke-width="1" stroke-dasharray="1 3"/></svg>Fibonacci level</span>
+    <span><i class="sw" style="background:var(--up)"></i>Price rose in that period</span>
+    <span><i class="sw" style="background:var(--down)"></i>Price fell in that period</span>
+    <span><i class="sw" style="background:var(--zone);opacity:.32;border:2px solid var(--zone)"></i>Price area from the weekly chart (stronger)</span>
+    <span><i class="sw" style="background:var(--zone);opacity:.14;border:1px solid var(--zone)"></i>Price area from the daily chart (weaker)</span>
+    <span><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="26" y2="5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 3"/></svg>Where a trend would end</span>
+    <span><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="26" y2="5" stroke="currentColor" stroke-width="1" stroke-dasharray="1 3"/></svg>Pullback level</span>
     <span><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="26" y2="5" stroke="currentColor" stroke-width="1"/></svg>Price now</span>
+    <span>HH higher high · HL higher low · LH lower high · LL lower low</span>
   </div>
 </section>
 
 <section class="note" aria-label="How to read this chart">
   <h2>How to follow this chart</h2>
   <ul>
-    <li><strong>Start on Weekly, then Daily, then 4-hour.</strong> That's the top-down order: the bigger picture first, timing last.</li>
-    <li><strong>Shaded bands are zones,</strong> named by position: S1–S3 below price and R1–R3 above, with 1 nearest. The darker bands came from the weekly chart and carry more weight.</li>
-    <li><strong>Dashed lines mark where each timeframe's read would be wrong.</strong> They're the most important lines on the chart, because they're where your idea dies.</li>
-    <li><strong>A zone is where to pay attention, not where to buy or sell.</strong> In the framework's tests, trading the touch of a level won half the time with a typical result of −1R. Wait for the timeframe below to turn.</li>
+    <li><strong>Start on Weekly, then Daily, then 4-hour.</strong> Look at the big picture first and the small details last. The bigger chart tells you the direction; the smaller one only helps with timing.</li>
+    <li><strong>Shaded bands are price areas where price has reacted before.</strong> Areas above the price (R1, R2, R3) are <em>ceilings</em>, where a rise may stall. Areas below (S1, S2, S3) are <em>floors</em>, where a fall may stall. Number 1 is always the closest to today's price. Darker bands came from the weekly chart and matter more.</li>
+    <li><strong>Dashed lines show where each trend would end.</strong> If price crosses one, that chart's direction has changed, and any trade based on it is over. These are the most important lines on the chart.</li>
+    <li><strong>Turning-point labels show the trend.</strong> HH means a higher high (a peak above the previous peak) and HL a higher low (a dip that stopped above the previous dip). Rising peaks and dips mean an uptrend. LH (lower high) and LL (lower low) mean a downtrend.</li>
+    <li><strong>Pullback levels:</strong> after a strong climb, price often drops back part of the way before deciding what to do next. 23.6% is a small pullback, 38.2% a normal one, 50% a deep one and 61.8% a very deep one.</li>
+    <li><strong>A price area tells you where to pay attention, not when to buy or sell.</strong> In the framework's tests, buying or selling the moment price touched a line won only about half the time and usually lost. Wait for the smaller chart to turn in your direction first.</li>
   </ul>
 </section>
 
 <section aria-label="Top-down read">
   <h2>The top-down read</h2>
   <div class="table-wrap"><table>
-    <thead><tr><th>Timeframe</th><th>Which way</th><th>Last break</th><th>Read is wrong if…</th><th>Why it matters (mentor note)</th></tr></thead>
+    <thead><tr><th>Chart</th><th>Direction</th><th>Most recent big change</th><th>This direction ends if…</th><th>What it means for you</th></tr></thead>
     <tbody>
-      <tr><td>Monthly</td><td>Down: lower low 1.8540 (May 2026), lower high 1.9362 (Jun 2026)</td><td>The 2026 drop broke the 2024 higher lows</td><td class="num">Nov closes &gt; 1.9362</td><td>The biggest money still says down. November is trading above 1.9362, but only a month-end close counts.</td></tr>
-      <tr><td>Weekly</td><td>Turning up: lows rising 1.8540 → 1.8732 → 1.8858</td><td>Wk close 1.9446 above the Mar (1.9402) and Jun (1.9362) highs, 11/06</td><td class="num">Wk close &lt; 1.9230</td><td>This is the first weekly close above a lower high since the 2025 top. A trend changes one break at a time.</td></tr>
-      <tr><td>Daily</td><td>Up: one fast leg 1.8858 → 1.9529 (670 pips in 6 days), then sideways</td><td>Broke the Oct 15 high 1.9230 and the July high 1.9355</td><td class="num">&lt; 1.9172</td><td>A fast leg usually pulls back. The question is how deep, not whether.</td></tr>
-      <tr><td>4-hour</td><td>Up, pausing: higher low 1.9375</td><td>—</td><td class="num">&lt; 1.9375</td><td>This is the first timeframe that will tell you the pullback has started.</td></tr>
-      <tr><td>Hourly</td><td>Sideways 1.9375–1.9475</td><td>—</td><td class="num">&gt; 1.9475 / &lt; 1.9375</td><td>The hourly chart is for timing only. Never let it overrule the weekly.</td></tr>
+      <tr><td>Monthly</td><td>Falling: peaks and dips keep getting lower (lowest dip 1.8540 in May 2026; last peak 1.9362 in June)</td><td>The 2026 fall broke below the 2024 dips</td><td>November finishes above 1.9362</td><td>The biggest picture still says down. November is trading above 1.9362 right now, but only where the month finishes counts.</td></tr>
+      <tr><td>Weekly</td><td>Starting to rise: each dip since May stopped higher (1.8540 → 1.8732 → 1.8858)</td><td>Last week finished at 1.9446, above the March and June peaks</td><td>A week finishes back below 1.9230</td><td>The first time since the 2025 top that a week finished above an earlier peak. Trends turn one step at a time, and this is a first step.</td></tr>
+      <tr><td>Daily</td><td>Rising: one fast climb from 1.8858 to 1.9529 (670 pips in 6 days), then flat</td><td>Climbed above the Oct 15 and July peaks</td><td>Price drops below 1.9172</td><td>After a fast climb, price usually drops back part of the way. The question is how far, not whether.</td></tr>
+      <tr><td>4-hour</td><td>Rising, resting: the last dip held at 1.9375</td><td>—</td><td>Price drops below 1.9375</td><td>This will be the first chart to show that a drop back has started.</td></tr>
+      <tr><td>Hourly</td><td>Flat between 1.9375 and 1.9475</td><td>—</td><td>Price leaves that range, above 1.9475 or below 1.9375</td><td>Use the hourly only to time an entry. It never overrules the weekly.</td></tr>
     </tbody>
   </table></div>
-  <p class="meta" style="margin-top:.6rem"><strong>The conflict:</strong> the monthly is down while everything below it says up. When timeframes disagree, size down or stand aside. The monthly gives its verdict when November closes.</p>
+  <p class="meta" style="margin-top:.6rem"><strong>The charts disagree:</strong> the monthly chart still says down while the smaller charts say up. When charts disagree, trade smaller or wait. The monthly chart decides when November finishes.</p>
 </section>
 
 <section aria-label="Zones">
   <h2>Zones and why each one is there</h2>
   <div class="table-wrap"><table>
-    <thead><tr><th>Zone</th><th>Price</th><th>From</th><th>Reasons that overlap</th><th>Mentor note</th></tr></thead>
+    <thead><tr><th>Name</th><th>Price</th><th>Chart it came from</th><th>Why price may react here</th><th>What it means for you</th></tr></thead>
     <tbody>
-      <tr><td><span class="tag">R3</span></td><td class="num">1.9959 – 2.0093</td><td>W</td><td>Late-2025 weekly lows; the round 2.0000; 50% of the 2025–26 drop</td><td>A far target. Three reasons land together, which is what makes it a zone and not a guess.</td></tr>
-      <tr><td><span class="tag">R2</span></td><td class="num">1.9727</td><td>W</td><td>38.2% of the 2025–26 drop</td><td>Only one reason, so it's a line to watch, not a zone. Expect less from it.</td></tr>
-      <tr><td><span class="tag">R1</span></td><td class="num">1.9529 – 1.9571</td><td>W / M</td><td>Last week's high 1.9529; a 2024 monthly lower high 1.9571</td><td>The first wall above. Breaking it would be a new high for the leg, and the Fibonacci lines would then need redrawing.</td></tr>
-      <tr><td><span class="tag">S1</span></td><td class="num">1.9355 – 1.9402</td><td>W</td><td>The old range top (March and June highs); the 4-hour higher low 1.9375; 23.6% of the leg</td><td>Old resistance often becomes support after a breakout. That's why it's named S1, not by its old role. It was already tested Monday, before this markup, so that touch isn't scored.</td></tr>
-      <tr><td><span class="tag">S2</span></td><td class="num">1.9172 – 1.9273</td><td>D</td><td>38.2% of the leg (1.92727) sitting on 23.6% of the big drop (1.92729); the Oct 15 high 1.9230; 50% of the leg 1.9194; where the last push started</td><td>The strongest overlap on the chart. About 81% of GBP/AUD first pullbacks reached 38.2%, but buying that first touch was tested and failed. Watch here for the 4-hour to turn; don't buy the touch.</td></tr>
-      <tr><td><span class="tag">S3</span></td><td class="num">1.8858 – 1.8906</td><td>D</td><td>The October lows: where this whole leg began</td><td>If price gets back here, the up-leg has failed. It's the line behind the weekly "turning up" read.</td></tr>
+      <tr><td><span class="tag">R3</span></td><td class="num">1.9959 – 2.0093</td><td>Weekly</td><td>Price bottomed here in late 2025; the round number 2.0000; halfway back up the whole 2025–26 fall</td><td>A far ceiling. Three different reasons in one place are what make it worth watching.</td></tr>
+      <tr><td><span class="tag">R2</span></td><td class="num">1.9727</td><td>Weekly</td><td>A common bounce point (38.2%) of the 2025–26 fall</td><td>Only one reason, so it's a thin line, not an area. Expect less from it.</td></tr>
+      <tr><td><span class="tag">R1</span></td><td class="num">1.9529 – 1.9571</td><td>Weekly / monthly</td><td>Last week's high (1.9529); a 2024 monthly peak (1.9571)</td><td>The nearest ceiling. If price climbs through it, the rise is making new highs and the pullback levels need redrawing.</td></tr>
+      <tr><td><span class="tag">S1</span></td><td class="num">1.9355 – 1.9402</td><td>Weekly</td><td>The old ceiling of the March–June range, which price broke above last week; the 4-hour chart's last dip (1.9375); a small pullback (23.6%)</td><td>An old ceiling often becomes a floor once price breaks above it. Price already touched it on Monday, before we marked it, so that touch doesn't count in Friday's score.</td></tr>
+      <tr><td><span class="tag">S2</span></td><td class="num">1.9172 – 1.9273</td><td>Daily</td><td>A normal pullback (38.2%) of the latest climb, landing within a fraction of a pip of a pullback level of the big 2025–26 fall; the Oct 15 peak (1.9230); a deep pullback (50%); where the last push up started</td><td>The strongest floor on the chart. About 8 in 10 past GBP/AUD pullbacks reached this kind of level, but buying the moment price touched it lost money in testing. Wait for the 4-hour chart to turn up first.</td></tr>
+      <tr><td><span class="tag">S3</span></td><td class="num">1.8858 – 1.8906</td><td>Daily</td><td>The October lows, where this whole climb started</td><td>If price falls back here, the climb has failed and the weekly turn is cancelled.</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -148,22 +151,22 @@ footer { color: var(--ink-3); font-size: .82rem; border-top: 1px solid var(--gri
 <section class="grid2">
   <div class="note">
     <h2>How Friday is scored (set before the week)</h2>
-    <p>Scoring runs from <span class="mono">Mon Nov 9, 7:33 PM PST</span> to <span class="mono">Fri Nov 13, 2:00 PM PST</span>. Each zone gets one result:</p>
+    <p>Scoring runs from <span class="mono">Mon Nov 9, 7:33 PM PST</span> to <span class="mono">Fri Nov 13, 2:00 PM PST</span>. Each price area gets one result:</p>
     <ul>
       <li><strong>Reached:</strong> price traded into it.</li>
-      <li><strong>Held:</strong> after reaching it, price moved away at least 62 pips (half a daily range) before a daily close through it.</li>
-      <li><strong>Broke:</strong> a daily close through the far side.</li>
+      <li><strong>Held:</strong> after reaching it, price bounced away at least 62 pips (half of a typical day's movement) before a day finished on the other side.</li>
+      <li><strong>Broke:</strong> a day finished on the other side.</li>
       <li><strong>Never reached.</strong></li>
     </ul>
-    <p>All four results count. About 58% of bars sit near some level, so hits alone prove nothing.</p>
+    <p>All four results count, not just the wins. Most candles sit near some line, so a line being touched proves nothing on its own.</p>
   </div>
   <div class="note">
     <h2>Your homework</h2>
     <ul>
-      <li>Draw these zones on TradingView. Label each box like this: <span class="mono">S1 · W · range-top retest · 23.6% · set 11/09</span>.</li>
-      <li>Colour by timeframe, not by role: weekly darkest and thickest, daily lighter.</li>
-      <li>Add one dashed "wrong" line per timeframe, e.g. <span class="mono">W wrong below 1.9230</span>.</li>
-      <li>Then do the GBP/JPY read yourself first: for each timeframe, which way, the last break and where it's wrong.</li>
+      <li>Draw these zones on TradingView. Label each box like this: <span class="mono">S1 · nearest floor (weekly) · old ceiling, now floor · drawn 11/09</span>.</li>
+      <li>Use darker, thicker boxes for areas from the weekly chart and lighter ones for the daily, so you can see at a glance which matter more.</li>
+      <li>Add one dashed line per chart where its trend would end, e.g. <span class="mono">4-hour uptrend ends below 1.9375</span>.</li>
+      <li>Then do GBP/JPY yourself first. For each chart, write down its direction, its most recent big change, and the price where that direction would end.</li>
     </ul>
   </div>
 </section>
@@ -187,20 +190,21 @@ footer { color: var(--ink-3); font-size: .82rem; border-top: 1px solid var(--gri
     candles: RAW[g].c.map(c => [iso(c[0]), c[1], c[2], c[3], c[4], c[5] === 1]),
     swings: RAW[g].s.map(s => [iso(s[0]), s[1], s[2], s[3]]) };
   const ZONES = [
-    { id: "R3", lo: 1.9959, hi: 2.0093, tf: "W", label: "R3 · W · 2025 lows · 2.00 · 50% drop" },
-    { id: "R2", lo: 1.9727, hi: 1.9727, tf: "W", label: "R2 · W · 38.2% of drop (line)" },
-    { id: "R1", lo: 1.9529, hi: 1.9571, tf: "W", label: "R1 · W/M · last week's high · 2024 M LH" },
-    { id: "S1", lo: 1.9355, hi: 1.9402, tf: "W", label: "S1 · W · range-top retest · 23.6%" },
-    { id: "S2", lo: 1.9172, hi: 1.9273, tf: "D", label: "S2 · D · 38.2% · Oct 15 high · 50%" },
-    { id: "S3", lo: 1.8858, hi: 1.8906, tf: "D", label: "S3 · D · Oct lows · leg origin" }
+    { id: "R3", lo: 1.9959, hi: 2.0093, tf: "W", label: "R3 · far ceiling (weekly) · 2025 lows + 2.0000" },
+    { id: "R2", lo: 1.9727, hi: 1.9727, tf: "W", label: "R2 · thin ceiling line (weekly) · bounce point of the big fall" },
+    { id: "R1", lo: 1.9529, hi: 1.9571, tf: "W", label: "R1 · nearest ceiling (weekly) · last week's high" },
+    { id: "S1", lo: 1.9355, hi: 1.9402, tf: "W", label: "S1 · nearest floor (weekly) · old ceiling, now floor" },
+    { id: "S2", lo: 1.9172, hi: 1.9273, tf: "D", label: "S2 · strongest floor (daily) · several levels stacked" },
+    { id: "S3", lo: 1.8858, hi: 1.8906, tf: "D", label: "S3 · last floor (daily) · where this climb started" }
   ];
   const WRONG = [
-    { p: 1.93618, label: "M: down until Nov closes above 1.9362" },
-    { p: 1.93746, label: "4H wrong below 1.9375" },
-    { p: 1.92300, label: "W wrong below 1.9230" },
-    { p: 1.91720, label: "D wrong below 1.9172" }
+    { p: 1.93618, label: "Monthly stays a downtrend unless November finishes above 1.9362" },
+    { p: 1.93746, label: "4-hour uptrend ends if price drops below 1.9375" },
+    { p: 1.92300, label: "Weekly breakout fails if a week finishes below 1.9230" },
+    { p: 1.91720, label: "Daily uptrend ends if price drops below 1.9172" }
   ];
   const FIB = { o: 1.88584, e: 1.95288, originTime: "2026-10-28T21:00:00+00:00", levels: [0.236, 0.382, 0.5, 0.618] };
+  const FIB_NAME = { 0.236: "Small pullback", 0.382: "Normal pullback", 0.5: "Deep pullback", 0.618: "Very deep pullback" };
   const SWING_LIMIT = { W: 16, D: 18, H4: 18 };
   const state = { tf: "D", hover: null, zones: true, wrong: true, fib: true, sw: true };
   const svg = document.getElementById("chart");
@@ -305,7 +309,7 @@ footer { color: var(--ink-3); font-size: .82rem; border-top: 1px solid var(--gri
         if (p < lo || p > hi) continue;
         const yy = y(p);
         s += `<line x1="${x(oi).toFixed(1)}" x2="${m.l + pw}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="${ink2}" stroke-width="1" stroke-dasharray="1 3"/>`;
-        fibLabels.push({ y: yy, ly: yy, x: x(oi), text: `Fib D ${(f * 100).toFixed(1)}% ${fmt(p)}` });
+        fibLabels.push({ y: yy, ly: yy, x: x(oi), text: `${FIB_NAME[f]} (${(f * 100).toFixed(1)}%) · ${fmt(p)}` });
       }
     }
     // wrong lines
@@ -347,8 +351,9 @@ footer { color: var(--ink-3); font-size: .82rem; border-top: 1px solid var(--gri
     };
     for (const it of spread(zoneLabels, 18, m.t + 9, m.t + ph - 9)) s += label(it, m.l + pw - 4, "end", it.weekly ? 600 : 500, ink);
     for (const it of spread(wrongLabels, 18, m.t + 9, m.t + ph - 9)) s += label(it, m.l + 4, "start", 500, ink);
-    const fx = fibLabels.length ? Math.max(fibLabels[0].x - 8, m.l + 190) : 0;   // just left of where the fib starts
-    for (const it of spread(fibLabels, 16, m.t + 9, m.t + ph - 9)) s += label(it, fx, "end", 400, ink2);
+    const wrongW = wrongLabels.reduce((w, it) => Math.max(w, it.text.length * 6.1 + 10), 0);
+    const fx = m.l + 4 + wrongW + 14;                         // pullback labels sit just right of the trend-end labels
+    for (const it of spread(fibLabels, 16, m.t + 9, m.t + ph - 9)) s += label(it, fx, "start", 400, ink2);
     // hover
     if (state.hover !== null && bars[state.hover]) {
       const xx = x(state.hover);
@@ -377,7 +382,7 @@ footer { color: var(--ink-3); font-size: .82rem; border-top: 1px solid var(--gri
     const z = zoneOf(c);
     tip.innerHTML = `<strong>${esc(sessionDate(t, g.tf))}</strong>${done ? "" : " <em>(forming)</em>"}<br>` +
       `<span class="mono">O ${o.toFixed(5)}&nbsp; H ${h.toFixed(5)}<br>L ${l.toFixed(5)}&nbsp; C ${c.toFixed(5)}</span>` +
-      (z ? `<br>Close is inside <strong>${z}</strong>` : "");
+      (z ? `<br>Finished inside <strong>${z}</strong>` : "");
     tip.style.display = "block";
     const xx = g.m.l + g.step * (state.hover + 0.5);
     const wrapW = svg.clientWidth;

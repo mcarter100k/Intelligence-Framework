@@ -107,14 +107,19 @@ should at least name the disagreement.
   resistance becomes support (this week's S1 is the old range top). The
   number tells you where the zone is; the label says what it was built from.
 
-### The text on each zone box
+### The text on each zone box (plain words, always)
 
-Write it as `ID · timeframe of origin · reasons · date set`.
+Write it as `ID · what it is (which chart) · why it's there · drawn date`.
 
-Example: `S1 · W · range-top retest · 23.6% · set 11/09`
+Example: `S1 · nearest floor (weekly) · old ceiling, now floor · drawn 11/09`
 
+- **Use "floor" and "ceiling", not "support" and "resistance".** A floor is
+  where a fall may stall; a ceiling is where a rise may stall.
+- **Say why in everyday words,** not in shorthand: "where this climb started",
+  not "leg origin"; "small pullback (23.6%)", not "23.6%".
 - *Why:* in two weeks you will not remember why you drew it. The reasons and
-  the date are what let you judge whether it still matters.
+  the date are what let you judge whether it still matters, and plain words
+  mean you never have to decode your own chart.
 
 ### Colour by timeframe, not by role
 
@@ -129,32 +134,40 @@ Example: `S1 · W · range-top retest · 23.6% · set 11/09`
 comes from the timeframe, so the colour should tell you how much weight a
 zone carries at a glance.
 
-### Swing labels
+### Turning-point labels
 
-- **HH, HL, LH, LL** at confirmed swings only, on the timeframe they belong
-  to.
+- **HH, HL, LH, LL** at confirmed turning points only, on the timeframe they
+  belong to:
+  - **HH, higher high:** a peak above the previous peak.
+  - **HL, higher low:** a dip that stopped above the previous dip.
+  - **LH, lower high:** a peak below the previous peak.
+  - **LL, lower low:** a dip below the previous dip.
+  - Rising peaks and dips mean an uptrend; falling ones mean a downtrend.
 - In TradingView, set each label's **visibility to its own timeframe range**
   (weekly labels on weekly and above, and so on), so the hourly chart is not
   buried in weekly labels.
 
-### The last break
+### The most recent big change
 
 A short arrow or line at the level, labelled in plain words with the date.
 
-Example: `wk close above 1.9402 · 11/06`
+Example: `week finished above the March peak · 11/06`
 
-### The "read is wrong" line (the most important line on the chart)
+### Where the trend would end (the most important line on the chart)
 
-- One dashed line per timeframe at the price where that timeframe's read
-  flips.
-- Example: `W wrong below 1.9230`
+- One dashed line per timeframe at the price where that timeframe's direction
+  would change. Traders call this the **invalidation** level.
+- Write it as a full sentence: `4-hour uptrend ends if price drops below 1.9375`,
+  or `Weekly breakout fails if a week finishes below 1.9230`.
 - *Why:* this is the line that decides whether you are still right. Make it
-  impossible to miss.
+  impossible to miss and impossible to misread.
 
-### Fibonacci
+### Pullback levels (Fibonacci)
 
-- **One active fib per timeframe,** labelled with its anchors.
-- Example: `Fib D 1.8858→1.9529`
+- **One active set per timeframe,** labelled with what it measures.
+- Example: `Pullback levels of the Oct 29 – Nov 6 climb (1.8858 → 1.9529)`.
+- Name each line by size: **small pullback (23.6%)**, **normal (38.2%)**,
+  **deep (50%)**, **very deep (61.8%)**.
 - Delete it the day it goes stale (§4).
 
 ### When a zone breaks mid-week
