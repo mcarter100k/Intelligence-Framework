@@ -6536,3 +6536,38 @@ Both runner files are byte-identical to commit 2f7c68b (sha256 `2302ab42…935d`
 | 5 | The literal C1 list is fit for purpose | NOT MET | pegged currencies (HKD, DKK) | n/a; stopped |
 | 6 | The account can place orders | NOT CHECKED | placing one was out of bounds | n/a |
 | 7 | Breadth GO / PARTIAL / NO-GO | PENDING | needs the universe and partition rulings | n/a |
+
+## 2026-11-10 — STUDY RUN (descriptive, free zone): gold (XAU/USD) session movement, 2021-04-27 → 2026-09-09 (branch `feat/gold-session-study`)
+
+**What:** when gold moves during the day, for a practice markup chart (owner request).
+- Gold is **not tradeable** on the OANDA account (probe 2026-11-10: tradeable false; candles served).
+- No 2014–2021 gold bar has ever been fetched. Gold is outside the data map; USED-span data, learning only.
+- Spec: `docs/specs/gold_session_study_spec.md`. Report: `studies/gold_session_report.md`.
+
+**Ordering:**
+- Spec 1409a75: 23:37:17 PST, with the wrapper absent.
+- Wrapper c313a6f: 23:37:53.
+- First computation: 23:37:54 PST.
+- One run through `reality_run.py --no-env`: exit 0, stderr 0 bytes, project UNCHANGED. Embedded output byte-identical.
+
+**Method:**
+- The unmodified runner, behind the same code pins as the replication.
+- Rebound: the instrument, the unit ($1.0, so "pips" means dollars), the hashes, the window, and the complete-day hours minus gold's 17:00 New York break.
+- The break was checked first: 0 gold H1 bars open at 17:00 NY, against 1,435 for GBP/AUD (control).
+- Tests: 3, with 3 mutants killed (wrong break hour in two forms, wrong unit).
+
+**Results** (1,325 complete days of 1,391):
+- **Busiest hour:** 13:00 UTC (5 AM PST), $14.4. **Quietest:** 21:00 UTC (1 PM PST), $5.1. **Ratio 2.84** (GBP/AUD 2021–2026: 2.40).
+- **London/New York overlap block:** median share of the day's range 0.669 (GBP/AUD 0.543). It holds the daily high on 32.0% of days and the low on 30.3%.
+- **By 15:00 UTC (7 AM PST):** high set on 67.0% of days, low on 73.1%.
+- **A second bump at 01:00 UTC (5 PM PST), $10.9.** The London open is modest ($8.3).
+- **Mean ATR:** H1 $8.6, H4 $17.4, D1 $45.4. These mix price levels from about $1,800 to over $4,000.
+- **DST rule:** no sharp boundary step. The 12:00 UTC step is 1.48, just under 1.5.
+
+**Not compared** with the GBP pairs by any test (descriptive only).
+
+**Hypotheses, not computed:**
+- the 5 PM PST bump as the Shanghai open;
+- a sharper New York-open rise on a daylight-saving-aware clock.
+
+**Limit:** hourly values are consistent with 4-hour bars, not verified against a second source.
