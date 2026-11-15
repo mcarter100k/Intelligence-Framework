@@ -7018,3 +7018,166 @@ Spec: docs/specs/htf_breakout_study_spec.md. Verdict on STUDY (2005-2013) episod
 - C-1.5, spread 5.1: N 28 | mean -0.049R | median +0.366R
 - C-2.5, spread 3.0: N 28 | mean -0.030R | median -0.318R
 - C-2.5, spread 5.1: N 27 | mean -0.099R | median -1.093R
+
+## 2026-11-14 — GOLD BREAKOUT STUDY (C2) RESULT (descriptive, free zone; branch `feat/gold-breakout-study`): a wick through a gold swing mostly fails recently; a daily close beyond is about even (R45)
+
+**What:** `docs/gold_plan.md` Phase C, study C2, at the owner's request ("start your breakout study now"). When gold trades past the latest confirmed daily swing (markup rule, k = 3), how often is it back inside within a few days? Definition W = a wick beyond (R24's), definition C = a close beyond (the markup's "last break"). GBP/AUD was measured by the same code as the benchmark. **Descriptive: no entries, no R, no costs.**
+
+**Ordering:**
+- Spec `docs/specs/gold_breakout_study_spec.md`: commit c523494 at **23:17:42 PST**, the runner absent (`ls`: No such file).
+- Runner `studies/gold_breakout_study.py` + `tests/test_gold_breakout_study.py`: commit 1be3e23 at **23:22:54 PST**.
+- **First computation: 23:23:02 PST.** One run: `reality_run.py --no-env --code <worktree> script <worktree absolute path>/studies/gold_breakout_study.py ~/intel_study_archives`. Exit 0, stderr 0 bytes, project UNCHANGED (verified by hash).
+- Rebased onto 3915ca9 (BCS-2) after the run: spec = 12be852, runner = 7c3e5e4. Content unchanged: spec sha256 `a74e931d93e1295f1afd253fdc2f36953aa4d489d6956b8492b846f1dd7bc5e4`; runner sha256 `5e7f401901471d54cf185afde096c4eb83f85f09f52a56ccee5e53f919aaf916`, equal to the run's committed bytes at 1be3e23.
+
+**Data:**
+- `research_archive_legs/XAU_USD_D.csv` (sha256 6202a13d…e3ca) and `research_archive/GBP_AUD_D.csv` (24e4bbe9…f6), equal to the archive manifests.
+- Spans STUDY and USED; FORWARD not used.
+- Gold from the 2006-03-21 session: the leg study's start, listed in the gold plan as team ruling T2 and noted here for the team.
+- 0 rows dated 2014-01-01 → 2021-04-25 in either file (checked before the spec). The runner refuses any such row (mutant B6 shows the refusal is tested).
+
+**Tests:**
+- 18 tests in `tests/test_gold_breakout_study.py`:
+  - planted held, wick-failed and close-failed breaks, up and mirrored down;
+  - both failure windows at their edges; one event per level; the latest swing is the level;
+  - ungraded and warm-up kept apart; era split, FORWARD and pre-start dropped;
+  - exam row and wrong hash refused; spec hashes = runner hashes;
+  - Wilson (81/263 → 0.2553–0.3662; 0/10 → 0–0.2775) and Newcombe (56/70 vs 48/80 → 0.2000 [0.0524, 0.3339]) against published values;
+  - ATR series ends at `markup_swings.atr`.
+- Full suite before the runner commit: **1159 passed**, 10 skipped, 3 deselected, 16 xfailed.
+- Mutation run, 12 mutants: **11 killed**:
+  - wick window shifted; close window cut; level a day late; a level reused; ATR of day d;
+  - exam refusal removed; first swing kept; hash check removed; Newcombe wrong side; gold start ignored; overshoot window cut.
+- **1 survived: B3a** (a level used on its own confirmation day). It is an equivalent mutant (INFERRED, by argument):
+  - the confirmation day is one of the swing's own 3 right-hand candles, so its high or low cannot pass the swing;
+  - and an older level replaced that day cannot be broken that day either (a higher new swing high already broke it; a lower one caps the day below it).
+  - It was named in the spec's mutation list before this was seen. B3b (a level active a day late) is the catchable form, and was killed.
+- Clean re-run 18 passed; source md5 identical before and after.
+
+**Output (verbatim):**
+
+```
+# Gold breakout study (C2): output
+
+## Data
+- XAU_USD STUDY: 2024 daily bars, 2006-03-20 -> 2013-12-29
+- XAU_USD USED: 1388 daily bars, 2021-04-26 -> 2026-09-08
+- GBP_AUD STUDY: 2343 daily bars, 2005-01-02 -> 2013-12-29
+- GBP_AUD USED: 1395 daily bars, 2021-04-26 -> 2026-09-08
+
+## Definition W (a wick beyond; failed = a close back inside on days d..d+2)
+### XAU_USD STUDY
+- up: N 98: failed 44, held 54 -> failed 44.9% [35.4, 54.8]  about even  (ungraded 0, warm-up 0)
+- down: N 77: failed 46, held 31 -> failed 59.7% [48.6, 70.0]  about even  (ungraded 0, warm-up 0)
+- both: N 175: failed 90, held 85 -> failed 51.4% [44.1, 58.7]  about even  (ungraded 0, warm-up 0)
+- overshoot (ATR), failed: N 90, p50 0.70 / p75 1.10 / p90 1.73
+- overshoot (ATR), held: N 85, p50 1.78 / p75 2.28 / p90 3.26
+### XAU_USD USED
+- up: N 68: failed 40, held 28 -> failed 58.8% [47.0, 69.7]  about even  (ungraded 0, warm-up 1)
+- down: N 48: failed 37, held 11 -> failed 77.1% [63.5, 86.7]  most breaks fail  (ungraded 0, warm-up 0)
+- both: N 116: failed 77, held 39 -> failed 66.4% [57.4, 74.3]  most breaks fail  (ungraded 0, warm-up 1)
+- overshoot (ATR), failed: N 77, p50 0.78 / p75 1.12 / p90 2.07
+- overshoot (ATR), held: N 39, p50 2.26 / p75 3.16 / p90 3.81
+### GBP_AUD STUDY
+- up: N 99: failed 74, held 25 -> failed 74.7% [65.4, 82.3]  most breaks fail  (ungraded 1, warm-up 1)
+- down: N 118: failed 83, held 35 -> failed 70.3% [61.6, 77.8]  most breaks fail  (ungraded 0, warm-up 1)
+- both: N 217: failed 157, held 60 -> failed 72.4% [66.0, 77.9]  most breaks fail  (ungraded 1, warm-up 2)
+- overshoot (ATR), failed: N 157, p50 0.64 / p75 1.11 / p90 1.68
+- overshoot (ATR), held: N 60, p50 1.47 / p75 2.11 / p90 2.79
+### GBP_AUD USED
+- up: N 63: failed 43, held 20 -> failed 68.3% [56.0, 78.4]  most breaks fail  (ungraded 0, warm-up 1)
+- down: N 61: failed 42, held 19 -> failed 68.9% [56.4, 79.1]  most breaks fail  (ungraded 0, warm-up 0)
+- both: N 124: failed 85, held 39 -> failed 68.5% [59.9, 76.1]  most breaks fail  (ungraded 0, warm-up 1)
+- overshoot (ATR), failed: N 85, p50 0.78 / p75 1.12 / p90 1.78
+- overshoot (ATR), held: N 39, p50 1.92 / p75 2.27 / p90 2.86
+
+## Comparisons, definition W (failed share; 95% Newcombe interval)
+- STUDY gold minus GBP/AUD, up: -29.8 points [-41.9, -16.2]  differs
+- STUDY gold minus GBP/AUD, down: -10.6 points [-24.0, +2.9]  no clear difference
+- STUDY gold minus GBP/AUD, both: -20.9 points [-30.1, -11.3]  differs
+- STUDY gold up minus gold down: -14.8 points [-28.8, +0.0]  no clear difference
+- USED gold minus GBP/AUD, up: -9.4 points [-25.0, +7.0]  no clear difference
+- USED gold minus GBP/AUD, down: +8.2 points [-8.8, +24.0]  no clear difference
+- USED gold minus GBP/AUD, both: -2.2 points [-13.9, +9.6]  no clear difference
+- USED gold up minus gold down: -18.3 points [-33.5, -0.8]  differs
+- XAU_USD era readings (both sides): about even / most breaks fail -> not stable across eras
+- GBP_AUD era readings (both sides): most breaks fail / most breaks fail -> stable across eras
+
+## Definition C (a close beyond; failed = a close back inside on days d+1..d+3)
+### XAU_USD STUDY
+- up: N 82: failed 26, held 56 -> failed 31.7% [22.6, 42.4]  most breaks hold  (ungraded 0, warm-up 0)
+- down: N 69: failed 39, held 30 -> failed 56.5% [44.8, 67.6]  about even  (ungraded 0, warm-up 0)
+- both: N 151: failed 65, held 86 -> failed 43.0% [35.4, 51.0]  about even  (ungraded 0, warm-up 0)
+- close < 0.25 ATR beyond: N 51, held 18 (35.3%)
+- close 0.25-0.5 ATR beyond: N 37, held 23 (62.2%)
+- close 0.5-1.0 ATR beyond: N 49, held 32 (65.3%)
+- close >= 1.0 ATR beyond: N 14, held 13 (92.9%)  INSUFFICIENT
+### XAU_USD USED
+- up: N 59: failed 25, held 34 -> failed 42.4% [30.6, 55.1]  about even  (ungraded 0, warm-up 1)
+- down: N 37: failed 18, held 19 -> failed 48.6% [33.4, 64.1]  about even  (ungraded 0, warm-up 0)
+- both: N 96: failed 43, held 53 -> failed 44.8% [35.2, 54.7]  about even  (ungraded 0, warm-up 1)
+- close < 0.25 ATR beyond: N 31, held 16 (51.6%)
+- close 0.25-0.5 ATR beyond: N 32, held 14 (43.8%)
+- close 0.5-1.0 ATR beyond: N 23, held 14 (60.9%)
+- close >= 1.0 ATR beyond: N 10, held 9 (90.0%)  INSUFFICIENT
+### GBP_AUD STUDY
+- up: N 76: failed 39, held 37 -> failed 51.3% [40.3, 62.2]  about even  (ungraded 1, warm-up 0)
+- down: N 94: failed 51, held 43 -> failed 54.3% [44.2, 64.0]  about even  (ungraded 0, warm-up 1)
+- both: N 170: failed 90, held 80 -> failed 52.9% [45.5, 60.3]  about even  (ungraded 1, warm-up 1)
+- close < 0.25 ATR beyond: N 76, held 24 (31.6%)
+- close 0.25-0.5 ATR beyond: N 48, held 28 (58.3%)
+- close 0.5-1.0 ATR beyond: N 35, held 21 (60.0%)
+- close >= 1.0 ATR beyond: N 11, held 7 (63.6%)  INSUFFICIENT
+### GBP_AUD USED
+- up: N 50: failed 22, held 28 -> failed 44.0% [31.2, 57.7]  about even  (ungraded 0, warm-up 1)
+- down: N 48: failed 23, held 25 -> failed 47.9% [34.5, 61.7]  about even  (ungraded 0, warm-up 0)
+- both: N 98: failed 45, held 53 -> failed 45.9% [36.4, 55.8]  about even  (ungraded 0, warm-up 1)
+- close < 0.25 ATR beyond: N 46, held 21 (45.7%)
+- close 0.25-0.5 ATR beyond: N 27, held 14 (51.9%)
+- close 0.5-1.0 ATR beyond: N 20, held 13 (65.0%)
+- close >= 1.0 ATR beyond: N 5, held 5 (100.0%)  INSUFFICIENT
+
+## Comparisons, definition C (failed share; 95% Newcombe interval)
+- STUDY gold minus GBP/AUD, up: -19.6 points [-33.8, -4.2]  differs
+- STUDY gold minus GBP/AUD, down: +2.3 points [-13.0, +17.2]  no clear difference
+- STUDY gold minus GBP/AUD, both: -9.9 points [-20.5, +1.0]  no clear difference
+- STUDY gold up minus gold down: -24.8 points [-39.1, -8.9]  differs
+- USED gold minus GBP/AUD, up: -1.6 points [-19.7, +16.4]  no clear difference
+- USED gold minus GBP/AUD, down: +0.7 points [-19.8, +21.2]  no clear difference
+- USED gold minus GBP/AUD, both: -1.1 points [-14.8, +12.7]  no clear difference
+- USED gold up minus gold down: -6.3 points [-25.7, +13.5]  no clear difference
+- XAU_USD era readings (both sides): about even / about even -> stable across eras
+- GBP_AUD era readings (both sides): about even / about even -> stable across eras
+
+## Failed share by calendar year (both sides)
+- XAU_USD STUDY W: 2006 50% (N 10, INSUFFICIENT); 2007 48% (N 23); 2008 44% (N 25); 2009 62% (N 24); 2010 42% (N 24); 2011 50% (N 24); 2012 55% (N 22); 2013 61% (N 23)
+- XAU_USD STUDY C: 2006 44% (N 9, INSUFFICIENT); 2007 43% (N 21); 2008 38% (N 21); 2009 52% (N 21); 2010 48% (N 23); 2011 38% (N 21); 2012 53% (N 19, INSUFFICIENT); 2013 25% (N 16, INSUFFICIENT)
+- XAU_USD USED W: 2021 81% (N 16, INSUFFICIENT); 2022 68% (N 22); 2023 59% (N 22); 2024 71% (N 21); 2025 62% (N 21); 2026 57% (N 14, INSUFFICIENT)
+- XAU_USD USED C: 2021 58% (N 12, INSUFFICIENT); 2022 38% (N 16, INSUFFICIENT); 2023 45% (N 22); 2024 53% (N 17, INSUFFICIENT); 2025 45% (N 20); 2026 22% (N 9, INSUFFICIENT)
+- GBP_AUD STUDY W: 2005 68% (N 19, INSUFFICIENT); 2006 79% (N 24); 2007 67% (N 21); 2008 75% (N 28); 2009 65% (N 23); 2010 67% (N 27); 2011 81% (N 27); 2012 68% (N 25); 2013 78% (N 23)
+- GBP_AUD STUDY C: 2005 35% (N 17, INSUFFICIENT); 2006 50% (N 18, INSUFFICIENT); 2007 47% (N 17, INSUFFICIENT); 2008 52% (N 23); 2009 71% (N 17, INSUFFICIENT); 2010 75% (N 20); 2011 47% (N 19, INSUFFICIENT); 2012 35% (N 20); 2013 63% (N 19, INSUFFICIENT)
+- GBP_AUD USED W: 2021 46% (N 13, INSUFFICIENT); 2022 69% (N 26); 2023 72% (N 25); 2024 72% (N 25); 2025 78% (N 23); 2026 58% (N 12, INSUFFICIENT)
+- GBP_AUD USED C: 2021 11% (N 9, INSUFFICIENT); 2022 40% (N 20); 2023 58% (N 19, INSUFFICIENT); 2024 55% (N 22); 2025 53% (N 17, INSUFFICIENT); 2026 36% (N 11, INSUFFICIENT)
+
+Intervals assume independent events; breaks a few days apart are not fully
+independent, so the intervals are approximate and somewhat too narrow (spec §5.5).
+Descriptive only: no entries, no R, no costs. Not evidence of an edge (spec §5.6).
+```
+
+**Readings (frozen rules, spec §5):**
+- **Wick breaks:** gold "about even" in 2006–2013 (51.4% [44.1, 58.7], N 175) and "most breaks fail" in 2021–2026 (66.4% [57.4, 74.3], N 116): **not stable across eras**.
+  - Gold downside 2021–2026: 77.1% failed, most fail.
+  - Gold minus GBP/AUD: −20.9 points 2006–2013 (**differs**; upside −29.8 differs), −2.2 in 2021–2026 (no clear difference).
+  - Gold up minus down 2021–2026: −18.3 (differs).
+- **Close breaks:** gold "about even" in both eras (43.0%, 44.8%; **stable**). Gold upside 2006–2013 "most breaks hold" (31.7% [22.6, 42.4]).
+  - Gold up minus down 2006–2013: −24.8 (differs). Every 2021–2026 comparison: no clear difference.
+- **Distance buckets:** shown, no rule reads them. The ≥ 1.0 ATR bucket is INSUFFICIENT in both eras (14, 10).
+- **GBP/AUD W 2021–2026, 68.5% failed:** beside R24's 71% (2023–2026, the live swing detector). Context only, as the spec said.
+- **Intervals assume independent events and are somewhat too narrow** (§5.5). **Not an entry rule or an edge** (§5.6; R14, R43, R44).
+
+**Recorded:**
+- R45 in `foundation/research_findings.md` (README and skill counts 44 → 45).
+- A gold line in `foundation/chart_reading_method.md` §2.
+- Inventory row "Breakouts holding" → TESTED, descriptive.
+- Plain-words report: `studies/gold_breakout_report.md`.
+
+**Hypothesis recorded, not tested:** in each era, breaks against that era's big trend failed more often (2006–2013 upside held more; 2021–2026 downside wicks failed most). Whether breaks with the higher-timeframe trend hold more often needs its own pre-registered run. R44's trend filter on GBP/AUD made no edge after costs, but it asked a different question (R, not hold rate).
