@@ -6797,3 +6797,224 @@ Spec: docs/specs/breakout_confirmation_study_spec.md. Verdict on episode R after
 **For the team (not changed here):**
 - **The `reality_run.py --code` / `script` trap above.** Any past branch verification that passed a relative script path may have exercised `main`. A fix (resolve a relative script path against `--code`, or refuse when `--code` is given and the path lies outside it) is a `scripts/` change for its own task.
 - **The markup tool's 150 monthly candles reach back to mid-2014**, inside the 2014–2021 span: the SEALED EXAM for the GBP pairs, and the proposed exam for gold (ruling T1). The 2026-11-14 before-run printed a gold 2015 monthly low. The data map does not say whether a monthly chart read counts; a ruling, or a fetch that starts at 2021-04-26, is for the team.
+
+## 2026-11-14 — PRE-REGISTRATION (BCS-2): weekly/daily level breaks with daily trend, obstacle check and 1.5R/2.5R targets (GBP/AUD)
+
+**Owner request,** after BCS-1 (R43): test how the owner actually trades.
+- Zones from the weekly and daily charts.
+- Only in the higher-timeframe direction.
+- Skip when the first obstacle is too close.
+- Fixed 1.5R or 2.5R targets with the management rules.
+
+The owner's message read "passes on 2005–2026". The verdict uses STUDY only. USED runs as a learning-only replication, because it has been seen (spec §1). Free zone.
+
+**Committed together, before any outcome of these rules is computed:**
+
+| File | sha256 |
+|---|---|
+| `docs/specs/htf_breakout_study_spec.md` | `a0c0c7fd7469f8d7260e58849b6e0860bf6120dfaf6366c8966c87268f40cd22` |
+| `studies/htf_breakout_study.py` | `5a752ccbfb74376efaf8a244c33ec82dbc9b8e8b86c402caa7382708746965bb` |
+| `tests/test_htf_breakout_selftest.py` | `929527a4a5eec09088a118453e4cfda6b46945ac5156f0b4d6278d4d544a672a` |
+
+It imports `studies/breakout_confirmation_study.py` `261afacf…bddc` (BCS-1, unchanged) and, through it, the same unchanged modules listed in the BCS-1 pre-registration.
+
+**Rules (spec §4):**
+- **Levels:** D1 swings (k = 3; usable after confirmation; 120-session life) and weekly swings (k = 2; 520-session life).
+- **Events:** a two-close break of the highest level crossed.
+- **Daily trend:** higher high + higher low for longs, lower high + lower low for shorts.
+- **Entry B:** at the second close. **Entry C:** a 12-bar retest limit at the level.
+- **Stop:** level − 0.25 ATR − 15 pips, floored at 0.3 ATR; no trade if wider than 1.5 ATR.
+- **Obstacle:** no trade if the first live level beyond the entry lies before the target.
+- **Target:** T = m(risk + spread) + spread, with m = 1.5 or 2.5.
+- **Management, stop first on each bar:** half off at +1R; breakeven from the next bar; trail 0.5R behind the best high after +1.5R; a 120-bar limit.
+- **Costs:** era spreads and financing (STUDY); 3.0 pips (5.1 secondary) and no financing (USED).
+- **Cells:** 4. Bonferroni lower bound at 0.9875; REFUTED if the 90% upper bound is below +0.15R. Episodes: 120 bars.
+- **Power:** N 150 → smallest edge +0.30R; N 300 → +0.21R; +0.15R needs 609.
+- **Multiple testing:** this is the second breakout test on the same nine years. Stated in spec §1.
+
+**Self-test:** `SELFTEST OK`, 52 checks. **Mutation test:**
+- **First batch:** 20 mutants. 16 caught. 4 survived:
+  - a next close exactly at the level;
+  - breakeven moved earlier within the bar: **equivalent**, because it is still applied after that bar's stop check, so the behaviour is identical;
+  - the obstacle gate ignoring the target;
+  - the hold one bar short.
+- **Three checks added** (fake at an exact-level close, `obstacle_blocks` boundaries, a stop on bar entry+120).
+- **One of the added checks first failed on the unmutated code** (floating point: 1.0515 + 0.00675 ≠ 1.05825). The three "catches" in that run were therefore void. The check was fixed to use the computed target, and the four mutants were re-run on a clean self-test (`SELFTEST OK` first): **all 4 caught.**
+- **Total:** 20 caught, 1 equivalent. Each mutant had a confirmed 1–2-line diff. The source was restored byte-identical and run with bytecode writing off.
+
+**Suite** on the branch: 1143 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-14 — BCS-2 COUNTS (no R)
+
+Run: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/htf_breakout_study.py counts ~/intel_study_archives/research_archive`, after the pre-registration commit 11229c5.
+- Exit 0, project UNCHANGED (verified by hash), stderr 0 bytes, no network.
+- Output read from the run's own directory (`reality_run_2xgi9q87`), as named by the wrapper.
+
+Verbatim:
+
+```
+
+# STUDY: GBP_AUD H1 bars 56077, 2005-01-02T22:00:00+00:00 -> 2013-12-30T21:00:00+00:00; sessions 2343
+- long: events 206, fakes 62 (30.1%), confirmations 144; levels consumed by confirmations 213; levels expired unbroken 58; levels usable (D) 213; levels usable (W) 58
+- short: events 260, fakes 87 (33.5%), confirmations 173; levels consumed by confirmations 234; levels expired unbroken 30; levels usable (D) 219; levels usable (W) 54
+- cell B-1.5: graded trades 73; episodes 64 (long 26, short 38); skips ATR warm-up 1; daily trend not aligned 208; first obstacle inside the target 33; stop wider than 1.5 ATR 1; ungraded at end of data 1
+  episodes by year: 2005 5, 2006 4, 2007 5, 2008 8, 2009 5, 2010 6, 2011 7, 2012 15, 2013 9
+  power at N 64: +0.15R 0.107; smallest edge at 80% 0.462R
+- cell B-2.5: graded trades 61; episodes 57 (long 25, short 32); skips ATR warm-up 1; daily trend not aligned 208; first obstacle inside the target 45; stop wider than 1.5 ATR 1; ungraded at end of data 1
+  episodes by year: 2005 3, 2006 3, 2007 4, 2008 8, 2009 5, 2010 6, 2011 5, 2012 14, 2013 9
+  power at N 57: +0.15R 0.097; smallest edge at 80% 0.490R
+- cell C-1.5: graded trades 66; episodes 59 (long 23, short 36); skips daily trend not aligned 162; first obstacle inside the target 14; no retest (expired) 74; ungraded at end of data 1
+  episodes by year: 2005 5, 2006 5, 2007 4, 2008 9, 2009 6, 2010 4, 2011 7, 2012 12, 2013 7
+  power at N 59: +0.15R 0.100; smallest edge at 80% 0.482R
+- cell C-2.5: graded trades 60; episodes 55 (long 23, short 32); skips daily trend not aligned 162; first obstacle inside the target 20; no retest (expired) 74; ungraded at end of data 1
+  episodes by year: 2005 5, 2006 3, 2007 4, 2008 9, 2009 5, 2010 4, 2011 7, 2012 11, 2013 7
+  power at N 55: +0.15R 0.094; smallest edge at 80% 0.499R
+
+# USED: GBP_AUD H1 bars 33477, 2021-04-26T21:00:00+00:00 -> 2026-09-09T20:00:00+00:00; sessions 1395
+- long: events 150, fakes 52 (34.7%), confirmations 98; levels consumed by confirmations 134; levels expired unbroken 22; levels usable (D) 136; levels usable (W) 38
+- short: events 133, fakes 39 (29.3%), confirmations 94; levels consumed by confirmations 135; levels expired unbroken 26; levels usable (D) 130; levels usable (W) 34
+- cell B-1.5: graded trades 41; episodes 38 (long 17, short 21); skips ATR warm-up 1; daily trend not aligned 125; first obstacle inside the target 25
+- cell B-2.5: graded trades 36; episodes 35 (long 16, short 19); skips ATR warm-up 1; daily trend not aligned 125; first obstacle inside the target 30
+- cell C-1.5: graded trades 30; episodes 28 (long 14, short 14); skips daily trend not aligned 80; first obstacle inside the target 15; no retest (expired) 67
+- cell C-2.5: graded trades 28; episodes 28 (long 14, short 14); skips daily trend not aligned 80; first obstacle inside the target 17; no retest (expired) 67
+
+N required for +0.15R at 80% power (alpha 0.0125): 609
+```
+
+**Reading, before any R is seen:**
+- **N is far below the spec's guess:** 55–64 STUDY episodes per cell, against 130–360. The daily trend filter removes 208 of 317 confirmations (B), and mixed structure counts as no trend.
+- **Power at these N:** 9.4–10.7% for +0.15R; the smallest edge detectable at 80% is +0.46R to +0.50R.
+- **What that means:**
+  - SUPPORTED is reachable only if the true edge is around +0.5R.
+  - REFUTED needs an observed mean below roughly −0.05R (0.15 − 1.28 × 1.2 ÷ √60).
+  - **A real +0.15R edge would almost surely read INCONCLUSIVE.**
+- **Fake rate at weekly and daily levels:** 31.9% (149 of 466), about the same as at hourly swings (30.7%, BCS-1).
+- **USED:** 28–38 episodes per cell, for description only.
+
+## 2026-11-14 — BCS-2 RESULT: the owner's level-break method, mechanised, GBP/AUD 2005–2013 — all four cells REFUTED
+
+Run once, after the counts commit edb307d: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/htf_breakout_study.py full ~/intel_study_archives/research_archive <worktree>/studies/htf_breakout_study_result.md`.
+- Exit 0, project UNCHANGED (verified by hash), stderr 0 bytes.
+- The report is byte-identical to the stdout of the run's own directory (`reality_run_1wqnxp9g`, named by the wrapper).
+
+**Post-run instrument check (no tuning):** four B-1.5 episodes, every 16th, were re-derived by hand from the raw candles.
+- Each stop equals level ∓ 0.25 ATR ∓ 15 pips to within 0.01 pip.
+- Each exit bar is the first bar touching the stop before +1R.
+- All four sampled episodes were stop-outs.
+
+**Verdicts:**
+- **B-1.5: REFUTED**, −0.346R.
+- **B-2.5: REFUTED**, −0.346R.
+- **C-1.5: REFUTED**, −0.280R.
+- **C-2.5: REFUTED**, −0.280R.
+- At 9–11% power for +0.15R, every 90% upper bound is still below 0 (−0.184, −0.171, −0.113, −0.096).
+- Removing the trend filter, the obstacle check or both gave less negative means (−0.12 to −0.20R). This is descriptive at small N: the filters did not help.
+- USED replication: −0.02 to −0.14R.
+- Recorded as R44.
+
+Verbatim output, headings demoted two levels:
+
+### BCS-2 result: weekly/daily level breaks, daily trend, obstacle check, 1.5R/2.5R targets (GBP/AUD)
+
+Spec: docs/specs/htf_breakout_study_spec.md. Verdict on STUDY (2005-2013) episode R after era spread and financing. Bonferroni one-sided lower bound at 0.9875 (4 cells), 90% upper bound for REFUTED (bar +0.15R), 20000 resamples, seed 7. USED (2021-2026) is a learning-only replication.
+
+#### Verdicts (STUDY, era spread + financing, episodes)
+
+##### Cell B-1.5: **REFUTED**
+
+- N 64 | mean -0.346R | median -1.060R | SD 1.011 | lower -0.623 | upper -0.184 | without best -0.372 | win 37.5% | max DD 26.5R
+- exits: breakeven 7, stop 40, target 10, time 2, trail 5; mean risk 101.3 pips; mean spread -0.098R; mean financing -0.0009R; mean nights 1.19
+- power at this N: +0.15R 0.107; smallest edge at 80% 0.462R
+- before costs: N 64 | mean -0.247R | median -1.000R
+- stops at the gap open: N 64 | mean -0.352R | median -1.060R
+- long: N 26 | mean -0.350R | median -1.065R; short: N 38 | mean -0.343R | median -1.047R
+- level source D: N 61 | mean -0.309R | median -1.059R; W: N 3 | mean -1.093R | median -1.097R
+- 2005-01 to 2008-06 (before the crisis): N 19 | mean -0.687R | median -1.109R
+- 2008-07 to 2009-06 (the crisis): N 5 | mean +0.741R | median +1.256R
+- 2009-07 to 2013-12 (after): N 40 | mean -0.320R | median -1.047R
+- by year: 2005 N 5 -1.135R; 2006 N 4 -1.140R; 2007 N 5 +0.037R; 2008 N 8 +0.063R; 2009 N 5 +0.284R; 2010 N 6 -0.416R; 2011 N 7 -0.877R; 2012 N 15 -0.378R; 2013 N 9 +0.034R
+- skips: ATR warm-up 1; daily trend not aligned 208; first obstacle inside the target 33; stop wider than 1.5 ATR 1; ungraded at end of data 1
+- flat 3.0 pips + financing: N 67 | mean -0.315R | median -1.025R | SD 0.997 | lower -0.583 | upper -0.157 | without best -0.339 | win 35.8% | max DD 25.5R
+- flat 5.1 pips + financing: N 66 | mean -0.332R | median -1.040R | SD 1.000 | lower -0.597 | upper -0.174 | without best -0.357 | win 36.4% | max DD 26.3R
+- no partial (full size to target, breakeven at +1R): N 64 | mean -0.341R | median -1.060R
+- without the trend filter: N 160 | mean -0.194R | median -1.045R
+- without the obstacle check: N 74 | mean -0.138R | median -1.042R
+- without either filter: N 191 | mean -0.115R | median -1.023R
+
+##### Cell B-2.5: **REFUTED**
+
+- N 57 | mean -0.346R | median -1.058R | SD 1.025 | lower -0.635 | upper -0.171 | without best -0.384 | win 36.8% | max DD 23.8R
+- exits: breakeven 6, stop 36, target 1, time 2, trail 12; mean risk 105.4 pips; mean spread -0.095R; mean financing -0.0005R; mean nights 1.25
+- power at this N: +0.15R 0.097; smallest edge at 80% 0.490R
+- before costs: N 57 | mean -0.250R | median -1.000R
+- stops at the gap open: N 57 | mean -0.349R | median -1.058R
+- long: N 25 | mean -0.358R | median -1.068R; short: N 32 | mean -0.337R | median -1.043R
+- level source D: N 53 | mean -0.344R | median -1.058R; W: N 4 | mean -0.377R | median -1.074R
+- 2005-01 to 2008-06 (before the crisis): N 15 | mean -0.708R | median -1.097R
+- 2008-07 to 2009-06 (the crisis): N 5 | mean +0.394R | median +1.009R
+- 2009-07 to 2013-12 (after): N 37 | mean -0.299R | median -1.043R
+- by year: 2005 N 3 -1.136R; 2006 N 3 -1.131R; 2007 N 4 -0.270R; 2008 N 8 -0.127R; 2009 N 5 +0.266R; 2010 N 6 -0.399R; 2011 N 5 -0.785R; 2012 N 14 -0.422R; 2013 N 9 +0.009R
+- skips: ATR warm-up 1; daily trend not aligned 208; first obstacle inside the target 45; stop wider than 1.5 ATR 1; ungraded at end of data 1
+- flat 3.0 pips + financing: N 59 | mean -0.310R | median -1.022R | SD 1.017 | lower -0.591 | upper -0.144 | without best -0.346 | win 35.6% | max DD 22.6R
+- flat 5.1 pips + financing: N 57 | mean -0.309R | median -1.031R | SD 1.028 | lower -0.599 | upper -0.134 | without best -0.346 | win 36.8% | max DD 21.8R
+- no partial (full size to target, breakeven at +1R): N 57 | mean -0.331R | median -1.058R
+- without the trend filter: N 132 | mean -0.196R | median -1.049R
+- without the obstacle check: N 74 | mean -0.123R | median -1.042R
+- without either filter: N 191 | mean -0.120R | median -1.023R
+
+##### Cell C-1.5: **REFUTED**
+
+- N 59 | mean -0.280R | median -1.102R | SD 1.019 | lower -0.569 | upper -0.113 | without best -0.307 | win 44.1% | max DD 18.9R
+- exits: breakeven 10, stop 33, target 8, trail 8; mean risk 71.0 pips; mean spread -0.136R; mean financing +0.0006R; mean nights 0.46
+- power at this N: +0.15R 0.100; smallest edge at 80% 0.482R
+- before costs: N 59 | mean -0.144R | median -1.000R
+- stops at the gap open: N 59 | mean -0.284R | median -1.102R
+- long: N 23 | mean -0.310R | median -1.102R; short: N 36 | mean -0.261R | median -1.097R
+- level source D: N 55 | mean -0.333R | median -1.107R; W: N 4 | mean +0.442R | median +0.822R
+- 2005-01 to 2008-06 (before the crisis): N 20 | mean -0.436R | median -1.144R
+- 2008-07 to 2009-06 (the crisis): N 6 | mean +0.682R | median +1.114R
+- 2009-07 to 2013-12 (after): N 33 | mean -0.361R | median -1.102R
+- by year: 2005 N 5 -1.180R; 2006 N 5 -0.382R; 2007 N 4 -0.046R; 2008 N 9 +0.341R; 2009 N 6 +0.141R; 2010 N 4 -0.572R; 2011 N 7 -0.696R; 2012 N 12 -0.348R; 2013 N 7 -0.159R
+- skips: daily trend not aligned 162; first obstacle inside the target 14; no retest (expired) 74; ungraded at end of data 1
+- flat 3.0 pips + financing: N 60 | mean -0.205R | median -1.030R | SD 1.007 | lower -0.490 | upper -0.041 | without best -0.230 | win 43.3% | max DD 14.9R
+- flat 5.1 pips + financing: N 60 | mean -0.243R | median -1.057R | SD 1.008 | lower -0.528 | upper -0.078 | without best -0.269 | win 43.3% | max DD 17.1R
+- no partial (full size to target, breakeven at +1R): N 59 | mean -0.306R | median -1.102R
+- without the trend filter: N 151 | mean -0.190R | median -1.059R
+- without the obstacle check: N 64 | mean -0.185R | median -0.383R
+- without either filter: N 169 | mean -0.154R | median +0.296R
+
+##### Cell C-2.5: **REFUTED**
+
+- N 55 | mean -0.280R | median -1.107R | SD 1.069 | lower -0.592 | upper -0.096 | without best -0.318 | win 41.8% | max DD 17.9R
+- exits: breakeven 7, stop 32, target 1, trail 15; mean risk 71.5 pips; mean spread -0.135R; mean financing +0.0005R; mean nights 0.45
+- power at this N: +0.15R 0.094; smallest edge at 80% 0.499R
+- before costs: N 55 | mean -0.146R | median -1.000R
+- stops at the gap open: N 55 | mean -0.280R | median -1.107R
+- long: N 23 | mean -0.287R | median -1.102R; short: N 32 | mean -0.275R | median -1.115R
+- level source D: N 51 | mean -0.344R | median -1.110R; W: N 4 | mean +0.532R | median +0.748R
+- 2005-01 to 2008-06 (before the crisis): N 18 | mean -0.449R | median -1.144R
+- 2008-07 to 2009-06 (the crisis): N 5 | mean +0.867R | median +1.293R
+- 2009-07 to 2013-12 (after): N 32 | mean -0.364R | median -1.104R
+- by year: 2005 N 5 -1.180R; 2006 N 3 -0.401R; 2007 N 4 -0.012R; 2008 N 9 +0.390R; 2009 N 5 +0.113R; 2010 N 4 -0.572R; 2011 N 7 -0.696R; 2012 N 11 -0.384R; 2013 N 7 -0.135R
+- skips: daily trend not aligned 162; first obstacle inside the target 20; no retest (expired) 74; ungraded at end of data 1
+- flat 3.0 pips + financing: N 57 | mean -0.174R | median -1.031R | SD 1.044 | lower -0.474 | upper +0.005 | without best -0.208 | win 43.9% | max DD 13.4R
+- flat 5.1 pips + financing: N 57 | mean -0.209R | median -1.064R | SD 1.049 | lower -0.510 | upper -0.029 | without best -0.244 | win 43.9% | max DD 14.6R
+- no partial (full size to target, breakeven at +1R): N 55 | mean -0.262R | median -1.107R
+- without the trend filter: N 138 | mean -0.139R | median -1.046R
+- without the obstacle check: N 64 | mean -0.165R | median -0.383R
+- without either filter: N 169 | mean -0.142R | median +0.296R
+
+#### Secondary: level-break fake rate (STUDY)
+
+- 149 of 466 first closes beyond a weekly/daily level were fakes (32.0%); D levels 137 of 432, W levels 12 of 34.
+
+#### Replication on USED 2021-04-27 -> 2026-09-09 (learning only, never proof; no financing)
+
+- B-1.5, spread 3.0: N 38 | mean -0.096R | median -1.026R
+- B-1.5, spread 5.1: N 38 | mean -0.141R | median -1.044R
+- B-2.5, spread 3.0: N 35 | mean -0.137R | median -1.027R
+- B-2.5, spread 5.1: N 34 | mean -0.141R | median -1.045R
+- C-1.5, spread 3.0: N 28 | mean -0.016R | median +0.421R
+- C-1.5, spread 5.1: N 28 | mean -0.049R | median +0.366R
+- C-2.5, spread 3.0: N 28 | mean -0.030R | median -0.318R
+- C-2.5, spread 5.1: N 27 | mean -0.099R | median -1.093R
