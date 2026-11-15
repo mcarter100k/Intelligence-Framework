@@ -6797,3 +6797,49 @@ Spec: docs/specs/breakout_confirmation_study_spec.md. Verdict on episode R after
 **For the team (not changed here):**
 - **The `reality_run.py --code` / `script` trap above.** Any past branch verification that passed a relative script path may have exercised `main`. A fix (resolve a relative script path against `--code`, or refuse when `--code` is given and the path lies outside it) is a `scripts/` change for its own task.
 - **The markup tool's 150 monthly candles reach back to mid-2014**, inside the 2014–2021 span: the SEALED EXAM for the GBP pairs, and the proposed exam for gold (ruling T1). The 2026-11-14 before-run printed a gold 2015 monthly low. The data map does not say whether a monthly chart read counts; a ruling, or a fetch that starts at 2021-04-26, is for the team.
+
+## 2026-11-14 — PRE-REGISTRATION (BCS-2): weekly/daily level breaks with daily trend, obstacle check and 1.5R/2.5R targets (GBP/AUD)
+
+**Owner request,** after BCS-1 (R43): test how the owner actually trades.
+- Zones from the weekly and daily charts.
+- Only in the higher-timeframe direction.
+- Skip when the first obstacle is too close.
+- Fixed 1.5R or 2.5R targets with the management rules.
+
+The owner's message read "passes on 2005–2026". The verdict uses STUDY only. USED runs as a learning-only replication, because it has been seen (spec §1). Free zone.
+
+**Committed together, before any outcome of these rules is computed:**
+
+| File | sha256 |
+|---|---|
+| `docs/specs/htf_breakout_study_spec.md` | `a0c0c7fd7469f8d7260e58849b6e0860bf6120dfaf6366c8966c87268f40cd22` |
+| `studies/htf_breakout_study.py` | `5a752ccbfb74376efaf8a244c33ec82dbc9b8e8b86c402caa7382708746965bb` |
+| `tests/test_htf_breakout_selftest.py` | `929527a4a5eec09088a118453e4cfda6b46945ac5156f0b4d6278d4d544a672a` |
+
+It imports `studies/breakout_confirmation_study.py` `261afacf…bddc` (BCS-1, unchanged) and, through it, the same unchanged modules listed in the BCS-1 pre-registration.
+
+**Rules (spec §4):**
+- **Levels:** D1 swings (k = 3; usable after confirmation; 120-session life) and weekly swings (k = 2; 520-session life).
+- **Events:** a two-close break of the highest level crossed.
+- **Daily trend:** higher high + higher low for longs, lower high + lower low for shorts.
+- **Entry B:** at the second close. **Entry C:** a 12-bar retest limit at the level.
+- **Stop:** level − 0.25 ATR − 15 pips, floored at 0.3 ATR; no trade if wider than 1.5 ATR.
+- **Obstacle:** no trade if the first live level beyond the entry lies before the target.
+- **Target:** T = m(risk + spread) + spread, with m = 1.5 or 2.5.
+- **Management, stop first on each bar:** half off at +1R; breakeven from the next bar; trail 0.5R behind the best high after +1.5R; a 120-bar limit.
+- **Costs:** era spreads and financing (STUDY); 3.0 pips (5.1 secondary) and no financing (USED).
+- **Cells:** 4. Bonferroni lower bound at 0.9875; REFUTED if the 90% upper bound is below +0.15R. Episodes: 120 bars.
+- **Power:** N 150 → smallest edge +0.30R; N 300 → +0.21R; +0.15R needs 609.
+- **Multiple testing:** this is the second breakout test on the same nine years. Stated in spec §1.
+
+**Self-test:** `SELFTEST OK`, 52 checks. **Mutation test:**
+- **First batch:** 20 mutants. 16 caught. 4 survived:
+  - a next close exactly at the level;
+  - breakeven moved earlier within the bar: **equivalent**, because it is still applied after that bar's stop check, so the behaviour is identical;
+  - the obstacle gate ignoring the target;
+  - the hold one bar short.
+- **Three checks added** (fake at an exact-level close, `obstacle_blocks` boundaries, a stop on bar entry+120).
+- **One of the added checks first failed on the unmutated code** (floating point: 1.0515 + 0.00675 ≠ 1.05825). The three "catches" in that run were therefore void. The check was fixed to use the computed target, and the four mutants were re-run on a clean self-test (`SELFTEST OK` first): **all 4 caught.**
+- **Total:** 20 caught, 1 equivalent. Each mutant had a confirmed 1–2-line diff. The source was restored byte-identical and run with bytecode writing off.
+
+**Suite** on the branch: 1143 passed, 10 skipped, 3 deselected, 16 xfailed.
