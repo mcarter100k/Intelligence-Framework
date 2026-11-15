@@ -7181,3 +7181,51 @@ Descriptive only: no entries, no R, no costs. Not evidence of an edge (spec §5.
 - Plain-words report: `studies/gold_breakout_report.md`.
 
 **Hypothesis recorded, not tested:** in each era, breaks against that era's big trend failed more often (2006–2013 upside held more; 2021–2026 downside wicks failed most). Whether breaks with the higher-timeframe trend hold more often needs its own pre-registered run. R44's trend filter on GBP/AUD made no edge after costs, but it asked a different question (R, not hold rate).
+
+## 2026-11-15 — M15 STUDY DATA (GBP/AUD 2005–2013) fetched and verified, for BCS-3
+
+**Fetch:** `scripts/reality_run.py --code <worktree> script <worktree>/studies/m15_study_data.py fetch ~/intel_study_archives/m15_study`, with credentials.
+- Exit 0, project UNCHANGED (verified by hash). The fetch went through the embargo-guarded `history_study_gate_s3.fetch`, in 106 requests.
+- 230,236 bars fetched; 224,208 kept (Monday–Friday sessions); 6,028 weekend-session bars dropped.
+- First 2005-01-02 22:00Z, last 2013-12-30 21:15Z.
+- sha256 `83ef82bb1bf885895c8ef33d998d02bc3569a7d02434d21a80e36531b97925b6`.
+- No bar from the sealed block: the guard aborts on any.
+
+**Verify against the archive STUDY H1** (`verify`, via `reality_run.py --no-env`; counts and pip differences only):
+- 56,077 hours on both sides, none missing on either side; 56,029 hours have all 4 bars.
+- **All four prices within 0.5 pip: 55,657 of 56,077 (99.25%).**
+- **Classification of the 420 mismatches:**
+  - **419** are the first hour after a weekend or holiday gap, where the archive folded old-data Sunday-session bars into Monday (open, high and low differ);
+  - **1** is the last STUDY hour, which has only 2 bars because the fetch window ends at 21:30Z.
+- Close differences above 0.5 pip: 1, that last hour.
+- The positive control for this check (a 2-pip close difference flagged, and missing hours counted) is in `tests/test_m15_entry_selftest.py`.
+
+## 2026-11-15 — PRE-REGISTRATION (BCS-3): 15-minute entries on the BCS-1 and BCS-2 breakouts (GBP/AUD, 2005–2013 STUDY)
+
+**Owner request:** "the H1 and below gives you better entry… go and check the H1 and below and see if you get the same results." Free zone.
+
+| File | sha256 |
+|---|---|
+| `docs/specs/m15_entry_study_spec.md` | `c037bc151ab97f4222d6c9bcc7094e29160729da8e6da7dc47aff5dfbbe0e33e` |
+| `studies/m15_entry_study.py` | `8ef15d2031f38d57c157d7217e4b2a713b5b643faea58ecc9606e662bab3acff` |
+| `studies/m15_study_data.py` | `09309d1585968e5a18e885683d3de52adedb2fccd4dabfd425328e9622dfa4bf` |
+| `tests/test_m15_entry_selftest.py` | `11dc173a46c41f29d40c8b173f20b1cbd7ea7919f43ca8361dc8dcfba5ee19d9` |
+
+It imports BCS-1 `261afacf…bddc` and BCS-2 `5a752ccb…65bb`, both unchanged.
+
+**Only the entry changes.**
+- After the hourly two-close confirmation, wait up to 48 M15 bars for a touch of the level.
+- Enter at the close of the first M15 bar, from the touch on, that closes beyond the level in the trade's direction and beyond its own open.
+- Cancel if a low reaches the stop line first.
+
+**Cells:** H1 (BCS-1 levels, stop and 24-hour exit) and HTF-1.5 / HTF-2.5 (BCS-2 levels, filters, stop, targets and management). They are graded on M15 bars with BCS-1/2's own grading functions. Bonferroni over 3 cells. **Tight-stop variant** (below the M15 retest low − 15 pips, no 0.3 ATR floor) is a secondary.
+
+**Self-test:** `SELFTEST OK`, 28 checks. **Mutation test:**
+- 17 mutants run. 14 caught at once. 3 survived:
+  - the entry instant at the bar open;
+  - financing ignoring side;
+  - the low-since-touch tracking: **equivalent**, because lows above the level can never undercut the touch low.
+- Two financing checks were added (a rollover exactly at the entry close; short-side financing). Both surviving mutants were then caught on a clean self-test.
+- **Total:** 16 caught, 1 equivalent. Source restored byte-identical; bytecode writing off.
+
+**Suite** on the branch: 1165 passed, 10 skipped, 3 deselected, 16 xfailed.
