@@ -7352,3 +7352,12 @@ Spec: docs/specs/m15_entry_study_spec.md. Verdict on episode R after era spread 
 - no partial (full size to target, breakeven at +1R): N 47 | mean -0.268R | median -1.092R
 - without the trend and obstacle filters: N 154 | mean -0.233R | median -1.077R
 
+
+## 2026-11-15 — CORRECTION to the BCS-3 RESULT entry above: the finding id is R46, not R45
+
+The BCS-3 RESULT entry (and its commit message 5bbc037) says "Recorded as R45".
+- **R45 was already taken** by the gold breakout study (commit a5d3558, merged to main from another session before this branch was cut).
+- The BCS-3 row is recorded as **R46** in `foundation/research_findings.md`.
+- The skill, README and capability-inventory counts are 46.
+
+**Caught by:** the doc-update script's exact-match assertion, which failed when it found "45" where it expected "44". Before writing, I checked the row numbering by grep (two R45 rows) and the main branch log. Nothing in the result changes.
