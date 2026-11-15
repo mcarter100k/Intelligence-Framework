@@ -4,6 +4,7 @@
 detailed plan to implement all of this"). Nothing here is approved. The
 team rulings in §2 come before any phase that needs them. The gaps this plan
 closes are listed in `docs/capability_inventory.md` (Gold section).
+**Progress** is tracked in §0 (last updated 2026-11-15).
 
 **The goal:** find out, honestly, whether there is a way to day or swing
 trade gold (long and short) that pays after costs, and become a trader who
@@ -16,6 +17,33 @@ evidence says no, gold stays a practice chart (§5).
   moves during the day.
 - No rule has been tested on gold. Nothing from the 42 GBP findings
   transfers until it is measured on gold.
+
+---
+
+## 0. Progress (updated 2026-11-15)
+
+| Item | State | Evidence |
+|---|---|---|
+| A1 swing tool in dollars | **DONE**, except one check (below) | validation_log 2026-11-14 "GOLD PHASE A"; merge b72490f |
+| A1 check: one printed swing price matches the same candle on the owner's TradingView | **NOT CHECKED.** Only a candle close was matched (3884.685), not a swing price | To do with the owner in the W47 markup |
+| A2 idea log takes gold as practice | **DONE** | Same entry; reality run logged, scored and reviewed a gold idea in a temp copy |
+| A3 playbook gold section | Open; waits for O3 (the W47 Friday review) | — |
+| B weekly reps | Starts W47 (2026-11-16) | — |
+| C1 move size in percent of price | Not started | — |
+| **C2 breakouts** | **DONE: R45** (descriptive) | validation_log 2026-11-14 "GOLD BREAKOUT STUDY (C2)"; `studies/gold_breakout_report.md`; merge d0f55be |
+| C3–C6 | Not started | — |
+| D, E, F, G | Not started | — |
+
+**Where the build differed from this plan (recorded, not hidden):**
+- **A1:** gold prices print with **3** decimals, not the 2 written in A1. That is OANDA's precision and matches the owner's TradingView (3,884.685).
+- **A2:** the spread is **OANDA's measured quote, $0.47** (median ask − bid at the hourly close, 720 candles 2026-10-01 → 11-13 PT), labelled as not a venue's spread. A2 said "marked unmeasured until Phase E"; a measured proxy was judged more honest than zero. A venue's own spread still comes from Phase E.
+- **C ordering:** C2 ran before C1 at the owner's request ("start your breakout study now"). C2 measures distance in daily average ranges (ATR) directly, so it did not need C1's percent-of-price unit.
+
+**Found while building, open for the team:**
+- **T4:** `scripts/reality_run.py --code <worktree> script <relative path>` runs the live folder's script, not the worktree's. Script paths resolve against the current directory (line 189), so a branch check can certify `main`'s code. Fix in its own `scripts/` task.
+- **T5:** `studies/markup_swings.py` fetches 150 monthly candles, which reach back to mid-2014, inside the 2014–2021 span (sealed for the GBP pairs; proposed for gold under T1). The data map does not say whether a monthly chart read counts. Either rule that it does not, or start the monthly fetch at 2021-04-26.
+
+**New hypothesis from C2 (not tested):** in each era, breaks against that era's big trend failed more often (2006–2013 upside breaks held more; 2021–2026 downside wicks failed 77%). A candidate question for Phase F, or for its own descriptive study first.
 
 ---
 
@@ -53,9 +81,9 @@ phase does not repeat them.
 
 | # | Who | Decision | Recommendation | Blocks |
 |---|---|---|---|---|
-| T1 | Team | Declare gold's 2014-01-01 → 2021-04-25 its **sealed exam** now, before anything fetches it, as a dated amendment to `docs/specs/data_map_spec.md` | **Yes.** It is the only gold data nobody has looked at, and an exam can only be sealed before it is seen | Phase F5; also guards Phases C and D from fetching it by accident |
-| T2 | Team | All gold studies start at the **2006-03-21** session (gold's first OANDA hours have no 4-hour bar; validation_log 2026-11-05) | **Yes**, the same choice the leg study made | Phase C |
-| T3 | Team | Gold may be added to `studies/research_archive.py`'s span labels (STUDY / USED / FORWARD), so every gold bar carries its span | **Yes** | Phase C (preferred, not required) |
+| T1 | Team | Declare gold's 2014-01-01 → 2021-04-25 its **sealed exam** now, before anything fetches it, as a dated amendment to `docs/specs/data_map_spec.md` | **Yes.** It is the only gold data nobody has looked at, and an exam can only be sealed before it is seen. **Note (2026-11-14):** the markup tool's monthly fetch has already shown gold's monthly candles from that span (a 2015 low printed in the Phase A before-run; see T5). No daily, 4-hour or hourly gold bar from 2014–2021 has been fetched | Phase F5; also guards Phases C and D from fetching it by accident |
+| T2 | Team | All gold studies start at the **2006-03-21** session (gold's first OANDA hours have no 4-hour bar; validation_log 2026-11-05) | **Yes**, the same choice the leg study made. **ADOPTED 2026-11-14** for C2, following the leg study's owner-approved start; noted for the team rather than waited on | Phase C |
+| T3 | Team | Gold may be added to `studies/research_archive.py`'s span labels (STUDY / USED / FORWARD), so every gold bar carries its span | **NO RULING NEEDED (2026-11-14):** it already exists. `~/intel_study_archives/research_archive_legs/XAU_USD_D.csv` labels every gold bar by span, and its hash matches the archive manifest | — |
 | O1 | Owner | Day trading, swing trading, or both? | Keep both open until Phase E's sizing table. The account size may decide it | Phase F thesis |
 | O2 | Owner | Which venues can you open where you live? | Owner research (Phase E1) | Phases E, F costs, G |
 | O3 | Owner | Add gold's dollar thresholds to `markups/README.md` at a Friday review (the playbook changes one rule at a time) | Yes, at the W47 Friday review | Phase A3 |
@@ -122,7 +150,8 @@ no entries, no R, no claim that anything pays.** Each uses 2006–2013 and
 | C6 | How big are weekend gaps, and how often does one jump past the smallest allowed stop (0.3 of a day's move)? | New | Whether a swing trade can hold over a weekend |
 
 **Ordering:** C1 first (the others use its unit), then C2 and C3 (they feed the
-markup straight away), then C4, C5, C6.
+markup straight away), then C4, C5, C6. **Actual:** C2 ran first at the owner's
+request (§0); C1 and C3 are next.
 
 **Watch for:**
 - 2021–2026 gold was mostly rising, and so were 2006–2011. The falls are mainly 2011–2013 and a few shorter drops. Report how many falls each era holds; the downside cells may be INSUFFICIENT.
