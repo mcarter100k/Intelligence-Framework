@@ -61,14 +61,12 @@ CADENCES = [
     ("calendar.csv",                 192),
     ("storylines.md",                216),
     ("shadow_signal_log.csv",        504),
-    # Added 2026-09-16 (evidence_loop_repair_spec.md Part 1). Neither was
-    # watched, which is why trade_signal_log.csv could sit at 2 lines since
-    # 2026-06-28 while run_outcome_check graded it nightly. Cadences are
-    # generous on purpose: a directional decision is NOT a daily event, and
-    # an honest run of STAND ASIDE days must not raise a health failure.
-    # 720h/1440h are informed priors — revisit once the ledger has operating
-    # data, which by definition it does not yet have.
-    ("trade_signal_log.csv",         720),
+    # trade_signal_log.csv had a 720h cadence here from 2026-09-16
+    # (evidence_loop_repair_spec.md Part 1) until 2026-11-15. With operating
+    # data it failed every run from 2026-11-12: the framework stood aside in
+    # every open-market run since 2026-10-13, the honest quiet month the
+    # comment warned about. It is now watched by agreement_lines() instead
+    # (docs/specs/alert_importance_spec.md N7).
 ]
 
 # Read-side artifacts with NO expected cadence. (relative path, reason)
@@ -98,7 +96,76 @@ READ_SIDE_NO_CADENCE = [
                    "check — making every scheduled run a health FAILURE and "
                    "training the operator to ignore the channel. Inventoried "
                    "without a cadence instead. Team to confirm."),
+    ("trade_signal_log.csv",
+                   "event-driven — a row only for an open-market LONG/SHORT, "
+                   "and a stand-aside month is normal. Its writer is checked "
+                   "by agreement_lines(): every regime_classification_log row "
+                   "with stand_down False must have its trade row "
+                   "(docs/specs/alert_importance_spec.md N7)."),
 ]
+
+# N7: a trade call recorded in the regime log must have its trade-signal row.
+AGREE_WINDOW_S = 600
+AGREE_LOOKBACK_H = 720
+
+
+def agreement_lines(now: float | None = None, proj: str | None = None) -> list[str]:
+    """One line: STALE when the regime log shows an open-market trade call
+    in the last AGREE_LOOKBACK_H with no trade_signal_log row for the same
+    instrument within AGREE_WINDOW_S; otherwise 'agree:'."""
+    import csv
+    from datetime import datetime
+    now = time.time() if now is None else now
+    proj = PROJ if proj is None else proj
+
+    def rows(rel):
+        path = os.path.join(proj, rel)
+        if not os.path.exists(path):
+            return []
+        with open(path, newline="", encoding="utf-8", errors="replace") as f:
+            got = list(csv.DictReader(f))
+        try:
+            from exclusions import filter_rows
+        except ImportError:                     # behavioral-test sandboxes only
+            return got
+        return filter_rows(got, rel)
+
+    def epoch(r):
+        try:
+            return datetime.fromisoformat((r.get("timestamp") or "").strip()
+                                          .replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            return None
+
+    if not os.path.exists(os.path.join(proj, "regime_classification_log.csv")):
+        # Never an all-clear from a file that was not read (rule 9); the
+        # regime log's own cadence line already reports it MISSING.
+        return ["unchecked: trade_signal_log.csv — regime_classification_log.csv "
+                "is missing, so trade calls cannot be checked"]
+    # Only rows with a logic_version: under those rules apply_filter allows
+    # iff the official decision trades (decision_logic_spec; the 36,864-cell
+    # sweep in test_decision_logic.py). Blank-version rows (before
+    # 2026-09-30) could allow a trade while the decision stood aside: 10
+    # such rows in late September have no trade row, correctly.
+    calls = [(epoch(r), r.get("instrument", "")) for r in rows("regime_classification_log.csv")
+             if (r.get("stand_down") or "").strip().lower() == "false"
+             and (r.get("logic_version") or "").strip()]
+    calls = [(t, i) for t, i in calls if t is not None and 0 <= now - t <= AGREE_LOOKBACK_H * 3600]
+    if not calls:
+        return [f"agree: trade_signal_log.csv — no open-market trade call in the last "
+                f"{AGREE_LOOKBACK_H}h, so no row is expected"]
+    logged = [(epoch(r), r.get("instrument", "")) for r in rows("trade_signal_log.csv")]
+    missing = [(t, i) for t, i in calls
+               if not any(u is not None and j == i and abs(u - t) <= AGREE_WINDOW_S
+                          for u, j in logged)]
+    if missing:
+        t, i = min(missing)
+        first = time.strftime("%Y-%m-%dT%H:%MZ", time.gmtime(t))
+        return [f"STALE: trade_signal_log.csv — {len(missing)} of {len(calls)} trade calls "
+                f"in the regime log have no trade row (first: {i} {first}); the "
+                f"trade-signal writer may be dead"]
+    return [f"agree: trade_signal_log.csv — all {len(calls)} trade calls in the last "
+            f"{AGREE_LOOKBACK_H}h have their row"]
 
 
 def read_side_lines(proj: str | None = None) -> list[str]:
@@ -197,12 +264,14 @@ def check(now: float | None = None, proj: str | None = None) -> list[str]:
 def main(argv) -> int:
     try:
         if len(argv) > 1 and argv[1] == "check":
-            for line in check():
+            for line in check() + agreement_lines() + read_side_lines():
                 print(line)
-            for line in read_side_lines():
-                print(line)
-    except Exception:
-        pass
+    except Exception as e:
+        # A crashing check used to print nothing, which the wrapper read as
+        # healthy: a broken health check looked like good health. Now it
+        # fails the run (alert_importance_spec N7).
+        print(f"STALE: artifact_freshness — the check itself failed "
+              f"({type(e).__name__}: {e})")
     return 0                            # always
 
 

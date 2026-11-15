@@ -178,23 +178,32 @@ def test_a_directional_decision_notifies_decision(tmp_path):
     assert 'subtitle "DECISION"' in _notes(tmp_path)
 
 
-def test_a_shadow_signal_notifies_shadow(tmp_path):
+def test_a_shadow_signal_sends_nothing_and_is_logged(tmp_path):
+    """Old -> new 2026-11-15 (alert_importance_spec N3): was "notifies SHADOW".
+    A shadow fire is paper evidence; it reaches the owner in the digest."""
     proj = _project(tmp_path, brief=STAND_ASIDE + """
     print('SHADOW SIGNALS\\n  MOMENTUM_JOIN LONG')
 """)
     _run(tmp_path, proj, "scheduled_brief.sh")
-    assert 'subtitle "SHADOW"' in _notes(tmp_path)
+    assert _notes(tmp_path) == ""
+    assert "SHADOW not sent (digest only)" in _log(proj, "brief")
 
 
-def test_an_alert_line_notifies_alert_and_wins(tmp_path):
+def test_an_actionable_flip_notifies_alert_and_carries_the_decision(tmp_path):
+    """Old -> new 2026-11-15 (N2, N5): the flip was the bare text "GBP/AUD
+    regime flipped" and the ALERT replaced the DECISION. Now only a flip that
+    changes what the framework allows notifies, and a decision change in the
+    same run rides in the same notification instead of being lost."""
     proj = _project(tmp_path, brief="""
         import sys
         print('GBP/AUD\\n  DECISION     SHORT — x\\nSHADOW SIGNALS')
-        sys.stderr.write('##ALERT## GBP/AUD regime flipped\\n')
+        sys.stderr.write('##ALERT## GBP/AUD: conditions improved — the framework now allows a trade. Check the brief.\\n')
     """)
     _run(tmp_path, proj, "scheduled_brief.sh")
     notes = _notes(tmp_path)
-    assert 'subtitle "ALERT"' in notes and "regime flipped" in notes
+    assert notes.count("display notification") == 1
+    assert 'subtitle "ALERT"' in notes and "now allows a trade" in notes
+    assert "GBP/AUD SHORT" in notes
 
 
 def test_a_quiet_stand_aside_notifies_nothing(tmp_path):
@@ -271,13 +280,15 @@ def test_g3_the_gate_is_per_instrument_and_keeps_closed_lines_out_of_the_summary
     assert "GBP/JPY SHORT" in notes and "LONG" not in notes.split("→")[0]
 
 
-def test_g4_a_flip_alert_still_fires_when_closed(tmp_path):
+def test_g4_a_closed_pairs_flip_does_not_notify(tmp_path):
+    """Old -> new 2026-11-15 (alert_importance_spec N1): was "a flip alert
+    still fires when closed". Even an actionable flip waits for the open."""
     text = _rendered("GBP_AUD", "LONG", _SAT)
     proj = _project(tmp_path, brief=_brief_printing(
-        tmp_path, text, "sys.stderr.write('##ALERT## GBP/AUD regime flipped\\n')\n"))
+        tmp_path, text, "sys.stderr.write('##ALERT## GBP/AUD: exit-watch fired — x. Check the brief.\\n')\n"))
     _run(tmp_path, proj, "scheduled_brief.sh")
-    notes = _notes(tmp_path)
-    assert 'subtitle "ALERT"' in notes and "regime flipped" in notes
+    assert _notes(tmp_path) == ""
+    assert "ALERT not sent (market closed or nothing to act on): GBP/AUD: exit-watch" in _log(proj, "brief")
 
 
 def test_g5_a_health_alert_still_fires_when_closed(tmp_path):
@@ -291,13 +302,14 @@ def test_g5_a_health_alert_still_fires_when_closed(tmp_path):
     assert 'subtitle "ALERT"' in notes and 'subtitle "DECISION"' not in notes
 
 
-def test_g6_a_shadow_signal_still_fires_when_closed_without_the_decision(tmp_path):
+def test_g6_a_closed_market_shadow_signal_sends_nothing(tmp_path):
+    """Old -> new 2026-11-15 (N1, N3): was "a shadow signal still fires when
+    closed". The same MOMENTUM_JOIN SHORT notified 4 times over the
+    2026-11-14 weekend from one ledger row."""
     text = _rendered("GBP_AUD", "LONG", _SAT) + "\nSHADOW SIGNALS\n  MOMENTUM_JOIN LONG\n"
     proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
     _run(tmp_path, proj, "scheduled_brief.sh")
-    notes = _notes(tmp_path)
-    assert 'subtitle "SHADOW"' in notes and "MOMENTUM_JOIN" in notes
-    assert "GBP/AUD LONG" not in notes and "DECISION LONG" not in notes
+    assert _notes(tmp_path) == ""
 
 
 def test_g7_the_heartbeat_still_fires_after_a_closed_market_brief(tmp_path):
@@ -309,12 +321,22 @@ def test_g7_the_heartbeat_still_fires_after_a_closed_market_brief(tmp_path):
     assert 'subtitle "HEARTBEAT"' in _notes(tmp_path)
 
 
-def test_g8_the_digest_still_fires_when_closed(tmp_path):
-    text = _rendered("GBP_AUD", "LONG", _SAT)
+def test_g8_a_closed_market_digest_is_not_sent(tmp_path):
+    """Old -> new 2026-11-15 (N1): was "the digest still fires when closed".
+    Weekend digests said only "MARKET CLOSED ... no live calls"."""
+    text = _rendered("GBP_AUD", "LONG", _SAT) + _rendered("GBP_JPY", "STAND DOWN", _SAT)
     proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
     _run(tmp_path, proj, "scheduled_brief.sh", "digest")
-    notes = _notes(tmp_path)
-    assert 'subtitle "DIGEST"' in notes and 'subtitle "DECISION"' not in notes
+    assert _notes(tmp_path) == ""
+    assert "DIGEST not sent: market closed" in _log(proj, "brief")
+    assert (proj / "logs" / "latest_brief.log").exists()        # the view is still refreshed
+
+
+def test_g8_control_one_open_pair_still_digests(tmp_path):
+    text = _rendered("GBP_AUD", "LONG", _SAT) + _rendered("GBP_JPY", "STAND DOWN", _WED)
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    assert 'subtitle "DIGEST"' in _notes(tmp_path)
 
 
 def test_g10_a_decision_notification_names_its_pair(tmp_path):
@@ -333,13 +355,16 @@ def test_g11_decisions_on_both_pairs_name_both(tmp_path):
     assert msg == "GBP/AUD LONG · GBP/JPY SHORT", msg
 
 
-def test_g12_shadow_lines_still_follow_the_named_decisions(tmp_path):
+def test_g12_the_decision_summary_names_decisions_only(tmp_path):
+    """Old -> new 2026-11-15 (N3): shadow lines no longer follow the decision.
+    The candidate-name grep produced "is watching the EARLY_MOMENTUM_v2
+    candidate: · MOMENTUM_JOIN SHORT @ 211.026" (2026-11-13 18:00)."""
     text = (_rendered("GBP_JPY", "SHORT", _WED)
             + "\nSHADOW SIGNALS\n  MOMENTUM_JOIN   SHORT   fired\n")
     proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
     _run(tmp_path, proj, "scheduled_brief.sh")
     msg = _notes(tmp_path).split('display notification "', 1)[1].split(" → ")[0]
-    assert msg == "GBP/JPY SHORT · MOMENTUM_JOIN SHORT fired", msg
+    assert msg == "GBP/JPY SHORT", msg
 
 
 def test_g9_the_wrapper_marker_is_the_producers_banner():
@@ -437,13 +462,13 @@ def test_d3_an_error_page_is_recorded_as_error_not_stand_aside(tmp_path):
     assert rows[0]["decision_state"] == "GBP_AUD=ERROR/open;GBP_JPY=ERROR/open"
 
 
-def test_d3_a_closed_market_digest_records_the_closed_state(tmp_path):
+def test_d3_a_closed_market_run_writes_no_row(tmp_path):
+    """Old -> new 2026-11-15 (N1): a closed digest used to be sent and
+    recorded with the closed state; now nothing is sent, so no row."""
     text = _rendered("GBP_AUD", "LONG", _SAT) + _rendered("GBP_JPY", "STAND DOWN", _SAT)
     proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
     _run(tmp_path, proj, "scheduled_brief.sh", "digest")
-    rows = _ledger(proj)[1]
-    assert [r["category"] for r in rows] == ["DIGEST"]       # the DECISION was gated
-    assert rows[0]["decision_state"] == "GBP_AUD=LONG/closed;GBP_JPY=STAND ASIDE/closed"
+    assert _ledger(proj)[1] == []
 
 
 def test_d3_the_heartbeat_row_carries_no_pairs(tmp_path):
@@ -508,14 +533,13 @@ def test_digest_is_sent_only_with_the_digest_argument(tmp_path):
     assert 'subtitle "DIGEST"' in _notes(tmp_path)
 
 
-def test_graded_shadow_outcome_notifies_from_the_grader(tmp_path):
-    """Pins the ROUTING only: a graded shadow outcome sends a SHADOW
-    notification. The tally text comes from a heredoc that imports the real
-    modules (pandas), which launchd's /usr/bin/python3 here cannot, so the
-    tally's content is not asserted by this test."""
+def test_graded_shadow_outcome_sends_no_tally(tmp_path):
+    """Old -> new 2026-11-15 (alert_importance_spec N4): a graded outcome used
+    to send a nightly SHADOW tally. Now only a review gate notifies."""
     proj = _project(tmp_path, outcome="print('GBP_JPY: 1 shadow-signal outcomes filled')")
+    _gate_inputs(proj, episodes=3, market_open=True)
     _run(tmp_path, proj, "scheduled_outcome_check.sh")
-    assert 'subtitle "SHADOW"' in _notes(tmp_path)
+    assert "SHADOW" not in _notes(tmp_path) and "REVIEW" not in _notes(tmp_path)
 
 
 def test_no_graded_shadow_outcome_sends_no_shadow_notification(tmp_path):
@@ -835,3 +859,209 @@ def test_range_volatile_control_a_long_still_notifies(tmp_path):
     proj = _project(tmp_path, brief=_brief_printing(tmp_path, _rendered("GBP_AUD", "LONG", _WED)))
     _run(tmp_path, proj, "scheduled_brief.sh")
     assert [r["category"] for r in _ledger(proj)[1]] == ["DECISION"]
+
+
+# ── alert importance (docs/specs/alert_importance_spec.md, 2026-11-15) ────────
+# Rule 12: each case asks whether the owner should be told at all.
+
+def _brief_with_alert(tmp_path, when, line, decision="STAND DOWN"):
+    text = _rendered("GBP_JPY", decision, when)
+    return _brief_printing(tmp_path, text, f"sys.stderr.write({('##ALERT## ' + line + chr(10))!r})\n")
+
+
+def test_n2_a_bare_regime_change_sends_nothing(tmp_path):
+    proj = _project(tmp_path, brief=_brief_with_alert(
+        tmp_path, _WED, "GBP/JPY: the market regime changed since the last run. Check the brief."))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert _notes(tmp_path) == ""
+    assert "ALERT not sent (market closed or nothing to act on): GBP/JPY: the market regime" in _log(proj, "brief")
+
+
+def test_n2_improved_without_a_decision_change_sends_nothing(tmp_path):
+    proj = _project(tmp_path, brief=_brief_with_alert(
+        tmp_path, _WED, "GBP/JPY: conditions improved since the last run. Check the brief."))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert _notes(tmp_path) == ""
+
+
+@pytest.mark.parametrize("line", [
+    "GBP/JPY: conditions improved — the framework now allows a trade. Check the brief.",
+    "GBP/JPY: conditions deteriorated — the framework has stood down since the last run.",
+    "GBP/JPY: exit-watch fired — daily price structure just confirmed a direction. Check the brief.",
+])
+def test_n2_an_open_actionable_flip_notifies(tmp_path, line):
+    proj = _project(tmp_path, brief=_brief_with_alert(tmp_path, _WED, line))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    notes = _notes(tmp_path)
+    assert 'subtitle "ALERT"' in notes and line.split(" — ")[1][:20] in notes
+
+
+def test_n1_a_system_alert_line_is_sent_even_when_closed(tmp_path):
+    proj = _project(tmp_path, brief=_brief_with_alert(
+        tmp_path, _SAT, "EXCLUSION REGISTRY: unreadable registry"))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert 'subtitle "ALERT"' in _notes(tmp_path) and "EXCLUSION REGISTRY" in _notes(tmp_path)
+
+
+def _decision_runs(tmp_path, decisions):
+    """Run the wrapper once per decision on GBP/JPY (open market); return the
+    notification text after each run."""
+    proj = None
+    seen = []
+    for i, d in enumerate(decisions):
+        text = _rendered("GBP_JPY", d, _WED)
+        if proj is None:
+            proj = _project(tmp_path, brief=_brief_printing(tmp_path, text))
+        else:
+            (tmp_path / "rendered_brief.txt").write_bytes(text.encode("utf-8"))
+        _run(tmp_path, proj, "scheduled_brief.sh")
+        seen.append(_notes(tmp_path))
+    return proj, seen
+
+
+def test_n5_an_unchanged_decision_notifies_once(tmp_path):
+    _, seen = _decision_runs(tmp_path, ["SHORT", "SHORT", "SHORT"])
+    assert seen[-1].count("display notification") == 1 and "GBP/JPY SHORT" in seen[-1]
+
+
+def test_n5_a_withdrawn_decision_notifies(tmp_path):
+    _, seen = _decision_runs(tmp_path, ["SHORT", "STAND DOWN"])
+    assert "GBP/JPY back to stand aside — the SHORT idea is withdrawn" in seen[-1]
+
+
+def test_n5_a_reversal_notifies(tmp_path):
+    _, seen = _decision_runs(tmp_path, ["LONG", "SHORT"])
+    assert "GBP/JPY SHORT (was LONG)" in seen[-1]
+
+
+def test_n5_a_stand_aside_with_no_record_is_silent(tmp_path):
+    proj, seen = _decision_runs(tmp_path, ["STAND DOWN"])
+    assert seen[-1] == ""
+    assert json.loads((proj / "logs" / "alert_state.json").read_text())["decisions"] == {
+        "GBP_JPY": "STAND ASIDE"}
+
+
+def test_n5_an_error_brief_neither_notifies_nor_changes_the_record(tmp_path):
+    proj, _ = _decision_runs(tmp_path, ["SHORT"])
+    (tmp_path / "rendered_brief.txt").write_bytes(_error_page("GBP_JPY").encode("utf-8"))
+    before = _notes(tmp_path)
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert 'subtitle "DECISION"' not in _notes(tmp_path)[len(before):]
+    assert json.loads((proj / "logs" / "alert_state.json").read_text())["decisions"] == {
+        "GBP_JPY": "SHORT"}
+
+
+def test_n5_a_broken_state_helper_falls_back_loudly(tmp_path):
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, _rendered("GBP_JPY", "SHORT", _WED)))
+    (proj / "logs" / "alert_state.json").write_text("{not json")
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert 'subtitle "DECISION"' in _notes(tmp_path) and "GBP/JPY SHORT" in _notes(tmp_path)
+    assert "ALERT STATE FAILED" in _log(proj, "brief")
+
+
+def test_n6_two_runs_started_together_never_overlap(tmp_path):
+    """The lock serializes the runs, so the second brief compares against the
+    first run's snapshot instead of seeing the same flip. (Decision repeats are
+    also stopped by alert_state's own file lock, so a one-notification count
+    alone could not show the run lock works; the run windows can.)"""
+    runs = tmp_path / "runs.txt"
+    brief = (f"import time\nopen({str(runs)!r}, 'a').write(f'start {{time.time()}}\\n')\n"
+             "time.sleep(2)\n"
+             f"open({str(runs)!r}, 'a').write(f'end {{time.time()}}\\n')\n"
+             + _brief_printing(tmp_path, _rendered("GBP_JPY", "SHORT", _WED)))
+    proj = _project(tmp_path, brief=brief)
+    home = tmp_path / "home"
+    home.mkdir(exist_ok=True)
+    env = {"HOME": str(home), "PATH": f"{tmp_path / 'bin'}:/usr/bin:/bin",
+           "INTEL_NO_ENV_FILE": "1", "INTEL_PROJ": str(proj)}
+    procs = [subprocess.Popen(["/bin/bash", str(proj / "scripts" / "scheduled_brief.sh")],
+                              env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+             for _ in range(2)]
+    assert [p.wait(timeout=90) for p in procs] == [0, 0]
+    events = [ln.split() for ln in runs.read_text().splitlines()]
+    assert [e[0] for e in events] == ["start", "end", "start", "end"], events
+    assert float(events[2][1]) >= float(events[1][1])             # second began after first ended
+    assert _notes(tmp_path).count("display notification") == 1
+    assert not (proj / "logs" / ".brief.lock").exists()          # released
+
+
+def test_n6_a_stale_lock_is_taken_over(tmp_path):
+    proj = _project(tmp_path, brief=_brief_printing(tmp_path, _rendered("GBP_JPY", "SHORT", _WED)))
+    lock = proj / "logs" / ".brief.lock"
+    lock.mkdir()
+    old = time.time() - 31 * 60
+    os.utime(lock, (old, old))
+    _run(tmp_path, proj, "scheduled_brief.sh")
+    assert "stale brief lock taken over" in _log(proj, "brief")
+    assert 'subtitle "DECISION"' in _notes(tmp_path)
+
+
+def _write_exclusions_stub(proj):
+    (proj / "exclusions.py").write_text("def filter_rows(rows, name):\n    return rows\n")
+
+
+def test_n3_the_digest_carries_shadow_fires_since_the_last_digest(tmp_path):
+    proj = _project(tmp_path)
+    _write_exclusions_stub(proj)
+    now = time.time()
+    t_digest = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 7200))
+    t_fire = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 3600))
+    t_old = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 9000))
+    (proj / "notification_log.csv").write_text(
+        "timestamp_utc,category,pairs,decision_state,summary\n"
+        f"{t_digest},DIGEST,GBP_AUD,x,y\n")
+    (proj / "shadow_signal_log.csv").write_text(
+        "candidate_id,timestamp,instrument,direction,entry\n"
+        f"EARLY_MOMENTUM_v2,{t_old},GBP_JPY,LONG,212.0\n"
+        f"MOMENTUM_JOIN,{t_fire},GBP_JPY,SHORT,211.026\n")
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    note = [ln for ln in _notes(tmp_path).splitlines() if 'subtitle "DIGEST"' in ln][0]
+    assert "· shadow (not traded): MOMENTUM_JOIN GBP/JPY SHORT 211.026 →" in note
+    assert "EARLY_MOMENTUM_v2" not in note                        # before the last digest
+
+
+def test_n3_no_new_fire_no_clause(tmp_path):
+    proj = _project(tmp_path)
+    _write_exclusions_stub(proj)
+    t = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 600))
+    (proj / "notification_log.csv").write_text(
+        "timestamp_utc,category,pairs,decision_state,summary\n"
+        f"{t},DIGEST,GBP_AUD,x,y\n")
+    _run(tmp_path, proj, "scheduled_brief.sh", "digest")
+    assert "shadow" not in _notes(tmp_path)
+
+
+def _gate_inputs(proj, episodes, market_open):
+    (proj / "shadow_signals.py").write_text(
+        "def get_shadow_tally(c):\n"
+        f"    return {{'episodes': {episodes} if c == 'MOMENTUM_JOIN' else 0}}\n")
+    (proj / "regime_detection.py").write_text(
+        f"def _market_status():\n    return {{'open': {market_open}}}\n")
+
+
+def test_n4_a_review_gate_notifies_once(tmp_path):
+    proj = _project(tmp_path, outcome="print('graded 0')")
+    _gate_inputs(proj, episodes=20, market_open=True)
+    _run(tmp_path, proj, "scheduled_outcome_check.sh")
+    _run(tmp_path, proj, "scheduled_outcome_check.sh")
+    notes = _notes(tmp_path)
+    assert notes.count('subtitle "REVIEW"') == 1
+    assert "MOMENTUM_JOIN reached 20 graded episodes: the futility checkpoint is due" in notes
+
+
+def test_n4_a_gate_reached_while_closed_waits_for_the_open(tmp_path):
+    proj = _project(tmp_path, outcome="print('graded 0')")
+    _gate_inputs(proj, episodes=20, market_open=False)
+    _run(tmp_path, proj, "scheduled_outcome_check.sh")
+    assert "REVIEW" not in _notes(tmp_path)
+    _gate_inputs(proj, episodes=20, market_open=True)
+    _run(tmp_path, proj, "scheduled_outcome_check.sh")
+    assert _notes(tmp_path).count('subtitle "REVIEW"') == 1
+
+
+def test_n4_a_failing_gate_check_is_logged_not_silent(tmp_path):
+    proj = _project(tmp_path, outcome="print('graded 0')")
+    (proj / "shadow_signals.py").write_text("raise ImportError('no pandas')\n")
+    (proj / "regime_detection.py").write_text("def _market_status():\n    return {'open': True}\n")
+    _run(tmp_path, proj, "scheduled_outcome_check.sh")
+    assert "ALERT STATE FAILED — review gates not checked" in _log(proj, "outcomes")

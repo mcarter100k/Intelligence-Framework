@@ -155,3 +155,14 @@ Dropped from notifications (kept in the day log): `the market regime changed sin
   - the next weekday 07:30 sends a DIGEST;
   - the first real LONG/SHORT sends one DECISION, and its withdrawal sends one;
   - the first evening run after merge clears the false STALE (one RECOVERED).
+
+---
+
+## 7. Amendments during the build (2026-11-15, recorded after the spec commit 10ffff9, not edited into it)
+
+1. **A flip and a decision change in one run go in one ALERT.** The spec did not say what happens when both occur. Under N5 a decision change is recorded once, so sending only the ALERT (the old priority) would lose it for good. The ALERT's text now carries both.
+2. **N7 counts only regime rows with a `logic_version`.** On the real ledgers, 10 rows from 2026-09-23/24/29/30 had `stand_down` False and no trade row. The briefs at those times say STAND ASIDE: before the 2026-09-30 decision logic, the filter could allow while the decision stood aside. Since `p5-2026-09-30`, allowed ⇔ traded is pinned by the 36,864-cell sweep (a floor test).
+3. **N7 never gives an all-clear from a file it did not read.** With the regime log missing, it prints `unchecked:`, not "no trade call".
+4. **A crashing freshness check now fails the run.** `artifact_freshness.main` swallowed every exception and printed nothing, which the wrapper read as healthy. It now prints a `STALE:` line.
+5. **The N6 test checks that the run windows never overlap.** alert_state's own file lock already stops a doubled decision, so a notification count alone could not show the run lock works.
+6. **The review-gate notification uses a new subtitle, `REVIEW`,** so it is never mistaken for a market alert.
