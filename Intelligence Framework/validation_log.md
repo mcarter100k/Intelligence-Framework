@@ -6571,3 +6571,192 @@ Both runner files are byte-identical to commit 2f7c68b (sha256 `2302ab42…935d`
 - a sharper New York-open rise on a daylight-saving-aware clock.
 
 **Limit:** hourly values are consistent with 4-hour bars, not verified against a second source.
+
+## 2026-11-14 — PRE-REGISTRATION (BCS-1): does a second hourly close confirm a breakout? (GBP/AUD, 2005–2013 STUDY data)
+
+**Owner request:** in the W46 markup the owner adopted "a break is two closed hourly candles in a row beyond the level; if the second closes back inside, it was a fake", then asked to "go back in history and see how things played". In the W46 window six first closes beyond a line were seen: five fakes, one confirmation (Fri 2026-11-13 04:00 PST). Those 2026 bars are FORWARD and play no part in the test. Free zone only.
+
+**Committed together, before any 2005–2013 outcome of these rules is computed:**
+
+| File | sha256 |
+|---|---|
+| `docs/specs/breakout_confirmation_study_spec.md` | `33da4267336cec1bbb3b5303b0905e2cf2de8258881e19903fca7195d991681d` |
+| `studies/breakout_confirmation_study.py` | `261afacff7b9ab5d27b91c52fd1a56376accf5c157d3302abe86b8c8ccb8bddc` |
+| `tests/test_breakout_confirmation_selftest.py` | `67819107dd1700d22eb93c38750dd532ff7eeff9a691bfe0742357f135b26cea` |
+
+The runner also imports these unchanged files: `studies/history_study_convert.py` `584ff76d…a553`, `studies/shadow_cost_regrade.py` (`rollover_nights`) `6cb2e4c9…1fdf`, `studies/research_archive.py` (`load`) `6286a9ac…0e2a`, `studies/policy_rates_2003_2014.json` `5df23e18…eacf`, `foundation/tools/power_check.py` `4afaf1ca…6d09`, `foundation/tools/episodes.py` `92cd1e89…bcd0`.
+
+**Data.** The research archive's STUDY span, read through `research_archive.load(spans={"STUDY"})`, which checks the manifest hash and refuses sealed bars. The runner pins `GBP_AUD_H1.csv` `f170a040…6768` (56,077 bars, 2005-01-02 22:00Z → 2013-12-30 21:00Z) and `GBP_AUD_D.csv` `24e4bbe9…f7f6` (2,343 sessions). VERIFIED this session: `shasum -a 256` of both files equals the manifest values. These H1 bars were used before only by the session movement study (range by hour), never for breaks. No network call; no SEALED EXAM, USED or FORWARD data.
+
+**The rules (spec §4–§5).** Level: the latest confirmed hourly swing (k = 5, strict), usable from the bar after it confirms; replaced by a newer swing; ended by a confirmed break, not by a fake. Event: a fresh close beyond. Fake: the next close at or inside. Three cells, long and short pooled:
+- **A** enters at every event's close;
+- **B** enters at the confirming (second) close;
+- **C**, after B, rests a limit at the level for 12 bars.
+
+All three use stop = level − 0.25 daily ATR (14 completed sessions), graded on the stop, with a timed exit 24 bars after entry. Costs: the era spread (10.0 pips 2005–09, 7.0 pips 2010–13) plus financing at period policy rates and a 1.0% markup; 3.0 and 5.1 pips are secondaries. Episodes: 24 bars. Verdict: Bonferroni lower bound at 0.98333 (3 cells); SUPPORTED needs lower > 0 and without-best > 0; REFUTED needs the 90% upper bound < +0.15R.
+
+**Power (spec §9):** N required for +0.15R at 80% is 565 episodes per cell. The guess is 1,000–2,000 for A and B and 400–1,200 for C; the counts stage replaces it.
+
+**Self-test:** `SELFTEST OK` (53 checks). **Mutation test: 18 of 18 caught** (each applied, with a 1-line diff confirmed; the source restored byte-identical and re-run with bytecode writing off). They covered:
+- strict swing; the window missing bar i+5; a next close exactly at the level;
+- the level surviving confirmation; the retest window ±1; the gap fill price;
+- the entry bar's low checked; the horizon one short; a doubled C stop;
+- the entry instant at the open; financing ignoring side; ATR including its own session;
+- the refutation boundary; no Bonferroni; the episode `>` vs `>=`;
+- the mirror keeping high/low; the embargo start allowed; a stop needing a break.
+
+One mutant was not run because it is equivalent: dropping the `C[j−1] ≤ level` condition. While a level is live, every close beyond it follows a close at or inside, because a second close beyond ends the level.
+
+**Suite:** `python -m pytest -q` on the branch: 1124 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+**Next:** `counts` through `reality_run.py --no-env`, logged and committed before `full`.
+
+## 2026-11-14 — BCS-1 COUNTS (no R, no stop outcome)
+
+Run: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/breakout_confirmation_study.py counts ~/intel_study_archives/research_archive`, from the live project, after the pre-registration commit 8bcda45. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr 0 bytes, no network. The runner checked both pinned data hashes, and the archive loader checked the manifest. Verbatim output:
+
+```
+BCS-1 counts (no R, no stop outcome). GBP_AUD H1 STUDY bars: 56077, 2005-01-02T22:00:00+00:00 -> 2013-12-30T21:00:00+00:00
+
+## long (swing highs, closes above)
+- A: events in ATR warm-up (no trade): 8
+- A: ungraded at end of data: 1
+- B: confirmations in ATR warm-up (no trade): 4
+- B: ungraded at end of data: 1
+- C: expired: 276
+- C: fills in ATR warm-up (no trade): 4
+- C: retest filled: 745
+- C: ungraded at end of data: 1
+- levels broken (confirmed): 1021
+- levels replaced unbroken: 2420
+- swings confirmed: 3442
+- events (first closes beyond): 1514; fakes 493; confirmations 1021; fake rate 0.326
+
+## short (swing lows, closes below)
+- A: events in ATR warm-up (no trade): 7
+- B: confirmations in ATR warm-up (no trade): 5
+- C: expired: 300
+- C: fills in ATR warm-up (no trade): 4
+- C: retest filled: 818
+- levels broken (confirmed): 1118
+- levels replaced unbroken: 2326
+- swings confirmed: 3445
+- events (first closes beyond): 1571; fakes 453; confirmations 1118; fake rate 0.288
+
+## Fake rate by year (both sides)
+- 2005: events 322, fakes 111, rate 0.345
+- 2006: events 350, fakes 120, rate 0.343
+- 2007: events 341, fakes 107, rate 0.314
+- 2008: events 345, fakes 106, rate 0.307
+- 2009: events 321, fakes 91, rate 0.283
+- 2010: events 327, fakes 90, rate 0.275
+- 2011: events 366, fakes 111, rate 0.303
+- 2012: events 373, fakes 125, rate 0.335
+- 2013: events 340, fakes 85, rate 0.250
+
+## Entries and episodes per cell
+- A: graded entries 3069 (long 1505, short 1564); episodes 1494 (long 715, short 779); same-bar long/short ties 0
+  episodes by year: 2005 154, 2006 170, 2007 163, 2008 164, 2009 165, 2010 165, 2011 173, 2012 171, 2013 169
+  power at N 1494: +0.15R 0.997; smallest edge at 80% 0.092R
+- B: graded entries 2129 (long 1016, short 1113); episodes 1359 (long 649, short 710); same-bar long/short ties 0
+  episodes by year: 2005 137, 2006 146, 2007 146, 2008 148, 2009 151, 2010 155, 2011 160, 2012 156, 2013 160
+  power at N 1359: +0.15R 0.993; smallest edge at 80% 0.097R
+- C: graded entries 1554 (long 740, short 814); episodes 1082 (long 526, short 556); same-bar long/short ties 0
+  episodes by year: 2005 114, 2006 121, 2007 121, 2008 114, 2009 127, 2010 117, 2011 125, 2012 121, 2013 122
+  power at N 1082: +0.15R 0.976; smallest edge at 80% 0.108R
+
+N required for +0.15R at 80% power (alpha 0.01667): 565
+```
+
+**Reading (counts only):**
+- **Fakes:** 946 of 3,085 first closes beyond a confirmed hourly swing were fakes (30.7%). The rate held at 25–35% in every year. This answers question 1 and is a count of closes, not an outcome.
+- **Episodes:** A 1,494, B 1,359, C 1,082. Every cell is above the 565 required for +0.15R at 80% power. The power at those N is 0.997, 0.993 and 0.976.
+- **Same-bar ties:** 0.
+- **Retests:** 1,563 of 2,139 confirmations retested the level within 12 bars (73.1%).
+
+## 2026-11-14 — BCS-1 RESULT: hourly breakout confirmation on GBP/AUD, 2005–2013 — all three cells REFUTED
+
+Run once, after the counts commit 5b87bc5: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/breakout_confirmation_study.py full ~/intel_study_archives/research_archive <worktree>/studies/breakout_confirmation_study_result.md`, from the live project.
+- Exit 0, `project files : UNCHANGED (verified by hash)`, stderr 0 bytes, no network.
+- The report file did not exist beforehand. The runner checked both data hashes.
+- The report is byte-identical to that run's stdout (`diff` against its own output directory, `reality_run_yg11_rbt`).
+- **Instrument note:** my first `diff` used the newest `reality_run_*` folder. That folder belonged to a concurrent gold run from another session, so the diff failed. It was redone against the directory the wrapper named. Picking "the newest temp folder" is unsafe when sessions run in parallel; read the directory from the wrapper's own output.
+
+**Verdicts:**
+- **A (first close): REFUTED**, −0.164R.
+- **B (second close): REFUTED**, −0.106R.
+- **C (retest): REFUTED**, −0.094R.
+- All upper bounds are below +0.15R (−0.114, −0.058, −0.020), and below 0 too. The same holds at today's measured 5.1-pip spread.
+- What the owner's rule does: it removes the fakes (30.7% of first closes, −0.603R mean as A trades). The confirmations that remain still carry no edge after costs.
+- Recorded as R43 in `foundation/research_findings.md`. The chart method, capability inventory and skill counts are updated.
+
+Verbatim output, headings demoted two levels:
+
+### BCS-1 result: does a second hourly close confirm a breakout? (GBP/AUD, 2005-2013 STUDY)
+
+Spec: docs/specs/breakout_confirmation_study_spec.md. Verdict on episode R after era spread and financing. Bonferroni one-sided lower bound at 0.98333 (3 cells), 90% upper bound for REFUTED (bar +0.15R), 20000 resamples, seed 7. Frame (data_map_spec §5): does this survive conditions it was not designed on.
+
+#### Verdicts (era spread + financing, episodes)
+
+##### Cell A: **REFUTED**
+
+- N 1494 | mean -0.164R | median -1.095R | SD 1.502 | lower -0.245 | upper -0.114 | without best -0.169 | win 33.5% | max DD 274.3R
+- stop-outs 869 (58.2%); mean risk 72.4 pips; mean spread -0.144R; mean financing -0.0061R; mean nights 0.85
+- power at this N: +0.15R 0.997; smallest edge at 80% 0.092R
+- before costs: N 1494 | mean -0.014R | median -1.000R
+- flat 3.0 pips + financing: N 1494 | mean -0.072R | median -1.031R | SD 1.501 | lower -0.152 | upper -0.022 | without best -0.077 | win 34.3% | max DD 153.4R
+- flat 5.1 pips + financing: N 1494 | mean -0.108R | median -1.054R | SD 1.500 | lower -0.189 | upper -0.058 | without best -0.113 | win 34.0% | max DD 196.2R
+- stops at the gap open: N 1494 | mean -0.164R | median -1.095R; bars opening through the stop 1
+- long: N 715 | mean -0.196R | median -1.105R; short: N 779 | mean -0.135R | median -1.081R
+- 2005-01 to 2008-06 (before the crisis): N 570 | mean -0.274R | median -1.113R
+- 2008-07 to 2009-06 (the crisis): N 162 | mean -0.337R | median -1.062R
+- 2009-07 to 2013-12 (after): N 762 | mean -0.045R | median -1.089R
+- by year: 2005 N 154 -0.394R; 2006 N 170 -0.159R; 2007 N 163 -0.315R; 2008 N 164 -0.333R; 2009 N 165 -0.192R; 2010 N 165 -0.004R; 2011 N 173 -0.031R; 2012 N 171 -0.221R; 2013 N 169 +0.142R
+
+##### Cell B: **REFUTED**
+
+- N 1359 | mean -0.106R | median -0.819R | SD 1.371 | lower -0.183 | upper -0.058 | without best -0.115 | win 37.7% | max DD 149.0R
+- stop-outs 665 (48.9%); mean risk 88.1 pips; mean spread -0.123R; mean financing -0.0065R; mean nights 1.01
+- power at this N: +0.15R 0.993; smallest edge at 80% 0.097R
+- before costs: N 1359 | mean +0.023R | median -0.725R
+- flat 3.0 pips + financing: N 1359 | mean -0.027R | median -0.759R | SD 1.369 | lower -0.105 | upper +0.021 | without best -0.036 | win 39.4% | max DD 53.6R
+- flat 5.1 pips + financing: N 1359 | mean -0.058R | median -0.786R | SD 1.369 | lower -0.135 | upper -0.010 | without best -0.067 | win 38.5% | max DD 87.2R
+- stops at the gap open: N 1359 | mean -0.107R | median -0.819R; bars opening through the stop 2
+- long: N 649 | mean -0.135R | median -1.038R; short: N 710 | mean -0.080R | median -0.590R
+- 2005-01 to 2008-06 (before the crisis): N 504 | mean -0.163R | median -1.001R
+- 2008-07 to 2009-06 (the crisis): N 144 | mean +0.012R | median -1.022R
+- 2009-07 to 2013-12 (after): N 711 | mean -0.090R | median -0.680R
+- by year: 2005 N 137 -0.231R; 2006 N 146 -0.011R; 2007 N 146 -0.287R; 2008 N 148 -0.002R; 2009 N 151 -0.103R; 2010 N 155 +0.097R; 2011 N 160 -0.127R; 2012 N 156 -0.271R; 2013 N 160 -0.036R
+
+##### Cell C: **REFUTED**
+
+- N 1082 | mean -0.094R | median -1.146R | SD 1.896 | lower -0.213 | upper -0.020 | without best -0.107 | win 30.8% | max DD 141.6R
+- stop-outs 707 (65.3%); mean risk 53.8 pips; mean spread -0.187R; mean financing -0.0072R; mean nights 0.77
+- power at this N: +0.15R 0.976; smallest edge at 80% 0.108R
+- before costs: N 1082 | mean +0.100R | median -1.000R
+- flat 3.0 pips + financing: N 1082 | mean +0.026R | median -1.048R | SD 1.895 | lower -0.093 | upper +0.100 | without best +0.013 | win 31.4% | max DD 60.7R
+- flat 5.1 pips + financing: N 1082 | mean -0.021R | median -1.085R | SD 1.896 | lower -0.140 | upper +0.053 | without best -0.034 | win 31.0% | max DD 90.5R
+- stops at the gap open: N 1082 | mean -0.095R | median -1.146R; bars opening through the stop 2
+- long: N 526 | mean -0.078R | median -1.154R; short: N 556 | mean -0.109R | median -1.136R
+- 2005-01 to 2008-06 (before the crisis): N 412 | mean -0.049R | median -1.166R
+- 2008-07 to 2009-06 (the crisis): N 120 | mean +0.031R | median -1.076R
+- 2009-07 to 2013-12 (after): N 550 | mean -0.155R | median -1.153R
+- by year: 2005 N 114 -0.123R; 2006 N 121 +0.311R; 2007 N 121 -0.249R; 2008 N 114 -0.087R; 2009 N 127 -0.137R; 2010 N 117 -0.066R; 2011 N 125 -0.276R; 2012 N 121 -0.255R; 2013 N 122 +0.042R
+
+#### Secondary (descriptive; never changes a verdict)
+
+1. **Fake rate:** 946 of 3085 first closes were followed by a close back inside: **30.7%**. Long 493 of 1514; short 453 of 1571.
+2. **What the second close filters (cell A, all trades, after era costs):** fakes N 940 | mean -0.603R | median -1.141R; confirmations N 2129 | mean +0.028R | median -0.833R.
+3. **The price of waiting:** how much worse B's entry is than A's on the same event (positive = worse): mean +11.5 pips, median +7.0 pips (+0.053 daily ATR). Paired R(B) - R(A) on the same 2129 confirmed events: mean -0.167R, median -0.007R.
+4. **Retest rate:** 1554 of 2129 graded B trades were retested within 12 bars (73.0%). B trades later retested: N 1554 | mean -0.400R | median -1.095R; not retested: N 575 | mean +0.568R | median +0.422R.
+5. **Session of the first close** (UTC hour of the event bar's close; no DST adjustment):
+   - Asia 22-07 UTC: events 930, fake rate 30.3%; B trades N 646 | mean -0.153R | median -1.063R
+   - London 07-12 UTC: events 967, fake rate 30.5%; B trades N 669 | mean -0.107R | median -0.611R
+   - London/New York 12-17 UTC: events 754, fake rate 28.1%; B trades N 540 | mean -0.064R | median -0.543R
+   - late New York 17-22 UTC: events 434, fake rate 36.2%; B trades N 274 | mean -0.333R | median -1.073R
+6. **Counts:**
+   - long: A: events in ATR warm-up (no trade) 8; A: ungraded at end of data 1; B: confirmations in ATR warm-up (no trade) 4; B: ungraded at end of data 1; C: expired 276; C: fills in ATR warm-up (no trade) 4; C: retest filled 745; C: ungraded at end of data 1; levels broken (confirmed) 1021; levels replaced unbroken 2420; swings confirmed 3442
+   - short: A: events in ATR warm-up (no trade) 7; B: confirmations in ATR warm-up (no trade) 5; C: expired 300; C: fills in ATR warm-up (no trade) 4; C: retest filled 818; levels broken (confirmed) 1118; levels replaced unbroken 2326; swings confirmed 3445
+   - cell A: graded entries 3069, episodes 1494, same-bar ties 0
+   - cell B: graded entries 2129, episodes 1359, same-bar ties 0
+   - cell C: graded entries 1554, episodes 1082, same-bar ties 0

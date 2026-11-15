@@ -45,6 +45,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 | Swing structure levels, zones, Fibonacci (a hand markup) | MANUAL (method only) | Added 2026-11-04: `foundation/chart_reading_method.md`, every rule tagged UNTESTED or with its finding. Nothing in the brief draws swing levels, zones or Fibonacci lines. Pullback depth is descriptive only (R39: most first pullbacks reach 38.2%); buying the touch shows no edge (R37, R38) |
 | Volatility (how far the pair typically moves) | HAVE | ATR-based; spike and compression stand-downs |
 | Entry timing on hourly / 15-minute bars | HAVE | `entry_confirmation.py` |
+| Breakout confirmation (two hourly closes beyond a level) | TESTED (2026-11-14) | R43, GBP/AUD 2005–2013: 31% of first closes are fakes and the second close filters them, but confirmed breaks, first-close entries and retest entries all lost after costs (REFUTED, N 1,082–1,494). A filter for staying out, not an entry edge |
 | Profit targets | MISSING, by design | "Set your own; it must pay at least 1.5R after spread" |
 
 ## Micro: how the market trades and what it costs
@@ -53,7 +54,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 |---|---|---|
 | Sessions and time of day (Tokyo, London, New York) | PARTIAL | Asian-session range used as a level only (live). **Described 2026-11-05** on 2005–2013 hourly data (`studies/session_movement_report.md`, descriptive, not a strategy): two busy windows (London morning 07–09 UTC, London/New York overlap 12–15 UTC; peak 14:00 UTC = 06:00 PST), busiest hour about 1.8–1.9× the quietest; by 07:00 PST about 7 days in 10 already have their high, and the same for their low. Not used by the live path. Asian-range breakout question spec'd, not run. **Replicated 2026-11-05 on 2021-04 → 2026-09** (`studies/session_movement_replication_report.md`): same shape and peak hour; concentration stronger (busiest/quietest 2.40 GBP/AUD, 2.53 GBP/JPY); the pre-set day-trading precondition FAILS for both pairs |
 | Fixes and month-end flows (London 4pm, Tokyo fix) | MISSING | |
-| Spread | PARTIAL | Fixed assumption (3.0 pips in studies, 4.0 in execution tools). Never measured live |
+| Spread | PARTIAL | Fixed assumption (3.0 pips in studies, 4.0 in execution tools). **Measured 2026-11-06** (one month of bid/ask hourly closes): GBP/AUD median 5.1 pips, GBP/JPY 3.5. The tools still use 4.0 (team amendment pending) |
 | Overnight financing (swap) | PARTIAL | Known to matter (R32: about 0.1R per 5-day GBP/JPY hold). **Not counted in the shadow ledger grading.** Today's broker rates (2026-11-01): GBP/JPY long +1.6%/yr, GBP/AUD long −1.89%/yr |
 | Liquidity, slippage, order flow, volume | MISSING | Prices are mid only; no bid/ask |
 
@@ -73,7 +74,7 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 |---|---|---|
 | Honest sample counting, power checks, pre-registration | HAVE | `foundation/tools/`, `foundation/methodology.md`. This is the framework's strongest part |
 | Forward test of candidates | HAVE | `shadow_signals.py`. As of 2026-10-19: EARLY_MOMENTUM_v2 3 episodes (avg −0.20R), THRUST_PULLBACK 1, MOMENTUM_JOIN 1 |
-| Tested ideas (42, most refuted; count updated 2026-11-04) | HAVE | `foundation/research_findings.md`. Check here before testing an idea |
+| Tested ideas (43, most refuted; count updated 2026-11-14) | HAVE | `foundation/research_findings.md`. Check here before testing an idea |
 | Long-history test with costs | TESTED for the candidates (2026-11-04) | The three frozen candidates on 2005–2013 STUDY data, every H4 bar, era costs and financing (FCS-1, R40–R42): no edge; 3 of 5 cells REFUTED, 2 INCONCLUSIVE. The 2014–2021 SEALED EXAM stays closed (only the team opens it, for one candidate) |
 | Long-history research archive | HAVE (2026-11-05) | `studies/research_archive.py`: daily, 4-hour and hourly GBP/AUD and GBP/JPY for 2005–2013 (STUDY), 2021-04 → 2026-09 (USED) and 2026-09-11 → build date (FORWARD), each bar labelled by span, hash-pinned, consistency-verified (`studies/research_archive_report.md`). The 2014–2021 sealed exam stays out (data_map_spec §11.6). Research only; none of it is proof |
 | A proven edge | MISSING | Still none after FCS-1 (2026-11-04) |
