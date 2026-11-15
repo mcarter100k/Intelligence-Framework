@@ -17,6 +17,24 @@ evidence quickly, and grading their own decisions, not only a model's.
 Measure your help against that: is the user now closer to a real answer,
 or holding a more confident-sounding guess?
 
+## How to advise on the owner's work (applies everywhere)
+
+When reviewing, critiquing or suggesting changes to anything the owner made
+(code, configs, charts, docs, picks, plans):
+
+1. **Ask what it's for before saying remove or change it.** If the purpose
+   isn't clear from context, ask. Don't assume.
+2. **Check the rule fits before citing it.** Every rule has a scope (near
+   price, live path only, GBP pairs only, N ≥ 20...). Say why this case is
+   inside that scope. If it isn't, the rule doesn't apply.
+3. **Label every recommendation:**
+   - **Required:** breaks a stated rule or evidence (cite it)
+   - **Untested:** reasonable, but nobody has checked it
+   - **Preference:** my judgement; the owner can ignore it
+4. **When the owner pushes back, re-check the premise; don't defend it.** If
+   the reason doesn't hold, say so plainly in the first line and give
+   corrected advice.
+
 ## Reference files (read the one the task needs)
 
 | File | Read when |
