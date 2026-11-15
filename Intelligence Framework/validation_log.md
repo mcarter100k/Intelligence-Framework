@@ -7181,3 +7181,183 @@ Descriptive only: no entries, no R, no costs. Not evidence of an edge (spec §5.
 - Plain-words report: `studies/gold_breakout_report.md`.
 
 **Hypothesis recorded, not tested:** in each era, breaks against that era's big trend failed more often (2006–2013 upside held more; 2021–2026 downside wicks failed most). Whether breaks with the higher-timeframe trend hold more often needs its own pre-registered run. R44's trend filter on GBP/AUD made no edge after costs, but it asked a different question (R, not hold rate).
+
+## 2026-11-15 — M15 STUDY DATA (GBP/AUD 2005–2013) fetched and verified, for BCS-3
+
+**Fetch:** `scripts/reality_run.py --code <worktree> script <worktree>/studies/m15_study_data.py fetch ~/intel_study_archives/m15_study`, with credentials.
+- Exit 0, project UNCHANGED (verified by hash). The fetch went through the embargo-guarded `history_study_gate_s3.fetch`, in 106 requests.
+- 230,236 bars fetched; 224,208 kept (Monday–Friday sessions); 6,028 weekend-session bars dropped.
+- First 2005-01-02 22:00Z, last 2013-12-30 21:15Z.
+- sha256 `83ef82bb1bf885895c8ef33d998d02bc3569a7d02434d21a80e36531b97925b6`.
+- No bar from the sealed block: the guard aborts on any.
+
+**Verify against the archive STUDY H1** (`verify`, via `reality_run.py --no-env`; counts and pip differences only):
+- 56,077 hours on both sides, none missing on either side; 56,029 hours have all 4 bars.
+- **All four prices within 0.5 pip: 55,657 of 56,077 (99.25%).**
+- **Classification of the 420 mismatches:**
+  - **419** are the first hour after a weekend or holiday gap, where the archive folded old-data Sunday-session bars into Monday (open, high and low differ);
+  - **1** is the last STUDY hour, which has only 2 bars because the fetch window ends at 21:30Z.
+- Close differences above 0.5 pip: 1, that last hour.
+- The positive control for this check (a 2-pip close difference flagged, and missing hours counted) is in `tests/test_m15_entry_selftest.py`.
+
+## 2026-11-15 — PRE-REGISTRATION (BCS-3): 15-minute entries on the BCS-1 and BCS-2 breakouts (GBP/AUD, 2005–2013 STUDY)
+
+**Owner request:** "the H1 and below gives you better entry… go and check the H1 and below and see if you get the same results." Free zone.
+
+| File | sha256 |
+|---|---|
+| `docs/specs/m15_entry_study_spec.md` | `c037bc151ab97f4222d6c9bcc7094e29160729da8e6da7dc47aff5dfbbe0e33e` |
+| `studies/m15_entry_study.py` | `8ef15d2031f38d57c157d7217e4b2a713b5b643faea58ecc9606e662bab3acff` |
+| `studies/m15_study_data.py` | `09309d1585968e5a18e885683d3de52adedb2fccd4dabfd425328e9622dfa4bf` |
+| `tests/test_m15_entry_selftest.py` | `11dc173a46c41f29d40c8b173f20b1cbd7ea7919f43ca8361dc8dcfba5ee19d9` |
+
+It imports BCS-1 `261afacf…bddc` and BCS-2 `5a752ccb…65bb`, both unchanged.
+
+**Only the entry changes.**
+- After the hourly two-close confirmation, wait up to 48 M15 bars for a touch of the level.
+- Enter at the close of the first M15 bar, from the touch on, that closes beyond the level in the trade's direction and beyond its own open.
+- Cancel if a low reaches the stop line first.
+
+**Cells:** H1 (BCS-1 levels, stop and 24-hour exit) and HTF-1.5 / HTF-2.5 (BCS-2 levels, filters, stop, targets and management). They are graded on M15 bars with BCS-1/2's own grading functions. Bonferroni over 3 cells. **Tight-stop variant** (below the M15 retest low − 15 pips, no 0.3 ATR floor) is a secondary.
+
+**Self-test:** `SELFTEST OK`, 28 checks. **Mutation test:**
+- 17 mutants run. 14 caught at once. 3 survived:
+  - the entry instant at the bar open;
+  - financing ignoring side;
+  - the low-since-touch tracking: **equivalent**, because lows above the level can never undercut the touch low.
+- Two financing checks were added (a rollover exactly at the entry close; short-side financing). Both surviving mutants were then caught on a clean self-test.
+- **Total:** 16 caught, 1 equivalent. Source restored byte-identical; bytecode writing off.
+
+**Suite** on the branch: 1165 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-15 — BCS-3 COUNTS (no R)
+
+Run: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/m15_entry_study.py counts ~/intel_study_archives/research_archive ~/intel_study_archives/m15_study`, after the pre-registration commit 93ef84f.
+- Exit 0, project UNCHANGED (verified by hash), stderr 0 bytes.
+- Output read from the run's own directory (`reality_run_lh40p_7q`).
+
+Verbatim:
+
+```
+BCS-3 counts (no R). H1 bars 56077; M15 bars 224208, 2005-01-02T22:00:00+00:00 -> 2013-12-30T21:15:00+00:00
+
+## cell H1: graded trades 1284; episodes 955 (long 469, short 486)
+- ATR warm-up or end of data 9; confirmations 2139; no entry: no retest trigger in 12 hours 592; no entry: went through the stop line first 253; triggered 1285; ungraded at end of data 1
+- wait from confirmation to entry, M15 bars: median 5.0
+- episodes by year: 2005 100, 2006 115, 2007 102, 2008 100, 2009 113, 2010 100, 2011 114, 2012 107, 2013 104
+- power at N 955: +0.15R 0.959; smallest edge at 80% 0.115R
+
+## cell HTF-1.5: graded trades 58; episodes 52 (long 21, short 31)
+- ATR warm-up or end of data 1; confirmations 317; daily trend not aligned 139; first obstacle inside the target 14; no entry: no retest trigger in 12 hours 76; no entry: went through the stop line first 28; triggered 212; ungraded at end of data 1
+- wait from confirmation to entry, M15 bars: median 5.5
+- episodes by year: 2005 4, 2006 4, 2007 4, 2008 9, 2009 6, 2010 4, 2011 4, 2012 10, 2013 7
+- power at N 52: +0.15R 0.110; smallest edge at 80% 0.494R
+
+## cell HTF-2.5: graded trades 51; episodes 47 (long 20, short 27)
+- ATR warm-up or end of data 1; confirmations 317; daily trend not aligned 139; first obstacle inside the target 21; no entry: no retest trigger in 12 hours 76; no entry: went through the stop line first 28; triggered 212; ungraded at end of data 1
+- wait from confirmation to entry, M15 bars: median 6
+- episodes by year: 2005 4, 2006 3, 2007 4, 2008 9, 2009 5, 2010 4, 2011 2, 2012 9, 2013 7
+- power at N 47: +0.15R 0.102; smallest edge at 80% 0.520R
+
+N required for +0.15R at 80% power (alpha 0.01667): 565
+```
+
+**Reading, before any R:**
+- **H1 cell, 955 episodes:** power 0.959 for +0.15R; smallest detectable edge +0.115R. Of 2,139 confirmations:
+  - 1,285 triggered (60%);
+  - 592 had no M15 retest trigger within 12 hours;
+  - 253 went through the stop line first.
+- **HTF cells, 52 and 47 episodes:** power about 0.10–0.11; smallest detectable edge about +0.5R, as BCS-2.
+- **Median wait** from confirmation to entry: 5–6 M15 bars (about 1¼–1½ hours).
+
+## 2026-11-15 — BCS-3 RESULT: 15-minute entries on the BCS-1/BCS-2 breakouts, GBP/AUD 2005–2013 — all three cells REFUTED
+
+Run once, after the counts commit 31dbf7a: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/m15_entry_study.py full ~/intel_study_archives/research_archive ~/intel_study_archives/m15_study <worktree>/studies/m15_entry_study_result.md`.
+- Exit 0, project UNCHANGED (verified by hash), stderr 0 bytes.
+- The report is byte-identical to the run's own stdout (`reality_run_q5ufo6wd`).
+
+**Post-run instrument check (no tuning):** two H1-cell trades re-derived by hand from the raw M15 candles.
+- 2008-09-15 03:30 PT entry: +3.142R, time exit.
+- 2011-07-20 22:15 PT entry: −1.000R, stop 38 bars later.
+- For each, the trigger bar, the stop (level − 0.25 ATR) and the exit match the engine exactly.
+
+**Verdicts:**
+- **H1: REFUTED**, −0.125R (hourly entries: −0.106 / −0.094).
+- **HTF-1.5: REFUTED**, −0.397R.
+- **HTF-2.5: REFUTED**, −0.330R (hourly entries: −0.346 / −0.280).
+- **Tight 15-minute stop** (secondary): H1 −0.255R, win 24%.
+- Recorded as R45.
+
+Verbatim output, headings demoted two levels:
+
+### BCS-3 result: 15-minute entries on the BCS-1 and BCS-2 breakouts (GBP/AUD, 2005-2013 STUDY)
+
+Spec: docs/specs/m15_entry_study_spec.md. Verdict on episode R after era spread and financing. Bonferroni one-sided lower bound at 0.98333 (3 cells), 90% upper bound for REFUTED (bar +0.15R), 20000 resamples, seed 7.
+
+#### Cell H1: **REFUTED**
+
+- N 955 | mean -0.125R | median -1.106R | SD 1.646 | lower -0.236 | upper -0.056 | without best -0.138 | win 33.9% | max DD 125.0R
+- for comparison, same levels with hourly entries: BCS-1 (R43): B −0.106R, C (hourly retest) −0.094R
+- exits: stop 571, time 384; mean risk 68.7 pips; mean spread -0.150R; mean financing -0.0057R
+- power at this N: +0.15R 0.959; smallest edge at 80% 0.115R
+- before costs: N 955 | mean +0.031R | median -1.000R
+- stops at the gap open: N 955 | mean -0.129R | median -1.106R
+- long: N 469 | mean -0.150R | median -1.119R; short: N 486 | mean -0.101R | median -1.096R
+- 2005-01 to 2008-06 (before the crisis): N 365 | mean -0.117R | median -1.123R
+- 2008-07 to 2009-06 (the crisis): N 107 | mean -0.076R | median -1.055R
+- 2009-07 to 2013-12 (after): N 483 | mean -0.141R | median -1.112R
+- by year: 2005 N 100 -0.255R; 2006 N 115 -0.003R; 2007 N 102 -0.119R; 2008 N 100 +0.002R; 2009 N 113 -0.216R; 2010 N 100 +0.053R; 2011 N 114 -0.259R; 2012 N 107 -0.298R; 2013 N 104 -0.007R
+- entry funnel: ATR warm-up or end of data 9; confirmations 2139; no entry: no retest trigger in 12 hours 592; no entry: went through the stop line first 253; triggered 1285; ungraded at end of data 1
+- flat 3.0 pips + financing: N 955 | mean -0.028R | median -1.034R | SD 1.645 | lower -0.139 | upper +0.040 | without best -0.042 | win 34.7% | max DD 57.0R
+- flat 5.1 pips + financing: N 955 | mean -0.066R | median -1.063R | SD 1.645 | lower -0.177 | upper +0.003 | without best -0.080 | win 34.7% | max DD 74.1R
+- tight stop (lowest M15 low since the touch − 15 pips, no 0.3 ATR floor): N 955 | mean -0.255R | median -1.201R | SD 2.164 | lower -0.399 | upper -0.164 | without best -0.273 | win 24.0% | max DD 254.0R; mean risk 42.8 pips; before costs N 955 | mean -0.012R | median -1.000R
+
+#### Cell HTF-1.5: **REFUTED**
+
+- N 52 | mean -0.397R | median -1.096R | SD 1.022 | lower -0.688 | upper -0.215 | without best -0.430 | win 34.6% | max DD 22.6R
+- for comparison, same levels with hourly entries: BCS-2 (R44): B −0.346R, C (hourly retest) −0.280R
+- exits: breakeven 3, stop 34, target 7, trail 8; mean risk 87.5 pips; mean spread -0.117R; mean financing -0.0000R
+- power at this N: +0.15R 0.110; smallest edge at 80% 0.494R
+- before costs: N 52 | mean -0.280R | median -1.000R
+- stops at the gap open: N 52 | mean -0.397R | median -1.096R
+- long: N 21 | mean -0.414R | median -1.112R; short: N 31 | mean -0.386R | median -1.078R
+- 2005-01 to 2008-06 (before the crisis): N 18 | mean -0.554R | median -1.131R
+- 2008-07 to 2009-06 (the crisis): N 6 | mean +0.095R | median +0.100R
+- 2009-07 to 2013-12 (after): N 28 | mean -0.402R | median -1.096R
+- by year: 2005 N 4 -1.161R; 2006 N 4 -0.622R; 2007 N 4 +0.057R; 2008 N 9 -0.178R; 2009 N 6 -0.295R; 2010 N 4 -0.484R; 2011 N 4 -0.732R; 2012 N 10 -0.176R; 2013 N 7 -0.537R
+- entry funnel: ATR warm-up or end of data 1; confirmations 317; daily trend not aligned 139; first obstacle inside the target 14; no entry: no retest trigger in 12 hours 76; no entry: went through the stop line first 28; triggered 212; ungraded at end of data 1
+- flat 3.0 pips + financing: N 54 | mean -0.338R | median -1.032R | SD 1.020 | lower -0.625 | upper -0.160 | without best -0.368 | win 33.3% | max DD 20.7R
+- flat 5.1 pips + financing: N 53 | mean -0.359R | median -1.062R | SD 1.023 | lower -0.646 | upper -0.181 | without best -0.391 | win 34.0% | max DD 21.3R
+- tight stop (lowest M15 low since the touch − 15 pips, no 0.3 ATR floor): N 54 | mean -0.435R | median -1.119R | SD 1.018 | lower -0.725 | upper -0.259 | without best -0.468 | win 40.7% | max DD 26.7R; mean risk 49.0 pips; before costs N 54 | mean -0.201R | median -1.000R
+- no partial (full size to target, breakeven at +1R): N 52 | mean -0.371R | median -1.096R
+- without the trend and obstacle filters: N 154 | mean -0.243R | median -1.077R
+
+#### Cell HTF-2.5: **REFUTED**
+
+- N 47 | mean -0.330R | median -1.092R | SD 1.086 | lower -0.652 | upper -0.128 | without best -0.376 | win 36.2% | max DD 17.5R
+- for comparison, same levels with hourly entries: BCS-2 (R44): B −0.346R, C (hourly retest) −0.280R
+- exits: breakeven 2, stop 30, target 1, trail 14; mean risk 89.0 pips; mean spread -0.117R; mean financing -0.0002R
+- power at this N: +0.15R 0.102; smallest edge at 80% 0.520R
+- before costs: N 47 | mean -0.213R | median -1.000R
+- stops at the gap open: N 47 | mean -0.330R | median -1.092R
+- long: N 20 | mean -0.353R | median -1.115R; short: N 27 | mean -0.314R | median -1.063R
+- 2005-01 to 2008-06 (before the crisis): N 17 | mean -0.516R | median -1.130R
+- 2008-07 to 2009-06 (the crisis): N 5 | mean +0.444R | median +1.108R
+- 2009-07 to 2013-12 (after): N 25 | mean -0.359R | median -1.092R
+- by year: 2005 N 4 -1.161R; 2006 N 3 -0.448R; 2007 N 4 +0.068R; 2008 N 9 -0.138R; 2009 N 5 -0.075R; 2010 N 4 -0.454R; 2011 N 2 -0.358R; 2012 N 9 -0.213R; 2013 N 7 -0.537R
+- entry funnel: ATR warm-up or end of data 1; confirmations 317; daily trend not aligned 139; first obstacle inside the target 21; no entry: no retest trigger in 12 hours 76; no entry: went through the stop line first 28; triggered 212; ungraded at end of data 1
+- flat 3.0 pips + financing: N 47 | mean -0.257R | median -1.032R | SD 1.076 | lower -0.576 | upper -0.056 | without best -0.301 | win 36.2% | max DD 14.1R
+- flat 5.1 pips + financing: N 47 | mean -0.286R | median -1.056R | SD 1.080 | lower -0.606 | upper -0.085 | without best -0.331 | win 36.2% | max DD 15.5R
+- tight stop (lowest M15 low since the touch − 15 pips, no 0.3 ATR floor): N 52 | mean -0.409R | median -1.131R | SD 1.041 | lower -0.706 | upper -0.226 | without best -0.452 | win 42.3% | max DD 24.3R; mean risk 45.0 pips; before costs N 52 | mean -0.164R | median -1.000R
+- no partial (full size to target, breakeven at +1R): N 47 | mean -0.268R | median -1.092R
+- without the trend and obstacle filters: N 154 | mean -0.233R | median -1.077R
+
+
+## 2026-11-15 — CORRECTION to the BCS-3 RESULT entry above: the finding id is R46, not R45
+
+The BCS-3 RESULT entry (and its commit message 5bbc037) says "Recorded as R45".
+- **R45 was already taken** by the gold breakout study (commit a5d3558, merged to main from another session before this branch was cut).
+- The BCS-3 row is recorded as **R46** in `foundation/research_findings.md`.
+- The skill, README and capability-inventory counts are 46.
+
+**Caught by:** the doc-update script's exact-match assertion, which failed when it found "45" where it expected "44". Before writing, I checked the row numbering by grep (two R45 rows) and the main branch log. Nothing in the result changes.

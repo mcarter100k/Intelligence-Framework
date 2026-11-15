@@ -55,6 +55,10 @@ timeframes disagree; a hand read should at least name the conflict.
   when the next level lay beyond a 1.5R or 2.5R target, lost −0.28 to −0.35R
   after costs on 2005–2013 GBP/AUD (R44). Zones still tell you where; they
   have not yet told anyone when to enter.
+- **A 15-minute entry did not rescue the breakout.** Timing the same entries
+  on the 15-minute chart (touch the level, then a candle closing back beyond
+  it) lost about the same as hourly entries, and a tight stop under the
+  15-minute low lost more: −0.26R, with three trades in four stopped (R46).
 - **The last higher low is not a safe floor.** The first counter-trend move
   went beyond the last higher low (or lower high) in 40% of daily trend legs
   (R21). Deep bounces breach it more often, largely by construction (R22).
