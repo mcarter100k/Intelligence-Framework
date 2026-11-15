@@ -78,6 +78,51 @@ Status key: **HAVE** (live), **MANUAL** (exists, by hand), **PARTIAL**,
 | Long-history research archive | HAVE (2026-11-05) | `studies/research_archive.py`: daily, 4-hour and hourly GBP/AUD and GBP/JPY for 2005–2013 (STUDY), 2021-04 → 2026-09 (USED) and 2026-09-11 → build date (FORWARD), each bar labelled by span, hash-pinned, consistency-verified (`studies/research_archive_report.md`). The 2014–2021 sealed exam stays out (data_map_spec §11.6). Research only; none of it is proof |
 | A proven edge | MISSING | Still none after FCS-1 (2026-11-04) |
 
+## Gold (XAU/USD): practice chart (section added 2026-11-14)
+
+**Gold is not tradeable on the OANDA account** (instruments probe,
+validation_log 2026-11-05); the candles endpoint serves it, so it is a
+paper and markup chart only. Prices are in **US dollars**, not pips. Nothing
+from the GBP findings (R1–R42) transfers to gold until it is measured on
+gold. The plan for closing these gaps is `docs/gold_plan.md` (a proposal;
+its team rulings are open).
+
+**How gold behaves**
+
+| Area | Status | What we have / what's missing |
+|---|---|---|
+| Price history | PARTIAL | 2006-03-21 → 2013 (STUDY) and 2021-04 → 2026-09 (USED), fetched and validated 2026-11-05 (`studies/leg_data_report.md`, validation_log 2026-11-05). STUDY gold has answered one weekly-correlation question only (G1). **2014–2021 has never been fetched for gold**; gold is outside the data map's partition, so whether that span becomes gold's sealed exam is an open team ruling |
+| Sessions and time of day | TESTED, descriptive (2026-11-10) | `studies/gold_session_report.md`, USED span: busiest 4–7 AM PST (5 AM peak), second bump 5 PM PST; the 4–8 AM overlap carries a median 67% of the day's range; by 7 AM PST the day's high is set on 67% of days and the low on 73%. Learning only |
+| Typical move size | MANUAL | Daily ≈ $75 (2026-11-10 probe in the session report); the owner's markup notes use ≈ $90 daily, $34 4-hour, $15 hourly (2026-11-14, not re-measured here). No era-comparable measure yet (dollar ranges mix $550 and $4,000 gold; a percent-of-price figure would not) |
+| Breakouts holding | MISSING | The GBP/AUD figure (71% failed within 3 days, R24) does not transfer |
+| Pullback depth | MISSING | R39's 38.2% / 50% shares are GBP-only |
+| Reaction to US releases (CPI, jobs, Fed) | MISSING | The owner's notes say US news moves gold most; unmeasured. R35/R36 are GBP-only. 2005–2013 event dates exist (`~/intel_study_archives/us_events_2005_2013`) |
+| Falls vs rallies (does gold drop differently from how it climbs?) | MISSING | Matters for trading both directions; 2006–2013 holds both a long climb and the 2011–2013 fall |
+| Weekend gaps and the daily 5–6 PM New York break | PARTIAL | The break is pinned in the session study; gap size and how often a gap jumps a typical stop are unmeasured |
+
+**What moves gold** (all INFORMED PRIOR; none tested by us)
+
+| Area | Status | What we have / what's missing |
+|---|---|---|
+| US real interest rates | MISSING | Widely reported as the main driver, with a reported break in 2022–2024. A free public series exists (FRED); not fetched |
+| US dollar | PARTIAL | USD pairs are on the account with history; no gold-vs-dollar measure. Weekly gold correlation with the GBP crosses: −0.14 / −0.23 (GBP/AUD), +0.06 / −0.01 (GBP/JPY), 2005–2013 / 2021–2026 (G1, descriptive) |
+| Fed expectations | MISSING | |
+| Central-bank and ETF buying | MISSING | Slow, monthly; context for the monthly and weekly read only |
+| Positioning (futures traders) | MISSING | Weekly public report (CFTC); not fetched |
+| A written gold macro read | MISSING | No gold line in `storylines.md` |
+
+**Trading it**
+
+| Area | Status | What we have / what's missing |
+|---|---|---|
+| A venue | MISSING | No account that can trade gold. Contract sizes, costs and hours depend on the venue the owner picks |
+| Spread, slippage, financing | MISSING | Mid-price candles only. A futures venue would also mean a futures chart, which sits apart from the spot chart by the carry |
+| Position size against the account | MISSING | The stop rule (0.3–1.5 daily ATR ≈ $27–$135 at $90 a day) on a 10-ounce contract is $270–$1,350 at risk per contract (arithmetic, not checked against any venue) |
+| Hand markup tools | PARTIAL | `studies/markup_swings.py` finds the swings, but its pip scale is FX-only: gold prints wrong ATR units |
+| Idea log | MISSING for gold | `scripts/trader_review.py` accepts GBP_AUD and GBP_JPY only, with pip-based spread |
+| Weekly markup and Friday scoring | MANUAL (first week W47, 2026-11-16) | `markups/README.md`; its widths and examples are GBP/AUD's. The gold equivalents (zones ≤ ≈ $45, "held" = ≈ $45 away) live in the owner's notes only |
+| A proven gold edge | MISSING | No rule has been tested on gold, in either direction |
+
 ## What would sharpen us most, in order
 
 These are recommendations, not approved work. Changes to protected modules
