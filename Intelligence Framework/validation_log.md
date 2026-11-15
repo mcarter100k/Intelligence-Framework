@@ -7361,3 +7361,84 @@ The BCS-3 RESULT entry (and its commit message 5bbc037) says "Recorded as R45".
 - The skill, README and capability-inventory counts are 46.
 
 **Caught by:** the doc-update script's exact-match assertion, which failed when it found "45" where it expected "44". Before writing, I checked the row numbering by grep (two R45 rows) and the main branch log. Nothing in the result changes.
+
+## 2026-11-15 — ALERTS: only when the market is open and worth acting on (free zone, owner-approved; branch `feat/alert-importance`)
+
+**What:** the owner reported alerts arriving while the market is closed, and asked that alerts come only "when it's important" and that the noise be removed.
+- Spec: `docs/specs/alert_importance_spec.md` (commit 10ffff9 at 01:45:37 PST, before any code). Build: 8389b49.
+- Supersedes `shadow_digest_only_spec.md` (PROPOSED 2026-11-05, owner decision "Digest only", never built).
+- Reverses, openly: the regime-change routing of `alert_expansion_spec.md` (team approved 2026-07-31), and Phase 0's leaving ALERT / SHADOW / DIGEST ungated when closed.
+- This also answers the open question logged at the 2026-09-09 alert clearance ("alert materiality/debounce"): those first fires were already the H4 RANGING↔VOLATILE flap.
+- **No protected module edited, no floor test touched** (`git diff` on decision_brief, session_memory, official_decision, regime_detection, shadow_signals, no_trade_filter and the floor tests: 0 files).
+
+**Measured before the change (2026-11-15, real files):**
+1. **"BRIEF UNHEALTHY — STALE: trade_signal_log.csv", 8 consecutive runs.** The framework stood aside in every open-market run since 2026-10-13. All 6 LONG lines since then came in closed-market runs, which log nothing by design.
+2. **5 GBP/JPY "regime changed" alerts in 5 days** while only the 4-hour label flickered. Composite RANGING and STAND ASIDE all week.
+3. **One MOMENTUM_JOIN ledger row notified 4 times** over a closed weekend.
+4. **Two runs at 07:41:07** (launchd catch-up) gave a duplicate alert.
+5. **Garbled SHADOW text mixing two candidates.**
+6. **Weekend DIGESTs** saying only "MARKET CLOSED".
+
+**Changes:** N1–N7 per the spec; the build amendments are in spec §7:
+- a flip and a decision change share one ALERT;
+- N7 counts only rows with a `logic_version`;
+- `unchecked:` when the regime log is missing;
+- a crashing freshness check now fails the run (it printed nothing, which read as healthy);
+- the lock test checks run windows;
+- a new `REVIEW` subtitle.
+
+**Tests:**
+- Full suite **1217 passed**, 10 skipped, 3 deselected, 16 xfailed.
+- New: `tests/test_alert_state.py` (20). Added to the wrapper (76, executed under `/bin/bash` 3.2), freshness, live-path and digest tests.
+- **Old → new, each marked in its docstring with the date:**
+  - wrapper: g4, g6, g8, g12; shadow routing; the flip test; the closed-digest ledger row; the grader tally;
+  - freshness: the cadence pin; D6/F6 moved to `shadow_signal_log` (protection unchanged);
+  - live-path: the read-side list and "watched".
+
+**Mutation run: 17 of 17 killed.**
+- Mutants:
+  - closed digest sent; closed flip sent; regime-change line allowed; SHADOW restored; candidate grep restored;
+  - re-notify every run; withdrawal silent; run lock removed; gate sent while closed;
+  - N7 never fails; N7 counts unversioned rows; a crashing check reads healthy; missing regime log reads clear;
+  - clause cuts the digest; clause ignores exclusions; broken state helper drops the decision; silent grader-gate failure.
+- All five sources byte-identical afterwards; clean re-run green.
+
+**Positive controls on real ledgers (read-only):**
+- N7 agreement:
+  - as of 2026-10-10: "all 3 trade calls … have their row";
+  - as of 2026-10-14: "all 9";
+  - now: no trade call in the last 720h.
+- Before the logic_version restriction, as of 10-14 it reported 22 of 34 missing. 12 of those were the known dead-writer days (2026-09-14/16, before the 09-16 repair); 10 were pre-09-30 STAND ASIDE decisions. That led to amendment 2.
+- A first build counted rows later than "now". This was caught at the as-of-Oct-2 control and fixed.
+
+**REALITY GATE 1 — replay of real runs.** Stdout and `##ALERT##` stderr were cut from the live day logs and fed through `main`'s wrapper and the branch's, each in a throwaway project with copies of the real ledgers and health state. The live project was unchanged by a hash of every file.
+
+| Real run | Old wrapper sent | New wrapper sent |
+|---|---|---|
+| Sun 11-08 07:30 digest (closed) | DIGEST "MARKET CLOSED until Sun 2:00 PM PST — no live calls…" | nothing market ("DIGEST not sent: market closed") |
+| Fri 11-13 18:00 (closed) | SHADOW "is watching the EARLY_MOMENTUM_v2 candidate: · MOMENTUM_JOIN SHORT @ 211.026…" | nothing market |
+| Sat 11-14 18:00 (closed) | SHADOW "is watching the MOMENTUM_JOIN candidate: SHORT · MOMENTUM_JOIN SHORT @ 211.026…" | nothing market |
+| Mon 11-09 02:44 (open, 4-hour flicker) | ALERT "GBP/JPY: the market regime changed since the last run." | nothing market |
+| Thu 11-12 07:34 digest (open) | ALERT "regime changed" + DIGEST | DIGEST only |
+| Oct 12–13: GBP/JPY SHORT × 5 open runs, then STAND ASIDE (10-13 18:00 PDT) | 5 DECISIONs (2 with "EARLY_MOMENTUM_v2 candidate: LONG entered at" appended); nothing on the withdrawal | DECISION "GBP/JPY SHORT", then "GBP/JPY back to stand aside — the SHORT idea is withdrawn" |
+
+- **One RECOVERED per new-side scenario is expected.** Each sandbox started from the real health state (8 failures), and the new freshness check passes on the real ledgers.
+- **One replay was discarded.** The Sat 11-14 07:41 digest run was cut empty: the two catch-up runs interleaved in the log. That's a cutter artifact, which is why the Sun 11-08 digest replaced it.
+
+**REALITY GATE 2 — live run.**
+- **Setup:** Sun 02:05 PST, market closed. A full copy of the project with the branch's scripts, the real venv and real OANDA; notifier stubbed, HOME fake.
+- **Brief:** the real brief rendered both pairs closed and carried a shadow block (logged "SHADOW not sent (digest only)"). The only notification was `RECOVERED: brief healthy again after 8 failed runs` (system).
+- **Digest run:** 0 notifications; "DIGEST not sent: market closed".
+- **Grader:** completed; the gate check raised no error. Its real inputs: market open = False; graded episodes EARLY_MOMENTUM 1, EARLY_MOMENTUM_v2 5, THRUST_PULLBACK 2, MOMENTUM_JOIN 2. No gate is due even when the market is open.
+- Live project UNCHANGED by hash before and after.
+
+**For team review (protected; spec §4 P1, not built):**
+- `session_memory._get_today_rows` compares runs within the same UTC date, which ends at 4 PM PST. So the 6 PM run never compares, and a filter flip or exit-watch between the 07:30 and 18:00 runs is never alerted (Tue 11-10 and Wed 11-11 18:00 flips sent nothing).
+- `regime_changed`'s docstring says "composite" while the code tests the daily or 4-hour label.
+
+**Gate 3 — PENDING LIVE CONFIRMATION (after merge):**
+- [ ] The first evening run after merge sends one RECOVERED and no further "BRIEF UNHEALTHY — STALE: trade_signal_log".
+- [ ] The next closed weekend (Fri 2026-11-20 2 PM PT → Sun 11-22 2 PM PT) sends no market notification: no DIGEST, SHADOW, flip ALERT or DECISION in `notification_log.csv`.
+- [ ] The next weekday 07:30 run sends a DIGEST, with a shadow clause if the ledger has fires since the previous DIGEST.
+- [ ] The first real open-market LONG/SHORT sends one DECISION, an unchanged repeat sends none, and its withdrawal sends one.
+- [ ] The first launchd catch-up pair after a sleep logs its second run starting after the first ends, with one set of notifications.

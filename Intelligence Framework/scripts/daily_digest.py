@@ -14,11 +14,27 @@ The clause always names its pair and comes from that pair's own section
 (docs/specs/digest_watch_attribution_spec.md): a pair with a call first,
 then a concrete pending-pivot sentence ("confirms as a swing ..."), then
 the first pair's; a failed run digests as "run failed — see the log".
+
+Shadow signals (docs/specs/alert_importance_spec.md N3) never notify on their
+own. When the shadow ledger has rows newer than the previous DIGEST, the line
+ends with "· shadow (not traded): <candidate> <pair> <dir> <entry> (+N more)",
+read from shadow_signal_log.csv, never from brief text. The clause is last and
+the clause only fills up to MAX_LINE: a long line loses the clause, never its
+own words.
 """
 from __future__ import annotations
 
+import csv
+import os
 import re
 import sys
+from datetime import datetime
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.append(_ROOT)          # exclusions; appended so scripts/ wins
+
+MAX_LINE = 300
 
 
 # Every pattern is anchored to a LABEL line (0-2 leading spaces): wrapped
@@ -108,6 +124,45 @@ def build_digest(text: str) -> str:
         return "digest unavailable — see the log"
 
 
+def _ts(s: str):
+    return datetime.fromisoformat(s.strip().replace("Z", "+00:00"))
+
+
+def shadow_clause(proj: str = ".") -> str:
+    """Shadow fires since the previous DIGEST notification, or ""."""
+    try:
+        nl = os.path.join(proj, "notification_log.csv")
+        if not os.path.exists(nl):
+            return ""
+        with open(nl, newline="", encoding="utf-8") as f:
+            digests = [_ts(r["timestamp_utc"]) for r in csv.DictReader(f)
+                       if r.get("category") == "DIGEST"]
+        if not digests:
+            return ""
+        since = max(digests)
+        sl = os.path.join(proj, "shadow_signal_log.csv")
+        if not os.path.exists(sl):
+            return ""
+        with open(sl, newline="", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        from exclusions import filter_rows
+        new = [r for r in filter_rows(rows, "shadow_signal_log.csv") if _ts(r["timestamp"]) > since]
+        if not new:
+            return ""
+        r = max(new, key=lambda x: _ts(x["timestamp"]))
+        more = f" (+{len(new) - 1} more)" if len(new) > 1 else ""
+        return (f"shadow (not traded): {r['candidate_id']} "
+                f"{r['instrument'].replace('_', '/')} {r['direction']} {r['entry']}{more}")
+    except Exception:
+        return "shadow: unreadable — see the log"
+
+
+def with_shadow(line: str, clause: str) -> str:
+    """The digest line, unchanged, plus the clause only as far as MAX_LINE."""
+    room = MAX_LINE - len(line) - 3
+    return f"{line} · {clause[:room]}" if clause and room > 0 else line
+
+
 if __name__ == "__main__":
-    print(build_digest(sys.stdin.read()))
+    print(with_shadow(build_digest(sys.stdin.read()), shadow_clause(".")))
     sys.exit(0)

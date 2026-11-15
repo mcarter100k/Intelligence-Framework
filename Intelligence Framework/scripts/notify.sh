@@ -3,7 +3,9 @@
 #
 #   notify <SUBTITLE> <MESSAGE> <LOG-RELPATH> [PAIRS] [DECISION-STATE] [RECORD-LOG]
 #
-# SUBTITLE is the category (ALERT / RECOVERED / SHADOW / DECISION / DIGEST / HEARTBEAT).
+# SUBTITLE is the category (ALERT / RECOVERED / DECISION / DIGEST / HEARTBEAT /
+# REVIEW). SHADOW was retired 2026-11-15: shadow signals go to the digest
+# (docs/specs/alert_importance_spec.md).
 # Every notification actually sent (the send command exited 0) is recorded
 # in notification_log.csv with PAIRS and DECISION-STATE
 # (docs/specs/notification_ledger_spec.md). A failed ledger write is

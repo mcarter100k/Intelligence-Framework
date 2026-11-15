@@ -80,21 +80,18 @@ if [ -n "$HEALTH" ]; then
     notify "$HCAT" "$(printf '%s' "$HEALTH" | sed 's/^ALERT://')" "$LOG"
 fi
 
-# Notify only if a shadow-signal outcome was graded this run.
-if printf '%s\n' "$OUT" | grep -q 'shadow-signal outcomes filled'; then
-    TALLY="$(python3 - <<'PY'
-from shadow_signals import get_shadow_tally
-parts = []
-for c in ("EARLY_MOMENTUM", "EARLY_MOMENTUM_v2", "THRUST_PULLBACK", "MOMENTUM_JOIN"):
-    t = get_shadow_tally(c)
-    if t["graded"] > 0:
-        rs = t["episode_rs"]
-        avg = f" avg {sum(rs) / len(rs):+.2f}R" if rs else ""
-        parts.append(f"{c}: {t['episodes']}ep{avg} ({t['graded']} rows)")
-print(" | ".join(parts) if parts else "shadow outcomes graded")
-PY
-)"
-    notify "SHADOW" "$(printf '%s' "$TALLY" | cut -c1-200)" "$LOG"
+# Review gates, not nightly tallies (docs/specs/alert_importance_spec.md N4).
+# The old "shadow graded" ping fired on every grading and could not be acted
+# on. Now one notification when a candidate first reaches 20 (futility
+# checkpoint), 30 (flag) or 60 (decision) graded episodes, only while the
+# market is open; a gate reached while closed is announced at the next open
+# run. Checked every run, graded or not. A failing helper is logged loudly.
+if [ -n "$BACKUP_OK" ] && [ -z "$CRASH" ]; then
+    GATE_OUT="$(python3 scripts/alert_state.py gates 2>>"$LOG")"
+    [ $? -ne 0 ] && echo "ALERT STATE FAILED — review gates not checked this run" >> "$LOG"
+    if [ -n "$GATE_OUT" ]; then
+        notify "REVIEW" "$(printf '%s\n' "$GATE_OUT" | paste -sd '|' - | sed 's/|/ · /g' | cut -c1-200)" "$LOG"
+    fi
 fi
 
 exit 0

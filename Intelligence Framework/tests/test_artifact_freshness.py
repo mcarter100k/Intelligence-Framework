@@ -23,14 +23,11 @@ def test_cadence_table_pinned():
         ("calendar.csv",                 192),
         ("storylines.md",                216),
         ("shadow_signal_log.csv",        504),
-        # Added 2026-09-16, evidence_loop_repair_spec.md Part 1: the ledger
-        # sat at 2 lines from 2026-06-28 while run_outcome_check graded it
-        # nightly, unwatched. 720h is generous on purpose — a directional
-        # decision is NOT a daily event and an honest run of STAND ASIDE
-        # days must not raise a health failure. trade_log.csv is NOT here:
-        # it is frozen historical evidence, inventoried under
-        # READ_SIDE_NO_CADENCE instead (see that table's reason).
-        ("trade_signal_log.csv",         720),
+        # Old -> new 2026-11-15 (alert_importance_spec N7): trade_signal_log.csv
+        # had a 720h cadence here from 2026-09-16. With operating data it
+        # failed every run from 2026-11-12 during an honest stand-aside month.
+        # It is now watched by agreement_lines() (tests below). trade_log.csv
+        # is frozen historical evidence under READ_SIDE_NO_CADENCE.
     ]
 
 
@@ -113,12 +110,14 @@ def _ledger(path, row_age_hours, now, mtime_age_hours=0):
 
 
 def test_a_grader_rewrite_cannot_hide_a_dead_writer(tmp_path):
-    """D6: newest row 2000h old, file rewritten just now by a grader."""
+    """D6: newest row 2000h old, file rewritten just now by a grader.
+    (Ledger changed from trade_signal_log to shadow_signal_log 2026-11-15:
+    the former left CADENCES; the protection is unchanged.)"""
     now = time.time()
-    _ledger(os.path.join(str(tmp_path), "trade_signal_log.csv"), 2000, now,
+    _ledger(os.path.join(str(tmp_path), "shadow_signal_log.csv"), 2000, now,
             mtime_age_hours=0)
     line = [ln for ln in af.check(now=now, proj=str(tmp_path))
-            if "trade_signal_log" in ln][0]
+            if "shadow_signal_log" in ln][0]
     assert line.startswith("STALE:") and "newest row" in line
 
 
@@ -138,11 +137,11 @@ def test_f6_a_ledger_with_no_timestamped_rows_is_stale_not_file_time(tmp_path):
     """Review F6: falling back to mtime let a grader rewrite of a header-only
     ledger read as fresh, the hole D6 closed."""
     now = time.time()
-    p = os.path.join(str(tmp_path), "trade_signal_log.csv")
+    p = os.path.join(str(tmp_path), "shadow_signal_log.csv")   # was trade_signal_log (2026-11-15)
     with open(p, "w") as f:
         f.write("timestamp,x\n")                  # header only, mtime = now
     line = [ln for ln in af.check(now=now, proj=str(tmp_path))
-            if "trade_signal" in ln][0]
+            if "shadow_signal" in ln][0]
     assert line.startswith("STALE:") and "no timestamped rows" in line
 
 
@@ -161,3 +160,87 @@ def test_a_due_human_file_never_renders_stale(tmp_path):
     lines = af.check(now=now, proj=str(tmp_path))
     story = [ln for ln in lines if "storylines.md" in ln][0]
     assert story.startswith("DUE:") and not story.startswith("STALE:")
+
+
+# ── N7: the trade-signal writer is checked by agreement (alert_importance_spec) ──
+
+def _iso(epoch):
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(epoch))
+
+
+def _regime(path, rows):
+    with open(path, "w") as f:
+        f.write("timestamp,instrument,stand_down,logic_version\n")
+        for t, inst, sd, ver in rows:
+            f.write(f"{_iso(t)},{inst},{sd},{ver}\n")
+
+
+def _trades(path, rows):
+    with open(path, "w") as f:
+        f.write("signal_id,timestamp,instrument\n")
+        for t, inst in rows:
+            f.write(f"x,{_iso(t)},{inst}\n")
+
+
+def test_n7_a_trade_call_with_its_row_agrees(tmp_path):
+    now = time.time()
+    _regime(tmp_path / "regime_classification_log.csv",
+            [(now - 3600, "GBP_JPY", "False", "p5-2026-09-30"),
+             (now - 7200, "GBP_JPY", "True", "p5-2026-09-30")])
+    _trades(tmp_path / "trade_signal_log.csv", [(now - 3600 + 5, "GBP_JPY")])
+    assert af.agreement_lines(now=now, proj=str(tmp_path)) == [
+        "agree: trade_signal_log.csv — all 1 trade calls in the last 720h have their row"]
+
+
+def test_n7_a_trade_call_without_its_row_is_stale(tmp_path):
+    """Positive control: the dead writer this check exists for."""
+    now = time.time()
+    _regime(tmp_path / "regime_classification_log.csv",
+            [(now - 3600, "GBP_JPY", "False", "p5-2026-09-30")])
+    _trades(tmp_path / "trade_signal_log.csv", [(now - 3600 + 1200, "GBP_JPY"),   # 20 min off
+                                                (now - 3600, "GBP_AUD")])          # wrong pair
+    line = af.agreement_lines(now=now, proj=str(tmp_path))[0]
+    assert line.startswith("STALE: trade_signal_log.csv — 1 of 1 trade calls")
+
+
+def test_n7_a_quiet_stand_aside_month_is_not_stale(tmp_path):
+    now = time.time()
+    _regime(tmp_path / "regime_classification_log.csv",
+            [(now - h * 3600, "GBP_JPY", "True", "p5-2026-09-30") for h in range(1, 700, 8)])
+    _trades(tmp_path / "trade_signal_log.csv", [(now - 900 * 3600, "GBP_JPY")])
+    line = af.agreement_lines(now=now, proj=str(tmp_path))[0]
+    assert line.startswith("agree:") and "no open-market trade call" in line
+
+
+def test_n7_rows_before_the_logic_version_are_not_counted(tmp_path):
+    """Before 2026-09-30 the filter could allow while the decision stood
+    aside (10 real such rows in late September have no trade row)."""
+    now = time.time()
+    _regime(tmp_path / "regime_classification_log.csv",
+            [(now - 3600, "GBP_JPY", "False", "")])
+    _trades(tmp_path / "trade_signal_log.csv", [])
+    assert af.agreement_lines(now=now, proj=str(tmp_path))[0].startswith("agree:")
+
+
+def test_n7_rows_outside_the_window_are_not_counted(tmp_path):
+    now = time.time()
+    _regime(tmp_path / "regime_classification_log.csv",
+            [(now - 800 * 3600, "GBP_JPY", "False", "p5-2026-09-30"),   # too old
+             (now + 3600, "GBP_JPY", "False", "p5-2026-09-30")])        # in the future
+    _trades(tmp_path / "trade_signal_log.csv", [])
+    assert af.agreement_lines(now=now, proj=str(tmp_path))[0].startswith("agree:")
+
+
+def test_n7_a_missing_regime_log_is_never_an_all_clear(tmp_path):
+    line = af.agreement_lines(now=time.time(), proj=str(tmp_path))[0]
+    assert line.startswith("unchecked:") and "missing" in line
+
+
+def test_n7_a_crashing_check_fails_the_run(monkeypatch, capsys):
+    """It used to print nothing, which the wrapper read as healthy."""
+    def boom(*a, **k):
+        raise RuntimeError("disk gone")
+    monkeypatch.setattr(af, "check", boom)
+    assert af.main(["x", "check"]) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("STALE: artifact_freshness — the check itself failed (RuntimeError: disk gone)")

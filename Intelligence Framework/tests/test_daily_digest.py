@@ -322,3 +322,61 @@ def test_a_watch_never_appears_without_a_pair_name():
     for fx in ("brief_2026-10-12_digest_run.txt", "brief_2026-10-17_digest_run.txt"):
         line = dd.build_digest(_fixture(fx))
         assert re.search(r" — GBP/(AUD|JPY) (watch|exit if): ", line), line
+
+
+# ── shadow clause (docs/specs/alert_importance_spec.md N3) ──────────────────────
+
+def _nl(tmp_path, *digest_times):
+    (tmp_path / "notification_log.csv").write_text(
+        "timestamp_utc,category,pairs,decision_state,summary\n"
+        + "".join(f"{t},DIGEST,GBP_AUD,x,y\n" for t in digest_times)
+        + "2026-11-14T01:00:00Z,SHADOW,GBP_JPY,x,y\n")
+
+
+def _sl(tmp_path, rows):
+    (tmp_path / "shadow_signal_log.csv").write_text(
+        "candidate_id,timestamp,instrument,direction,entry\n"
+        + "".join(",".join(r) + "\n" for r in rows))
+
+
+def test_shadow_clause_names_the_newest_fire_since_the_last_digest(tmp_path, monkeypatch):
+    import exclusions
+    monkeypatch.setattr(exclusions, "filter_rows", lambda rows, name: rows)
+    _nl(tmp_path, "2026-11-12T15:30:00Z", "2026-11-13T15:30:00Z")
+    _sl(tmp_path, [("EARLY_MOMENTUM_v2", "2026-11-13T09:00:00Z", "GBP_JPY", "SHORT", "212.1"),
+                   ("THRUST_PULLBACK", "2026-11-13T17:00:00Z", "GBP_AUD", "LONG", "1.9401"),
+                   ("MOMENTUM_JOIN", "2026-11-13T18:00:00Z", "GBP_JPY", "SHORT", "211.026")])
+    assert dd.shadow_clause(str(tmp_path)) == (
+        "shadow (not traded): MOMENTUM_JOIN GBP/JPY SHORT 211.026 (+1 more)")
+
+
+def test_shadow_clause_leaves_out_excluded_rows(tmp_path, monkeypatch):
+    import exclusions
+    monkeypatch.setattr(exclusions, "filter_rows",
+                        lambda rows, name: [r for r in rows if r["candidate_id"] != "MOMENTUM_JOIN"])
+    _nl(tmp_path, "2026-11-13T15:30:00Z")
+    _sl(tmp_path, [("MOMENTUM_JOIN", "2026-11-13T18:00:00Z", "GBP_JPY", "SHORT", "211.026")])
+    assert dd.shadow_clause(str(tmp_path)) == ""
+
+
+def test_no_previous_digest_no_clause(tmp_path):
+    _nl(tmp_path)
+    _sl(tmp_path, [("MOMENTUM_JOIN", "2026-11-13T18:00:00Z", "GBP_JPY", "SHORT", "211.026")])
+    assert dd.shadow_clause(str(tmp_path)) == ""
+
+
+def test_an_unreadable_shadow_ledger_says_so(tmp_path, monkeypatch):
+    import exclusions
+    monkeypatch.setattr(exclusions, "filter_rows", lambda rows, name: rows)
+    _nl(tmp_path, "2026-11-13T15:30:00Z")
+    _sl(tmp_path, [("MOMENTUM_JOIN", "not-a-time", "GBP_JPY", "SHORT", "211.026")])
+    assert dd.shadow_clause(str(tmp_path)) == "shadow: unreadable — see the log"
+
+
+def test_the_clause_never_cuts_the_digest_itself():
+    base = "x" * 290
+    got = dd.with_shadow(base, "shadow (not traded): A B C D")
+    assert got == base + " · shadow " and len(got) == dd.MAX_LINE
+    long = "y" * 350
+    assert dd.with_shadow(long, "shadow (not traded): A") == long       # unchanged, no clause
+    assert dd.with_shadow("short", "") == "short"

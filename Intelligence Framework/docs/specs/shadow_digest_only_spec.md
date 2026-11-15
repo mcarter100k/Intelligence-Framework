@@ -1,6 +1,8 @@
 # Spec: shadow signals go to the daily digest, not their own notification
 
 **Status:** PROPOSED 2026-11-05, awaiting team review. Not built.
+**SUPERSEDED 2026-11-15** by `docs/specs/alert_importance_spec.md` (N3, N4),
+which adopts this design with the shadow clause read from the ledger.
 **Scope:** `scripts/scheduled_brief.sh`, `scripts/scheduled_outcome_check.sh`,
 `scripts/daily_digest.py` (free zone, but a notification path: rule 12).
 **Owner decision, 2026-11-05:** shadow signals no longer notify on their own;

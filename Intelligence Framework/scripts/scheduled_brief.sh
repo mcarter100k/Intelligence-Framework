@@ -6,9 +6,11 @@
 # logs it, then checks ledger freshness. A crash, an error brief, a shadow
 # candidate error or a STALE ledger counts as a failed run.
 # Notifies on: health failure/recovery and the live-branch guard; then one of
-# ALERT (a watched condition flipped) > DECISION (open-market LONG/SHORT, named
-# by pair) > SHADOW (a candidate fired); plus the 07:30 DIGEST (only the
-# brief-ny plist passes "digest"; it also rewrites logs/latest_brief.log).
+# ALERT (an open pair's flip you can act on, plus any decision change) >
+# DECISION (an open pair's decision CHANGED: new, reversed or withdrawn); plus
+# the 07:30 DIGEST when a pair is open (only the brief-ny plist passes
+# "digest"; it also rewrites logs/latest_brief.log). Shadow signals never
+# notify: they go to the digest (docs/specs/alert_importance_spec.md).
 # Always exits 0 so launchd never enters an error state.
 
 # INTEL_PROJ exists for the behavioral tests only; launchd sets nothing,
@@ -36,6 +38,25 @@ LOG="logs/brief_${DATE}.log"
 . "$PROJ/scripts/live_guard.sh"
 live_guard "$LOG"
 . "$PROJ/scripts/crash.sh"
+
+# One brief run at a time (alert_importance_spec N6). launchd runs a missed job
+# and the next one together on wake (two runs at 07:41:07 on 2026-11-14); the
+# second waits here, then reads the first run's alert state instead of
+# repeating its notifications. A lock older than 30 minutes is stale.
+BRIEF_LOCK="logs/.brief.lock"; HAVE_LOCK=""; WAITED=0
+while :; do
+    if mkdir "$BRIEF_LOCK" 2>/dev/null; then HAVE_LOCK=1; break; fi
+    if [ -n "$(find "$BRIEF_LOCK" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+        rmdir "$BRIEF_LOCK" 2>/dev/null && echo "stale brief lock taken over" >> "$LOG"
+        continue
+    fi
+    if [ "$WAITED" -ge "${INTEL_LOCK_WAIT_SECS:-600}" ]; then
+        echo "brief lock still held after ${WAITED}s — running without it" >> "$LOG"
+        break
+    fi
+    sleep 2; WAITED=$((WAITED + 2))
+done
+[ -n "$HAVE_LOCK" ] && trap 'rmdir "$BRIEF_LOCK" 2>/dev/null' EXIT
 
 # News-calendar refresh: when calendar.csv is missing or older than 24h, run
 # the AUTO-FETCHER before the brief (docs/specs/calendar_autofetch_spec.md —
@@ -155,34 +176,54 @@ DSTATE="$(printf '%s\n' "$OUT" | awk -v m="$CLOSED_MARKER" '
     END { emit() }' | paste -sd ';' -)"
 PAIRS="$(printf '%s' "$DSTATE" | tr ';' '\n' | cut -d= -f1 | paste -sd ' ' -)"
 
-# Notify if: a real decision (non STAND ASIDE), a shadow signal, OR a flip.
-# Category priority mirrors the old summary preference: flips first, then the
-# decision, then shadow (docs/specs/notify_click_through_spec.md).
-CATEGORY=""
-if printf '%s\n' "$OUT" | grep -Eq "$RE_SHADOW"; then CATEGORY="SHADOW"; fi
-if printf '%s\n' "$OUT_GATED" | grep -E "$RE_DECISION" | grep -qv 'STAND ASIDE'; then CATEGORY="DECISION"; fi
-if [ -n "$ALERTS" ]; then CATEGORY="ALERT"; fi
+# What reaches the owner (docs/specs/alert_importance_spec.md).
+# N1 + N2: a pair's flip line ("GBP/AUD: ...") notifies only when that pair is
+# open AND it says what the framework now allows, or that an exit-watch fired.
+# A bare "the market regime changed" (5 GBP/JPY alerts in 5 days while only
+# the 4-hour label flickered) stays in the day log. Lines without a pair
+# prefix are system lines (exclusion registry, candidate error): always sent.
+OPEN_PAIRS="$(printf '%s' "$DSTATE" | tr ';' '\n' | grep '/open$' | cut -d= -f1 | tr '_' '/' | paste -sd ' ' -)"
+SEND_ALERTS=""
+if [ -n "$ALERTS" ]; then
+    SEND_ALERTS="$(printf '%s\n' "$ALERTS" | awk -v open=" $OPEN_PAIRS " '
+        /^[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z][: ]/ {
+            if (index(open, " " substr($0, 1, 7) " ") &&
+                $0 ~ /the framework now allows a trade|the framework has stood down|exit-watch fired/) print
+            next }
+        { print }')"
+    printf '%s\n' "$ALERTS" | while IFS= read -r a; do
+        printf '%s\n' "$SEND_ALERTS" | grep -qxF -- "$a" \
+            || echo "ALERT not sent (market closed or nothing to act on): $a" >> "$LOG"
+    done
+fi
 
+# N5: a decision notifies when it CHANGES (new, reversed, withdrawn), never on
+# every run. A failing state helper falls back to the old behavior, loudly.
+DECISIONS="$(python3 scripts/alert_state.py decisions "$DSTATE" 2>>"$LOG")"
+if [ $? -ne 0 ]; then
+    echo "ALERT STATE FAILED — notifying every open-market decision this run" >> "$LOG"
+    DECISIONS="$(printf '%s\n' "$OUT_GATED" | awk '
+            /^ ? ?[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { pair = $1 }
+            /^ ? ?DECISION +(LONG|SHORT)/ {
+                d = ($0 ~ /DECISION +LONG/) ? "LONG" : "SHORT"
+                print (pair != "" ? pair " " : "") d }' | paste -sd '|' - | sed 's/|/ · /g')"
+fi
+
+# N3: shadow signals never notify; they reach the owner in the next digest.
+if printf '%s\n' "$OUT" | grep -Eq "$RE_SHADOW"; then
+    echo "SHADOW not sent (digest only): this run's brief has shadow signals" >> "$LOG"
+fi
+
+CATEGORY=""; SUMMARY=""
+if [ -n "$SEND_ALERTS" ]; then
+    CATEGORY="ALERT"
+    SUMMARY="$(printf '%s\n' "$SEND_ALERTS" | paste -sd '|' -)"
+    [ -n "$DECISIONS" ] && SUMMARY="$SUMMARY|$DECISIONS"
+elif [ -n "$DECISIONS" ]; then
+    CATEGORY="DECISION"; SUMMARY="$DECISIONS"
+fi
 if [ -n "$CATEGORY" ]; then
-    # Flip alerts are already one-line, plain-English, actionable — prefer them.
-    if [ -n "$ALERTS" ]; then
-        SUMMARY="$(printf '%s\n' "$ALERTS" | paste -sd '|' - | cut -c1-180)"
-    else
-        # Each decision names its pair ("GBP/AUD LONG · GBP/JPY SHORT"): the
-        # old line read "DECISION LONG ▲ — look for buy entries" and never
-        # said which instrument. Shadow lines follow, as before.
-        SUMMARY="$( { printf '%s\n' "$OUT_GATED" | awk '
-                /^ ? ?[A-Z][A-Z][A-Z]\/[A-Z][A-Z][A-Z]( |$)/ { pair = $1 }
-                /^ ? ?DECISION +(LONG|SHORT)/ {
-                    d = ($0 ~ /DECISION +LONG/) ? "LONG" : "SHORT"
-                    print (pair != "" ? pair " " : "") d }'
-              printf '%s\n' "$OUT_GATED" \
-                | grep -E 'EARLY_MOMENTUM|THRUST_PULLBACK|MOMENTUM_JOIN' \
-                | sed -E 's/^ *//; s/  +/ /g'; } \
-            | paste -sd '|' - | sed 's/|/ · /g' | cut -c1-180)"
-    fi
-    [ -z "$SUMMARY" ] && SUMMARY="Signal — see $LOG"
-    notify "$CATEGORY" "$SUMMARY" "$LOG" "$PAIRS" "$DSTATE"
+    notify "$CATEGORY" "$(printf '%s' "$SUMMARY" | cut -c1-180)" "$LOG" "$PAIRS" "$DSTATE"
 fi
 
 # Daily DIGEST (docs/specs/daily_digest_spec.md): ONLY when launchd passed
@@ -190,7 +231,12 @@ fi
 # One line, both pairs' decisions + the concrete watch condition, clicking
 # through to the regenerated latest-view. View/digest failure falls back
 # to the day log — never breaks the run.
-if [ "${1:-}" = "digest" ]; then
+# N1: no digest when every rendered pair is closed. A run that rendered no
+# pair (a crash) still digests, as "run failed".
+if [ "${1:-}" = "digest" ] && [ -n "$DSTATE" ] && [ -z "$OPEN_PAIRS" ]; then
+    python3 scripts/latest_view.py "logs" "logs/latest_brief.log" || true
+    echo "DIGEST not sent: market closed" >> "$LOG"
+elif [ "${1:-}" = "digest" ]; then
     python3 scripts/latest_view.py "logs" "logs/latest_brief.log" || true
     DIGEST="$(printf '%s
 ' "$OUT" | python3 scripts/daily_digest.py)"

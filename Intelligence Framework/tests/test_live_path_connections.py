@@ -223,6 +223,7 @@ def test_read_side_inventory_pinned():
     table it sits beside."""
     assert [rel for rel, _ in af.READ_SIDE_NO_CADENCE] == [
         "trades.csv", ".env", "excluded_rows.csv", "trade_log.csv",
+        "trade_signal_log.csv",     # 2026-11-15, alert_importance_spec N7
     ]
 
 
@@ -413,12 +414,22 @@ def test_every_live_read_artifact_has_a_live_writer():
         f"reason: {sorted(unknown)}")
 
 
-def test_trade_signal_ledger_is_now_watched():
+def test_trade_signal_ledger_is_now_watched(tmp_path):
     """The Step 2 finding, pinned: neither ledger was watched, which is how
     trade_signal_log.csv sat at 2 lines since 2026-06-28 while
     run_outcome_check graded it nightly."""
+    # Old -> new 2026-11-15 (alert_importance_spec N7): watched by a cadence
+    # until then; now by agreement_lines(), which fails when a regime-log
+    # trade call has no trade row (positive control in test_artifact_freshness).
     watched = {rel for rel, _ in af.CADENCES}
-    assert "trade_signal_log.csv" in watched
+    assert "trade_signal_log.csv" not in watched
+    assert "trade_signal_log.csv" in {rel for rel, _ in af.READ_SIDE_NO_CADENCE}
+    import time
+    t = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() - 3600))
+    (tmp_path / "regime_classification_log.csv").write_text(
+        f"timestamp,instrument,stand_down,logic_version\n{t},GBP_JPY,False,p5-2026-09-30\n")
+    (tmp_path / "trade_signal_log.csv").write_text("signal_id,timestamp,instrument\n")
+    assert af.agreement_lines(proj=str(tmp_path))[0].startswith("STALE: trade_signal_log.csv")
     # trade_log.csv is inventoried WITHOUT a cadence: it is frozen
     # historical evidence (April-era snapshot schema, superseded by
     # trades.csv, ruled untouched by trade_logger_repair_spec.md:23-28).
