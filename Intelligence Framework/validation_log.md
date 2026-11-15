@@ -6843,3 +6843,50 @@ It imports `studies/breakout_confirmation_study.py` `261afacf…bddc` (BCS-1, un
 - **Total:** 20 caught, 1 equivalent. Each mutant had a confirmed 1–2-line diff. The source was restored byte-identical and run with bytecode writing off.
 
 **Suite** on the branch: 1143 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-14 — BCS-2 COUNTS (no R)
+
+Run: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/htf_breakout_study.py counts ~/intel_study_archives/research_archive`, after the pre-registration commit 11229c5.
+- Exit 0, project UNCHANGED (verified by hash), stderr 0 bytes, no network.
+- Output read from the run's own directory (`reality_run_2xgi9q87`), as named by the wrapper.
+
+Verbatim:
+
+```
+
+# STUDY: GBP_AUD H1 bars 56077, 2005-01-02T22:00:00+00:00 -> 2013-12-30T21:00:00+00:00; sessions 2343
+- long: events 206, fakes 62 (30.1%), confirmations 144; levels consumed by confirmations 213; levels expired unbroken 58; levels usable (D) 213; levels usable (W) 58
+- short: events 260, fakes 87 (33.5%), confirmations 173; levels consumed by confirmations 234; levels expired unbroken 30; levels usable (D) 219; levels usable (W) 54
+- cell B-1.5: graded trades 73; episodes 64 (long 26, short 38); skips ATR warm-up 1; daily trend not aligned 208; first obstacle inside the target 33; stop wider than 1.5 ATR 1; ungraded at end of data 1
+  episodes by year: 2005 5, 2006 4, 2007 5, 2008 8, 2009 5, 2010 6, 2011 7, 2012 15, 2013 9
+  power at N 64: +0.15R 0.107; smallest edge at 80% 0.462R
+- cell B-2.5: graded trades 61; episodes 57 (long 25, short 32); skips ATR warm-up 1; daily trend not aligned 208; first obstacle inside the target 45; stop wider than 1.5 ATR 1; ungraded at end of data 1
+  episodes by year: 2005 3, 2006 3, 2007 4, 2008 8, 2009 5, 2010 6, 2011 5, 2012 14, 2013 9
+  power at N 57: +0.15R 0.097; smallest edge at 80% 0.490R
+- cell C-1.5: graded trades 66; episodes 59 (long 23, short 36); skips daily trend not aligned 162; first obstacle inside the target 14; no retest (expired) 74; ungraded at end of data 1
+  episodes by year: 2005 5, 2006 5, 2007 4, 2008 9, 2009 6, 2010 4, 2011 7, 2012 12, 2013 7
+  power at N 59: +0.15R 0.100; smallest edge at 80% 0.482R
+- cell C-2.5: graded trades 60; episodes 55 (long 23, short 32); skips daily trend not aligned 162; first obstacle inside the target 20; no retest (expired) 74; ungraded at end of data 1
+  episodes by year: 2005 5, 2006 3, 2007 4, 2008 9, 2009 5, 2010 4, 2011 7, 2012 11, 2013 7
+  power at N 55: +0.15R 0.094; smallest edge at 80% 0.499R
+
+# USED: GBP_AUD H1 bars 33477, 2021-04-26T21:00:00+00:00 -> 2026-09-09T20:00:00+00:00; sessions 1395
+- long: events 150, fakes 52 (34.7%), confirmations 98; levels consumed by confirmations 134; levels expired unbroken 22; levels usable (D) 136; levels usable (W) 38
+- short: events 133, fakes 39 (29.3%), confirmations 94; levels consumed by confirmations 135; levels expired unbroken 26; levels usable (D) 130; levels usable (W) 34
+- cell B-1.5: graded trades 41; episodes 38 (long 17, short 21); skips ATR warm-up 1; daily trend not aligned 125; first obstacle inside the target 25
+- cell B-2.5: graded trades 36; episodes 35 (long 16, short 19); skips ATR warm-up 1; daily trend not aligned 125; first obstacle inside the target 30
+- cell C-1.5: graded trades 30; episodes 28 (long 14, short 14); skips daily trend not aligned 80; first obstacle inside the target 15; no retest (expired) 67
+- cell C-2.5: graded trades 28; episodes 28 (long 14, short 14); skips daily trend not aligned 80; first obstacle inside the target 17; no retest (expired) 67
+
+N required for +0.15R at 80% power (alpha 0.0125): 609
+```
+
+**Reading, before any R is seen:**
+- **N is far below the spec's guess:** 55–64 STUDY episodes per cell, against 130–360. The daily trend filter removes 208 of 317 confirmations (B), and mixed structure counts as no trend.
+- **Power at these N:** 9.4–10.7% for +0.15R; the smallest edge detectable at 80% is +0.46R to +0.50R.
+- **What that means:**
+  - SUPPORTED is reachable only if the true edge is around +0.5R.
+  - REFUTED needs an observed mean below roughly −0.05R (0.15 − 1.28 × 1.2 ÷ √60).
+  - **A real +0.15R edge would almost surely read INCONCLUSIVE.**
+- **Fake rate at weekly and daily levels:** 31.9% (149 of 466), about the same as at hourly swings (30.7%, BCS-1).
+- **USED:** 28–38 episodes per cell, for description only.
