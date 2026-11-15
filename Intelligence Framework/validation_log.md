@@ -6610,3 +6610,66 @@ One mutant was not run because it is equivalent: dropping the `C[j−1] ≤ leve
 **Suite:** `python -m pytest -q` on the branch: 1124 passed, 10 skipped, 3 deselected, 16 xfailed.
 
 **Next:** `counts` through `reality_run.py --no-env`, logged and committed before `full`.
+
+## 2026-11-14 — BCS-1 COUNTS (no R, no stop outcome)
+
+Run: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/breakout_confirmation_study.py counts ~/intel_study_archives/research_archive`, from the live project, after the pre-registration commit 8bcda45. Exit 0, `project files : UNCHANGED (verified by hash)`, stderr 0 bytes, no network. The runner checked both pinned data hashes, and the archive loader checked the manifest. Verbatim output:
+
+```
+BCS-1 counts (no R, no stop outcome). GBP_AUD H1 STUDY bars: 56077, 2005-01-02T22:00:00+00:00 -> 2013-12-30T21:00:00+00:00
+
+## long (swing highs, closes above)
+- A: events in ATR warm-up (no trade): 8
+- A: ungraded at end of data: 1
+- B: confirmations in ATR warm-up (no trade): 4
+- B: ungraded at end of data: 1
+- C: expired: 276
+- C: fills in ATR warm-up (no trade): 4
+- C: retest filled: 745
+- C: ungraded at end of data: 1
+- levels broken (confirmed): 1021
+- levels replaced unbroken: 2420
+- swings confirmed: 3442
+- events (first closes beyond): 1514; fakes 493; confirmations 1021; fake rate 0.326
+
+## short (swing lows, closes below)
+- A: events in ATR warm-up (no trade): 7
+- B: confirmations in ATR warm-up (no trade): 5
+- C: expired: 300
+- C: fills in ATR warm-up (no trade): 4
+- C: retest filled: 818
+- levels broken (confirmed): 1118
+- levels replaced unbroken: 2326
+- swings confirmed: 3445
+- events (first closes beyond): 1571; fakes 453; confirmations 1118; fake rate 0.288
+
+## Fake rate by year (both sides)
+- 2005: events 322, fakes 111, rate 0.345
+- 2006: events 350, fakes 120, rate 0.343
+- 2007: events 341, fakes 107, rate 0.314
+- 2008: events 345, fakes 106, rate 0.307
+- 2009: events 321, fakes 91, rate 0.283
+- 2010: events 327, fakes 90, rate 0.275
+- 2011: events 366, fakes 111, rate 0.303
+- 2012: events 373, fakes 125, rate 0.335
+- 2013: events 340, fakes 85, rate 0.250
+
+## Entries and episodes per cell
+- A: graded entries 3069 (long 1505, short 1564); episodes 1494 (long 715, short 779); same-bar long/short ties 0
+  episodes by year: 2005 154, 2006 170, 2007 163, 2008 164, 2009 165, 2010 165, 2011 173, 2012 171, 2013 169
+  power at N 1494: +0.15R 0.997; smallest edge at 80% 0.092R
+- B: graded entries 2129 (long 1016, short 1113); episodes 1359 (long 649, short 710); same-bar long/short ties 0
+  episodes by year: 2005 137, 2006 146, 2007 146, 2008 148, 2009 151, 2010 155, 2011 160, 2012 156, 2013 160
+  power at N 1359: +0.15R 0.993; smallest edge at 80% 0.097R
+- C: graded entries 1554 (long 740, short 814); episodes 1082 (long 526, short 556); same-bar long/short ties 0
+  episodes by year: 2005 114, 2006 121, 2007 121, 2008 114, 2009 127, 2010 117, 2011 125, 2012 121, 2013 122
+  power at N 1082: +0.15R 0.976; smallest edge at 80% 0.108R
+
+N required for +0.15R at 80% power (alpha 0.01667): 565
+```
+
+**Reading (counts only):**
+- **Fakes:** 946 of 3,085 first closes beyond a confirmed hourly swing were fakes (30.7%). The rate held at 25–35% in every year. This answers question 1 and is a count of closes, not an outcome.
+- **Episodes:** A 1,494, B 1,359, C 1,082. Every cell is above the 565 required for +0.15R at 80% power. The power at those N is 0.997, 0.993 and 0.976.
+- **Same-bar ties:** 0.
+- **Retests:** 1,563 of 2,139 confirmations retested the level within 12 bars (73.1%).
