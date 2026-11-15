@@ -39,6 +39,11 @@ timeframes disagree; a hand read should at least name the conflict.
 - **A break needs to hold.** On GBP/AUD daily data, 71% of moves beyond a
   confirmed swing extreme closed back inside within 3 days. A break that had
   not gone about 1.5 daily ATR was more likely to fail than hold (R24).
+- **On gold, only a close counts as a break, and even a close is a coin
+  flip.** A wick through the latest daily swing was back inside within 3 days
+  about half the time in 2006–2013 and 2 times in 3 in 2021–2026. A daily close
+  beyond came back inside 43–45% of the time in both eras. Closes half a day's
+  range or more beyond held more often in the older data (R45, descriptive).
 - **Two hourly closes filter fakes but are not an edge.** On 2005–2013 GBP/AUD
   hourly data, 31% of first closes beyond a swing were fakes, and trades on
   them averaged −0.6R. Waiting for the second close removes them, yet the
