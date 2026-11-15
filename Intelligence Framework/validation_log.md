@@ -7229,3 +7229,43 @@ It imports BCS-1 `261afacf…bddc` and BCS-2 `5a752ccb…65bb`, both unchanged.
 - **Total:** 16 caught, 1 equivalent. Source restored byte-identical; bytecode writing off.
 
 **Suite** on the branch: 1165 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-15 — BCS-3 COUNTS (no R)
+
+Run: `scripts/reality_run.py --no-env --code <worktree> script <worktree>/studies/m15_entry_study.py counts ~/intel_study_archives/research_archive ~/intel_study_archives/m15_study`, after the pre-registration commit 93ef84f.
+- Exit 0, project UNCHANGED (verified by hash), stderr 0 bytes.
+- Output read from the run's own directory (`reality_run_lh40p_7q`).
+
+Verbatim:
+
+```
+BCS-3 counts (no R). H1 bars 56077; M15 bars 224208, 2005-01-02T22:00:00+00:00 -> 2013-12-30T21:15:00+00:00
+
+## cell H1: graded trades 1284; episodes 955 (long 469, short 486)
+- ATR warm-up or end of data 9; confirmations 2139; no entry: no retest trigger in 12 hours 592; no entry: went through the stop line first 253; triggered 1285; ungraded at end of data 1
+- wait from confirmation to entry, M15 bars: median 5.0
+- episodes by year: 2005 100, 2006 115, 2007 102, 2008 100, 2009 113, 2010 100, 2011 114, 2012 107, 2013 104
+- power at N 955: +0.15R 0.959; smallest edge at 80% 0.115R
+
+## cell HTF-1.5: graded trades 58; episodes 52 (long 21, short 31)
+- ATR warm-up or end of data 1; confirmations 317; daily trend not aligned 139; first obstacle inside the target 14; no entry: no retest trigger in 12 hours 76; no entry: went through the stop line first 28; triggered 212; ungraded at end of data 1
+- wait from confirmation to entry, M15 bars: median 5.5
+- episodes by year: 2005 4, 2006 4, 2007 4, 2008 9, 2009 6, 2010 4, 2011 4, 2012 10, 2013 7
+- power at N 52: +0.15R 0.110; smallest edge at 80% 0.494R
+
+## cell HTF-2.5: graded trades 51; episodes 47 (long 20, short 27)
+- ATR warm-up or end of data 1; confirmations 317; daily trend not aligned 139; first obstacle inside the target 21; no entry: no retest trigger in 12 hours 76; no entry: went through the stop line first 28; triggered 212; ungraded at end of data 1
+- wait from confirmation to entry, M15 bars: median 6
+- episodes by year: 2005 4, 2006 3, 2007 4, 2008 9, 2009 5, 2010 4, 2011 2, 2012 9, 2013 7
+- power at N 47: +0.15R 0.102; smallest edge at 80% 0.520R
+
+N required for +0.15R at 80% power (alpha 0.01667): 565
+```
+
+**Reading, before any R:**
+- **H1 cell, 955 episodes:** power 0.959 for +0.15R; smallest detectable edge +0.115R. Of 2,139 confirmations:
+  - 1,285 triggered (60%);
+  - 592 had no M15 retest trigger within 12 hours;
+  - 253 went through the stop line first.
+- **HTF cells, 52 and 47 episodes:** power about 0.10–0.11; smallest detectable edge about +0.5R, as BCS-2.
+- **Median wait** from confirmation to entry: 5–6 M15 bars (about 1¼–1½ hours).
