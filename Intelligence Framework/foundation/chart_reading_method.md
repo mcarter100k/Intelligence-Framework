@@ -39,6 +39,12 @@ timeframes disagree; a hand read should at least name the conflict.
 - **A break needs to hold.** On GBP/AUD daily data, 71% of moves beyond a
   confirmed swing extreme closed back inside within 3 days. A break that had
   not gone about 1.5 daily ATR was more likely to fail than hold (R24).
+- **Two hourly closes filter fakes but are not an edge.** On 2005–2013 GBP/AUD
+  hourly data, 31% of first closes beyond a swing were fakes, and trades on
+  them averaged −0.6R. Waiting for the second close removes them, yet the
+  confirmed breaks still lost after costs (−0.11R), and so did entering on the
+  retest (−0.09R) (R43). Use the rule to stay out of fakes, not as a reason
+  to enter.
 - **The last higher low is not a safe floor.** The first counter-trend move
   went beyond the last higher low (or lower high) in 40% of daily trend legs
   (R21). Deep bounces breach it more often, largely by construction (R22).
