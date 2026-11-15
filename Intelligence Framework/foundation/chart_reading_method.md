@@ -45,6 +45,11 @@ timeframes disagree; a hand read should at least name the conflict.
   confirmed breaks still lost after costs (−0.11R), and so did entering on the
   retest (−0.09R) (R43). Use the rule to stay out of fakes, not as a reason
   to enter.
+- **Filtering level breaks by trend and room did not create an edge.** Breaks
+  of daily and weekly swing levels, taken only with the daily trend and only
+  when the next level lay beyond a 1.5R or 2.5R target, lost −0.28 to −0.35R
+  after costs on 2005–2013 GBP/AUD (R44). Zones still tell you where; they
+  have not yet told anyone when to enter.
 - **The last higher low is not a safe floor.** The first counter-trend move
   went beyond the last higher low (or lower high) in 40% of daily trend legs
   (R21). Deep bounces breach it more often, largely by construction (R22).
