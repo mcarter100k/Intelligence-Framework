@@ -9,6 +9,10 @@ of the k bars on each side; confirmed k bars later), labelled HH/LH/HL/LL
 against the previous swing of the same kind, plus ATR(14), the latest
 complete candle and the current live mid. Same k every week:
 M 2, W 2, D 3, H4 4, H1 5.
+
+Sizes print in the instrument's own unit (unit()): pips for FX, US dollars
+for gold. A metal with no entry in UNITS is refused rather than printed in
+pips (docs/gold_plan.md, Phase A1).
 """
 import os
 import sys
@@ -23,6 +27,17 @@ from oanda_feed import _account_id, _base_url, _headers  # noqa: E402
 PT = ZoneInfo("America/Los_Angeles")
 FRAMES = (("M", 2, 150), ("W", 2, 260), ("D", 3, 320), ("H4", 4, 300), ("H1", 5, 300))
 SHOW = {"M": 10, "W": 12, "D": 14, "H4": 14, "H1": 14}
+# instrument -> (size of one unit in price, unit name, price decimals)
+UNITS = {"XAU_USD": (1.0, "dollars", 3)}
+METALS = ("XAU", "XAG", "XPT", "XPD")
+
+
+def unit(pair):
+    if pair in UNITS:
+        return UNITS[pair]
+    if pair.split("_")[0] in METALS:
+        raise SystemExit(f"{pair}: no unit set for this metal; add it to UNITS first")
+    return (0.01, "pips", 3) if pair.endswith("JPY") else (0.0001, "pips", 5)
 
 
 def candles(pair, gran, count):
@@ -77,7 +92,7 @@ def atr(bars, n=14):
 
 
 def main(pair):
-    pip = 0.01 if pair.endswith("JPY") else 0.0001
+    size, name, dec = unit(pair)
     acct = _account_id()
     p = requests.get(f"{_base_url()}/v3/accounts/{acct}/pricing", headers=_headers(), timeout=30,
                      params={"instruments": pair})
@@ -85,13 +100,13 @@ def main(pair):
     q = p.json()["prices"][0]
     mid = (float(q["bids"][0]["price"]) + float(q["asks"][0]["price"])) / 2
     qt = datetime.strptime(q["time"][:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
-    print(f"{pair} live mid {mid:.5f} at {qt.astimezone(PT):%Y-%m-%d %H:%M %Z} (tradeable: {q.get('tradeable')})\n")
+    print(f"{pair} live mid {mid:.{dec}f} at {qt.astimezone(PT):%Y-%m-%d %H:%M %Z} (tradeable: {q.get('tradeable')})\n")
     for gran, k, count in FRAMES:
         bars = candles(pair, gran, count)
         sw = label(swings(bars, k))
         last = [b for b in bars if b[5]][-1]
         cur = bars[-1]
-        print(f"## {gran} (k={k}) ATR14 {atr(bars) / pip:.1f} pips; last complete candle "
+        print(f"## {gran} (k={k}) ATR14 {atr(bars) / size:.1f} {name}; last complete candle "
               f"{last[0].astimezone(PT):%Y-%m-%d %H:%M} O {last[1]} H {last[2]} L {last[3]} C {last[4]}; "
               f"forming candle {'H ' + str(cur[2]) + ' L ' + str(cur[3]) if not cur[5] else '(none)'}")
         hi = max(bars, key=lambda b: b[2])
@@ -99,7 +114,7 @@ def main(pair):
         print(f"  range of the {len(bars)} candles fetched: high {hi[2]} ({hi[0].astimezone(PT):%Y-%m-%d}), "
               f"low {lo[3]} ({lo[0].astimezone(PT):%Y-%m-%d})")
         for t, kind, price, tag in sw[-SHOW[gran]:]:
-            print(f"  {t.astimezone(PT):%Y-%m-%d %H:%M}  swing {'high' if kind == 'H' else 'low '} {price:.5f} {tag}")
+            print(f"  {t.astimezone(PT):%Y-%m-%d %H:%M}  swing {'high' if kind == 'H' else 'low '} {price:.{dec}f} {tag}")
         print()
 
 

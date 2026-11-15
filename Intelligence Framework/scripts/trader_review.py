@@ -32,6 +32,11 @@ Ledgers (cwd-relative, gitignored, append-only):
                          written (no mid-week rule changes), and a week is
                          written once.
 
+Practice instruments (PRACTICE; gold): not tradeable on the account, so an
+idea is never asked "are you taking it", is scored on paper with its own
+spread in its own unit, reads the framework as "not covered", and has its own
+line in the review, apart from taken and passed.
+
 Sends no notifications (AGENTS.md rule 12).
 """
 from __future__ import annotations
@@ -66,6 +71,12 @@ BRIEF_FILE = os.path.join("logs", "latest_brief.log")
 _HOME_MARKER = "session_context_log.csv"
 
 PAIRS = ("GBP_AUD", "GBP_JPY")
+# Practice instruments: not tradeable on the account, so every idea is scored
+# on paper and kept out of the taken / passed tallies (docs/gold_plan.md, A2).
+# The spread is OANDA's quote, not a venue's: median ask-minus-bid at the
+# hourly close, 720 candles 2026-10-01 -> 11-13 PT, $0.47 (p25 0.39, p75 0.54).
+PRACTICE = {"XAU_USD": {"unit": "dollars", "spread": 0.47,
+                        "spread_source": "OANDA's quoted spread, median Oct-Nov 2026"}}
 PLAYS = ("first-pullback", "base-break", "coil-break", "retest-fade",
          "none-named")
 STATES = ("calm", "rushed", "revenge", "FOMO", "bored")
@@ -102,6 +113,7 @@ REVIEW_FIELDS = [
     "taken_win_pct", "process_avg", "paper_scored", "paper_avg_r",
     "top_rule_break", "notifications_total", "notifications_material",
     "lesson", "rule_change", "applies_from",
+    "practice_ideas", "practice_scored", "practice_avg_r",
 ]
 
 
@@ -153,8 +165,34 @@ def _pip(pair: str) -> float:
 
 
 def _spread_price(pair: str) -> float:
+    if pair in PRACTICE:
+        return PRACTICE[pair]["spread"]
     from trade_management import SPREAD_PIPS
     return SPREAD_PIPS * _pip(pair)
+
+
+def _spread_words(pair: str) -> str:
+    if pair in PRACTICE:
+        return f"${_spread_price(pair):.2f} spread ({PRACTICE[pair]['spread_source']})"
+    return f"{_spread_price(pair) / _pip(pair):.0f}-pip spread"
+
+
+def rr_after_spread(entry: float, stop: float, target: float, spread: float) -> float:
+    """trade_management.get_management_plan's effective reward-to-risk, for an
+    instrument whose spread it cannot price (its pip rule is FX-only)."""
+    reward, risk = abs(target - entry), abs(entry - stop)
+    eff_risk = risk + spread
+    return round(max(0.0, reward - spread) / eff_risk, 2) if eff_risk > 0 else 0.0
+
+
+def _is_practice(idea: Dict) -> bool:
+    return idea.get("pair") in PRACTICE
+
+
+def _kind(idea: Dict) -> str:
+    """How an idea is named on screen: a practice idea is never 'passed'."""
+    return ("practice" if _is_practice(idea) else
+            "taken" if idea.get("taken") == "YES" else "passed")
 
 
 def require_project_dir() -> None:
@@ -314,11 +352,15 @@ def _yes(ask: Ask, prompt: str) -> bool:
 
 def log_idea(ask: Ask = input, now: Optional[datetime] = None) -> Dict:
     from risk_config import GRADE_CONFIG
-    from trade_management import get_management_plan
+    from trade_management import MIN_RR_AFTER_SPREAD, get_management_plan
     require_project_dir()
     now = now or _now()
     print(f"\n  {'─' * 56}\n  LOG AN IDEA — taken or passed, every one counts\n  {'─' * 56}")
-    pair = _choose(ask, "Pair", PAIRS)
+    pair = _choose(ask, "Pair", PAIRS + tuple(PRACTICE))
+    practice = pair in PRACTICE
+    if practice:
+        print(f"  {pair} is a practice chart: not tradeable on your account. The idea is\n"
+              "  scored on paper and counted on its own, never as a trade or a pass.")
     direction = _choose(ask, "Direction", ("LONG", "SHORT"))
     play = _choose(ask, "Play", PLAYS)
     zone = _text(ask, "Zone you are watching (e.g. 212.0-212.2)")
@@ -333,17 +375,27 @@ def log_idea(ask: Ask = input, now: Optional[datetime] = None) -> Dict:
         side = "below entry, target above" if direction == "LONG" else "above entry, target below"
         print(f"  For a {direction} the stop goes {side}. Try again.")
     grade = _choose(ask, "Your grade", tuple(GRADE_CONFIG))
-    plan = get_management_plan(entry, stop, target, direction, grade=grade,
-                               instrument=pair)
-    rr = plan.get("effective_rr", "")
-    print(f"  Reward to risk after the spread: {rr} to 1"
-          + ("" if plan.get("valid") else "  (below the 1.5 minimum — recorded anyway)"))
-    taken = _yes(ask, "Are you taking it")
-    pass_reason = "" if taken else _text(ask, "Why are you passing", required=True)
+    if practice:
+        rr = rr_after_spread(entry, stop, target, _spread_price(pair))
+        valid = rr >= MIN_RR_AFTER_SPREAD
+    else:
+        plan = get_management_plan(entry, stop, target, direction, grade=grade,
+                                   instrument=pair)
+        rr, valid = plan.get("effective_rr", ""), plan.get("valid")
+    print(f"  Reward to risk after the {_spread_words(pair)}: {rr} to 1"
+          + ("" if valid else "  (below the 1.5 minimum — recorded anyway)"))
+    if practice:
+        taken, pass_reason = False, "practice: not tradeable on the account"
+    else:
+        taken = _yes(ask, "Are you taking it")
+        pass_reason = "" if taken else _text(ask, "Why are you passing", required=True)
     state = _choose(ask, "How are you feeling right now", STATES)
     note = _text(ask, "Anything else (optional)")
 
-    fw = framework_read(pair, direction, now)
+    fw = (framework_read(pair, direction, now) if not practice else
+          {"framework_read": "not covered (the framework does not read this instrument)",
+           "framework_read_source": "practice instrument", "agrees_with_framework": "",
+           "stack_id": ""})
     row = {
         "row_type": "IDEA",
         "idea_id": f"{now.strftime('%Y%m%dT%H%M%SZ')}_{pair}_{direction}",
@@ -415,7 +467,7 @@ def score_idea(ask: Ask = input, now: Optional[datetime] = None,
         waiting = [k for k, v in ideas.items() if v["score"] is None]
         for k in waiting:
             i = ideas[k]["idea"]
-            print(f"    {k}  {'taken' if i['taken'] == 'YES' else 'passed'}"
+            print(f"    {k}  {_kind(i)}"
                   f"  entry {i['entry']} stop {i['stop']} target {i['target']}")
         default = waiting[-1] if len(waiting) == 1 else ""
         idea_id = _text(ask, "Idea id to score" + (f" [{default}]" if default else "")) or default
@@ -458,7 +510,7 @@ def score_idea(ask: Ask = input, now: Optional[datetime] = None,
             return row
         exit_price = _number(ask, "Where would your plan have exited")
         row.update(exit_price=exit_price,
-                   scored_on=f"PAPER: plan prices less the {_spread_price(pair) / _pip(pair):.0f}-pip spread",
+                   scored_on=f"PAPER: plan prices less the {_spread_words(pair)}",
                    r_realized=r_multiple(direction, entry, stop, exit_price,
                                          cost=_spread_price(pair)))
     row["exit_reason"] = _choose(ask, "Exit reason", EXIT_REASONS)
@@ -487,7 +539,7 @@ def list_waiting() -> List[str]:
     else:
         print(f"\n  Waiting for a score ({len(waiting)}):")
         for k in waiting:
-            print(f"    {k}  {'taken' if ideas[k]['idea']['taken'] == 'YES' else 'passed'}")
+            print(f"    {k}  {_kind(ideas[k]['idea'])}")
         print()
     return waiting
 
@@ -508,7 +560,12 @@ def week_numbers(week: str) -> Dict:
     directory. A missing ledger is reported as such, never as a zero."""
     rows = _read(IDEAS_FILE)
     ideas = latest_rows(rows or [])
-    wk = [v for v in ideas.values() if _in_week(v["idea"]["timestamp_utc"], week)]
+    in_wk = [v for v in ideas.values() if _in_week(v["idea"]["timestamp_utc"], week)]
+    # Practice ideas are never trades or passes: counted on their own line.
+    practice = [v for v in in_wk if _is_practice(v["idea"])]
+    wk = [v for v in in_wk if not _is_practice(v["idea"])]
+    pr_r = [float(v["score"]["r_realized"]) for v in practice
+            if v["score"] and _f(v["score"]["r_realized"]) is not None]
     taken = [v for v in wk if v["idea"]["taken"] == "YES"]
     passed = [v for v in wk if v["idea"]["taken"] == "NO"]
     t_scored = [v for v in taken if v["score"] and _f(v["score"]["r_realized"]) is not None]
@@ -552,6 +609,8 @@ def week_numbers(week: str) -> Dict:
         "taken_win_pct": round(100 * sum(1 for x in t_r if x > 0) / len(t_r)) if t_r else None,
         "process_avg": _avg(proc),
         "paper_scored": len(p_scored), "paper_avg_r": _avg(p_r),
+        "practice_ideas": len(practice), "practice_scored": len(pr_r),
+        "practice_avg_r": _avg(pr_r),
         "paper_never_filled": sum(1 for v in passed if v["score"]
                                   and v["score"].get("scored_on", "").startswith("PAPER: never")),
         "breaks": breaks, "breaks_by_state": by_state,
@@ -601,6 +660,11 @@ def render_review(n: Dict) -> str:
             L.append(f"  3 PASSED    {n['paper_scored']} scored on paper, average {_r(n['paper_avg_r'])}"
                      + (f"; {n['paper_never_filled']} never reached the entry" if n["paper_never_filled"] else "")
                      + "." + verdict)
+    if n["journal_exists"] and n["practice_ideas"]:
+        L.append(f"  3b PRACTICE {n['practice_ideas']} on practice charts (not tradeable here), "
+                 f"{n['practice_scored']} scored on paper, average {_r(n['practice_avg_r'])}."
+                 + (f" ({n['practice_scored']} scored: far too few to conclude.)"
+                    if n["practice_scored"] < MIN_N_FOR_CLAIMS else ""))
     fc = n["framework_calls"]
     cf = n["candidates_fired"]
     g = n["candidates_graded_r"]
@@ -655,9 +719,12 @@ def write_review(n: Dict, ask: Ask = input, now: Optional[datetime] = None) -> O
                notifications_total="" if n["notifications_total"] is None else n["notifications_total"],
                lesson=lesson, rule_change=change or "none",
                applies_from=applies.isoformat())
-    for k in ("taken_avg_r", "taken_median_r", "taken_win_pct", "process_avg", "paper_avg_r"):
+    for k in ("taken_avg_r", "taken_median_r", "taken_win_pct", "process_avg", "paper_avg_r",
+              "practice_avg_r"):
         if row[k] is None:
             row[k] = ""
+    from ledger_io import migrate_header
+    migrate_header(REVIEWS_FILE, REVIEW_FIELDS)   # a log written before the practice columns
     _append(REVIEWS_FILE, REVIEW_FIELDS, row)
     print(f"\n  Review for {week} recorded. Rule change applies from Monday {applies:%d %b}"
           if change else f"\n  Review for {week} recorded. No rule change.")

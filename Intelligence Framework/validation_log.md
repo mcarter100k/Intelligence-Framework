@@ -6760,3 +6760,40 @@ Spec: docs/specs/breakout_confirmation_study_spec.md. Verdict on episode R after
    - cell A: graded entries 3069, episodes 1494, same-bar ties 0
    - cell B: graded entries 2129, episodes 1359, same-bar ties 0
    - cell C: graded entries 1554, episodes 1082, same-bar ties 0
+
+## 2026-11-14 — GOLD PHASE A (A1, A2) BUILT: the swing tool and the idea log work in dollars (free zone; branch `feat/gold-tools`)
+
+**What:** `docs/gold_plan.md` Phase A, steps A1 and A2. Owner request: "lets start with A … it MUST be thoroughly tested and the output must have supporting evidence".
+- **A1** `studies/markup_swings.py`: a unit table (`XAU_USD` = US dollars, 3 decimals); FX keeps pips. A metal with no entry (XAG_USD, XAU_GBP, XPT_USD) is refused (SystemExit), never printed in pips. GBP/JPY prices now print at 3 decimals instead of 5 (OANDA quotes 3; no precision lost, checked below).
+- **A2** `scripts/trader_review.py`: `XAU_USD` as a PRACTICE instrument.
+  - Never asked "are you taking it": taken = NO, pass reason "practice: not tradeable on the account".
+  - Reward-to-risk and paper R pay a **$0.47** spread (OANDA's quoted spread: median ask − bid at the hourly close, 720 candles 2026-10-01 → 11-13 PT; p25 0.39, p75 0.54, widest hour 1 PM PT at 0.66). Not a venue's spread (plan Phase E).
+  - Framework read: "not covered (the framework does not read this instrument)", never "not recorded" and never a disagreement.
+  - The weekly review leaves practice ideas out of ideas / taken / passed / read-not-recorded and shows them on their own line, "3b PRACTICE". Waiting lists name them "practice", never "passed".
+  - `trader_review_log.csv` gains `practice_ideas`, `practice_scored`, `practice_avg_r`; an older log migrates via `ledger_io.migrate_header` (neither real ledger exists yet).
+  - `trade_management.py` is untouched: protected `setup_check.py` imports it. Gold's reward-to-risk uses a local copy of its formula, pinned equal to `get_management_plan` on two GBP cases.
+- **A3** (the playbook's gold section) is **deferred** to the W47 Friday review (owner decision O3; the playbook changes one rule at a time).
+
+**Before (same instrument as after):** the unchanged tool on live XAU_USD through `reality_run.py script` printed `ATR14 4367130.7 pips` (monthly), `2222435.1 pips` (weekly); exit 0, project UNCHANGED.
+
+**Tests:** full suite on the branch after rebasing onto `a8bb66d`: **1141 passed, 10 skipped, 3 deselected, 16 xfailed**. New: `tests/test_markup_swings.py` (10, the tool's first tests) and 7 in `tests/test_trader_review.py`; the 23 existing idea-log tests pass unchanged.
+
+**Mutation run** (scratch script; each substitution must match exactly once; `PYTHONDONTWRITEBYTECODE=1`; each file restored byte-identical; `__pycache__` cleared, then a clean run): **14 of 14 killed.**
+- A1: gold falls back to the pip rule; unknown metal not refused; swing prices at 5 decimals; ATR divided by 0.0001; swing reported before k right-hand candles close; a forming candle counts toward confirmation; ATR as a plain mean; a lower high labelled higher high.
+- A2: gold spread priced by the pip rule; gold asked "are you taking it"; practice counted as passes; old review log not migrated; gold read through the GBP framework lookup; waiting list says "passed".
+- Clean re-run: 10 passed, 30 passed. Source md5 identical before and after the run.
+
+**REALITY GATE** (live OANDA, branch code, `scripts/reality_run.py`, every run "project files: UNCHANGED (verified by hash)", stderr 0 bytes):
+- XAU_USD, branch: `XAU_USD live mid 3884.685 at 2026-11-13 13:59 PST (tradeable: False)`; `M ATR14 436.7 dollars`, `W 222.2`, `D 89.6`, `H4 33.6`, `H1 15.4`. The owner's notes said ≈ $90 / $34 / $15, and the 3884.685 close matches their TradingView check.
+- Before vs after on XAU_USD: 64 of 64 swing lines identical (time, kind, price, label); ATR after = before ÷ 10,000 on all five frames; the whole output identical once units and number formatting are normalised.
+- GBP_AUD, `main` vs branch (separate run directories, both runs confirmed): **byte-identical**, 81 lines each.
+- GBP_JPY, `main` vs branch: 130 differing lines, all formatting: identical once numbers are compared as numbers, and no `main` swing price had non-zero 4th or 5th decimals. (This pair also shows the comparison can detect a difference.)
+- Idea log, branch, via a driver calling `trader_review.main` (`idea`, `score`, `review --no-write`) in the temp copy: module path = the worktree; idea `XAU_USD_SHORT` 4145 / stop 4175 / target 4085 recorded with reward-to-risk 1.95 after the $0.47 spread; the waiting list reads `practice`; scored −1.016R (−1.02R on screen); review `1 IDEAS 0 logged: 0 taken, 0 passed` and `3b PRACTICE 1 on practice charts (not tradeable here), 1 scored on paper, average -1.02R. (1 scored: far too few to conclude.)`; exit codes [0, 0, 0]. No `idea_journal.csv` or `trader_review_log.csv` in the project before or after.
+
+**Two false passes caught during verification and not counted:**
+1. `reality_run.py --code <worktree> script studies/markup_swings.py` run from the live folder verified **`main`'s** script, not the branch's. `script` paths resolve against the current directory (line 189), not `--code`. It printed pips with exit 0 and "UNCHANGED". All branch runs above pass the worktree's absolute script path, and the idea-log driver prints its module path.
+2. A main-vs-branch comparison with an unquoted `--code` path (the folder name has a space) never started the branch run. Both "outputs" were `main`'s, giving 0 differences. Redone with quoting and one confirmed run per side.
+
+**For the team (not changed here):**
+- **The `reality_run.py --code` / `script` trap above.** Any past branch verification that passed a relative script path may have exercised `main`. A fix (resolve a relative script path against `--code`, or refuse when `--code` is given and the path lies outside it) is a `scripts/` change for its own task.
+- **The markup tool's 150 monthly candles reach back to mid-2014**, inside the 2014–2021 span: the SEALED EXAM for the GBP pairs, and the proposed exam for gold (ruling T1). The 2026-11-14 before-run printed a gold 2015 monthly low. The data map does not say whether a monthly chart read counts; a ruling, or a fetch that starts at 2021-04-26, is for the team.

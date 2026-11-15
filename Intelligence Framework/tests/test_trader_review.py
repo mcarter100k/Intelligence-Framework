@@ -312,3 +312,114 @@ def test_main_review_no_write_runs_without_input(project, capsys):
     assert tr.main(["review", "--week", "2026-W45", "--no-write"]) == 0
     assert "WEEKLY REVIEW  2026-W45" in capsys.readouterr().out
     assert not os.path.exists("trader_review_log.csv")
+
+
+# ── G practice instruments (gold): docs/gold_plan.md Phase A2 ────────────────
+#   G1 a practice idea is never asked "are you taking it" and is never a pass
+#   G2 its reward-to-risk and paper R pay its own spread in dollars, not pips
+#   G3 the framework is "not covered", never "not recorded" or a disagreement
+#   G4 the review keeps practice ideas out of taken / passed / read counts
+#   G5 a review log written before the practice columns migrates, not misaligns
+
+# A gold long: entry 3880, stop 3850 ($30 risk), target 3940 ($60 reward)
+GOLD_LONG = ("XAU_USD", "LONG", "first-pullback", "3870-3885", "hourly higher low",
+             "3880", "3850", "3940", "B", "calm", "")
+
+
+def recorder(*answers):
+    """scripted(), but it keeps every prompt and fails if an answer is left over."""
+    it, asked = iter(answers), []
+
+    def ask(prompt):
+        asked.append(prompt)
+        return next(it)
+    ask.asked = asked
+    ask.leftover = lambda: list(it)
+    return ask
+
+
+def test_rr_after_spread_matches_the_management_plan_formula():
+    # Control: on a GBP pair, the local formula reproduces get_management_plan.
+    from trade_management import SPREAD_PIPS, get_management_plan
+    for args in [(212.17, 211.45, 213.78, "LONG", "GBP_JPY"),
+                 (1.9300, 1.9360, 1.9180, "SHORT", "GBP_AUD")]:
+        e, s, t, d, pair = args
+        plan = get_management_plan(e, s, t, d, grade="B", instrument=pair)
+        assert tr.rr_after_spread(e, s, t, SPREAD_PIPS * tr._pip(pair)) == plan["effective_rr"]
+
+
+def test_a_gold_idea_is_practice_not_a_pass(project):
+    ask = recorder(*GOLD_LONG)
+    row = tr.log_idea(ask=ask, now=WED)
+    assert ask.leftover() == []                                   # every answer used
+    assert not any("taking it" in p or "passing" in p for p in ask.asked)
+    assert row["taken"] == "NO"
+    assert row["pass_reason"] == "practice: not tradeable on the account"
+    assert row["framework_read"].startswith("not covered")
+    assert row["agrees_with_framework"] == ""
+    # (60 - 0.47) / (30 + 0.47) = 1.9537 -> 1.95, with the $0.47 gold spread
+    assert row["planned_rr_after_spread"] == 1.95
+    assert rows()[0]["pair"] == "XAU_USD"
+
+
+def test_a_gold_idea_is_scored_on_paper_in_dollars(project):
+    tr.log_idea(ask=scripted(*GOLD_LONG), now=WED)
+    row = tr.score_idea(ask=scripted("", "yes", "3940", "target", "", ""), now=SAT)
+    assert row["r_realized"] == 1.984                    # (60 - 0.47) / 30
+    assert "$0.47 spread" in row["scored_on"] and "pip" not in row["scored_on"]
+    tr.score_idea(ask=scripted("yes", "3850", "stop", "", "", "news"), now=SAT,
+                  idea_id=rows()[0]["idea_id"])
+    assert rows()[-1]["r_realized"] == "-1.016"          # stopped, plus $0.47
+
+
+def test_the_review_keeps_practice_apart(project):
+    tr.log_idea(ask=scripted(*TAKEN_LONG), now=WED)
+    tr.log_idea(ask=scripted(*PASSED_SHORT), now=WED)
+    tr.log_idea(ask=scripted(*GOLD_LONG), now=WED)
+    gold_id = [r["idea_id"] for r in rows() if r["pair"] == "XAU_USD"][0]
+    tr.score_idea(ask=scripted("yes", "3850", "stop", "", "", "news"), now=SAT, idea_id=gold_id)
+    tr.score_idea(ask=scripted("yes", "1.9180", "target", "", ""), now=SAT,
+                  idea_id=[r["idea_id"] for r in rows() if r["pair"] == "GBP_AUD"][0])
+    n = tr.week_numbers("2026-W45")
+    assert (n["ideas"], n["taken"], n["passed"]) == (2, 1, 1)
+    assert n["read_not_recorded"] == 2                   # the two GBP ideas only
+    assert (n["paper_scored"], n["paper_avg_r"]) == (1, 1.933)
+    assert (n["practice_ideas"], n["practice_scored"], n["practice_avg_r"]) == (1, 1, -1.016)
+    text = tr.render_review(n)
+    assert "3b PRACTICE 1 on practice charts" in text and "average -1.02R" in text
+    assert "2 logged: 1 taken, 1 passed" in text
+    assert BANNED.search(text) is None, text
+
+
+def test_no_practice_line_without_practice_ideas(project):
+    tr.log_idea(ask=scripted(*PASSED_SHORT), now=WED)
+    assert "PRACTICE" not in tr.render_review(tr.week_numbers("2026-W45"))
+
+
+def test_an_old_review_log_gains_the_practice_columns(project):
+    old = [f for f in tr.REVIEW_FIELDS if not f.startswith("practice_")]
+    with open("trader_review_log.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=old)
+        w.writeheader()
+        w.writerow({**{k: "" for k in old}, "week": "2026-W44", "lesson": "old lesson"})
+    tr.log_idea(ask=scripted(*GOLD_LONG), now=WED)
+    n = tr.week_numbers("2026-W45")
+    assert tr.write_review(n, ask=scripted("one lesson", ""), now=SAT) is not None
+    with open("trader_review_log.csv", newline="") as f:
+        got = list(csv.DictReader(f))
+    assert [r["week"] for r in got] == ["2026-W44", "2026-W45"]
+    assert got[0]["lesson"] == "old lesson" and got[0]["practice_ideas"] == ""
+    assert got[1]["lesson"] == "one lesson" and got[1]["practice_ideas"] == "1"
+
+
+def test_waiting_lists_name_a_gold_idea_practice(project, capsys):
+    tr.log_idea(ask=scripted(*GOLD_LONG), now=WED)
+    tr.log_idea(ask=scripted(*PASSED_SHORT), now=WED)
+    capsys.readouterr()
+    tr.list_waiting()
+    tr.score_idea(ask=scripted("nonexistent-id"), now=SAT)    # prints the list, then refuses
+    out = capsys.readouterr().out
+    gold = [l for l in out.splitlines() if "XAU_USD" in l]
+    gbp = [l for l in out.splitlines() if "GBP_AUD_SHORT" in l]
+    assert len(gold) == 2 and all(l.split()[1] == "practice" for l in gold), out
+    assert len(gbp) == 2 and all(l.split()[1] == "passed" for l in gbp), out
