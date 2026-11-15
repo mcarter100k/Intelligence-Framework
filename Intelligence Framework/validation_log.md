@@ -6571,3 +6571,42 @@ Both runner files are byte-identical to commit 2f7c68b (sha256 `2302ab42…935d`
 - a sharper New York-open rise on a daylight-saving-aware clock.
 
 **Limit:** hourly values are consistent with 4-hour bars, not verified against a second source.
+
+## 2026-11-14 — PRE-REGISTRATION (BCS-1): does a second hourly close confirm a breakout? (GBP/AUD, 2005–2013 STUDY data)
+
+**Owner request:** in the W46 markup the owner adopted "a break is two closed hourly candles in a row beyond the level; if the second closes back inside, it was a fake", then asked to "go back in history and see how things played". In the W46 window six first closes beyond a line were seen: five fakes, one confirmation (Fri 2026-11-13 04:00 PST). Those 2026 bars are FORWARD and play no part in the test. Free zone only.
+
+**Committed together, before any 2005–2013 outcome of these rules is computed:**
+
+| File | sha256 |
+|---|---|
+| `docs/specs/breakout_confirmation_study_spec.md` | `33da4267336cec1bbb3b5303b0905e2cf2de8258881e19903fca7195d991681d` |
+| `studies/breakout_confirmation_study.py` | `261afacff7b9ab5d27b91c52fd1a56376accf5c157d3302abe86b8c8ccb8bddc` |
+| `tests/test_breakout_confirmation_selftest.py` | `67819107dd1700d22eb93c38750dd532ff7eeff9a691bfe0742357f135b26cea` |
+
+The runner also imports these unchanged files: `studies/history_study_convert.py` `584ff76d…a553`, `studies/shadow_cost_regrade.py` (`rollover_nights`) `6cb2e4c9…1fdf`, `studies/research_archive.py` (`load`) `6286a9ac…0e2a`, `studies/policy_rates_2003_2014.json` `5df23e18…eacf`, `foundation/tools/power_check.py` `4afaf1ca…6d09`, `foundation/tools/episodes.py` `92cd1e89…bcd0`.
+
+**Data.** The research archive's STUDY span, read through `research_archive.load(spans={"STUDY"})`, which checks the manifest hash and refuses sealed bars. The runner pins `GBP_AUD_H1.csv` `f170a040…6768` (56,077 bars, 2005-01-02 22:00Z → 2013-12-30 21:00Z) and `GBP_AUD_D.csv` `24e4bbe9…f7f6` (2,343 sessions). VERIFIED this session: `shasum -a 256` of both files equals the manifest values. These H1 bars were used before only by the session movement study (range by hour), never for breaks. No network call; no SEALED EXAM, USED or FORWARD data.
+
+**The rules (spec §4–§5).** Level: the latest confirmed hourly swing (k = 5, strict), usable from the bar after it confirms; replaced by a newer swing; ended by a confirmed break, not by a fake. Event: a fresh close beyond. Fake: the next close at or inside. Three cells, long and short pooled:
+- **A** enters at every event's close;
+- **B** enters at the confirming (second) close;
+- **C**, after B, rests a limit at the level for 12 bars.
+
+All three use stop = level − 0.25 daily ATR (14 completed sessions), graded on the stop, with a timed exit 24 bars after entry. Costs: the era spread (10.0 pips 2005–09, 7.0 pips 2010–13) plus financing at period policy rates and a 1.0% markup; 3.0 and 5.1 pips are secondaries. Episodes: 24 bars. Verdict: Bonferroni lower bound at 0.98333 (3 cells); SUPPORTED needs lower > 0 and without-best > 0; REFUTED needs the 90% upper bound < +0.15R.
+
+**Power (spec §9):** N required for +0.15R at 80% is 565 episodes per cell. The guess is 1,000–2,000 for A and B and 400–1,200 for C; the counts stage replaces it.
+
+**Self-test:** `SELFTEST OK` (53 checks). **Mutation test: 18 of 18 caught** (each applied, with a 1-line diff confirmed; the source restored byte-identical and re-run with bytecode writing off). They covered:
+- strict swing; the window missing bar i+5; a next close exactly at the level;
+- the level surviving confirmation; the retest window ±1; the gap fill price;
+- the entry bar's low checked; the horizon one short; a doubled C stop;
+- the entry instant at the open; financing ignoring side; ATR including its own session;
+- the refutation boundary; no Bonferroni; the episode `>` vs `>=`;
+- the mirror keeping high/low; the embargo start allowed; a stop needing a break.
+
+One mutant was not run because it is equivalent: dropping the `C[j−1] ≤ level` condition. While a level is live, every close beyond it follows a close at or inside, because a second close beyond ends the level.
+
+**Suite:** `python -m pytest -q` on the branch: 1124 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+**Next:** `counts` through `reality_run.py --no-env`, logged and committed before `full`.
