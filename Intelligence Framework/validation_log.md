@@ -7737,3 +7737,16 @@ The `feat/gold-rule-specs` branch was squash-merged to `main` as a5ae1ca (tree i
 - **B6:** GMW-1 prepared for signature; two gaps closed by marked proposals (verdict under floor B only; exam rule for a two-cell family) and a stale power figure corrected.
 
 **Suite (2026-11-16, branch):** 1250 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+
+## 2026-11-17 — GOLD SPECS, ROUND-4 RULINGS (free zone; branch `feat/gold-specs-round4`; no spec run)
+
+- **C1:** PRC-1 SHELVED (post-hoc same-week subset of 17 below the bootstrap's N minimum; the 28-trade group's upper bound +0.334 HRU against the +0.44 floor; a bound that barely moves while the mean crosses zero; and, C3, no HRU threshold has economic meaning without a stop).
+- **C2:** futility condition 2 (reach) adopted as methodology M41: futile if the minimum detectable effect exceeds the 90% upper bound of the best available estimate from a pre-registered group; under 20 observations a spec may not cite its bound against futility.
+- **C4–C6:** GMW-1's floor-B verdict and two-cell exam rule accepted.
+- **C7:** GMW-1 release-day condition: SUPPORTED must also hold on the 1,838 non-release days (release day = NFP or CPI session, 186 days); otherwise INCONCLUSIVE pending GNC-1. PPI, retail sales, GDP, jobless claims uncontrolled.
+- **C10:** GMW-1 verdict computed with and without the 69 FOMC statement days; INCONCLUSIVE if it changes. Not all 69 are at 2:15 PM ET; all are excluded by date.
+- **C8:** 2021–2026, 1,158 days: 07:00–13:00 PT range a median 0.93 of the stop distance; stop reached on 15.0% (B1) and 14.5% (B2) of days; unstopped move SD 0.78 d. The SD of R is likely near 0.8R; smallest detectable edge at N 1,900 about +0.051R.
+- The methodology principle count in `foundation/README.md` and the skill source was stale at 39; corrected to 41 by counting the rows.
+
+**Suite (2026-11-17, branch):** 1250 passed, 10 skipped, 3 deselected, 16 xfailed.

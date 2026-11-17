@@ -1,7 +1,7 @@
 # Spec GMW-1: gold's 4–7 AM PT window (pre-registration draft, amended)
 
-**Status:** DRAFT, amended 2026-11-16 after independent review and the owner's
-remediation brief. Not frozen and not run. Nothing in it has been computed on
+**Status:** DRAFT, amended 2026-11-16 and 2026-11-17 after independent review
+and the owner's rulings. Not frozen and not run. Nothing in it has been computed on
 2006–2013 data. **It does not run until the owner signs off.** It freezes at
 a later commit; any change after freezing is a new id (GMW-2) with a fresh
 run.
@@ -74,6 +74,26 @@ module, no ledger, no SEALED EXAM bar.
   and left the reverse open, a second look); §4.3 the exam rule is restated
   for a two-cell family (it said "GMW-1 goes" without naming a cell). §6's
   "about +0.25R" at SD 3.0 corrected to +0.19–0.22R (it dated from α 0.0073).
+- 2026-11-17 (owner rulings C4, C5, C6): both [PROPOSED] passages accepted as
+  written. §3.4: floor B (d ≥ 0.30 ATR) owns every verdict; floor A is a side
+  result. This reverses the earlier two-floor ruling: the question is which
+  stop would actually be traded, and `setup_check.py` tells the owner a stop
+  inside 0.30 ATR "would get hit by accident, not by being wrong". §4.3: both
+  cells passing is a test defect. §6's +0.19–0.22R accepted.
+- 2026-11-17 (owner ruling C7): releases inside the window. The 05:30 AM PT
+  releases land inside B's 04:00–07:00 PT window. **Release day** = a session
+  carrying NFP or CPI in `studies/us_events_2005_2013.csv`: 186 days, 9.2% of
+  the STUDY window (1,838 without). A SUPPORTED verdict must also hold on the
+  non-release days, or the cell returns INCONCLUSIVE pending GNC-1 (§4.2). A
+  release-day / non-release-day side result is restored, with no verdict and
+  outside GNC-1's family (§7). PPI, retail sales, GDP and weekly jobless
+  claims are not in the event data and are not controlled for. This reverses
+  the removal of the news-day side check, which protected GNC-1 at B's cost.
+- 2026-11-17 (owner ruling C10): Fed decisions during the hold. The 69 FOMC
+  statement days in the STUDY window (3.4%) are reported with and without; if
+  the verdict depends on them, the cell returns INCONCLUSIVE (§4.2).
+- 2026-11-17 (owner question C8, answered in §6): on 2021–2026 data the stop is
+  reached on about 15% of days; the realistic SD is near 0.8R, not 2–3R.
 - 2026-11-16: §1 a confound is named: 7:00 AM PT is 10:00 New York, when US
   10:00 releases (ISM, consumer sentiment) land and, in most weeks, the London
   afternoon gold fix (15:00 London; reviewer-stated, NOT CHECKED here). A
@@ -91,6 +111,9 @@ module, no ledger, no SEALED EXAM bar.
   - **REFUTED:** the idea is retired. You stop thinking about trading the
     morning move this way.
   - **INCONCLUSIVE:** the data can't tell. Nothing changes.
+  - **Two checks can turn a pass into INCONCLUSIVE:** if the result only holds
+    because of the days with a jobs report or CPI at 5:30 AM (then it waits for
+    GNC-1), or if it changes when the 69 Fed decision days are left out.
 - **How long to confirm it forward:** one trade a day, so 20 paper trades take
   about a month.
 - **Decisions in front of you:** whether to run with placeholder costs, and
@@ -126,6 +149,12 @@ verdict comes from 2006–2013, which the session study never touched.
 
 **Prior work:** no gold rule has been tested. On the GBP pairs, breakout rules
 (R43, R44, R46) and fades of levels (R14) failed.
+
+**Releases inside the window (ruling C7):** the 05:30 AM PT releases (NFP,
+CPI, PPI, retail sales, GDP, weekly jobless claims) land inside the 04:00–07:00
+PT window, so a window move can be a news reaction. NFP and CPI days are
+controlled for (§4.2); the others are not in the event data. Fed decisions land
+during the hold, 9:30–11:15 AM PT (ruling C10, §4.2).
 
 **The confound named in advance:** 7:00 AM PT (10:00 New York) is when US
 10:00 releases land, and in most weeks the London afternoon gold fix. A
@@ -185,13 +214,12 @@ PT entry (§7) shows whether the result depends on it.
 
 ### 3.4 Floors, cap, exit
 
-- **Floor (verdict) [PROPOSED 2026-11-16 for signature]:** skip and count if
-  d < 0.30 ATR (floor B, `MIN_STOP_ATR_MULTIPLE`). **Every verdict is computed
-  under floor B only.** Floor A (d ≥ 0.15 ATR) is run as a side result and
-  never changes a verdict. (This replaces the rule "a cell that passes under
-  floor A and fails under floor B takes floor B's result", which left the
-  reverse case open. If struck, the owner names the verdict for a cell that
-  fails under A and passes under B.)
+- **Floor (verdict; accepted, ruling C4):** skip and count if d < 0.30 ATR
+  (floor B, `MIN_STOP_ATR_MULTIPLE`). **Every verdict is computed under floor B
+  only.** Floor A (d ≥ 0.15 ATR) is run as a side result and never changes a
+  verdict. A stop inside 0.30 ATR is one the framework itself calls a stop that
+  "would get hit by accident, not by being wrong"; testing it would not test
+  anything tradeable.
 - **Cap (headline):** skip and count if d > 1.0 ATR. **Required side result:**
   no cap, with the share of trades and of total R the cap removes.
 - **Exit:** 1:00 PM PT, at the close of the H1 bar opening at 12:00 PT. If that
@@ -232,6 +260,10 @@ one-sided α = 1 − (1 − 0.05)^(1/2) = 0.0253** (exactly 0.025321; z = 1.955)
 false refute shelves an idea rather than trading one, and a shelved spec stays
 recoverable.
 
+The release-day and FOMC conditions (§4.2) are robustness conditions, not
+extra tests: they can only turn a verdict into INCONCLUSIVE, never produce a
+pass, so they do not enlarge the family.
+
 ### 4.2 One line for pass and fail
 
 - **m = +0.05R per trade** after primary costs.
@@ -240,6 +272,14 @@ recoverable.
 - **REFUTED** if the one-sided 90% upper bound (the futility standard) is
   below m.
 - **INCONCLUSIVE** otherwise. **INSUFFICIENT** under 20 trades.
+- **Release-day condition (ruling C7):** a SUPPORTED verdict stands only if the
+  same SUPPORTED conditions (97.47% lower bound above m, and the mean without
+  the best 1% above 0) also hold on the non-release days alone (about 1,838
+  sessions). If they do not, the cell returns **INCONCLUSIVE pending GNC-1**:
+  the effect may be a reaction to the 05:30 AM PT releases.
+- **FOMC condition (ruling C10):** the verdict is computed twice, with and
+  without the 69 FOMC days. If the two differ, the cell returns
+  **INCONCLUSIVE**: a policy decision arriving mid-trade may be driving it.
 - Because the 97.47% lower bound is always below the 90% upper bound, a result
   can never be both SUPPORTED and REFUTED.
 - Bounds: percentile bootstrap, 20,000 resamples, seed 7, plus a block
@@ -258,7 +298,7 @@ Decision boundaries on the mean, by N and SD (normal approximation):
 
 ### 4.3 Exam rule
 
-**[PROPOSED 2026-11-16 for signature]** If exactly one cell is SUPPORTED,
+**(Accepted, ruling C5.)** If exactly one cell is SUPPORTED,
 that cell goes to the sealed exam. If both B1 and B2 are SUPPORTED (opposite
 bets on the same days with the same stop distance both paying after costs),
 that is treated as a defect in the test, not an edge: neither goes to the exam
@@ -282,11 +322,27 @@ With d floored at 0.15 ATR, single trades can reach +5R or more, so SD 2–3 is
 the realistic range. At SD 3.0 this test can confirm only edges of about
 +0.19R (N 1,900) to +0.22R (N 1,500).
 
+**Measured since (owner question C8, 2026-11-17; 2021–2026 USED data, 1,158
+days under floor B and the cap; the STUDY span not touched; direction-free
+figures only):** from 7:00 AM to 1:00 PM PT gold travels a median **0.93 d**
+(p25 0.70, p75 1.32). B1's stop is reached on **15.0%** of days and B2's on
+**14.5%** (28.8% either side). The unstopped 7:00 AM → 1:00 PM move has an SD
+of **0.78 d**. So the test is mostly a timed-exit trade, and the SD of R is
+likely near 0.8R, not 2–3R. At SD 0.8R and N 1,900 the smallest detectable edge
+is **+0.051R** (power 78% at +0.05R, ~100% at +0.15R); SUPPORTED above +0.086R,
+REFUTED below +0.026R. The 2–3R rows above are kept as the pessimistic range.
+
 ## 7. Side results (reported; never change a verdict)
 
 1. R before costs; the $1.00 stress spread; the 0.012% spread.
 2. The uncapped result, with the share of trades and of total R the cap
-   removes.
+   removes. The mornings the cap excludes (d > 1.0 ATR) are skipped and counted
+   in the headline and appear only here.
+11. **Release days (ruling C7; protective, no verdict, outside GNC-1's
+    family):** the count of trades on NFP/CPI release days and on other days,
+    and the mean R on each subset.
+12. **FOMC days (ruling C10):** each cell's statistics and verdict with and
+    without the 69 FOMC days.
 3. Floor A (d ≥ 0.15 ATR) results beside the floor-B verdict.
 4. Entry at 8:00 AM PT instead of 7:00 (the fix/release confound).
 5. Exits at 10:00 AM and 12:00 PM PT.
@@ -306,8 +362,10 @@ the realistic range. At SD 3.0 this test can confirm only edges of about
 | Within-bar order | a touched stop counts first (§3.5) |
 | Gap through the stop | fill at the bar's open (§3.5) |
 | Pooling | per cell, longs and shorts pooled; sides as side results (§3.6) |
-| Floor | verdict under floor B (d ≥ 0.30 ATR); floor A a side result (§3.4, proposed) |
-| Both cells SUPPORTED | treated as a test defect; neither to the exam (§4.3, proposed) |
+| Floor | verdict under floor B (d ≥ 0.30 ATR); floor A a side result (§3.4, ruling C4) |
+| Both cells SUPPORTED | treated as a test defect; neither to the exam (§4.3, ruling C5) |
+| Release day | a session with NFP or CPI in `us_events_2005_2013.csv` (186 days) (§4.2, ruling C7) |
+| FOMC day | a session holding any of the 69 FOMC statement dates in `fomc_statement_times_2006_2013.csv`, whatever the statement time (§4.2, ruling C10) |
 | ATR | simple 14-session mean of completed sessions, by session-day bisect (§3.1) |
 | Missing window bar | skip the day, count it |
 | Missing exit bar | skip the trade, count it |
@@ -326,7 +384,11 @@ the realistic range. At SD 3.0 this test can confirm only edges of about
 7. the verdict using a bound other than the two-test Šidák bound (97.47%);
 8. SUPPORTED and REFUTED allowed together (two thresholds);
 9. FORWARD or sealed-span rows read;
-10. a missing exit bar exited at an earlier bar.
+10. a missing exit bar exited at an earlier bar;
+11. the release-day condition skipped (SUPPORTED kept although the
+    non-release subset fails);
+12. the FOMC condition skipped (a verdict kept although it changes without the
+    FOMC days).
 
 ## 9. Tests before the run
 
@@ -336,7 +398,8 @@ on a planted up morning with identical d; a stop on the entry hour; a gap
 through the stop; the 1:00 PM exit; floors and cap; the verdict under floor B only;
 the ATR excluding the current session (a huge-range current session leaves
 ATR unchanged); `held_nights` = 0; the verdict boundaries with m = +0.05R and
-the Šidák bound (α 0.0253); exam-span and wrong-hash refusals; plus every named mutant.
+the Šidák bound (α 0.0253); the release-day and FOMC conditions on planted
+data; exam-span and wrong-hash refusals; plus every named mutant.
 
 ## 10. Run discipline
 

@@ -28,7 +28,7 @@ The biggest gap is that nothing grades the trader. The best next evidence source
 
 | File | What it holds |
 |---|---|
-| `methodology.md` | 39 evidence-discipline principles, each with the incident that forced it |
+| `methodology.md` | 41 evidence-discipline principles, each with the incident that forced it |
 | `research_findings.md` | 48 tested hypotheses with honest N. **Check here before testing any idea** |
 | `chart_reading_method.md` | How to mark up a chart: top-down order, swings, Fibonacci anchors, pullback depth (R39), zones. A method, not a tested edge |
 | `market_data_facts.md` | OANDA candle conventions, sessions and DST, pip scales, feed overlap, spreads |

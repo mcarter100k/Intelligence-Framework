@@ -1,4 +1,29 @@
-# Spec PRC-1: post-release continuation in gold (pre-registration draft, amended)
+# Spec PRC-1: post-release continuation in gold (pre-registration draft) — SHELVED
+
+**Status: SHELVED 2026-11-17 (owner ruling C1). Do not run it.** Kept for the
+record, not deleted. Restarting it needs a new id (PRC-2), a stop that defines
+risk, and a prospectively registered same-week split.
+
+**Why shelved (owner ruling C1, with the arithmetic of §12):**
+- **a) The only group that clears the floor is a post-hoc subset.** The
+  same-week split was found by looking for it after the pooled 2026 result. A
+  post-hoc subset cannot be the group that authorises a run.
+- **b) Its bound comes from a method the framework disallows at that N.** The
+  same-week group has 17 trades (16 at the 1:00 PM exit), below the
+  20-observation minimum for a bootstrap bound (M3).
+- **c) The group with adequate N fails clearly:** all 28 trades, 90% upper
+  bound **+0.334 HRU** gross (+0.316 after a $1 spread) against the
+  **+0.44 HRU** detection floor.
+- **d) The bound measures how little is known, not an effect.** Across the
+  three same-week rows the mean falls from +0.044 to +0.024 to −0.001 HRU
+  while the upper bound moves only from +0.468 to +0.449 to +0.443.
+- **e) No threshold in its unit has an economic meaning (owner ruling C3).**
+  The futility bar +0.15 was set in stop-based R, where R is the risk taken.
+  HRU normalises volatility, not risk; until a stop defines the risk, no HRU
+  threshold means anything. This is a structural reason the spec is not ready.
+
+If the effect is real it will reappear, and the same-week split can then be
+registered prospectively, which makes it legitimate.
 
 **Unit: HRU (half-range unit), not R.** PRC-1 has no stop. Every result is
 measured in HRU = P&L ÷ (0.5 × the daily ATR), the ATR being the simple mean
@@ -16,20 +41,15 @@ it confirms nothing. The door stays open if a larger effect turns up on other
 data. PRC-1 stays outside the multiple-testing family, α 0.0253 for GMW-1's two
 cells; ruling B1.)
 
-**Pending before any run (ruling B3):** the owner decides from §12 whether
-PRC-1 runs or is shelved alongside GTP-1.
-
 **The rule as specified here has never been measured on any data** (ruling
 A9). With the 1:00 PM PT Fed entry (ruling R4), neither +$34.73 (Fed priced 30
 minutes after the release; withdrawn) nor +$14.38 (Fed entered at the 2:00 PM
 PT four-hour close) describes it. Neither figure is this rule's expected
 result.
 
-**Status:** DRAFT 2026-11-16, written at the owner's request (remediation brief,
-Part 6) and amended the same day by the owner's rulings. Not frozen, not run,
-nothing computed on 2006–2013 data. **It does not run until the owner signs
-off**, because the same-week/weekend split was chosen after looking at 2026
-data. Any change after freezing is a new id (PRC-2).
+**History:** drafted 2026-11-16 at the owner's request (remediation brief,
+Part 6), amended the same day by the owner's rulings, shelved 2026-11-17.
+Never frozen, never run; nothing computed on 2006–2013 data.
 
 **Free zone:** a study, its tests, and data outside the repo. No protected
 module, no ledger, no SEALED EXAM bar.
@@ -62,6 +82,8 @@ module, no ledger, no SEALED EXAM bar.
   a named note at the top: it is not R and not comparable to R.
 - 2026-11-16 (B3): §12 records the 90% upper bound of the 2026 effect for the
   owner's run-or-shelve decision.
+- 2026-11-17 (C1): SHELVED; reasons a–d recorded at the top.
+- 2026-11-17 (C3): no HRU refute bar; recorded as reason e.
 
 ## What you are deciding (plain English)
 
@@ -71,10 +93,8 @@ module, no ledger, no SEALED EXAM bar.
   that close the same week count.
 - **What it can tell you:** whether the idea loses clearly (REFUTED). It
   cannot tell you it works.
-- **Decisions in front of you:** ruling B3, run or shelve (§12: the 90%
-  upper bound of the 2026 same-week effect against the +0.44 HRU detection
-  floor); the HRU threshold for REFUTED (§6); then, if it runs, sign-off after
-  GNC-1's 15-minute data is fetched and checked.
+- **Decided 2026-11-17:** shelved (ruling C1); no HRU refute bar is set
+  (ruling C3).
 
 ## 1. Origin (a hypothesis source, never evidence)
 
@@ -189,9 +209,9 @@ window may not hold elsewhere. (The owner's brief described a rise of roughly
   Bonferroni would be 0.0167). §7's table uses α 0.0085 (the earlier six-test
   figure) and §11 the three-test α.
 - **REFUTED** if the one-sided 90% upper bound of the mean (primary costs) is
-  below **+0.15 HRU**. (The futility standard's +0.15 was set in stop-based R;
-  carried over to HRU by convention, it is not the same bar. Owner to confirm
-  or set an HRU threshold before freezing.) **INSUFFICIENT** under 20 trades.
+  below +0.15 HRU. (Ruling C3, 2026-11-17: no HRU threshold has an economic
+  meaning while no stop defines the risk; the bar is not set, which is one of
+  the reasons the spec is shelved.) **INSUFFICIENT** under 20 trades.
   **INCONCLUSIVE** otherwise (not refuted; confirms nothing).
 - **No re-runs.** The full run happens once.
 - **Dependence on GNC-1:** both test continuation on the same events, so their
@@ -285,7 +305,7 @@ of about 1.4 HRU. Power if the true effect equalled:
 - **Decided (ruling B1):** the family stays at two; the top sentence names the
   mechanism.
 
-## 12. Ruling B3: the 90% upper bound of the 2026 effect (report for the owner's decision)
+## 12. Ruling B3: the 90% upper bound of the 2026 effect (decided: shelved, ruling C1)
 
 **The question:** does the 90% one-sided upper bound of the 2026 same-week
 effect, in HRU, at the 2:00 PM PT Fed entry, reach the +0.44 HRU detection

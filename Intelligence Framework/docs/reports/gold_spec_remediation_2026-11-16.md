@@ -613,3 +613,106 @@ exit 1:00 PM PT next session | same-week | after $1 spread: N 16 mean -0.001 SD 
 exit 1:00 PM PT next session | all | gross: N 25 mean -0.022 SD 1.479 | 90% upper: bootstrap +0.347, normal +0.357 | 90% lower -0.391 | reaches +0.44: False
 exit 1:00 PM PT next session | all | after $1 spread: N 25 mean -0.042 SD 1.481 | 90% upper: bootstrap +0.328, normal +0.338 | 90% lower -0.411 | reaches +0.44: False
 ```
+
+
+## Addendum 4: round-4 rulings (2026-11-17)
+
+| Ruling | Done | Label |
+|---|---|---|
+| C1 | PRC-1 SHELVED with the owner's reasons a–d and the §12 arithmetic at the top of the spec; index updated | VERIFIED (text) |
+| C2 | Futility condition 2 adopted as methodology principle **M41**, with both amendments (estimate from a pre-registered group only; under 20 observations a spec may not cite its bound as evidence it is not futile). The shadow-candidate checkpoint in `futility_rule_spec.md` is unchanged | VERIFIED (text) |
+| C3 | No HRU refute bar; recorded in PRC-1 as shelving reason e | VERIFIED (text) |
+| C4, C5, C6 | GMW-1: floor B owns every verdict (floor A a side result); both cells passing is a test defect; +0.19–0.22R kept | VERIFIED (text) |
+| C7 | GMW-1: release day = NFP or CPI session in `us_events_2005_2013.csv`: **186 days, 9.19% of 2,024 STUDY sessions, 1,838 without** (counted from the file; the ruling's "about 1,834" is the same order). SUPPORTED must also hold on non-release days, else INCONCLUSIVE pending GNC-1; release-day side result restored, outside GNC-1's family; PPI, retail sales, GDP and jobless claims noted as uncontrolled | VERIFIED (text and counts) |
+| C10 | GMW-1: verdict with and without the **69 FOMC statement days (3.41%)**; if it changes, INCONCLUSIVE. **Premise note:** not all 69 land at 2:15 PM ET. Scheduled statements came at 2:15 PM, 12:30 PM (2011–2012 press-conference meetings) or 2:00 PM ET (2013): all inside the 07:00–13:00 PT hold. Six were unscheduled, at other times (for example 2008-10-08 at 7:00 AM ET, inside the window rather than the hold; 2010-05-09, a Sunday, at 9:15 PM ET). The spec excludes all 69 by date whatever the time, the conservative reading | VERIFIED (text and counts) |
+| C8 | Answered (below and GMW-1 §6) | OBSERVED |
+| C9 | Hashes are cited in full from now on | — |
+
+### C8: the stop distance against the 07:00–13:00 PT move
+
+Measured on the USED span (2021-04-27 → 2026-09-09; learning data; the STUDY
+verdict span not touched), 1,158 days after floor B and the cap, through
+`scripts/reality_run.py --no-env`. Only direction-free figures were computed; no
+signed mean of either cell.
+- range travelled 07:00–13:00 PT ÷ d: median **0.933** (p10 0.548, p25 0.701,
+  p75 1.316, p90 1.877);
+- stop reached by 1:00 PM PT: **B1 15.0%, B2 14.5%**, either side 28.8%;
+- unstopped 07:00 → 13:00 move in units of d: **SD 0.778**, mean |move| 0.564.
+
+Reading: the stop is reached on about one day in seven per cell, so GMW-1 is
+mostly a timed-exit trade, and the SD of R is likely near 0.8R. The power
+table's 2–3R rows are pessimistic: at SD 0.8R and N 1,900 the smallest
+detectable edge is +0.051R (SUPPORTED above +0.086R, REFUTED below +0.026R).
+GMW-1 §6 records this; the verdict rules are unchanged.
+
+### Appendix H: C8 computation (code and output, verbatim)
+
+```python
+"""Ruling C8: how far gold travels from 07:00 to 13:00 PT relative to GMW-1's stop
+distance d (window range + 0.05 x ATR), on the USED span 2021-04-27 -> 2026-09-09
+(learning data; the STUDY verdict span is not touched). Direction-free figures only:
+no signed mean of any cell is computed."""
+import csv, hashlib, math, statistics as st, sys
+from bisect import bisect_left
+from collections import defaultdict
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+PT, NY = ZoneInfo("America/Los_Angeles"), ZoneInfo("America/New_York")
+A = sys.argv[1]
+PINS = {"XAU_USD_H1.csv": "eabec6652e055540b256aa743971a1a5aa5cbb459e94b4887da6f28b8e02a4be",
+        "XAU_USD_D.csv": "6202a13d86459d2d3453c31ea9ddf40a3aca44243a6d4ff75bf3d0c165d0e3ca"}
+rows = {}
+for f, h in PINS.items():
+    raw = open(f"{A}/{f}", "rb").read()
+    assert hashlib.sha256(raw).hexdigest() == h, f
+    rows[f] = [r for r in csv.DictReader(raw.decode().splitlines()) if r["span"] == "USED"]
+sday = lambda t: (t.astimezone(NY) + timedelta(hours=7)).date()
+D = [(sday(datetime.fromisoformat(r["time_utc"])), float(r["h"]), float(r["l"]), float(r["c"])) for r in rows["XAU_USD_D.csv"]]
+days = [d[0] for d in D]
+tr = [None] + [max(D[i][1] - D[i][2], abs(D[i][1] - D[i - 1][3]), abs(D[i][2] - D[i - 1][3])) for i in range(1, len(D))]
+def atr(day):
+    k = bisect_left(days, day)
+    return st.fmean(tr[k - 14:k]) if k - 14 >= 1 else None
+byday = defaultdict(dict)
+for r in rows["XAU_USD_H1.csv"]:
+    t = datetime.fromisoformat(r["time_utc"]).astimezone(PT)
+    byday[t.date()][t.hour] = (float(r["o"]), float(r["h"]), float(r["l"]), float(r["c"]))
+ratio, reachB1, reachB2, reach_any, mv, n_skip = [], 0, 0, 0, [], {"missing": 0, "atr": 0, "floorB": 0, "cap": 0, "zero": 0}
+for day, b in sorted(byday.items()):
+    if not all(h in b for h in (4, 5, 6)) or not all(h in b for h in range(7, 13)):
+        n_skip["missing"] += 1; continue
+    a = atr(sday(datetime(day.year, day.month, day.day, 6, tzinfo=PT)))
+    if a is None:
+        n_skip["atr"] += 1; continue
+    wh = max(b[h][1] for h in (4, 5, 6)); wl = min(b[h][2] for h in (4, 5, 6))
+    move = b[6][3] - b[4][0]
+    if move == 0:
+        n_skip["zero"] += 1; continue
+    d = (wh - wl) + 0.05 * a
+    if d < 0.30 * a:
+        n_skip["floorB"] += 1; continue
+    if d > 1.0 * a:
+        n_skip["cap"] += 1; continue
+    e = b[6][3]
+    hh = max(b[h][1] for h in range(7, 13)); ll = min(b[h][2] for h in range(7, 13))
+    ratio.append((hh - ll) / d)
+    up = move > 0
+    hit_long = ll <= e - d; hit_short = hh >= e + d
+    hitB1 = hit_long if up else hit_short          # continuation's stop
+    hitB2 = hit_short if up else hit_long          # fade's stop
+    reachB1 += hitB1; reachB2 += hitB2; reach_any += hit_long or hit_short
+    mv.append((b[12][3] - e) / d)                  # unstopped 7:00 -> 13:00 move in units of d (sign = up)
+n = len(ratio)
+q = st.quantiles(ratio, n=10)
+print(f"USED days scored {n}; skipped {n_skip}")
+print(f"range 07:00-13:00 PT / d: median {st.median(ratio):.3f}; p10 {q[0]:.3f}; p25 {st.quantiles(ratio, n=4)[0]:.3f}; p75 {st.quantiles(ratio, n=4)[2]:.3f}; p90 {q[8]:.3f}")
+print(f"stop reached (price touches entry -/+ d) by 13:00 PT: B1 {100 * reachB1 / n:.1f}%, B2 {100 * reachB2 / n:.1f}%, either side {100 * reach_any / n:.1f}%")
+print(f"unstopped 07:00->13:00 move in units of d: SD {st.stdev(mv):.3f}; mean |move| {st.fmean(abs(x) for x in mv):.3f}; p90 |move| {st.quantiles([abs(x) for x in mv], n=10)[8]:.3f}")
+```
+
+```
+USED days scored 1158; skipped {'missing': 329, 'atr': 15, 'floorB': 65, 'cap': 105, 'zero': 1}
+range 07:00-13:00 PT / d: median 0.933; p10 0.548; p25 0.701; p75 1.316; p90 1.877
+stop reached (price touches entry -/+ d) by 13:00 PT: B1 15.0%, B2 14.5%, either side 28.8%
+unstopped 07:00->13:00 move in units of d: SD 0.778; mean |move| 0.564; p90 |move| 1.259
+```
