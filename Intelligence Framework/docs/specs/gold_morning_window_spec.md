@@ -94,6 +94,11 @@ module, no ledger, no SEALED EXAM bar.
   the verdict depends on them, the cell returns INCONCLUSIVE (§4.2).
 - 2026-11-17 (owner question C8, answered in §6): on 2021–2026 data the stop is
   reached on about 15% of days; the realistic SD is near 0.8R, not 2–3R.
+- 2026-11-17 (owner rulings D1–D4, round 5): §6's 2–3R justification relabelled
+  as what floor A would have produced; SD 0.8R rows added to §4.2's boundary
+  table; §7 renumbered in order (items 11 and 12 moved after 10; no side result
+  is cited by number elsewhere in the spec); §6 notes that the 0.8R SD comes
+  from 2021–2026 and may not hold for 2006–2013.
 - 2026-11-16: §1 a confound is named: 7:00 AM PT is 10:00 New York, when US
   10:00 releases (ISM, consumer sentiment) land and, in most weeks, the London
   afternoon gold fix (15:00 London; reviewer-stated, NOT CHECKED here). A
@@ -295,6 +300,11 @@ Decision boundaries on the mean, by N and SD (normal approximation):
 | 1,900 | 1.2R | +0.104R | +0.015R |
 | 1,900 | 2.0R | +0.140R | −0.009R |
 | 1,900 | 3.0R | +0.185R | −0.038R |
+| 1,500 | 0.8R (measured, §6) | +0.090R | +0.024R |
+| 1,900 | 0.8R (measured, §6) | +0.086R | +0.026R |
+
+The 0.8R rows use the SD measured on 2021–2026 data under floor B (§6, C8);
+the 1.2–3.0R rows are the pessimistic range.
 
 ### 4.3 Exam rule
 
@@ -318,9 +328,12 @@ missing windows, zero moves, floor and cap skips. Not counted before freezing.
 | 1,900 | +0.077R / >99% | +0.128R / 91% | +0.192R / 59% |
 
 N needed for +0.15R at 80% power: 501 (SD 1.2), 1,390 (SD 2.0), 3,128 (SD 3.0).
-With d floored at 0.15 ATR, single trades can reach +5R or more, so SD 2–3 is
-the realistic range. At SD 3.0 this test can confirm only edges of about
-+0.19R (N 1,900) to +0.22R (N 1,500).
+The 2–3R rows are what floor A (d ≥ 0.15 ATR) would have produced: stops that
+tight let single trades reach +5R or more. Floor A no longer owns any verdict
+(§3.4, ruling C4). Under floor B (d ≥ 0.30 ATR) the outliers are about half as
+large, which is why the SD measured below is near 0.8R. The 2–3R rows are kept
+as the pessimistic range, not the expectation; at SD 3.0 this test could
+confirm only edges of about +0.19R (N 1,900) to +0.22R (N 1,500).
 
 **Measured since (owner question C8, 2026-11-17; 2021–2026 USED data, 1,158
 days under floor B and the cap; the STUDY span not touched; direction-free
@@ -332,17 +345,18 @@ likely near 0.8R, not 2–3R. At SD 0.8R and N 1,900 the smallest detectable edg
 is **+0.051R** (power 78% at +0.05R, ~100% at +0.15R); SUPPORTED above +0.086R,
 REFUTED below +0.026R. The 2–3R rows above are kept as the pessimistic range.
 
+**For the run (ruling D4):** the 0.8R SD is measured on 2021–2026 and applied to
+a 2006–2013 verdict. The bootstrap bounds adjust to the actual spread, so the
+verdict stays honest either way; but if the STUDY-era SD lands materially above
+0.8R, the expected power above does not hold and INCONCLUSIVE becomes the likely
+outcome.
+
 ## 7. Side results (reported; never change a verdict)
 
 1. R before costs; the $1.00 stress spread; the 0.012% spread.
 2. The uncapped result, with the share of trades and of total R the cap
    removes. The mornings the cap excludes (d > 1.0 ATR) are skipped and counted
    in the headline and appear only here.
-11. **Release days (ruling C7; protective, no verdict, outside GNC-1's
-    family):** the count of trades on NFP/CPI release days and on other days,
-    and the mean R on each subset.
-12. **FOMC days (ruling C10):** each cell's statistics and verdict with and
-    without the 69 FOMC days.
 3. Floor A (d ≥ 0.15 ATR) results beside the floor-B verdict.
 4. Entry at 8:00 AM PT instead of 7:00 (the fix/release confound).
 5. Exits at 10:00 AM and 12:00 PM PT.
@@ -354,6 +368,11 @@ REFUTED below +0.026R. The 2–3R rows above are kept as the pessimistic range.
 9. Counts: days, missing windows, zero moves, floor and cap skips, stops,
    gap fills, timed exits.
 10. Per-trade cost in R, and the share of trades whose cost exceeds 0.2R.
+11. **Release days (ruling C7; protective, no verdict, outside GNC-1's
+    family):** the count of trades on NFP/CPI release days and on other days,
+    and the mean R on each subset.
+12. **FOMC days (ruling C10):** each cell's statistics and verdict with and
+    without the 69 FOMC days.
 
 ## 8. Implementation decisions recorded here
 

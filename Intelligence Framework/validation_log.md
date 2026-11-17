@@ -7750,3 +7750,9 @@ The `feat/gold-rule-specs` branch was squash-merged to `main` as a5ae1ca (tree i
 - The methodology principle count in `foundation/README.md` and the skill source was stale at 39; corrected to 41 by counting the rows.
 
 **Suite (2026-11-17, branch):** 1250 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-17 — GMW-1 FINAL WORDING FOR SIGNATURE (owner rulings D1–D4; free zone; no spec run)
+
+§6: the 2–3R rows relabelled as what floor A (no longer owning a verdict) would have produced; §4.2: SD 0.8R rows added (N 1,500: SUPPORTED above +0.090R, REFUTED below +0.024R; N 1,900: +0.086R / +0.026R); §7 renumbered 1–12 in order (no side result is cited by number elsewhere); §6 notes that the 0.8R SD comes from 2021–2026 and that a materially higher STUDY-era SD would make INCONCLUSIVE the likely outcome.
+
+**Suite (2026-11-17, branch):** 1250 passed, 10 skipped, 3 deselected, 16 xfailed.
