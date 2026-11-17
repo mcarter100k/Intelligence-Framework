@@ -7756,3 +7756,12 @@ The `feat/gold-rule-specs` branch was squash-merged to `main` as a5ae1ca (tree i
 §6: the 2–3R rows relabelled as what floor A (no longer owning a verdict) would have produced; §4.2: SD 0.8R rows added (N 1,500: SUPPORTED above +0.090R, REFUTED below +0.024R; N 1,900: +0.086R / +0.026R); §7 renumbered 1–12 in order (no side result is cited by number elsewhere); §6 notes that the 0.8R SD comes from 2021–2026 and that a materially higher STUDY-era SD would make INCONCLUSIVE the likely outcome.
 
 **Suite (2026-11-17, branch):** 1250 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+
+## 2026-11-17 — GMW-1 SIGNED AND FROZEN (owner sign-off; free zone)
+
+The owner signed `docs/specs/gold_morning_window_spec.md` at commit ac66324b00f2944875ee918c365d3baa4bbbb748, sha256 27d6738ccf8dbdda18417aebc8fc89373f5a8926bbdf1cca69f4ecc24d357326, verified independently against the pushed commit. **This entry is the freeze.** The spec file itself is not edited (its status line still says DRAFT), because any edit would change the signed bytes; the runner refuses to run unless the spec's sha256 equals the signed value.
+
+Authorised, in order (§10): this freeze; the runner and tests with all 12 named mutants caught; the counts stage logged before any R; one full run through `scripts/reality_run.py --no-env`, its output verbatim here and in `studies/gold_morning_window_result.md` with a finding number, whatever it says. No second look, no re-run, no amendment after this freeze. Sealed-exam access is not authorised (team ruling T1 and real venue costs still required).
+
+At this commit the runner does not exist: `studies/gold_morning_window_study.py` is absent.
