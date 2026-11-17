@@ -7773,3 +7773,27 @@ At this commit the runner does not exist: `studies/gold_morning_window_study.py`
 - **Named mutants (spec §8): all 12 caught**, plus a FORWARD-rows variant: 1 window in UTC; 2 exit at the 13:00 PT bar; 3 B2 stop distance differs; 4 ATR includes the own session; 5 gap filled at the stop; 6 verdict under floor A; 7 bound 0.975; 8 two thresholds; 9a sealed rows read; 9b FORWARD rows read; 10 missing exit bar exited earlier; 11 release-day condition skipped; 12 FOMC condition skipped. Each source change confirmed applied; source restored and checked by sha256; `__pycache__` cleared; clean re-run 18 passed.
 - Full suite: 1268 passed, 10 skipped, 3 deselected, 16 xfailed.
 - Implementation choices within the spec, recorded in the runner's docstring: a trade day is a Pacific date with 04:00–06:00 bars; the day's session is session_day of its 04:00 PT bar; FOMC sessions use session_day of the statement time (2:15 PM ET where blank); §4.2 order is FOMC condition first, then the release-day condition on a remaining SUPPORTED; side result 7 trails from the next bar and checks the stop first within a bar.
+
+
+## 2026-11-17 — GMW-1 COUNTS STAGE (§10 step 3; no R, no outcome; logged before the full run)
+
+One run: `reality_run.py --no-env script <worktree>/studies/gold_morning_window_study.py counts ~/intel_study_archives/research_archive_legs`, runner at bc4c289 (sha256 cce624e4b1c4403161a0817882596c17a6a26718b399cdae943676c5883c7a2e). Exit 0, stderr 0 bytes, project UNCHANGED (verified by hash). The counts cannot trigger an edit to the spec (§8).
+
+```
+# GMW-1 counts stage (no R, no outcome)
+
+## STUDY
+- days with a complete window and ATR: 1990; skipped {'ATR warm-up': 15, 'missing window bar': 5, 'zero move': 4}
+- floor-B skips 116; cap skips 151; verdict population 1723; missing exit bar 5; trades per cell 1718
+- floor-A population 1829; uncapped population 1874
+- in the verdict population: release days 141, FOMC days 58, non-release 1582
+- verdict population by year: {2006: 168, 2007: 216, 2008: 227, 2009: 238, 2010: 226, 2011: 217, 2012: 220, 2013: 211}
+
+## USED
+- days with a complete window and ATR: 1372; skipped {'ATR warm-up': 15, 'zero move': 1}
+- floor-B skips 96; cap skips 105; verdict population 1171; missing exit bar 13; trades per cell 1158
+- floor-A population 1266; uncapped population 1276
+- verdict population by year: {2021: 139, 2022: 225, 2023: 219, 2024: 225, 2025: 226, 2026: 137}
+```
+
+Consistency check: the USED verdict population with an exit bar (1,158) equals the 1,158 days of the C8 measurement on the same span and filters.
