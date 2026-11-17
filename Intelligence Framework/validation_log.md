@@ -8101,3 +8101,42 @@ summary HTTP 200 {'currency': 'USD', 'marginRate': '0.02', 'hedgingEnabled': Fal
 ```
 
 **Suite (2026-11-17, branch):** 1279 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+
+## 2026-11-17 — GLS-1 COUNTS STAGE logged before the full run (free zone; no outcome computed)
+
+Spec v5 committed af63c76 (rulings J1–J5) before the runner; runner and tests committed 284236c (`studies/gold_ltf_structure_study.py`, sha256 `0f7e8873fca3f2c0506c802047040b6a361499b244f7d4f148ec3dff41d60809`; `tests/test_gold_ltf_structure_study.py`, 19 tests; 16 named mutants caught: gap fill, same-bar target, engulfing loosened, consolidation threshold tight and loose, futures short not credited, futures charging the CFD markup, roll counted extra, missed dropped instead of 0R, bucket edges, drift baseline direction, pullback reversal order and strictness, shorts-receive leading, tercile cut-offs, break-hour spread; two tests were strengthened after their mutants first survived). Engulfing is checked equal to `entry_confirmation._detect_engulfing` on 400 random bars, both directions.
+
+`counts` mode through `reality_run.py --no-env`: exit 0, stderr empty, project unchanged by hash. It prints population sizes only. Spot-check against spec §1.3: 516 setups = 520 less 4 in the daily-ATR warm-up; entries 465 / 485 / 504 and missed reasons (50 + 1, 31, 12) match §1.3 less those 4.
+
+```
+# GLS-1 counts stage. DESCRIPTIVE, not tradeable. 2021-2026 only, a regime-specific description. Structures counted on history; none is a signal.
+
+data sha256: XAU_USD_M15_USED.csv ccc62418068d6f80fde399643b756638750fdd33c05a78bb9f1d882761ddc7f3; XAU_USD_M30_USED.csv 3f8636bc08cbfd6e193d21cc01147066524e8ff52975ba7ea697df1f1f18a828; XAU_USD_M5_BA_USED.csv 2c42103ba35d866ba7ba1223b7861e05bd070d5df5528ccf3bbbc6563b5ad959; XAU_USD_M5_USED.csv 92c3957aa1ba9ef50b3cb18071b3a1124ace21c5d92aa228628a513779ca684b
+
+## 4-hour setups (G1): 516 (long 286, short 230); dropped in daily-ATR warm-up 4
+- volatility tercile (ATR / price): {('mid', 1): 96, ('low', 1): 102, ('high', 1): 88, ('low', -1): 71, ('mid', -1): 74, ('high', -1): 85}
+- volatility tercile (ATR in $):   {('mid', 1): 101, ('low', 1): 91, ('high', 1): 94, ('low', -1): 81, ('mid', -1): 73, ('high', -1): 76}
+- M30: entered within 10 sessions 465; missed {'4-hour stop touched first': 50, 'none within 10 sessions': 1}; wait buckets {'3-6': 246, '13+': 7, '7-12': 76, '1': 56, '2': 80}; within 1 session 382
+- M15: entered within 10 sessions 485; missed {'4-hour stop touched first': 31}; wait buckets {'2': 118, '1': 150, '3-6': 205, '7-12': 12}; within 1 session 473
+- M5: entered within 10 sessions 504; missed {'4-hour stop touched first': 12}; wait buckets {'2': 107, '1': 366, '3-6': 31}; within 1 session 504
+
+## daily setups (side result): 67 (long 41, short 26); dropped in daily-ATR warm-up 0
+- volatility tercile (ATR / price): {('low', 1): 16, ('high', 1): 13, ('mid', 1): 12, ('mid', -1): 10, ('low', -1): 7, ('high', -1): 9}
+- volatility tercile (ATR in $):   {('low', 1): 12, ('high', 1): 14, ('mid', 1): 15, ('low', -1): 11, ('mid', -1): 5, ('high', -1): 10}
+- M30: entered within 10 sessions 67; missed {}; wait buckets {'7-12': 8, '3-6': 33, '1': 8, '2': 14, '13+': 4}; within 1 session 55
+- M15: entered within 10 sessions 67; missed {}; wait buckets {'3-6': 35, '1': 15, '2': 16, '7-12': 1}; within 1 session 66
+- M5: entered within 10 sessions 67; missed {}; wait buckets {'1': 39, '2': 22, '3-6': 6}; within 1 session 67
+
+## catalogue occurrences (completions), per timeframe
+- M30 (63563 bars): consolidation down 842; consolidation up 990; double bottom / top down 709; double bottom / top up 797; engulfing down 4191; engulfing up 4161; engulfing at a level down 622; engulfing at a level up 531; head and shoulders down 102; head and shoulders up 117; pin bar down 1296; pin bar up 1560; pin bar at a level down 230; pin bar at a level up 235; retest failed down 731; retest failed up 758; retest held down 732; retest held up 838
+- M15 (127112 bars): consolidation down 1408; consolidation up 1676; double bottom / top down 1553; double bottom / top up 1538; engulfing down 8183; engulfing up 8480; engulfing at a level down 1205; engulfing at a level up 1111; head and shoulders down 204; head and shoulders up 223; pin bar down 2575; pin bar up 3021; pin bar at a level down 390; pin bar at a level up 441; retest failed down 1552; retest failed up 1583; retest held down 1409; retest held up 1580
+- M5 (381285 bars): consolidation down 3511; consolidation up 3936; double bottom / top down 4923; double bottom / top up 5032; engulfing down 24465; engulfing up 25404; engulfing at a level down 3653; engulfing at a level up 3483; head and shoulders down 657; head and shoulders up 701; pin bar down 7515; pin bar up 8592; pin bar at a level down 1141; pin bar at a level up 1358; retest failed down 4788; retest failed up 4899; retest held down 4190; retest held up 4584
+
+## 4-hour swing points: highs 669, lows 673 (swing starts and failed swings are outcomes; not split here)
+
+## pullback legs reaching each level (outcomes not computed)
+- 38.2%: R48 legs 61; 4-hour swing legs 280
+- 50.0%: R48 legs 49; 4-hour swing legs 217
+- 61.8%: R48 legs 36; 4-hour swing legs 179
+```
