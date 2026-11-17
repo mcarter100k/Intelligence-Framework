@@ -1,6 +1,6 @@
 # GLS-1: gold lower-timeframe structure, a descriptive catalogue
 
-**Status: DRAFT v3, rulings F1–F6 and G1–G4 applied. No outcome has been measured.**
+**Status: v4, signed by rulings H1–H4 (2026-11-17). No outcome has been measured.**
 Every definition below is fixed before any 30/15/5-minute gold outcome is
 looked at (team addition 4, 2026-11-17). Committing this file is the
 pre-registration timestamp. A change after a measurement starts gets a new id
@@ -26,6 +26,13 @@ pre-registration timestamp. A change after a measurement starts gets a new id
   measured before this version (§1.3); none is an outcome. Two of the
   rulings' premises did not survive measurement and are reported in §1.3, not
   resolved.
+- 2026-11-17, v4 (rulings H1–H4, the signature, same day): the main result
+  keeps every entry within 10 sessions, bucketed by wait; the p75 window is
+  dropped; the 1-session cut is the secondary (H1). Both-pay financing is
+  primary and binding over "shorts receive" (H2). A required split by
+  volatility regime at the setup (H3). Broker premises checked against the
+  account and OANDA's documentation (H4). The H3 and H4 inputs were measured
+  before this version (§1.4); none is an outcome.
 
 **What this is:** descriptive work under owner ruling E4. It uses no family
 slots and M41 does not apply. Every output is stamped **DESCRIPTIVE, not
@@ -232,6 +239,76 @@ Actual/365 at the entry date's rate.
   1 ÷ stop. A 5-minute long pays about 8.8× the 4-hour's share (2024, five
   sessions), whatever the rate.
 
+### 1.4 Inputs for rulings H3 and H4 (measured before v4; no trade outcome)
+
+**Volatility at the setup (H3).** Script `studies/gold_gls1_volatility.py`
+(1 test; 2 named mutants caught), one run through `reality_run.py --no-env`,
+project unchanged by hash. 516 of the 520 setups have a daily ATR (4 fall in
+its warm-up).
+
+| Measure at the setup | Tercile cut-offs | Median (p25–p75) |
+|---|---|---|
+| Daily ATR ÷ price (primary) | **1.206% / 1.480%** | 1.334% (1.127–1.586%) |
+| Daily ATR in dollars (secondary) | $23.89 / $34.78 | $27.72 ($22.27–41.41) |
+
+Setups by year, low / mid / high tercile:
+
+| Year | ATR ÷ price | ATR in dollars |
+|---|---|---|
+| 2021 | 29 / 29 / 4 | 43 / 19 / 0 |
+| 2022 | 29 / 39 / 40 | 46 / 56 / 6 |
+| 2023 | 54 / 39 / 12 | 61 / 40 / 4 |
+| 2024 | 37 / 31 / 26 | 22 / 42 / 30 |
+| 2025 | 23 / 34 / 34 | 0 / 15 / 76 |
+| 2026 | 0 / 0 / 56 | 0 / 0 / 56 |
+
+Long / short per tercile (ATR ÷ price): low 101 / 71, mid 98 / 74, high
+87 / 85.
+
+- **Why ATR ÷ price is primary.** The spread follows price (§1.3), so the
+  cost share of a stop follows volatility relative to price. ATR in dollars
+  also rises with gold's price level, which tripled, so its terciles mostly
+  sort by year: no 2025–2026 setup is in its low tercile, and none from 2021
+  in its high. ATR ÷ price spreads every year but 2026 across all three. H3
+  said "daily ATR percentile"; both are reported, and the team may swap
+  which leads.
+- **2026 is entirely high-volatility** on both measures, so the high tercile
+  carries all of 2026's setups.
+- **H3's mechanism, as cost arithmetic only** (spread at that year's hour
+  median ÷ every structure stop, median, by tercile of ATR ÷ price at the
+  break):
+
+  | Entry | Low | Mid | High |
+  |---|---|---|---|
+  | 4-hour | 1.1% | 1.0% | 0.6% |
+  | 30-minute | 3.7% | 3.0% | 2.0% |
+  | 15-minute | 5.5% | 4.5% | 3.0% |
+  | 5-minute | **10.0%** | 8.1% | **5.4%** |
+
+  A 5-minute entry costs nearly twice as much of its risk in a quiet market
+  as in a volatile one.
+- The cut-offs come from the span's own setups. Tercile membership is a
+  property of the setup known at t0 (its ATR and price), but the cut-off
+  values use the whole span's distribution; that is acceptable for a
+  description and would not be for a test.
+
+**Broker premises (H4).** Read-only probe `studies/broker_financing_probe.py`
+through `reality_run.py` (credentials needed; no order placed), project
+unchanged by hash, plus OANDA's public pages read 2026-11-17.
+
+| Premise | What was found | Status |
+|---|---|---|
+| A broker rate for gold | **None exists here.** The account's instruments endpoint lists 68 instruments, all currencies; asked for XAU_USD it answers HTTP 404 `INSTRUMENT_NOT_TRADEABLE` (2026-11-17, confirming validation_log 2026-11-05). There is no broker for gold in this framework to verify against | **Cannot be settled**: gold is practice only |
+| Day count | OANDA's US financing page: "Financing cost or credit = position value x applicable funding rate x1/365" | **Matches the 365 placeholder** (OANDA's documented rule, not a gold rate) |
+| Which nights | Same page: no charge Saturday or Sunday; a position held over Wednesday's 5 p.m. close is charged "typically three times". The API's own schedule today: GBP/AUD and EUR/USD Wednesday 3, Friday 1; GBP/JPY Wednesday 4, Friday 0 | **Matches `held_nights`** (Wednesday ×3) for the usual case; the API shows it can vary by instrument and week |
+| Can a short be paid? | The page: each instrument has a long and a short rate, and a position "may be a debit or credit". Today's account rates include credits on either side: EUR/USD short +0.45%, GBP/JPY long +1.87% | **At OANDA, either side can be credited.** Both-pay is therefore a conservative placeholder, not OANDA's structure; for gold the sign is unknown |
+| Order permission | OANDA's developer page: a token "will grant access to all of your sub-accounts"; it says nothing on scoping or on placing orders. The account summary: 0 open trades, 0 pending orders | **Cannot be settled from documentation.** Only an order, or OANDA support, can show it |
+
+Sources: [OANDA US financing fees](https://oanda.com/us-en/trading/financing-fees);
+[OANDA v20 authentication](https://developer.oanda.com/rest-live-v20/authentication).
+Which OANDA division holds the account was not checked; the US page was read
+because the account is a live USD account.
+
 ## 2. Span (ruling F1)
 
 **2021-04-27 → 2026-09-09 (USED) only.** A descriptive pass burns the era it
@@ -282,7 +359,13 @@ confirmed. Nothing uses a later bar to decide an earlier one.
   Pacific hour**; an entry or exit in the 2–3 PM PT break is priced at the
   3 PM reopen. Stress: that year's p90 for that hour. Side result only: the
   pooled 2021–2026 by-hour median, for comparison with older findings.
-- **Financing (ruling G4): a labelled placeholder.**
+- **Financing (rulings G4, H2, H4): a labelled placeholder.** Primary:
+  both sides pay (GNC-1). Side result only: shorts receive. **Binding (H2):**
+  if a short result passes under "shorts receive" and fails under both-pay,
+  the both-pay result stands until the real rate is verified with a broker
+  that offers gold. The day count (365) and the Wednesday triple match
+  OANDA's documented rule (§1.4); the rate itself has no broker source,
+  because gold is not tradeable on the account.
   `studies/gold_rule_costs.held_nights`, priced as GNC-1 §3.3: longs pay the
   Fed upper bound + 2.5% a year, shorts pay 2.5%; secondary, shorts receive
   upper bound − 2.5%. Actual/365, at the entry date's rate from
@@ -312,7 +395,7 @@ tighter stop, against more stop-outs and a larger cost share.
   stop, within 10 sessions.
 - **Side result, no verdict:** the 67 daily structure breaks, entered at the
   daily close (daily stop) and at 30/15/5-minute structure under the same
-  windows, reported with the same rows and labelled side result.
+  10-session rule and wait buckets, reported with the same rows and labelled side result.
 
 ### 4.2 The four entries
 
@@ -321,17 +404,18 @@ tighter stop, against more stop-outs and a larger cost share.
 | **4-hour (baseline)** | at t0 | t0's close | the 4-hour structure stop |
 | **30-minute / 15-minute / 5-minute** | the first structure break on that timeframe, in the setup's direction, whose swing high was confirmed after t0 | that bar's close | that timeframe's structure stop |
 
-- **Entry window (ruling G2):** each timeframe's p75 wait, fixed in §1.3:
-  **30-minute 6, 15-minute 3, 5-minute 2 four-hour bars** of trading time
-  from t0. An entry that does not come in time, or comes after the 4-hour
-  stop has been touched, is **missed**: no trade. Missed rates (25.8%,
-  27.3%, 8.3%) are reported with every table.
-- **Time-to-entry buckets (G2), fixed now from §1.3:** 30-minute ≤ 2, 3–4,
-  5–6 bars; 15-minute 1, 2, 3 bars; 5-minute 1, 2 bars. Every lower-
-  timeframe result is also shown by bucket.
-- **Secondary (§1.3 premise correction):** every entry within 10 sessions,
-  bucketed the same way plus one bucket for waits beyond the window, so the
-  slow entries the p75 window drops are shown, not silently removed.
+- **Entry window (ruling H1): none inside 10 sessions.** The main result
+  keeps every valid entry within 10 sessions of t0, so nothing is dropped
+  for being slow. An entry that comes after the 4-hour stop has been
+  touched, or not at all, is **missed**: no trade. Missed in §1.3: 30-minute
+  51 of 520 (9.8%), 15-minute 31 (6.0%), 5-minute 12 (2.3%).
+- **Wait buckets (H1), the same edges for every timeframe**, in 4-hour bars
+  of trading time from t0: **1; 2; 3–6 (rest of the first session); 7–12
+  (second session); 13–60 (sessions 3–10).** Every lower-timeframe result is
+  shown by bucket, so the data show where waiting stops paying.
+- **Secondary (H1): the 1-session cut** (waits of 6 bars or fewer), the
+  realistic trading constraint. Missed at that cut: 25.8%, 8.3%, 2.3%.
+- The p75 window of v3 is dropped (H1).
 - **Exit (identical for all four):** the close of the session t0 + h, for
   h = 1, 2, 5 and 10 sessions (team addition 7). An entry that would come
   after that exit is missed for that horizon.
@@ -367,8 +451,14 @@ tighter stop, against more stop-outs and a larger cost share.
    ATR; spread as a share of the stop; and the share of stops under 0.3 daily
    ATR, the framework's own minimum (`risk_and_execution.md`).
 8. **Financing as a share of risk (ruling G4):** for each entry, hold, year
-   and side, both short conventions, labelled placeholder (§3).
-9. **The hindsight ratio (ruling F2), a named figure:** the share of trades
+   and side; both-pay primary, "shorts receive" as a side result (H2).
+9. **Volatility regime (ruling H3), required:** every entry's net result
+   (items 2–5 and 10) split by tercile of daily ATR ÷ price at the setup,
+   cut at 1.206% and 1.480% (§1.4); the same split by daily ATR in dollars
+   ($23.89 / $34.78) as a secondary. If a lower-timeframe entry is marginal
+   on average, this split is what shows whether it works in live markets and
+   fails in quiet ones.
+10. **The hindsight ratio (ruling F2), a named figure:** the share of trades
    net-positive at the exit in the setups that worked, divided by the same
    share in all setups, for each entry and horizon. It measures how much of
    the apparent result is selection on the outcome, and so how much the
@@ -380,8 +470,11 @@ Every table is split long and short (G4c). All-setups rows come first, then
 ### 4.4 Size, stated before measuring
 
 - **520 setups** (289 long, 231 short): a share has a 95% interval of about
-  ±4.3 points on all setups, ±5.7 on longs and ±6.4 on shorts. After the
-  window, about 386 / 378 / 477 trades (30/15/5-minute), about ±5 points.
+  ±4.3 points on all setups, ±5.7 on longs and ±6.4 on shorts. Within 10
+  sessions, 469 / 489 / 508 trades (30/15/5-minute). A volatility tercile
+  holds about 172 setups: ±7.4 points; a tercile and side about 71–101,
+  roughly ±10. A wait bucket can be smaller still; its count is printed
+  beside every figure.
   The setups that worked are a subset, counted at the counts stage.
 - Means of R for tight entries will still be wide: the median 5-minute stop
   is about 1/8 of the 4-hour stop ($4.86 against $38.12, §1.2), so an
@@ -524,8 +617,10 @@ separates the two cases.**
    Every number printed is reported, including the ones that show nothing.
 4. The runner is written after this version is committed, with tests and
    named mutants: a look-ahead mutant for every confirmation delay; an entry
-   that ignores "confirmed after t0"; an entry window not taken from §1.3;
-   financing pooled across years or sides; a stop checked on the entry's own
+   that ignores "confirmed after t0"; an entry dropped for waiting inside 10
+   sessions; wait buckets with other edges; financing pooled across years or
+   sides; "shorts receive" leading the short rows; tercile cut-offs other
+   than §1.4's; a stop checked on the entry's own
    timeframe instead of 5-minute bars; an exit that differs between entries;
    a missed entry counted as a trade; a hindsight group not selected on the
    outcome; a drift baseline taken from the wrong direction.
@@ -538,18 +633,18 @@ none is a signal.** Hindsight tables add **"Selected on the outcome"**.
 
 ## 9. Sign-off
 
-v1's questions were answered by F1–F4 and v2's by G1–G4. Two points remain,
-both from premises that did not survive measurement (§1.3):
+**Signed by rulings H1–H4, 2026-11-17.** Every question raised in v1–v3 has
+a ruling. Recorded, not open:
 
-1. **Entry window (G2).** The p75 window is applied as ruled, but it is
-   shorter than one session on 15- and 5-minute entries and so drops more
-   slow entries than a 1-session window would (27.3% against 8.3% missed on
-   15-minute). The secondary keeps every entry within 10 sessions, bucketed.
-   Keep the p75 window as primary, or make the 10-session bucketed view
-   primary?
-2. **Short financing (G4c).** GNC-1's convention charges shorts 2.5% and
-   never credits them; G4 said shorts may receive. Both are reported. Which
-   is primary?
+- **Volatility measure (H3):** ATR ÷ price leads for the reason in §1.4;
+  ATR in dollars is reported beside it. The team may swap which leads
+  without changing what is measured.
+- **Broker premises (H4):** the day count and the nights charged match
+  OANDA's documentation. **A gold rate and order permission cannot be
+  settled here:** gold is not tradeable on the account, and the token's
+  order permission is not documented. Financing stays a labelled
+  placeholder with both-pay binding (H2). GLS-1 is descriptive and writes no
+  verdict, so neither blocks the runner.
 
-Neither changes what is measured, only which line leads. The runner can be
-written once these are signed.
+**Next:** the runner and its tests and named mutants (§7.4), then the counts
+stage logged before any outcome (§7.2), then one run.

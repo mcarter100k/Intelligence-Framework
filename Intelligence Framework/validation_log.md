@@ -8044,3 +8044,60 @@ Longs pay upper bound + 2.5%; shorts (GNC-1) pay 2.5%; shorts (secondary) receiv
 ```
 
 **Suite (2026-11-17, branch):** 1278 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+
+## 2026-11-17 — GLS-1 v4 SIGNED (rulings H1–H4); VOLATILITY TERCILES AND BROKER PREMISES MEASURED (free zone; no trade outcome)
+
+Spec `docs/specs/gold_ltf_structure_spec.md` v4: main result keeps every entry within 10 sessions, bucketed by wait (1; 2; 3–6; 7–12; 13–60 four-hour bars); p75 window dropped; 1-session cut secondary (H1). Both-pay financing primary and binding over "shorts receive" (H2). Required split by tercile of daily ATR ÷ price at the setup, cut at 1.206% / 1.480%; dollar ATR ($23.89 / $34.78) secondary (H3).
+
+- `studies/gold_gls1_volatility.py` (1 test; 2 named mutants caught), through `reality_run.py --no-env`, exit 0, stderr empty, project unchanged. Dollar-ATR terciles sort mostly by year (no 2025–2026 setup in the low tercile); ATR ÷ price spreads every year but 2026 (all high) across all three. Cost arithmetic: 5-minute spread ÷ stop median 10.0% low, 8.1% mid, 5.4% high.
+- **H4, broker premises** (`studies/broker_financing_probe.py`, read-only, no order placed, through `reality_run.py`, exit 0, project unchanged; OANDA public pages read the same day): XAU_USD is not tradeable on the account (HTTP 404 `INSTRUMENT_NOT_TRADEABLE`; 68 instruments, all currencies), so no broker gold rate exists here. Day count 365 and Wednesday triple match OANDA's US financing page and the API's day schedule (GBP/JPY currently Wednesday 4, Friday 0). At OANDA either side can be credited (today EUR/USD short +0.45%, GBP/JPY long +1.87%), so both-pay is a conservative placeholder. Order permission: OANDA's developer page says a token grants access to all sub-accounts and says nothing about scoping or orders; not settleable from documentation.
+
+Volatility run output, verbatim:
+
+```
+# GLS-1 H3 input: volatility at the 4-hour setups (2021-2026; no outcome)
+
+setups with a daily ATR: 516
+daily ATR in dollars: terciles cut at $23.89 / $34.78; n 516; p25 22.27, median 27.72, p75 41.41, p90 93.12
+daily ATR / price:    terciles cut at 1.206% / 1.480%; n 516; p25 1.127%, median 1.334%, p75 1.586%, p90 2.196%
+
+setups by year and tercile (dollars): low / mid / high
+  2021: 43 / 19 / 0
+  2022: 46 / 56 / 6
+  2023: 61 / 40 / 4
+  2024: 22 / 42 / 30
+  2025: 0 / 15 / 76
+  2026: 0 / 0 / 56
+  long / short per tercile: low 91 / 81; mid 100 / 72; high 95 / 77
+
+setups by year and tercile (share of price): low / mid / high
+  2021: 29 / 29 / 4
+  2022: 29 / 39 / 40
+  2023: 54 / 39 / 12
+  2024: 37 / 31 / 26
+  2025: 23 / 34 / 34
+  2026: 0 / 0 / 56
+  long / short per tercile: low 101 / 71; mid 98 / 74; high 87 / 85
+
+spread / structure stop (that year's hour median), median, by tercile of daily ATR / price at the break:
+- H4: low 1.1% (n 172); mid 1.0% (n 172); high 0.6% (n 172)
+- M30: low 3.7% (n 1028); mid 3.0% (n 1229); high 2.0% (n 1376)
+- M15: low 5.5% (n 2015); mid 4.5% (n 2457); high 3.0% (n 2728)
+- M5: low 10.0% (n 5997); mid 8.1% (n 7062); high 5.4% (n 8381)
+```
+
+Broker probe output, verbatim:
+
+```
+instruments HTTP 200
+count 68 types {'CURRENCY': 68}
+metal-like names: []
+GBP_AUD {"longRate": "-0.019", "shortRate": "-0.0017", "financingDaysOfWeek": [{"dayOfWeek": "MONDAY", "daysCharged": 1}, {"dayOfWeek": "TUESDAY", "daysCharged": 1}, {"dayOfWeek": "WEDNESDAY", "daysCharged": 3}, {"dayOfWeek": "THURSDAY", "daysCharged": 1}, {"dayOfWeek": "FRIDAY", "daysCharged": 1}, {"dayOfWeek": "SATURDAY", "daysCharged": 0}, {"dayOfWeek": "SUNDAY", "daysCharged": 0}]}
+GBP_JPY {"longRate": "0.0187", "shortRate": "-0.0394", "financingDaysOfWeek": [{"dayOfWeek": "MONDAY", "daysCharged": 1}, {"dayOfWeek": "TUESDAY", "daysCharged": 1}, {"dayOfWeek": "WEDNESDAY", "daysCharged": 4}, {"dayOfWeek": "THURSDAY", "daysCharged": 1}, {"dayOfWeek": "FRIDAY", "daysCharged": 0}, {"dayOfWeek": "SATURDAY", "daysCharged": 0}, {"dayOfWeek": "SUNDAY", "daysCharged": 0}]}
+EUR_USD {"longRate": "-0.0247", "shortRate": "0.0045", "financingDaysOfWeek": [{"dayOfWeek": "MONDAY", "daysCharged": 1}, {"dayOfWeek": "TUESDAY", "daysCharged": 1}, {"dayOfWeek": "WEDNESDAY", "daysCharged": 3}, {"dayOfWeek": "THURSDAY", "daysCharged": 1}, {"dayOfWeek": "FRIDAY", "daysCharged": 1}, {"dayOfWeek": "SATURDAY", "daysCharged": 0}, {"dayOfWeek": "SUNDAY", "daysCharged": 0}]}
+instruments?instruments=XAU_USD HTTP 404 {"lastTransactionID": "2", "errorMessage": "The Instrument ID(s) specified are not tradeable", "errorCode": "INSTRUMENT_NOT_TRADEABLE"}
+summary HTTP 200 {'currency': 'USD', 'marginRate': '0.02', 'hedgingEnabled': False, 'guaranteedStopLossOrderMode': 'DISABLED', 'openTradeCount': 0, 'pendingOrderCount': 0}
+```
+
+**Suite (2026-11-17, branch):** 1279 passed, 10 skipped, 3 deselected, 16 xfailed.
