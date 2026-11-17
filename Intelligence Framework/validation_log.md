@@ -7908,3 +7908,15 @@ Spec sha256 27d6738ccf8dbdda18417aebc8fc89373f5a8926bbdf1cca69f4ecc24d357326 (si
 ```
 
 **Suite (2026-11-17, branch):** 1268 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+
+## 2026-11-17 — GOLD PRICE-ACTION PROGRAM: M41 SCREEN (owner rulings E1–E8; free zone; counts only on STUDY)
+
+`studies/gold_program_screen.py`, one run through `reality_run.py --no-env`: exit 0, stderr empty, project unchanged by hash. Report: `docs/reports/gold_program_screen.md` (output verbatim in its appendix).
+
+- **Episode counts, gold 2006–2013 (no outcomes):** first pullback 38.2% 25, 50% 22; hourly breakout A 1,287, B 1,168, C 877; daily/weekly breaks B ≤ 50, C ≤ 31 (upper bound); double bottom/top break 178, retest 136; head and shoulders 38; pin bar 212 (57 at a level); engulfing 284 (80 at a level); trendline break 300, bounce 243. A 30-bar rule on gold's H4 STUDY bars has at most 403 episodes.
+- **M41:** every GBP replication shelved (first pullback out of reach; hourly breakouts, daily/weekly breaks and 15-minute entries have GBP upper bounds below zero). R14 and the never-tested patterns have no qualifying estimate. Their smallest detectable effects are +0.19R to +0.95R, against a largest gross price-action effect ever measured here of +0.10R. Recommended reading: nothing survives (owner's call).
+- **Horizon (E7), 2021–2026 learning data, GMW-1 B1 direction, no stop:** gross −0.014R same day to +0.012R at ten sessions, never significant; SD 0.77R → 5.17R; always-long drift +0.013R → +1.113R. Multi-day tests need a drift-matched baseline.
+- **E5:** hand-drawn-zone scoring (the owner's journal) starts Friday 2026-11-20; exploratory.
+
+**Suite (2026-11-17, branch):** 1268 passed, 10 skipped, 3 deselected, 16 xfailed.

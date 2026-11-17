@@ -33,6 +33,8 @@ evidence says no, gold stays a practice chart (§5).
 | **C2 breakouts** | **DONE: R45** (descriptive) | validation_log 2026-11-14 "GOLD BREAKOUT STUDY (C2)"; `studies/gold_breakout_report.md`; merge d0f55be |
 | **C3 pullback depth** | **DONE: R48** (descriptive) | Same entry; `studies/gold_pullback_depth_report.md` |
 | C4–C6 | Not started | — |
+| **Price-action program screen (M41)** | **Done 2026-11-17** (`docs/reports/gold_program_screen.md`): every GBP replication shelved; never-tested patterns unscreenable by M41 (no estimate) and able to see only edges of +0.19R or more; recommended reading: nothing survives | owner rulings E1–E8 |
+| **Hand-drawn zones (the owner's journal)** | **Starts Friday 2026-11-20**: forward Friday scoring of the weekly markup zones; exploratory (20 zones ≈ the futility minimum; no prior estimate) | owner ruling E5 |
 | **F: one rule tested (GMW-1, the 4–7 AM PT window)** | **DONE: R49, REFUTED both cells** (2026-11-17), run ahead of Phases C4–C6 and E with owner sign-off and placeholder costs | validation_log 2026-11-17 "GMW-1 RESULT"; `studies/gold_morning_window_result.md` |
 | D, E, F, G | Not started | — |
 
