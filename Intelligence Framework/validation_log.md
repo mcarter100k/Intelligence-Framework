@@ -7942,3 +7942,105 @@ Spec `docs/specs/gold_ltf_structure_spec.md` amended before any measurement (dat
 - **Corrections to premises in the rulings, reported not resolved:** F6's pooled by-hour spread understates 2025–2026 by about half (spec prices by year and hour; open for signature). F1's "fell 10%": the span's closes rose 205% to $5,418.55 (2026-01-27), fell up to 26.6%, and ended it 18.8% below the high.
 
 **Suite (2026-11-17, branch):** 1273 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+
+## 2026-11-17 — GLS-1 v3: RULINGS G1–G4 APPLIED; ENTRY WAITS AND FINANCING MEASURED (free zone; no trade outcome)
+
+`studies/gold_gls1_window_financing.py` (5 tests; 4 named mutants caught: no confirmed-after-setup filter, no stop invalidation, deadline ignored, session count wrong), one run through `reality_run.py --no-env`: exit 0, stderr empty, project unchanged by hash. Rate file `fred_DFEDTARU.csv` sha256 `8bf90ca4b8af7803315cec97a19bc1547e3369212d5dadcb01f4021eda4e8080`. Spec v3 records the setup (4-hour breaks, 289 long / 231 short), the p75 entry windows (30-minute 6, 15-minute 3, 5-minute 2 four-hour bars; missed 25.8 / 27.3 / 8.3%), and financing as a labelled placeholder.
+
+**Three premises in the rulings did not survive measurement; reported in spec §1.3, not resolved:**
+- G2: a 1-session window keeps 74.2 / 91.7 / 97.7% of setups, not about half; the p75 window is shorter than 1 session on 15- and 5-minute entries and drops more slow entries (15-minute: 27.3% missed against 8.3%).
+- G3: spread held at 0.014–0.019% of price (recorded as a finding), but structure stops are not price-scaled (5-minute stop 0.159% of price in 2023, 0.379% in 2026), so the cost share of a stop is not constant.
+- G4: the 20× financing swing is the policy rate alone; with GNC-1's +2.5% it is 2.9× in rate and 2.6× measured (5-minute long, five sessions: 0.310R 2021, 0.793R 2024). GNC-1 never credits shorts; G4 said shorts may receive; both reported.
+
+Run output, verbatim:
+
+```
+# GLS-1 inputs for G2 and G4 (2021-2026 USED only; no trade outcome computed)
+
+Fed upper bound in the span: min 0.25%, max 5.5%
+
+## G2: time from a 4-hour setup to the first valid entry (520 setups; long 289, short 231)
+Time in 4-hour bars of trading time from the setup's close to the entry bar's close.
+- M30: setups with data 520; entered within 10 sessions 469; 4-hour stop touched first 50; none within 10 sessions 1
+    wait (4-hour bars): n 469; p25 2, median 4, p75 6, p90 8
+    G2 window = p75 = 6 four-hour bars: entered within it 386 of 520 (74.2%); missed 134 (25.8%)
+    entered within 1 session (6 bars): 386 of 520 (74.2%)
+    time-to-entry buckets (fixed now): <= 2, 3-4, 5-6 bars
+- M15: setups with data 520; entered within 10 sessions 489; 4-hour stop touched first 31
+    wait (4-hour bars): n 489; p25 1, median 2, p75 3, p90 5
+    G2 window = p75 = 3 four-hour bars: entered within it 378 of 520 (72.7%); missed 142 (27.3%)
+    entered within 1 session (6 bars): 477 of 520 (91.7%)
+    time-to-entry buckets (fixed now): <= 1, 2-2, 3-3 bars
+- M5: setups with data 520; entered within 10 sessions 508; 4-hour stop touched first 12
+    wait (4-hour bars): n 508; p25 1, median 1, p75 2, p90 2
+    G2 window = p75 = 2 four-hour bars: entered within it 477 of 520 (91.7%); missed 43 (8.3%)
+    entered within 1 session (6 bars): 508 of 520 (97.7%)
+    time-to-entry buckets (fixed now): <= 1, 2-1, 2-2 bars
+
+## G3: spread and structure stop as shares of price, by year
+- spread / price, median: 2021 0.0156%; 2022 0.0146%; 2023 0.0140%; 2024 0.0161%; 2025 0.0185%; 2026 0.0158%
+- H4 stop / price, median: 2021 1.470%; 2022 1.724%; 2023 1.495%; 2024 1.539%; 2025 2.076%; 2026 3.286%
+- M30 stop / price, median: 2021 0.454%; 2022 0.558%; 2023 0.433%; 2024 0.536%; 2025 0.683%; 2026 1.035%
+- M15 stop / price, median: 2021 0.307%; 2022 0.365%; 2023 0.285%; 2024 0.344%; 2025 0.449%; 2026 0.681%
+- M5 stop / price, median: 2021 0.165%; 2022 0.203%; 2023 0.159%; 2024 0.188%; 2025 0.251%; 2026 0.379%
+
+## G4: financing as a share of the structure stop (median), by hold, year and side
+Longs pay upper bound + 2.5%; shorts (GNC-1) pay 2.5%; shorts (secondary) receive upper bound - 2.5%
+(a negative share is a credit). Actual/365 at the entry date's rate. Not from any broker.
+### hold to the close of session +1
+- H4 long: 2021 +0.006R; 2022 +0.007R; 2023 +0.015R; 2024 +0.014R; 2025 +0.010R; 2026 +0.009R
+- H4 short GNC: 2021 +0.006R; 2022 +0.004R; 2023 +0.006R; 2024 +0.006R; 2025 +0.004R; 2026 +0.003R
+- H4 short receive: 2021 +0.005R; 2022 +0.001R; 2023 -0.006R; 2024 -0.006R; 2025 -0.003R; 2026 -0.001R
+- M30 long: 2021 +0.019R; 2022 +0.026R; 2023 +0.056R; 2024 +0.046R; 2025 +0.035R; 2026 +0.019R
+- M30 short GNC: 2021 +0.018R; 2022 +0.015R; 2023 +0.018R; 2024 +0.016R; 2025 +0.011R; 2026 +0.008R
+- M30 short receive: 2021 +0.016R; 2022 +0.004R; 2023 -0.019R; 2024 -0.018R; 2025 -0.009R; 2026 -0.004R
+- M15 long: 2021 +0.029R; 2022 +0.039R; 2023 +0.087R; 2024 +0.069R; 2025 +0.051R; 2026 +0.029R
+- M15 short GNC: 2021 +0.028R; 2022 +0.021R; 2023 +0.027R; 2024 +0.022R; 2025 +0.019R; 2026 +0.012R
+- M15 short receive: 2021 +0.025R; 2022 +0.006R; 2023 -0.030R; 2024 -0.025R; 2025 -0.014R; 2026 -0.006R
+- M5 long: 2021 +0.054R; 2022 +0.066R; 2023 +0.156R; 2024 +0.131R; 2025 +0.088R; 2026 +0.052R
+- M5 short GNC: 2021 +0.049R; 2022 +0.039R; 2023 +0.052R; 2024 +0.043R; 2025 +0.033R; 2026 +0.021R
+- M5 short receive: 2021 +0.044R; 2022 +0.009R; 2023 -0.056R; 2024 -0.047R; 2025 -0.025R; 2026 -0.011R
+### hold to the close of session +2
+- H4 long: 2021 +0.014R; 2022 +0.014R; 2023 +0.034R; 2024 +0.030R; 2025 +0.022R; 2026 +0.017R
+- H4 short GNC: 2021 +0.013R; 2022 +0.010R; 2023 +0.013R; 2024 +0.012R; 2025 +0.009R; 2026 +0.006R
+- H4 short receive: 2021 +0.012R; 2022 +0.003R; 2023 -0.014R; 2024 -0.014R; 2025 -0.007R; 2026 -0.003R
+- M30 long: 2021 +0.040R; 2022 +0.055R; 2023 +0.129R; 2024 +0.108R; 2025 +0.075R; 2026 +0.042R
+- M30 short GNC: 2021 +0.042R; 2022 +0.034R; 2023 +0.041R; 2024 +0.034R; 2025 +0.026R; 2026 +0.018R
+- M30 short receive: 2021 +0.038R; 2022 +0.010R; 2023 -0.044R; 2024 -0.039R; 2025 -0.020R; 2026 -0.009R
+- M15 long: 2021 +0.064R; 2022 +0.081R; 2023 +0.190R; 2024 +0.155R; 2025 +0.109R; 2026 +0.063R
+- M15 short GNC: 2021 +0.061R; 2022 +0.048R; 2023 +0.061R; 2024 +0.050R; 2025 +0.041R; 2026 +0.027R
+- M15 short receive: 2021 +0.055R; 2022 +0.014R; 2023 -0.066R; 2024 -0.055R; 2025 -0.030R; 2026 -0.013R
+- M5 long: 2021 +0.119R; 2022 +0.150R; 2023 +0.344R; 2024 +0.296R; 2025 +0.191R; 2026 +0.114R
+- M5 short GNC: 2021 +0.109R; 2022 +0.087R; 2023 +0.114R; 2024 +0.094R; 2025 +0.071R; 2026 +0.048R
+- M5 short receive: 2021 +0.098R; 2022 +0.019R; 2023 -0.122R; 2024 -0.106R; 2025 -0.054R; 2026 -0.024R
+### hold to the close of session +5
+- H4 long: 2021 +0.036R; 2022 +0.046R; 2023 +0.092R; 2024 +0.090R; 2025 +0.062R; 2026 +0.035R
+- H4 short GNC: 2021 +0.033R; 2022 +0.028R; 2023 +0.032R; 2024 +0.038R; 2025 +0.025R; 2026 +0.015R
+- H4 short receive: 2021 +0.030R; 2022 +0.009R; 2023 -0.038R; 2024 -0.039R; 2025 -0.019R; 2026 -0.008R
+- M30 long: 2021 +0.114R; 2022 +0.139R; 2023 +0.332R; 2024 +0.279R; 2025 +0.198R; 2026 +0.117R
+- M30 short GNC: 2021 +0.106R; 2022 +0.086R; 2023 +0.110R; 2024 +0.092R; 2025 +0.068R; 2026 +0.046R
+- M30 short receive: 2021 +0.095R; 2022 +0.026R; 2023 -0.117R; 2024 -0.105R; 2025 -0.052R; 2026 -0.023R
+- M15 long: 2021 +0.167R; 2022 +0.221R; 2023 +0.514R; 2024 +0.433R; 2025 +0.295R; 2026 +0.172R
+- M15 short GNC: 2021 +0.160R; 2022 +0.132R; 2023 +0.169R; 2024 +0.139R; 2025 +0.106R; 2026 +0.073R
+- M15 short receive: 2021 +0.144R; 2022 +0.037R; 2023 -0.176R; 2024 -0.150R; 2025 -0.079R; 2026 -0.037R
+- M5 long: 2021 +0.310R; 2022 +0.391R; 2023 +0.906R; 2024 +0.793R; 2025 +0.516R; 2026 +0.312R
+- M5 short GNC: 2021 +0.300R; 2022 +0.233R; 2023 +0.306R; 2024 +0.255R; 2025 +0.195R; 2026 +0.129R
+- M5 short receive: 2021 +0.270R; 2022 +0.057R; 2023 -0.327R; 2024 -0.281R; 2025 -0.147R; 2026 -0.064R
+### hold to the close of session +10
+- H4 long: 2021 +0.071R; 2022 +0.092R; 2023 +0.185R; 2024 +0.182R; 2025 +0.123R; 2026 +0.070R
+- H4 short GNC: 2021 +0.066R; 2022 +0.056R; 2023 +0.064R; 2024 +0.075R; 2025 +0.049R; 2026 +0.031R
+- H4 short receive: 2021 +0.059R; 2022 +0.019R; 2023 -0.075R; 2024 -0.079R; 2025 -0.038R; 2026 -0.015R
+- M30 long: 2021 +0.228R; 2022 +0.278R; 2023 +0.664R; 2024 +0.557R; 2025 +0.395R; 2026 +0.233R
+- M30 short GNC: 2021 +0.212R; 2022 +0.172R; 2023 +0.220R; 2024 +0.184R; 2025 +0.136R; 2026 +0.092R
+- M30 short receive: 2021 +0.190R; 2022 +0.052R; 2023 -0.234R; 2024 -0.209R; 2025 -0.105R; 2026 -0.046R
+- M15 long: 2021 +0.334R; 2022 +0.442R; 2023 +1.028R; 2024 +0.866R; 2025 +0.591R; 2026 +0.344R
+- M15 short GNC: 2021 +0.320R; 2022 +0.265R; 2023 +0.338R; 2024 +0.278R; 2025 +0.213R; 2026 +0.146R
+- M15 short receive: 2021 +0.288R; 2022 +0.074R; 2023 -0.353R; 2024 -0.299R; 2025 -0.159R; 2026 -0.073R
+- M5 long: 2021 +0.620R; 2022 +0.782R; 2023 +1.813R; 2024 +1.586R; 2025 +1.032R; 2026 +0.625R
+- M5 short GNC: 2021 +0.600R; 2022 +0.467R; 2023 +0.612R; 2024 +0.509R; 2025 +0.390R; 2026 +0.257R
+- M5 short receive: 2021 +0.540R; 2022 +0.114R; 2023 -0.653R; 2024 -0.562R; 2025 -0.294R; 2026 -0.129R
+
+```
+
+**Suite (2026-11-17, branch):** 1278 passed, 10 skipped, 3 deselected, 16 xfailed.

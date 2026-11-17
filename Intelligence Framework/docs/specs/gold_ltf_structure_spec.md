@@ -1,6 +1,6 @@
 # GLS-1: gold lower-timeframe structure, a descriptive catalogue
 
-**Status: DRAFT v2, rulings F1–F6 applied. No outcome has been measured.**
+**Status: DRAFT v3, rulings F1–F6 and G1–G4 applied. No outcome has been measured.**
 Every definition below is fixed before any 30/15/5-minute gold outcome is
 looked at (team addition 4, 2026-11-17). Committing this file is the
 pre-registration timestamp. A change after a measurement starts gets a new id
@@ -17,6 +17,15 @@ pre-registration timestamp. A change after a measurement starts gets a new id
   (F5); spread measured by hour instead of assumed (F6). The 2021–2026
   30/15/5-minute fetch and the F3/F4/F6 inputs were run before this version;
   none of them is an outcome (§1.2).
+- 2026-11-17, v3 (rulings G1–G4, same day): the setup is the 4-hour
+  structure break, with the 4-hour entry as the baseline; the 67 daily breaks
+  become a side result (G1). The entry window is each timeframe's p75 wait,
+  with time-to-entry buckets (G2). Spread by year and hour, pooled as a side
+  result (G3). Financing as a labelled placeholder, reported as a share of
+  risk by timeframe, hold, year and side (G4). The G2 and G4 inputs were
+  measured before this version (§1.3); none is an outcome. Two of the
+  rulings' premises did not survive measurement and are reported in §1.3, not
+  resolved.
 
 **What this is:** descriptive work under owner ruling E4. It uses no family
 slots and M41 does not apply. Every output is stamped **DESCRIPTIVE, not
@@ -130,6 +139,99 @@ too weak, not the check.)
   median it is 0.074R a trade, larger than GMW-1's whole gross effect
   (+0.027R).
 
+### 1.3 Inputs for rulings G2–G4 (measured before v3; no trade outcome)
+
+Script: `studies/gold_gls1_window_financing.py` (5 tests; 4 named mutants
+caught), one run through `reality_run.py --no-env`, project unchanged by
+hash. Rate file `fred_DFEDTARU.csv`, sha256
+`8bf90ca4b8af7803315cec97a19bc1547e3369212d5dadcb01f4021eda4e8080`; the
+Fed upper bound ran from 0.25% to 5.5% in the span.
+
+**Setups (G1):** 520 four-hour structure breaks, **289 long and 231 short**.
+
+**Wait from setup to the first valid entry (G2)**, in 4-hour bars of trading
+time. A valid entry is the first structure break on that timeframe, in the
+setup's direction, whose swing high was confirmed after the setup, before the
+4-hour stop is touched (checked on 5-minute bars), within 10 sessions.
+
+| Entry | Entered within 10 sessions | 4-hour stop touched first | Wait p25 / median / p75 / p90 | Window = p75 | Missed at that window | Missed at 1 session (6 bars) |
+|---|---|---|---|---|---|---|
+| 30-minute | 469 | 50 | 2 / 4 / 6 / 8 | **6 bars** | 134 (25.8%) | 134 (25.8%) |
+| 15-minute | 489 | 31 | 1 / 2 / 3 / 5 | **3 bars** | 142 (27.3%) | 43 (8.3%) |
+| 5-minute | 508 | 12 | 1 / 1 / 2 / 2 | **2 bars** | 43 (8.3%) | 12 (2.3%) |
+
+Missed = 4-hour stop touched first + no entry within 10 sessions (one
+30-minute setup) + entries slower than the window.
+
+- **Premise correction (G2).** G2 expected a 1-session window to discard
+  roughly half the setups, from the median 6-bar pullback (§1.2). Measured,
+  a 1-session window keeps **74.2%, 91.7% and 97.7%** of setups (30/15/5-
+  minute). The pullback measure in §1.2 runs from an impulse's extreme to a
+  38.2% touch; this one runs from a 4-hour break to the next lower-timeframe
+  break, a different and shorter interval. **The prescribed p75 window is
+  shorter than 1 session on 15- and 5-minute entries**, so it discards more
+  of the slow entries G2 wanted to keep: 27.3% against 8.3% on 15-minute.
+  §4.2 applies the window as ruled and adds a secondary, all entries within
+  10 sessions bucketed by wait, so the selection stays visible either way
+  (§9).
+
+**Spread and stop as shares of price, by year (G3; medians):**
+
+| | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---|---|---|---|---|---|---|
+| Spread ÷ price | 0.0156% | 0.0146% | 0.0140% | 0.0161% | 0.0185% | 0.0158% |
+| 4-hour stop ÷ price | 1.470% | 1.724% | 1.495% | 1.539% | 2.076% | 3.286% |
+| 30-minute stop ÷ price | 0.454% | 0.558% | 0.433% | 0.536% | 0.683% | 1.035% |
+| 15-minute stop ÷ price | 0.307% | 0.365% | 0.285% | 0.344% | 0.449% | 0.681% |
+| 5-minute stop ÷ price | 0.165% | 0.203% | 0.159% | 0.188% | 0.251% | 0.379% |
+
+- **Finding (G3, recorded):** the spread held at **0.014–0.019% of price**
+  in every year of the span.
+- **Premise correction (G3).** That does not make the cost share of a stop
+  constant, because structure stops are not price-scaled: they follow
+  volatility, which rose against price in 2025–2026 (the 5-minute stop went
+  from 0.159% of price in 2023 to 0.379% in 2026). The ratio of the two
+  medians puts the 5-minute cost share near 8.8% in 2023 and 4.2% in 2026.
+  Pricing by year (§3) carries this; nothing downstream assumes a constant
+  share.
+
+**Financing as a share of the structure stop (G4), median, hold to the close
+of session +5** (all holds, +1/+2/+5/+10, are in the run output in
+validation_log). Longs pay the Fed upper bound + 2.5% a year; shorts pay 2.5%
+(GNC-1); secondary, shorts receive upper bound − 2.5% (negative = a credit).
+Actual/365 at the entry date's rate.
+
+| Entry | Side | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---|---|---|---|---|---|---|---|
+| 4-hour | long | 0.036R | 0.046R | 0.092R | 0.090R | 0.062R | 0.035R |
+| 30-minute | long | 0.114R | 0.139R | 0.332R | 0.279R | 0.198R | 0.117R |
+| 15-minute | long | 0.167R | 0.221R | 0.514R | 0.433R | 0.295R | 0.172R |
+| 5-minute | long | 0.310R | 0.391R | **0.906R** | 0.793R | 0.516R | 0.312R |
+| 5-minute | short, pays 2.5% | 0.300R | 0.233R | 0.306R | 0.255R | 0.195R | 0.129R |
+| 5-minute | short, receives | 0.270R | 0.057R | −0.327R | −0.281R | −0.147R | −0.064R |
+
+- **Financing is the largest cost for a tight entry held for days**: a
+  5-minute long held five sessions paid 0.31–0.91R, against a median spread
+  of 0.074R (§1.2). Over one session it is 0.05–0.16R, about the spread's
+  size.
+- **Premise correction (G4).** G4 expected carrying to be "nearly free in
+  2021" and a 20× swing across the span. That is the policy rate alone
+  (5.5 ÷ 0.25 = 22). The convention G4 accepted adds 2.5%, so longs paid
+  2.75% a year in 2021 against 8.0% at the peak, 2.9×; measured on 5-minute
+  longs held five sessions, 0.310R in 2021 against 0.793R in 2024, 2.6×. The
+  team's 0.56R for a tight entry over five days at 2024 rates sits between
+  the measured 15-minute (0.433R) and 5-minute (0.793R) figures.
+- **Long and short differ (G4c):** under GNC-1, shorts pay 2.5% only, so a
+  5-minute short held five sessions cost 0.13–0.31R against the long's
+  0.31–0.91R. G4 said shorts "may receive"; GNC-1's convention never pays a
+  short. The secondary shows what receiving would mean: a credit from 2023
+  on. Both are reported; neither is from a broker.
+- **What is reliable (G4):** the absolute level is unverified with any
+  broker. The ratio across timeframes is arithmetic: financing in dollars is
+  the same for every entry into one setup, so its share of risk scales with
+  1 ÷ stop. A 5-minute long pays about 8.8× the 4-hour's share (2024, five
+  sessions), whatever the rate.
+
 ## 2. Span (ruling F1)
 
 **2021-04-27 → 2026-09-09 (USED) only.** A descriptive pass burns the era it
@@ -175,17 +277,19 @@ confirmed. Nothing uses a later bar to decide an earlier one.
   low over the 14 bars before the bar in question. It replaces "T-ATR"
   everywhere in v1.
 - **Session:** the 5 PM New York day, as in GMW-1.
-- **Spread (ruling F6):** measured, §1.2. A trade pays half the spread at
-  entry and half at exit, each priced at that year's median for that Pacific
-  hour; an entry or exit in the 2–3 PM PT break is priced at the 3 PM
-  reopen. Stress: that year's p90 for that hour. Secondary: the pooled
-  2021–2026 by-hour median, as F6 worded it.
-- **Financing:** `studies/gold_rule_costs.held_nights`, priced as GNC-1 §3.3
-  (longs pay the US policy rate's upper bound + 2.5% a year, shorts pay 2.5%;
-  the venue convention is unverified). The rate comes from
-  `fred_DFEDTARU.csv`, which runs to 2026-10-31 and so covers the span; it is
-  hashed before the runner is written. This is GNC-1's prerequisite P2, so the
-  table is shared machinery.
+- **Spread (rulings F6, G3):** measured, §1.2. A trade pays half the spread
+  at entry and half at exit, each priced at **that year's median for that
+  Pacific hour**; an entry or exit in the 2–3 PM PT break is priced at the
+  3 PM reopen. Stress: that year's p90 for that hour. Side result only: the
+  pooled 2021–2026 by-hour median, for comparison with older findings.
+- **Financing (ruling G4): a labelled placeholder.**
+  `studies/gold_rule_costs.held_nights`, priced as GNC-1 §3.3: longs pay the
+  Fed upper bound + 2.5% a year, shorts pay 2.5%; secondary, shorts receive
+  upper bound − 2.5%. Actual/365, at the entry date's rate from
+  `fred_DFEDTARU.csv` (hash in §1.3), so it is priced by year. This is
+  GNC-1's prerequisite P2: shared machinery. **The absolute level is
+  unverified with any broker; the ratio across timeframes is arithmetic and
+  holds whatever the rate.**
 
 ## 4. What a lower-timeframe entry adds to a swing already taken (ruling F5; reported first)
 
@@ -196,26 +300,38 @@ take. So each swing setup is entered four ways with the same exit, and the
 difference is what the lower timeframe contributes: a better price and a
 tighter stop, against more stop-outs and a larger cost share.
 
-### 4.1 Swing setups
+### 4.1 Swing setups (ruling G1)
 
-- **All setups (no hindsight; the headline, reported first):** every daily
-  structure break, long and short (§3). The setup time t0 is that daily bar's
-  close. A setup with no daily structure stop is dropped from all four ways
-  alike.
+- **All setups (no hindsight; the headline, reported first):** every 4-hour
+  structure break, long and short (§3): **520, 289 long and 231 short**
+  (§1.3), about two a week. The setup time t0 is that 4-hour bar's close. A
+  setup with no 4-hour structure stop is dropped from every entry alike.
 - **Setups that worked (hindsight group).** Every table for this group is
   headed **"Selected on the outcome"**. A setup worked if price reached
-  1.0 daily ATR beyond the daily entry before touching the daily structure
+  1.0 daily ATR beyond the 4-hour entry before touching the 4-hour structure
   stop, within 10 sessions.
+- **Side result, no verdict:** the 67 daily structure breaks, entered at the
+  daily close (daily stop) and at 30/15/5-minute structure under the same
+  windows, reported with the same rows and labelled side result.
 
 ### 4.2 The four entries
 
 | Entry | When | Price | Stop |
 |---|---|---|---|
-| **Daily** | at t0 | t0's close | the daily structure stop |
-| **30-minute / 15-minute / 5-minute** | the first structure break on that timeframe whose swing high was confirmed after t0, within 1 session of t0 | that bar's close | that timeframe's structure stop |
+| **4-hour (baseline)** | at t0 | t0's close | the 4-hour structure stop |
+| **30-minute / 15-minute / 5-minute** | the first structure break on that timeframe, in the setup's direction, whose swing high was confirmed after t0 | that bar's close | that timeframe's structure stop |
 
-- A lower-timeframe entry that does not come within 1 session, or comes after
-  the daily stop has been touched, is **missed**: no trade.
+- **Entry window (ruling G2):** each timeframe's p75 wait, fixed in §1.3:
+  **30-minute 6, 15-minute 3, 5-minute 2 four-hour bars** of trading time
+  from t0. An entry that does not come in time, or comes after the 4-hour
+  stop has been touched, is **missed**: no trade. Missed rates (25.8%,
+  27.3%, 8.3%) are reported with every table.
+- **Time-to-entry buckets (G2), fixed now from §1.3:** 30-minute ≤ 2, 3–4,
+  5–6 bars; 15-minute 1, 2, 3 bars; 5-minute 1, 2 bars. Every lower-
+  timeframe result is also shown by bucket.
+- **Secondary (§1.3 premise correction):** every entry within 10 sessions,
+  bucketed the same way plus one bucket for waits beyond the window, so the
+  slow entries the p75 window drops are shown, not silently removed.
 - **Exit (identical for all four):** the close of the session t0 + h, for
   h = 1, 2, 5 and 10 sessions (team addition 7). An entry that would come
   after that exit is missed for that horizon.
@@ -236,7 +352,7 @@ tighter stop, against more stop-outs and a larger cost share.
    position size (§4.4).
 3. **Per setup**, counting a missed entry as 0R: the comparison the owner
    faces, because a missed swing earns nothing.
-4. The paired difference, each lower-timeframe entry minus the daily entry,
+4. The paired difference, each lower-timeframe entry minus the 4-hour entry,
    on setups where both traded, with the same bootstrap interval.
 5. **The deciding number (team addition 1, kept by F5):** in the setups that
    worked, the share whose lower-timeframe entry was stopped before the
@@ -250,34 +366,32 @@ tighter stop, against more stop-outs and a larger cost share.
 7. **Stop size and cost share:** stop distance quantiles in dollars and daily
    ATR; spread as a share of the stop; and the share of stops under 0.3 daily
    ATR, the framework's own minimum (`risk_and_execution.md`).
-8. **The hindsight ratio (ruling F2), a named figure:** the share of trades
+8. **Financing as a share of risk (ruling G4):** for each entry, hold, year
+   and side, both short conventions, labelled placeholder (§3).
+9. **The hindsight ratio (ruling F2), a named figure:** the share of trades
    net-positive at the exit in the setups that worked, divided by the same
    share in all setups, for each entry and horizon. It measures how much of
    the apparent result is selection on the outcome, and so how much the
    owner's eye would have to add to make it work.
 
-All-setups rows come first, then "Selected on the outcome" rows, then the
-ratio.
+Every table is split long and short (G4c). All-setups rows come first, then
+"Selected on the outcome" rows, then the ratio, then the daily side result.
 
 ### 4.4 Size, stated before measuring
 
-Daily structure breaks are rare: **67 in 2021–2026, long and short
-together** (§1.2), about 33 a side if they split evenly (the split is
-reported at the counts stage). That fixes how much §4 can show:
-
-- A share (the deciding number, the net-positive share) on 67 setups has a
-  95% interval of about ±12 points; on 33, ±16; on 20 setups that worked,
-  ±20.
-- Means of R for tight entries will be wide: a 5-minute stop is about 1/23
-  of a daily stop (median $4.86 against $114.20), so an untouched 5-minute
-  trade held for days scores tens of R. Means are reported, but the shares
-  and medians are the readable outputs.
+- **520 setups** (289 long, 231 short): a share has a 95% interval of about
+  ±4.3 points on all setups, ±5.7 on longs and ±6.4 on shorts. After the
+  window, about 386 / 378 / 477 trades (30/15/5-minute), about ±5 points.
+  The setups that worked are a subset, counted at the counts stage.
+- Means of R for tight entries will still be wide: the median 5-minute stop
+  is about 1/8 of the 4-hour stop ($4.86 against $38.12, §1.2), so an
+  untouched 5-minute trade held for days scores many R. Shares and medians
+  are the readable outputs.
 - R assumes the same money risked on every trade, so a tight stop means a
-  large position. Every R table is therefore repeated in dollars per ounce
-  and in daily ATR, which do not depend on position size.
-- **The alternative, for the team (§9):** 4-hour structure breaks as the
-  setup (520, about 260 a side; ±6 points on a side's share), with the
-  4-hour entry as the comparison instead of the daily one.
+  large position. Every R table is repeated in dollars per ounce and in
+  daily ATR, which do not depend on position size.
+- The daily side result has 67 setups (±12 points on a share) and carries no
+  verdict.
 
 ## 5. The catalogue (team addition 3a)
 
@@ -410,7 +524,8 @@ separates the two cases.**
    Every number printed is reported, including the ones that show nothing.
 4. The runner is written after this version is committed, with tests and
    named mutants: a look-ahead mutant for every confirmation delay; an entry
-   that ignores "confirmed after t0"; a stop checked on the entry's own
+   that ignores "confirmed after t0"; an entry window not taken from §1.3;
+   financing pooled across years or sides; a stop checked on the entry's own
    timeframe instead of 5-minute bars; an exit that differs between entries;
    a missed entry counted as a trade; a hindsight group not selected on the
    outcome; a drift baseline taken from the wrong direction.
@@ -423,15 +538,18 @@ none is a signal.** Hindsight tables add **"Selected on the outcome"**.
 
 ## 9. Sign-off
 
-v1's four questions were answered by rulings F1–F4. Open for signature,
-each a choice this version made:
+v1's questions were answered by F1–F4 and v2's by G1–G4. Two points remain,
+both from premises that did not survive measurement (§1.3):
 
-1. **§4.1 setup:** every daily structure break (67 in the span), as F5
-   worded it, or 4-hour structure breaks (520) with the 4-hour entry as the
-   comparison (§4.4).
-2. **§4.2 entry window:** a lower-timeframe entry must come within 1 session
-   of the setup, or it is missed.
-3. **§3 spread:** priced at that year's median for the hour, not the pooled
-   2021–2026 hour median F6 named (§1.2 conflict).
-4. **§3 financing:** GNC-1's convention (venue unverified), on the FRED
-   upper-bound series.
+1. **Entry window (G2).** The p75 window is applied as ruled, but it is
+   shorter than one session on 15- and 5-minute entries and so drops more
+   slow entries than a 1-session window would (27.3% against 8.3% missed on
+   15-minute). The secondary keeps every entry within 10 sessions, bucketed.
+   Keep the p75 window as primary, or make the 10-session bucketed view
+   primary?
+2. **Short financing (G4c).** GNC-1's convention charges shorts 2.5% and
+   never credits them; G4 said shorts may receive. Both are reported. Which
+   is primary?
+
+Neither changes what is measured, only which line leads. The runner can be
+written once these are signed.
