@@ -1,6 +1,6 @@
 # GLS-1: gold lower-timeframe structure, a descriptive catalogue
 
-**Status: v4, signed by rulings H1–H4 (2026-11-17). No outcome has been measured.**
+**Status: v5, signed by rulings H1–H4 and amended by J1–J5 (2026-11-17). No outcome has been measured.**
 Every definition below is fixed before any 30/15/5-minute gold outcome is
 looked at (team addition 4, 2026-11-17). Committing this file is the
 pre-registration timestamp. A change after a measurement starts gets a new id
@@ -33,6 +33,14 @@ pre-registration timestamp. A change after a measurement starts gets a new id
   volatility regime at the setup (H3). Broker premises checked against the
   account and OANDA's documentation (H4). The H3 and H4 inputs were measured
   before this version (§1.4); none is an outcome.
+- 2026-11-17, v5 (rulings J1–J5, before the runner was written): the runner
+  prints a venue-independent part first (J1) and then the four-way entry
+  comparison under two cost structures, an OANDA-style CFD and a futures
+  placeholder, with a ranking-flip check (J2, §4.5). The cross-timeframe
+  ratio is restated for both venues (J3, §4.5). The volatility mechanism is
+  recorded as a finding (J4, §1.4). The missing venue is a blocking item in
+  `docs/gold_plan.md` (J5). One premise in J2/J3 is corrected in §4.5:
+  futures carry no explicit financing charge, but the carry is in the price.
 
 **What this is:** descriptive work under owner ruling E4. It uses no family
 slots and M41 does not apply. Every output is stamped **DESCRIPTIVE, not
@@ -286,7 +294,11 @@ Long / short per tercile (ATR ÷ price): low 101 / 71, mid 98 / 74, high
   | 5-minute | **10.0%** | 8.1% | **5.4%** |
 
   A 5-minute entry costs nearly twice as much of its risk in a quiet market
-  as in a volatile one.
+  as in a volatile one. **Recorded as a finding (ruling J4):** tight entries
+  are dearest in quiet markets, because the stop shrinks with volatility and
+  the spread does not (`foundation/market_data_facts.md` §2g). **2026 sits
+  entirely in the high-volatility third, so today's market is the cheapest
+  regime for tight entries that this span contains.**
 - The cut-offs come from the span's own setups. Tercile membership is a
   property of the setup known at t0 (its ATR and price), but the cut-off
   values use the whole span's distribution; that is acceptable for a
@@ -486,6 +498,60 @@ Every table is split long and short (G4c). All-setups rows come first, then
 - The daily side result has 67 setups (±12 points on a share) and carries no
   verdict.
 
+### 4.5 Two parts, and two cost structures (rulings J1–J3)
+
+**Part A, venue-independent (J1), printed first.** Everything that needs no
+cost: setup, entry and missed counts; wait buckets; R **before costs** for
+every entry, horizon and side; the deciding number (a stop hit does not
+depend on cost); adverse excursion and stop sizes; the hindsight ratio,
+computed on R **before costs** being positive; the volatility split of
+those; the catalogue (§5, moves in daily ATR before costs, against the
+drift baseline); the pullback base rates and separators (§6).
+
+**Part B, the four-way entry comparison under two cost structures (J2).**
+The same trades as part A, costed two ways. Every figure in both is a
+**labelled placeholder** except the measured OANDA spread.
+
+| Component | CFD (OANDA-style) | Futures (placeholder) |
+|---|---|---|
+| Spread | measured: half at entry, half at exit, that year's hour median (§3); stress: that year's hour p90 | 1 tick = **$0.10 an ounce** round trip |
+| Commission | none | **$0.05 an ounce a side** |
+| Financing | Fed upper bound + 2.5% a year for longs; shorts pay 2.5% (primary, binding, H2); side result: shorts receive upper bound − 2.5%; actual/365, `held_nights` | no charge |
+| Carry in the price | none (spot) | **basis decay:** a long pays spot × (Fed upper bound − lease) × calendar days held ÷ 365, a short receives it; lease **0%** |
+| Roll | none | a hold spanning the 25th of Jan, Mar, May, Jul, Sep or Nov (before the Feb–Dec even-month contracts) pays **$0.20 an ounce** (1 tick of calendar spread + 2 commissions) |
+| Side result | "shorts receive" | futures **without** carry (J2's "no notional financing" read literally) |
+
+- **Correction to J2/J3's premise, stated not resolved.** Futures charge no
+  financing, but a gold future sits above spot by roughly the carry and
+  converges to it, so a long pays the carry through the price and a short
+  collects it (the gold plan already says so, Phase E4: "futures build it
+  into the price"). Futures remove the broker's markup and the both-pay
+  asymmetry, not the carry. The primary futures structure therefore charges
+  basis decay; the literal no-carry reading is the side result. Because the
+  study's prices are spot, basis decay is modelled, not measured. No futures
+  data has been fetched.
+- **The ratio across timeframes (J3), restated.** Any cost that does not
+  shrink with the stop (a fixed spread, a commission, financing, basis carry)
+  costs a share of risk in proportion to 1 ÷ stop, so a 5-minute entry pays
+  about 8 to 9 times the 4-hour entry's share on any venue. **That ratio is
+  arithmetic and carries across venues; the level does not.** The 8.8×
+  quoted in §1.3 was CFD financing, 2024, five sessions; on futures the same
+  multiple applies to a smaller carry (no 2.5% markup), and shorts are
+  credited.
+- **H2 on futures.** H2's binding rule concerned the unverified CFD credit.
+  A futures short's carry credit is market structure, but its size here is a
+  placeholder (no futures data, lease 0%). Any short result that is positive
+  only with that credit is flagged in the report, and the no-carry side
+  result is printed beside it.
+- **The flip check (J2).** For each horizon and side, the four entries
+  (4-hour, 30, 15, 5-minute) are ranked by mean net R per setup (a missed
+  entry counts 0R) under the CFD primary and the futures primary. A ranking
+  that differs between them is reported as a flip. Each rank is printed with
+  its paired difference from the 4-hour entry and that difference's 95%
+  interval; a flip where those intervals overlap is labelled **within
+  noise**, not a finding.
+- **The daily side result (G1)** gets part A only.
+
 ## 5. The catalogue (team addition 3a)
 
 ### 5.1 4-hour swing start (hindsight object; ruling F2 applies)
@@ -613,8 +679,9 @@ separates the two cases.**
 2. **Counts stage:** every population, setup, entry and structure counted, no
    outcome computed, logged in validation_log before stage 3 (the GMW-1
    order).
-3. **One run** of §4, then §5, then §6, through `reality_run.py --no-env`.
-   Every number printed is reported, including the ones that show nothing.
+3. **One run** through `reality_run.py --no-env`, printing part A (§4
+   before costs, §5, §6) and then part B (§4.5). Every number printed is
+   reported, including the ones that show nothing.
 4. The runner is written after this version is committed, with tests and
    named mutants: a look-ahead mutant for every confirmation delay; an entry
    that ignores "confirmed after t0"; an entry dropped for waiting inside 10
@@ -623,7 +690,9 @@ separates the two cases.**
    than §1.4's; a stop checked on the entry's own
    timeframe instead of 5-minute bars; an exit that differs between entries;
    a missed entry counted as a trade; a hindsight group not selected on the
-   outcome; a drift baseline taken from the wrong direction.
+   outcome; a drift baseline taken from the wrong direction; a futures
+   structure that credits no carry to shorts, or that charges the CFD
+   markup; a roll missed or charged twice.
 
 ## 8. Output stamp
 
@@ -647,4 +716,4 @@ a ruling. Recorded, not open:
   verdict, so neither blocks the runner.
 
 **Next:** the runner and its tests and named mutants (§7.4), then the counts
-stage logged before any outcome (§7.2), then one run.
+stage logged before any outcome (§7.2), then one run (part A, then part B).

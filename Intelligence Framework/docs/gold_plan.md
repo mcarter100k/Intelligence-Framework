@@ -4,7 +4,7 @@
 detailed plan to implement all of this"). Nothing here is approved. The
 team rulings in §2 come before any phase that needs them. The gaps this plan
 closes are listed in `docs/capability_inventory.md` (Gold section).
-**Progress** is tracked in §0 (last updated 2026-11-16).
+**Progress** is tracked in §0 (last updated 2026-11-16). **§0a is a blocking item (2026-11-17).**
 
 **The goal:** find out, honestly, whether there is a way to day or swing
 trade gold (long and short) that pays after costs, and become a trader who
@@ -19,6 +19,26 @@ evidence says no, gold stays a practice chart (§5).
   transfers until it is measured on gold.
 
 ---
+
+## 0a. BLOCKING: there is no venue (team ruling J5, 2026-11-17)
+
+**Above every remaining Tier 1–4 item.** Phase E (venue and costs) was
+already a prerequisite the gold specs were running ahead of. It is now worse
+than unmeasured: **there is no venue.** Gold is not tradeable on the OANDA
+account (HTTP 404 `INSTRUMENT_NOT_TRADEABLE`, re-checked 2026-11-17,
+validation_log "GLS-1 v4"), so no broker spread, financing rate, day count
+or order permission for gold exists to verify against.
+
+- **Any future PASS on any gold rule is uninterpretable** until a venue is
+  chosen and its costs are measured on its own platform (Phase E "done
+  when").
+- **The sealed exam cannot be opened without it**, whatever ruling T1 says.
+- Descriptive work may continue with labelled placeholder costs (GLS-1 runs
+  under two cost structures for this reason, spec §4.5). A test that would
+  write a verdict may not.
+- **Cleared when:** the owner names a venue they can open (O2), and Phase E1
+  measures its instrument, spread, commission, overnight cost and order
+  permission.
 
 ## 0. Progress (updated 2026-11-16)
 
@@ -238,7 +258,7 @@ performance, and the circuit breaker is shown blocking a trade it should block.
 | T1–T3 rulings | — | Team | Small | Now |
 | A: tools in dollars | O3 for A3 only | Agent | Small | Now |
 | B: weekly reps | A1 helps | Owner (+ mentor) | Ongoing | Now (W47) |
-| E: venue and sizing | O2 | Owner | Medium | Now |
+| **E: venue and sizing (BLOCKING, §0a)** | O2 | Owner | Medium | Now |
 | C: gold's facts | A, T2 | Agent, owner reads | 6 studies | After A |
 | D: drivers | — | Agent + owner | Medium | Alongside C |
 | F: one rule | B checkpoint, C, E, T1 | Agent + owner + team | Large | After those |

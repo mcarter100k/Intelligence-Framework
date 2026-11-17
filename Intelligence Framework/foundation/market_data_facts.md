@@ -110,6 +110,24 @@ Source: `studies/stage2_gate_report.md`; VL:2341-2354.
 | shadow log | 504h |
 | trade_signal_log | 720h |
 
+## 2g. Gold (XAU/USD) cost facts, 2021–2026 (measured 2026-11-17)
+
+Source: GLS-1 inputs (`docs/specs/gold_ltf_structure_spec.md` §1.2–1.4;
+validation_log 2026-11-17, GLS-1 v2–v4). OANDA bid/ask 5-minute closes and
+the hash-pinned archive; no broker offers gold on the account.
+
+| Fact | Value |
+|---|---|
+| Spread, whole span | median $0.350, p90 $0.760 (381,285 closes) |
+| Spread by year (median) | 2022 $0.254, 2024 $0.390, 2025 $0.630, 2026 $0.710: it follows price |
+| **Spread as a share of price** | **0.014–0.019% in every year**, 2021–2026 |
+| Spread by Pacific hour | $0.33–0.35 most hours; $0.394 at 1 PM; none 2–3 PM (daily break); $0.430 at the 3 PM reopen |
+| Structure stops are not price-scaled | 5-minute stop 0.159% of price (2023) → 0.379% (2026); they follow volatility |
+| **Tight entries are dearest in quiet markets** | spread ÷ 5-minute structure stop, median: **10.0%** in the low third of daily ATR ÷ price, 8.1% middle, **5.4%** high. 2026 is entirely in the high third |
+| Cost of any fixed cost across timeframes | share of risk ∝ 1 ÷ stop: median stops daily $114.20, 4-hour $38.12, 30-minute $12.86, 15-minute $8.75, 5-minute $4.86 |
+
+DESCRIPTIVE, 2021–2026 only (a trending, volatile span).
+
 ---
 
 ## Corrections (dated, appended; earlier rows are not rewritten)
