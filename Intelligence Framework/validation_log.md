@@ -7930,3 +7930,15 @@ Spec sha256 27d6738ccf8dbdda18417aebc8fc89373f5a8926bbdf1cca69f4ecc24d357326 (si
 - **Coverage (hours with every sub-bar present), STUDY / USED:** 30-minute 98.1% / 99.9%; 15-minute 96.4% / 99.9%; 5-minute 92.6% / 99.8%. STUDY 5-minute bars: 87.6% of expected in the two mid-2006 windows, at least 95% in every window from October 2006.
 - **Agreement with the archive H1 (aggregated sub-bars, within $0.05), STUDY / USED:** 99.8–99.9% / 100%; largest STUDY disagreement $2.00, USED $0.00.
 - Definitions for the descriptive catalogue committed before any measurement: `docs/specs/gold_ltf_structure_spec.md` (GLS-1, DRAFT; four questions for the team).
+
+
+## 2026-11-17 — GLS-1 v2: RULINGS F1–F6 APPLIED; 2021–2026 SUB-HOURLY FETCH AND INPUTS (free zone; no outcome measured)
+
+Spec `docs/specs/gold_ltf_structure_spec.md` amended before any measurement (dated changelog in its header). Runs through `reality_run.py`, project unchanged by hash every time; files outside the repo in `~/intel_study_archives/gold_subhourly_used/`.
+
+- **Fetch** (`studies/gold_subhourly_used_data.py`, 1,124 guarded requests, 2021-04-27 22:00Z → 2026-09-09): 30-minute 63,563 bars, sha256 `3f8636bc08cbfd6e193d21cc01147066524e8ff52975ba7ea697df1f1f18a828`; 15-minute 127,112, `ccc62418068d6f80fde399643b756638750fdd33c05a78bb9f1d882761ddc7f3`; 5-minute 381,285, `92c3957aa1ba9ef50b3cb18071b3a1124ace21c5d92aa228628a513779ca684b`; 5-minute bid/ask 381,285, `2c42103ba35d866ba7ba1223b7861e05bd070d5df5528ccf3bbbc6563b5ad959`.
+- **Verify against archive H1: PASS**, 100.000% of fully covered hours within $0.05 on all three (coverage 99.93 / 99.88 / 99.82% of 31,793 hours). Positive control: one 30-minute close moved by $1 in a copy was reported, $1.000. A first control was too weak (moved a bar that was not its hour's high; aggregate moved $0.029).
+- **Inputs** (`studies/gold_gls1_inputs.py`; 5 tests, 3 named mutants caught after a fourth test was added for the one that first survived): ρ (daily ATR ÷ 4-hour 14-bar median range) median 3.130 over 8,231 bars; R48 pullback to 38.2% median 6 four-hour bars = 92 fifteen-minute bars (61 legs); spread median $0.350, p90 $0.760, but by year $0.254 (2022) → $0.710 (2026), steady at 0.014–0.019% of price; median structure stop daily $114.20 (67 breaks), 4-hour $38.12, 30-minute $12.86, 15-minute $8.75, 5-minute $4.86; spread ÷ stop at that year's hour median: 0.4%, 0.9%, 2.8%, 4.1%, 7.4%.
+- **Corrections to premises in the rulings, reported not resolved:** F6's pooled by-hour spread understates 2025–2026 by about half (spec prices by year and hour; open for signature). F1's "fell 10%": the span's closes rose 205% to $5,418.55 (2026-01-27), fell up to 26.6%, and ended it 18.8% below the high.
+
+**Suite (2026-11-17, branch):** 1273 passed, 10 skipped, 3 deselected, 16 xfailed.
