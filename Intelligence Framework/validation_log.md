@@ -8140,3 +8140,20 @@ data sha256: XAU_USD_M15_USED.csv ccc62418068d6f80fde399643b756638750fdd33c05a78
 - 50.0%: R48 legs 49; 4-hour swing legs 217
 - 61.8%: R48 legs 36; 4-hour swing legs 179
 ```
+
+
+## 2026-11-17 — GLS-1 RESULT: R50, DESCRIPTIVE (one run; free zone; 2021–2026 only)
+
+`studies/gold_ltf_structure_study.py full` (runner 284236c, spec v5 af63c76, counts logged 823585c), one run through `reality_run.py --no-env`: exit 0, stderr empty, project unchanged by hash. Output verbatim in `studies/gold_ltf_structure_result.md` (sha256 `ad1a837ce322377d983a2fdc10f62f81e242bda9e0f582dca936118b743ef63e`, 1,427 lines; the embedded copy re-hashed equal). Reading: `docs/reports/gold_ltf_structure_report.md`. Foundation R50.
+
+**Disclosed before the numbers:** one blind crash check of `full` ran first; its output was deleted unread (only exit code 0 and an empty stderr were looked at). The runner is seeded and deterministic, so the counted run printed the same output.
+
+- **Entries:** no 30/15/5-minute entry beat the 4-hour entry in any cell, before or after costs (paired 95% intervals include 0). Two cells worse: long 30-minute +1, −0.136R before costs [−0.254, −0.004] (CFD −0.156R); long 5-minute +10 after CFD costs −0.567R [−0.996, −0.086].
+- **Deciding number (selected on the outcome):** worked long setups stopped before the exit, +1 → +10: 5-minute 62.5% → 88.1%; 15-minute 48.9% → 77.3%; 30-minute 29.3% → 65.9%; stopped winners then ran a median 21.0R (5-minute, +1). 84.3% / 88.3% of 5-minute stops (long / short) under the 0.3-ATR minimum.
+- **Hindsight ratio:** 1.30–1.60 long, 1.38–2.19 short.
+- **Volatility (H3):** long 5-minute +5 in the quiet third −0.489R [−0.813, −0.131]; high third +0.765R [−0.344, +2.123], not established. Shorts show neither.
+- **Costs (placeholders; no venue):** realised costs far below the full-hold financing table because tight entries are mostly stopped early (long 5-minute +10: CFD 0.245R, futures 0.149R). Ranking flip: longs same order at every hold; short flips at +1 and +10 within noise. H2 flags: none.
+- **Catalogue:** drift baseline outside the structure's interval in 2 of 216 cells (≈11 by chance). Swing-start vs failed-swing shares overlap in 53 of 54 cells. **The pre-registered swing-start rule is weak** (it ignores the swing-start share's own uncertainty; flags 41/54); a stricter reading added after the run flags 11/54, and those appear at failed swings at about the same rate.
+- **Pullbacks:** continued once reached, 4-hour swing legs: 38.2% 56.2% [50.3, 62.0], 50% 43.1% [36.6, 49.9], 61.8% 31.6% [25.2, 38.9]. Speed and 15-minute structure separate nothing in any cell.
+
+**Suite (2026-11-17, branch):** 1298 passed, 10 skipped, 3 deselected, 16 xfailed.
