@@ -59,6 +59,8 @@ This folder is the single source of truth. Edit here, then rebuild:
 - When a new study, incident or rule lands in `validation_log.md`, add it here
   with its citation.
 - Status labels are the framework's own: REFUTED, INCONCLUSIVE,
-  INFORMED PRIOR, VALIDATED. Nothing here is VALIDATED yet.
+  INFORMED PRIOR, VALIDATED, and UNINFORMATIVE (added 2026-11-16: correctly
+  measured, but within 2 SE of what chance alone produces, so it supports no
+  inference). Nothing here is VALIDATED yet.
 - Citations point at repo line numbers as of the audit; search by content
   if they drift.

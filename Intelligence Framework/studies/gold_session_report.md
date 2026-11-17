@@ -34,6 +34,12 @@ What this adds up to:
   days, and the low on 30%.
 - **By 7:00 AM PST,** the day's high is already set on **67%** of days and the
   low on **73%**.
+  - *Note added 2026-11-16 (`docs/reports/timing_claims_sweep.md`):* the 67%
+    for the high is **UNINFORMATIVE** (owner ruling R2): it equals chance. A driftless random walk with 17 of the 23
+    trading hours elapsed gives (2/π)·asin(√(17/23)) = 65.87%; shaped to gold's
+    own hourly volatility, 66.2%. The observed 67.0% is +0.6 standard errors
+    from that, so it carries no information. The 73% for the low is 6.0
+    standard errors above chance (65.9%).
 - **London matters much less for gold than for GBP/AUD.** Gold's London-open
   hours are only a little busier than its Tokyo hours.
 

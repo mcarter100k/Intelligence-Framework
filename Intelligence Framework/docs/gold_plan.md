@@ -44,6 +44,8 @@ evidence says no, gold stays a practice chart (§5).
 - **T4:** `scripts/reality_run.py --code <worktree> script <relative path>` runs the live folder's script, not the worktree's. Script paths resolve against the current directory (line 189), so a branch check can certify `main`'s code. Fix in its own `scripts/` task.
 - **T5:** `studies/markup_swings.py` fetches 150 monthly candles, which reach back to mid-2014, inside the 2014–2021 span (sealed for the GBP pairs; proposed for gold under T1). The data map does not say whether a monthly chart read counts. Either rule that it does not, or start the monthly fetch at 2021-04-26.
 
+**Low priority, not a live candidate (owner rulings R10 and A3, 2026-11-16):** gold's low is set by 7 AM PST on 73.1% of days (+6.0 SE above a driftless baseline) while its high is at chance (67.0%), 2021–2026. That span was mostly rising, and "low early, high late" is what upward drift produces, so the asymmetry may be drift, not an overnight-versus-daytime effect. Not worth specifying until it is tested against a drift-matched baseline (`docs/reports/timing_claims_sweep.md`).
+
 **New hypothesis from C2 (not tested):** in each era, breaks against that era's big trend failed more often (2006–2013 upside breaks held more; 2021–2026 downside wicks failed 77%). A candidate question for Phase F, or for its own descriptive study first.
 
 ---

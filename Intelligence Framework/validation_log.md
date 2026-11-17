@@ -7665,3 +7665,58 @@ approximate and somewhat too narrow (spec §5.5). Shares are lower bounds for
 
 ### Gate 3 — PENDING LIVE CONFIRMATION
 - With `ALERTS_MUTED` present in the live project, the next scheduled brief that would have notified writes a `MUTED` line in its day log and adds no `notification_log.csv` row. The first chance is the 07:30 PT DIGEST on 2026-11-17 (sent whenever a pair is open); the Sunday 12:30 heartbeat always notifies.
+
+
+## 2026-11-16 — GOLD SPEC REMEDIATION (free zone; branch `feat/gold-rule-specs`; specs not run)
+
+**What:** the owner's pre-run remediation brief for gold specs A (GTP-1), B (GMW-1) and C (GNC-1), plus a new spec PRC-1. Full report: `docs/reports/gold_spec_remediation_2026-11-16.md`. No spec was run. No sealed-exam data was fetched, loaded or read.
+
+**Changes:**
+- `studies/gold_rule_costs.held_nights`: financing that does not charge an exit at the 17:00 New York roll. Tue 10:00 → Wed 14:00 PT 1 night (shared helper: 4); Wed 10:00 → Thu 14:00 PT 3 (shared: 4); one session 0. `tests/test_gold_rule_costs.py`, 6 tests; 3 mutants caught.
+- The shared `shadow_cost_regrade.rollover_nights` is unchanged: committed self-tests and the first-pullback pre-registration pin its boundary. Whether it moved R37's marginal REFUTED (upper bound +0.140R vs +0.15R) is not checked; owner to rule on a declared re-costing.
+- GTP-1 SHELVED (expected 12–20 long episodes, INSUFFICIENT by its own rule), with two corrections: R37's 38.2% cell is REFUTED, not INCONCLUSIVE; the 78.6% share among legs that reached 38.2% is 40.6% (rallies) and 47.1% (falls), not "about a third".
+- GMW-1 and GNC-1 amended: exits at 1:00 PM PT (not the 17:00 New York roll); gap fills at the bar's open; Šidák α 0.0073 over a family of seven; one +0.05R line for pass and fail; GMW-1 takes the exam if several pass; equal stop distance in B1 and B2; capped and uncapped results; 0.15 and 0.30 ATR floors with 0.30 binding; B's news-day side check removed; implementation decisions and named mutants written in.
+- New: `docs/specs/post_release_continuation_spec.md` (PRC-1), `studies/fomc_statement_times_2006_2013.csv` (69 meetings; 44 scheduled without a sourced time), `studies/us_events_2026.csv`, `studies/gold_2026_release_reactions.py`, `studies/gold_spread_windows.py`, `studies/timing_claims_sweep.py`, `docs/reports/timing_claims_sweep.md`.
+
+**Measured (all through `scripts/reality_run.py`, project unchanged by hash each time):**
+- Spread, OANDA bid/ask M5, Sep 14 – Nov 13 2026: candle closing 1:00 PM PT median $0.48 (p90 $0.62); closing 2:00 PM PT median $0.66 (p90 $1.54); mid-session median $0.46 (p90 $0.60); 14:00–15:00 PT has no candles.
+- 2026 release reactions reproduced by a committed script: FOMC 6/7, CPI 6/11, NFP 8/10, 20/28. The owner's PRC-1 origin figures reproduce for weekend holds (−$1.60 vs −$1.59) but not for same-week exits (+$14.38, t 0.76, vs +$34.74, t 1.71).
+- 2026: −10.2% from the first open to the 2026-11-12 close; −30.7% from the high; median daily range 2.21%.
+- Timing sweep: gold's "high set by 7 AM PST, 67%" equals chance (vol-shaped 66.2%, arcsine 65.87%, +0.6 SE); its "low by 7 AM, 73%" is +6.0 SE above chance. GBP "lows by 03:00 UTC" and GBP/AUD "by 09:00 UTC" are within chance; 6 of 20 GBP block-extreme cells are within chance. Busy-hour and block-share claims are beyond chance.
+
+**For the owner:** the REFUTED label for the 67% statistic (it has no research_findings row); the family size (7 as instructed; 6 runnable; 8 counting A's two cells); the PRC-1 origin computation; the +0.05R line extended to GNC-1 and PRC-1.
+
+**Suite (2026-11-16, branch):** 1245 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+
+## 2026-11-16 — GOLD SPEC REMEDIATION: OWNER RULINGS APPLIED (free zone; branch `feat/gold-rule-specs`; no spec run)
+
+**R1, R37 re-costing (declared amendment; the original R37 figures stay in the record).** `studies/first_pullback_recost_r37.py` runs the frozen first-pullback code with one change: a timed exit that closes exactly on the 17:00 New York roll is not charged that night (`gold_rule_costs.held_nights`); stopped trades keep their count, because the stop is hit inside the bar after the roll at its open. Run once through `reality_run.py --no-env`, project unchanged by hash.
+- Positive control: the original costing reproduced R37 exactly (38.2%: N 36, mean −0.011R, median −0.082R, lower −0.269R, upper +0.140R; 50%: N 30, +0.017R, −0.220R, −0.384R, +0.276R), MATCH.
+- Re-costed 38.2%: 6 of 36 episodes' nights fell; mean −0.011R, median −0.081R, upper +0.140R: **still REFUTED**. 50%: 3 of 30 changed; still INCONCLUSIVE.
+- R38, R43, R44, R46: the nearest bound to a threshold is R38 38.2% at 0.116R; none within 0.03R; not re-costed.
+
+**R2:** label UNINFORMATIVE added (correctly measured, but within 2 SE of what chance alone produces, so it supports no inference). Applied with baselines to gold's high-by-7 AM PST (67.0% vs 66.2%), GBP lows by 03:00 UTC on both pairs, GBP/AUD lows by 09:00 UTC, and 6 of 20 GBP block-extreme cells (`foundation/research_findings.md` §1b and beside each claim in its report).
+
+**R3:** the owner's PRC-1 origin figures are withdrawn by the owner. Cause confirmed on the 2026 candles: Fed entries priced at the 30-minute price give +$34.73 (t 1.71) same-week and +$20.46 (t 1.37) pooled, Fed 58.9% of the same-week total.
+
+**R4–R7:** PRC-1 Fed trades enter at 1:00 PM PT on decision day and exit 1:00 PM PT next session; 2026 figures measured (−10.2% YTD, −30.7% from the high, 2.21% median range; the rise into late January measured +25.2% to the highest close, not about 23%); the family is six named tests, α 0.0085; the +0.05R line is GMW-1's only; GNC-1 and PRC-1 return REFUTED, INCONCLUSIVE or INSUFFICIENT, never SUPPORTED.
+
+**R10:** candidate question recorded, not specced: gold's low by 7 AM PST 73.1% (+6.0 SE) vs its high at chance, 2021–2026 (a mostly rising span).
+
+**Conflicts reported to the owner:** R7's two-outcome sentence omits INCONCLUSIVE; R6 and R7 together imply a two-test family; R10's "falling year" framing does not match the 2021–2026 sample; R4's single roll is charged 3 nights on Wednesdays.
+
+**Suite (2026-11-16, branch):** 1245 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+
+## 2026-11-16 — GOLD SPEC REMEDIATION: ROUND-2 RULINGS APPLIED (free zone; branch `feat/gold-rule-specs`; no spec run)
+
+- **A1:** INCONCLUSIVE is a named verdict in GNC-1 and PRC-1.
+- **A2:** the multiple-testing family is GMW-1's two cells, α 0.0253; GNC-1 and PRC-1 (no SUPPORTED verdict) are outside it; REFUTED is deliberately uncorrected, because a false refute shelves a recoverable idea rather than trading one. GMW-1 at N 1,900, SD 1.2R: SUPPORTED above +0.104R, REFUTED below +0.015R.
+- **A3:** the 73% / 67% gold asymmetry (2021–2026, a mostly rising span) may be upward drift; downgraded to low priority until tested against a drift-matched baseline.
+- **A4:** Wednesday triple financing confirmed; PRC-1 reports Fed financing separately.
+- **A7:** GNC-1's Fed cell is INSUFFICIENT by declaration (19 meetings with a time, 44 without); the run covers NFP and CPI. Running still waits for sign-off, the M15 data and P2.
+- **A8:** in PRC-1's own R unit (0.5 × the 14-session ATR, median $50.29), the candle-measured 2026 effect is +0.044R per same-week trade (+0.024R after $1; SD 1.384R; 0.032 SD). PRC-1 at N ≈ 87 and α 0.0170 confirms only about 0.32 SD (about +0.44R). Reported; family unchanged pending the owner.
+- **A9:** PRC-1 states that the rule as specified (1:00 PM PT Fed entry) has never been measured.
+
+**Suite (2026-11-16, branch):** 1245 passed, 10 skipped, 3 deselected, 16 xfailed.

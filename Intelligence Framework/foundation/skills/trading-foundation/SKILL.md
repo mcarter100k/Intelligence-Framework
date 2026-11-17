@@ -76,8 +76,11 @@ When reviewing, critiquing or suggesting changes to anything the owner made
    candidates came from 3–4 hand-circled moves, and none has shown an edge
    even in-sample. Say which case applies.
 4. Give it a **status label**: REFUTED / INCONCLUSIVE / INFORMED PRIOR /
-   VALIDATED. Nothing is VALIDATED without honest, non-overlapping N that
-   clears a pre-registered, adequately powered test.
+   VALIDATED / UNINFORMATIVE. Nothing is VALIDATED without honest,
+   non-overlapping N that clears a pre-registered, adequately powered test.
+   UNINFORMATIVE means correctly measured but within 2 SE of what chance alone
+   produces (for example a random walk's arcsine baseline for "the high is
+   already in by hour H"), so it supports no inference.
 5. Propose the **fastest honest test** (mode 2). Usually that is a
    pre-registered historical run on OANDA data plus micro-size forward
    trades, not years of waiting on a forward ledger.

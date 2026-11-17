@@ -168,6 +168,13 @@ scheduled hour is present.
     frozen list.
   - It is recorded as a hypothesis (§5 below). Until it is run, "which
     session makes the high" cannot be read as a session effect.
+  - *Note added 2026-11-16 (owner ruling R2; `docs/reports/timing_claims_sweep.md`):*
+    that baseline has now been computed. 6 of the 20 block cells are
+    **UNINFORMATIVE** (within 2 SE of a volatility-shaped random walk):
+    GBP/AUD highs in London (16.7% vs 15.9%) and London/NY (17.5% vs 16.7%),
+    GBP/AUD lows in Sydney (18.0% vs 19.1%); GBP/JPY highs in Sydney (19.6% vs
+    18.0%) and Tokyo (19.5% vs 19.4%), GBP/JPY lows in Sydney (17.2% vs 18.0%).
+    The other 14 differ from chance.
 
 **By the Pacific morning, most days already have their high and low.**
 
@@ -177,6 +184,15 @@ scheduled hour is present.
 | 09:00 UTC (01:00 PST / 02:00 PDT) | 51%, 48% | 44%, 49% |
 | 15:00 UTC (07:00 PST / 08:00 PDT) | 72%, 72% | 69%, 75% |
 
+- *Note added 2026-11-16 (owner ruling R2; `docs/reports/timing_claims_sweep.md`):*
+  three cells of this table are **UNINFORMATIVE**, within 2 SE of a random
+  walk shaped to each pair's hourly volatility:
+  - lows by 03:00 UTC: GBP/AUD 27.7% against chance 29.0% (−1.4 SE); GBP/JPY
+    29.0% against 27.4% (+1.7 SE); the equal-volatility arcsine value is
+    (2/π)·asin(√(6/24)) = 33.3%;
+  - GBP/AUD lows by 09:00 UTC: 44.1% against 44.7% (−0.6 SE); arcsine
+    (2/π)·asin(√(12/24)) = 50.0%.
+  The other cells, including both pairs' 15:00 UTC figures, are beyond chance.
 - On roughly 7 days in 10, someone starting at 07:00 PST is trading inside
   a range whose high is already set, and the same for its low.
 - That is the structural fact behind "a late entry is chasing". It does
