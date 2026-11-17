@@ -7920,3 +7920,13 @@ Spec sha256 27d6738ccf8dbdda18417aebc8fc89373f5a8926bbdf1cca69f4ecc24d357326 (si
 - **E5:** hand-drawn-zone scoring (the owner's journal) starts Friday 2026-11-20; exploratory.
 
 **Suite (2026-11-17, branch):** 1268 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+
+## 2026-11-17 — GOLD SUB-HOURLY DATA: WHAT OANDA SERVES (team addition 2; free zone; counts only)
+
+`studies/gold_subhourly_probe.py`, one run through `reality_run.py` (credentials needed): exit 0, stderr empty, project unchanged by hash; finished 10:43 AM PT. Every request was a bounded window inside STUDY or USED/FORWARD passed through `history_study_gate_s3.guard`; no sealed-block candle was requested or returned. 56 two-week windows, 520 requests. Prints counts and dollar differences only.
+
+- **Earliest candle:** 30-minute 2006-03-19 20:00Z, 15-minute 20:15Z, 5-minute 20:25Z (archive H1 starts 2006-03-20 00:00Z). All three timeframes exist for STUDY and USED.
+- **Coverage (hours with every sub-bar present), STUDY / USED:** 30-minute 98.1% / 99.9%; 15-minute 96.4% / 99.9%; 5-minute 92.6% / 99.8%. STUDY 5-minute bars: 87.6% of expected in the two mid-2006 windows, at least 95% in every window from October 2006.
+- **Agreement with the archive H1 (aggregated sub-bars, within $0.05), STUDY / USED:** 99.8–99.9% / 100%; largest STUDY disagreement $2.00, USED $0.00.
+- Definitions for the descriptive catalogue committed before any measurement: `docs/specs/gold_ltf_structure_spec.md` (GLS-1, DRAFT; four questions for the team).
