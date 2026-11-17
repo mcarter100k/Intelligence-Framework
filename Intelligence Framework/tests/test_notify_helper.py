@@ -34,7 +34,8 @@ def _proj(tmp_path):
 
 
 def _run(tmp_path, tn_body=None, watchdog="2",
-         call='notify "SHADOW" "hello world" "logs/brief_2026-09-09.log"'):
+         call='notify "SHADOW" "hello world" "logs/brief_2026-09-09.log"',
+         muted=False):
     """Source the helper under a fake HOME + stub osascript; return
     (tn_argv_or_None, osa_argv_or_None)."""
     home = tmp_path / "home"
@@ -58,6 +59,8 @@ def _run(tmp_path, tn_body=None, watchdog="2",
                PATH=f"{stub_bin}:/usr/bin:/bin",
                NOTIFY_WATCHDOG_SECS=watchdog)
     proj = _proj(tmp_path)
+    if muted:
+        (proj / "ALERTS_MUTED").write_text("")
     script = f'PROJ="{proj}"; . "{_HELPER}"; {call}'
     r = subprocess.run(["bash", "-c", script], env=env,
                        capture_output=True, text=True, timeout=30)
@@ -121,3 +124,54 @@ def test_nonzero_exit_falls_back(tmp_path):
 def test_success_does_not_double_notify(tmp_path):
     tn, osa, _ = _run(tmp_path, tn_body="exit 0")
     assert tn is not None and osa is None
+
+
+# ── Mute switch (docs/specs/alert_mute_spec.md; AGENTS.md rule 12) ──────────
+
+def test_muted_sends_nothing_and_logs_the_alert(tmp_path):
+    tn, osa, proj = _run(tmp_path, tn_body="exit 0", muted=True)
+    assert tn is None and osa is None              # nothing reached the owner
+    log = (proj / "logs" / "brief_2026-09-09.log").read_text()
+    assert log == ("MUTED (not sent; ALERTS_MUTED present) SHADOW: "
+                   "hello world → logs/brief_2026-09-09.log\n")
+    assert not (proj / "notification_log.csv").exists()   # not sent, no row
+
+
+def test_muted_without_terminal_notifier_skips_osascript_too(tmp_path):
+    tn, osa, proj = _run(tmp_path, tn_body=None, muted=True)
+    assert tn is None and osa is None
+    assert "MUTED" in (proj / "logs" / "brief_2026-09-09.log").read_text()
+
+
+def test_muted_alert_goes_to_the_record_log(tmp_path):
+    # the DIGEST passes the day log as RECORD-LOG because its click target is
+    # a regenerated view; a muted line there would be overwritten next run.
+    _, _, proj = _run(tmp_path, tn_body="exit 0", muted=True,
+                      call='notify "DIGEST" "d" "logs/latest_brief.log" "" "" "logs/day.log"')
+    assert "MUTED (not sent; ALERTS_MUTED present) DIGEST: d" in (
+        proj / "logs" / "day.log").read_text()
+    assert not (proj / "logs" / "latest_brief.log").exists()
+
+
+def test_unmuted_still_sends_and_records(tmp_path):
+    tn, osa, proj = _run(tmp_path, tn_body="exit 0", muted=False)
+    assert tn is not None and osa is None
+    assert (proj / "notification_log.csv").exists()
+    assert not (proj / "logs" / "brief_2026-09-09.log").exists()
+
+
+def test_notify_is_the_only_sender():
+    """Nothing in scripts/ may post around the mute switch."""
+    scripts = os.path.join(_ROOT, "scripts")
+    offenders = []
+    for root, dirs, files in os.walk(scripts):
+        dirs[:] = [d for d in dirs if d != "__pycache__"]
+        for name in files:
+            if name == "notify.sh" or not name.endswith((".sh", ".py", ".plist")):
+                continue
+            path = os.path.join(root, name)
+            for line in open(path, encoding="utf-8"):
+                code = line.split("#", 1)[0]
+                if "osascript" in code or "terminal-notifier" in code:
+                    offenders.append(os.path.relpath(path, _ROOT))
+    assert offenders == []

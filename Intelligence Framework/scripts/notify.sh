@@ -21,6 +21,7 @@
 # authorizes notifications for terminal-notifier — a scheduled run must never
 # hang on that dialog. A hung or failing post falls back to osascript, so a
 # notification is never silently lost. Always returns 0 (exit-0 discipline).
+# Muted while $PROJ/ALERTS_MUTED exists (docs/specs/alert_mute_spec.md).
 
 TN_BIN="$HOME/Applications/terminal-notifier.app/Contents/MacOS/terminal-notifier"
 NOTIFY_WATCHDOG_SECS="${NOTIFY_WATCHDOG_SECS:-15}"
@@ -36,6 +37,15 @@ notify() {
     _nt_sub="$1"; _nt_msg="$2"; _nt_log="$3"; _nt_pairs="${4:-}"; _nt_state="${5:-}"
     _nt_rec="${6:-$3}"
     _nt_text="$(printf '%s → %s' "$_nt_msg" "$_nt_log" | cut -c1-400)"
+
+    # Mute switch (docs/specs/alert_mute_spec.md): while $PROJ/ALERTS_MUTED
+    # exists nothing is sent and no ledger row is written; the alert goes to
+    # the log instead, so it is never lost.
+    if [ -e "$PROJ/ALERTS_MUTED" ]; then
+        printf 'MUTED (not sent; ALERTS_MUTED present) %s: %s\n' "$_nt_sub" "$_nt_text" \
+            >> "$PROJ/$_nt_rec"
+        return 0
+    fi
 
     if [ -x "$TN_BIN" ]; then
         _nt_url="file://$(printf '%s/%s' "$PROJ" "$_nt_log" | sed 's/ /%20/g')"
