@@ -1,11 +1,23 @@
 # Spec PRC-1: post-release continuation in gold (pre-registration draft, amended)
 
-**This test can return REFUTED, INCONCLUSIVE or INSUFFICIENT. It cannot
-confirm an edge at a tradeable size.** (Owner rulings R7 and A1, 2026-11-16.
+**Unit: HRU (half-range unit), not R.** PRC-1 has no stop. Every result is
+measured in HRU = P&L ÷ (0.5 × the daily ATR), the ATR being the simple mean
+true range of the 14 sessions completed before the event. An HRU normalises
+volatility, not risk: no stop stands behind it. **HRU figures are not
+comparable to R in any spec with a real stop** (GMW-1, GNC-1, GTP-1, R37–R46):
+"+0.44 HRU" here does not mean what "+0.104R" means in GMW-1. (Owner ruling B2,
+2026-11-16.)
+
+**This test can return SUPPORTED only for an effect near +0.44 HRU per trade,
+roughly ten times anything measured, so in practice it can return REFUTED,
+INCONCLUSIVE or INSUFFICIENT.** (Owner rulings B1, A1, A8, 2026-11-16.
 INCONCLUSIVE is the named verdict for 20 or more trades that are not refuted;
-it confirms nothing. **Under review (ruling A8):** whether this sentence stands
-or PRC-1 regains a SUPPORTED verdict; see §11 for the measured effect in this
-spec's own R unit. Until the owner rules, the sentence stands.)
+it confirms nothing. The door stays open if a larger effect turns up on other
+data. PRC-1 stays outside the multiple-testing family, α 0.0253 for GMW-1's two
+cells; ruling B1.)
+
+**Pending before any run (ruling B3):** the owner decides from §12 whether
+PRC-1 runs or is shelved alongside GTP-1.
 
 **The rule as specified here has never been measured on any data** (ruling
 A9). With the 1:00 PM PT Fed entry (ruling R4), neither +$34.73 (Fed priced 30
@@ -43,7 +55,13 @@ module, no ledger, no SEALED EXAM bar.
 - 2026-11-16 (A4): the Wednesday triple charge is confirmed; Fed financing is
   reported separately, not inside a pooled mean.
 - 2026-11-16 (A9): the rule as specified has never been measured (top note).
-- 2026-11-16 (A8): §11 records the measured effect in this spec's R unit.
+- 2026-11-16 (A8): §11 records the measured effect in this spec's own unit.
+- 2026-11-16 (round 3, B1): A8 decided: the family stays at GMW-1's two cells
+  (α 0.0253); the top sentence reworded to name the mechanism.
+- 2026-11-16 (B2): the unit is renamed HRU (half-range unit) throughout, with
+  a named note at the top: it is not R and not comparable to R.
+- 2026-11-16 (B3): §12 records the 90% upper bound of the 2026 effect for the
+  owner's run-or-shelve decision.
 
 ## What you are deciding (plain English)
 
@@ -53,10 +71,10 @@ module, no ledger, no SEALED EXAM bar.
   that close the same week count.
 - **What it can tell you:** whether the idea loses clearly (REFUTED). It
   cannot tell you it works.
-- **Decisions in front of you:** ruling A8 (does PRC-1 regain a SUPPORTED
-  verdict? §11 shows the measured effect is about one tenth of what it could
-  confirm); then sign-off to run, after GNC-1's 15-minute data is fetched and
-  checked.
+- **Decisions in front of you:** ruling B3, run or shelve (§12: the 90%
+  upper bound of the 2026 same-week effect against the +0.44 HRU detection
+  floor); the HRU threshold for REFUTED (§6); then, if it runs, sign-off after
+  GNC-1's 15-minute data is fetched and checked.
 
 ## 1. Origin (a hypothesis source, never evidence)
 
@@ -135,7 +153,7 @@ window may not hold elsewhere. (The owner's brief described a rise of roughly
 - **Exit:** 1:00 PM PT in the next session (the next weekday daily session in
   the data). NFP and CPI: the close of the M15 bar ending then. FOMC: the
   close of the H1 bar opening at 12:00 PT. Missing bar: skip and count.
-- **No stop.** R = P&L ÷ (0.5 × daily ATR), ATR from the 14 sessions completed
+- **No stop.** Results in HRU = P&L ÷ (0.5 × daily ATR), ATR from the 14 sessions completed
   before the event's session (a fixed unit so the test has a scale; the owner
   may set another before freezing).
 - **Same-week:** the exit falls in the same week as the entry (not a Friday
@@ -153,12 +171,12 @@ window may not hold elsewhere. (The owner's brief described a rise of roughly
     Wednesday** (most FOMC decisions), 1 night otherwise. Confirmed by the
     owner (ruling A4): the triple charge is the real cost of holding through
     settlement and is not special-cased.
-  - **Fed financing is reported separately** (mean financing in R and nights
+  - **Fed financing is reported separately** (mean financing in HRU and nights
     for Fed trades, and for NFP/CPI trades), not only inside the pooled mean,
     so the 3× Wednesday charge stays visible (A4).
   - NFP and CPI same-week trades hold one roll: 1 night, or 3 for a Wednesday
     release.
-- Gross R and each cost stored per trade.
+- Gross HRU and each cost stored per trade.
 
 ## 6. The test
 
@@ -171,7 +189,9 @@ window may not hold elsewhere. (The owner's brief described a rise of roughly
   Bonferroni would be 0.0167). §7's table uses α 0.0085 (the earlier six-test
   figure) and §11 the three-test α.
 - **REFUTED** if the one-sided 90% upper bound of the mean (primary costs) is
-  below +0.15R (the futility standard). **INSUFFICIENT** under 20 trades.
+  below **+0.15 HRU**. (The futility standard's +0.15 was set in stop-based R;
+  carried over to HRU by convention, it is not the same bar. Owner to confirm
+  or set an HRU threshold before freezing.) **INSUFFICIENT** under 20 trades.
   **INCONCLUSIVE** otherwise (not refuted; confirms nothing).
 - **No re-runs.** The full run happens once.
 - **Dependence on GNC-1:** both test continuation on the same events, so their
@@ -183,16 +203,16 @@ window may not hold elsewhere. (The owner's brief described a rise of roughly
   same-week = 65 non-Friday CPI + 3 non-Friday NFP + 19 FOMC with a time = 87,
   before same-day skips, warm-up and missing bars. Weekend holds: 118.
 
-| Trades | Smallest edge it could confirm (SD 1.2 / 2.0 / 3.0R) | REFUTED if the mean is below (SD 1.2 / 2.0 / 3.0R) |
+| Trades | Smallest edge it could confirm (SD 1.2 / 2.0 / 3.0 HRU) | REFUTED if the mean is below (SD 1.2 / 2.0 / 3.0 HRU) |
 |---|---|---|
-| 87 | +0.415 / +0.692 / +1.038R | −0.015 / −0.125 / −0.262R |
+| 87 | +0.415 / +0.692 / +1.038 HRU | −0.015 / −0.125 / −0.262 HRU |
 
 - With no stop, SD is likely at the upper end. A rule with no edge would
   mostly read INCONCLUSIVE; one that clearly loses can read REFUTED.
 
 ## 8. Side results (reported; never change a verdict)
 
-1. R before costs; the $0.50 spread.
+1. HRU before costs; the $0.50 spread.
 2. Weekend holds, alone.
 3. Each event type alone.
 4. FOMC entered at the first 4-hour close (2:00 PM PT), as in the first draft.
@@ -221,13 +241,13 @@ time; financing at the exit instant; ATR including the current session.
 5. One full run through `scripts/reality_run.py --no-env`; output verbatim to
    validation_log and `studies/post_release_continuation_result.md`.
 
-## 11. Ruling A8: the measured effect in this spec's own R unit (report; no change made)
+## 11. Ruling A8: the measured effect in this spec's own unit (HRU)
 
-**The question (owner, round 2):** expressed in R under PRC-1's own basis, is
+**The question (owner, round 2):** expressed in PRC-1's own unit, is
 the observed effect inside what PRC-1 can detect? If so, the "cannot confirm"
 sentence is too strong.
 
-**The basis:** PRC-1 has **no stop**. Its R unit is 0.5 × the daily ATR, the
+**The basis:** PRC-1 has **no stop**. Its unit (HRU) is 0.5 × the daily ATR, the
 simple mean true range of the 14 sessions completed before each event (§4). The
 round-2 note converted dollars with stops of 0.15 and 0.30 × a median daily
 range; that is not this spec's unit, and the conversion used one price level
@@ -237,7 +257,7 @@ unit across the 28 events: $50.29; median ATR $100.59).
 **Measured on the 2026 candles** (`studies/gold_2026_release_reactions.py`,
 ATR from the same OANDA daily candles; gross, then after a $1.00 spread):
 
-| Definition | Group | N | Mean R | After $1 | SD R | t | Effect in SDs |
+| Definition | Group | N | Mean HRU | After $1 | SD HRU | t | Effect in SDs |
 |---|---|---|---|---|---|---|---|
 | Fed entry at the 2:00 PM PT four-hour close, exit 2:00 PM PT next session (the candle origin, §1) | same-week | 17 | +0.044 | +0.024 | 1.384 | +0.13 | +0.032 |
 | same | weekend | 11 | −0.064 | −0.082 | 1.463 | −0.14 | −0.044 |
@@ -249,18 +269,57 @@ high-volatility weeks, so these t values differ from the dollar t values in
 §1.)
 
 **What PRC-1 can confirm at N ≈ 87** (three-test Šidák α 0.0170, 80% power):
-an effect of at least **0.318 SD**, which is **about +0.44R** at the measured SD
-of about 1.4R. Power if the true effect equalled:
+an effect of at least **0.318 SD**, which is **about +0.44 HRU** at the measured SD
+of about 1.4 HRU. Power if the true effect equalled:
 - the candle origin's +0.032 SD: about 3% (no better than a false pass);
 - 0.18 SD: about 33%; 0.30 SD: about 75%.
 
 **Reading:**
-- The candle-measured effect (+0.044R gross, +0.024R after a $1 spread) is
+- The candle-measured effect (+0.044 HRU gross, +0.024 HRU after a $1 spread) is
   about one tenth of what PRC-1 can confirm. Only the withdrawn pricing
   reaches the detection floor.
-- PRC-1 *can* return SUPPORTED in principle, for an edge of about +0.44R per
+- PRC-1 *can* return SUPPORTED in principle, for an edge of about +0.44 HRU per
   trade or more. No measured version of this rule shows an effect near that.
   The rule as now specified (1:00 PM PT Fed entry) has never been measured.
-- The measured SD (about 1.4R) sits inside the 1.2–3.0R range assumed in §7.
-- **Whether PRC-1 regains a SUPPORTED verdict, and therefore rejoins the
-  family, is the owner's decision.** Nothing was changed.
+- The measured SD (about 1.4 HRU) sits inside the 1.2–3.0 range assumed in §7.
+- **Decided (ruling B1):** the family stays at two; the top sentence names the
+  mechanism.
+
+## 12. Ruling B3: the 90% upper bound of the 2026 effect (report for the owner's decision)
+
+**The question:** does the 90% one-sided upper bound of the 2026 same-week
+effect, in HRU, at the 2:00 PM PT Fed entry, reach the +0.44 HRU detection
+floor (§11)? If it does, running PRC-1 is defensible; if not, PRC-1 is shelved
+with GTP-1. **The owner decides; this section only reports.**
+
+**Method:** the same per-trade HRU values as §11; `power_check.bootstrap_upper_bound`
+(percentile bootstrap, 20,000 resamples, seed 7, the futility rule's method)
+and a normal-approximation bound beside it.
+
+| Group (Fed entry at the 2:00 PM PT close) | Exit | Costs | N | Mean | 90% upper (bootstrap) | 90% upper (normal) | Reaches +0.44? |
+|---|---|---|---|---|---|---|---|
+| **same-week (PRC-1's primary)** | 2:00 PM PT next session | gross | 17 | +0.044 | **+0.468** | +0.474 | yes |
+| same-week | 2:00 PM PT | after $1 spread | 17 | +0.024 | **+0.449** | +0.455 | yes |
+| same-week | 1:00 PM PT | gross | 16 | +0.019 | +0.462 | +0.473 | yes |
+| same-week | 1:00 PM PT | after $1 spread | 16 | −0.001 | +0.443 | +0.454 | yes (by 0.003) |
+| all 28 (weekend holds included) | 2:00 PM PT | gross | 28 | +0.002 | +0.334 | +0.338 | no |
+| all | 2:00 PM PT | after $1 spread | 28 | −0.018 | +0.316 | +0.319 | no |
+
+**What bears on the decision:**
+- The primary group's bound reaches the floor by **+0.03 HRU gross** and
+  **+0.01 HRU after a $1 spread**; at the 1:00 PM PT exit after costs, by
+  0.003. It is a near-tie, not a clear clearance.
+- **N = 17 (16 at the 1:00 PM exit) is below 20**, the framework's minimum
+  for reporting a bootstrap bound (`power_check` docstring; M3): at small N on
+  skewed data the percentile bootstrap is unreliable. The normal bound gives
+  the same reading.
+- The floor itself rests on an assumed N of 87 and the measured SD of about
+  1.4 HRU; a different SD moves it proportionally.
+- Including the 11 weekend holds (all 28) puts the bound at +0.33, below the
+  floor; PRC-1's design keeps them apart.
+- None of these measure the rule as specified (Fed entry at 1:00 PM PT; top of
+  the spec).
+
+Inputs: `events.json` (per-event ATR, OANDA daily candles) and the verbatim
+output of `studies/gold_2026_release_reactions.py`; the computation and its
+output are in `docs/reports/gold_spec_remediation_2026-11-16.md`, Appendix G.

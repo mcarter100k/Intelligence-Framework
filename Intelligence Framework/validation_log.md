@@ -7725,3 +7725,15 @@ approximate and somewhat too narrow (spec §5.5). Shares are lower bounds for
 ## 2026-11-16 — GOLD RULE SPECS MERGED (squash, owner ruling A6)
 
 The `feat/gold-rule-specs` branch was squash-merged to `main` as a5ae1ca (tree identical to the branch tip; the branch had first taken `main`'s alert-mute change, resolving `validation_log.md` by keeping both appended blocks in time order). Specs-index citations moved from 2a07814 to a5ae1ca: GMW-1, GNC-1, GTP-1; PRC-1's row now cites a5ae1ca. The branch commits 2a07814, 5b76c96, 76a11c8, c87b678, b1867c5 and 6b4e861 are not on `main`. No spec has been run.
+
+
+## 2026-11-16 — GOLD SPECS, ROUND-3 RULINGS (free zone; branch `feat/gold-specs-round3`; no spec run)
+
+- **B1:** PRC-1 can return SUPPORTED only for an effect near +0.44 HRU, roughly ten times anything measured; in practice REFUTED, INCONCLUSIVE or INSUFFICIENT. Family stays at GMW-1's two cells, α 0.0253.
+- **B2:** PRC-1's unit renamed HRU (half-range unit: P&L ÷ 0.5 × the 14-session ATR), not comparable to R in any spec with a stop. Its REFUTED bar (+0.15) is a convention carried from stop-based R; owner to confirm.
+- **B3 (reported, owner decides):** 90% upper bound of the 2026 same-week effect in HRU, Fed at the 2:00 PM PT close: +0.468 gross, +0.449 after a $1 spread (N 17, below the 20-trade minimum for bootstrap bounds), against the +0.44 floor; all 28 trades +0.334.
+- **B4 (proposed, not applied):** futility condition 2: futile if the minimum detectable effect exceeds the 90% upper bound of the best available estimate (factor 1.0; advisory under 20 observations). Applied now it would shelve nothing outright; PRC-1 would be an advisory case.
+- **B5:** GMW-1 needs neither the policy-rate table nor the 15-minute data; its data files match their pins.
+- **B6:** GMW-1 prepared for signature; two gaps closed by marked proposals (verdict under floor B only; exam rule for a two-cell family) and a stale power figure corrected.
+
+**Suite (2026-11-16, branch):** 1250 passed, 10 skipped, 3 deselected, 16 xfailed.

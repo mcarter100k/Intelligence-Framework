@@ -67,6 +67,13 @@ module, no ledger, no SEALED EXAM bar.
 - 2026-11-16: §2 costs labelled: $0.50 is a placeholder, not shown to be
   conservative for 2006–2013 (no spread from that era has been measured); the
   0.012% secondary is optimistic for that era.
+- 2026-11-16 (round 3, for signature): two gaps found when preparing this
+  document for the owner's signature, each closed by a marked **[PROPOSED]**
+  passage the owner can accept or strike: §3.4 the verdict is computed under
+  floor B only (the two-floor rule named only the pass-at-A, fail-at-B case
+  and left the reverse open, a second look); §4.3 the exam rule is restated
+  for a two-cell family (it said "GMW-1 goes" without naming a cell). §6's
+  "about +0.25R" at SD 3.0 corrected to +0.19–0.22R (it dated from α 0.0073).
 - 2026-11-16: §1 a confound is named: 7:00 AM PT is 10:00 New York, when US
   10:00 releases (ISM, consumer sentiment) land and, in most weeks, the London
   afternoon gold fix (15:00 London; reviewer-stated, NOT CHECKED here). A
@@ -111,7 +118,8 @@ module, no ledger, no SEALED EXAM bar.
 - **continuation (B1):** a strong morning shows where the day's money is
   going, so the move carries on. Untested on gold.
 - **fade (B2):** the morning move overshoots and gives some back. Untested on
-  gold. Its earlier support (the 67% high statistic) was chance.
+  gold. Its earlier support (the 67% high statistic) is UNINFORMATIVE: it
+  equals chance.
 
 **Why this is a fair test:** the session facts come from 2021–2026; the
 verdict comes from 2006–2013, which the session study never touched.
@@ -177,9 +185,13 @@ PT entry (§7) shows whether the result depends on it.
 
 ### 3.4 Floors, cap, exit
 
-- **Floors (both run):** skip and count if d < 0.15 ATR (floor A) or
-  d < 0.30 ATR (floor B). **Binding rule:** a cell that passes under floor A
-  and fails under floor B takes floor B's result as its verdict.
+- **Floor (verdict) [PROPOSED 2026-11-16 for signature]:** skip and count if
+  d < 0.30 ATR (floor B, `MIN_STOP_ATR_MULTIPLE`). **Every verdict is computed
+  under floor B only.** Floor A (d ≥ 0.15 ATR) is run as a side result and
+  never changes a verdict. (This replaces the rule "a cell that passes under
+  floor A and fails under floor B takes floor B's result", which left the
+  reverse case open. If struck, the owner names the verdict for a cell that
+  fails under A and passes under B.)
 - **Cap (headline):** skip and count if d > 1.0 ATR. **Required side result:**
   no cap, with the share of trades and of total R the cap removes.
 - **Exit:** 1:00 PM PT, at the close of the H1 bar opening at 12:00 PT. If that
@@ -246,8 +258,12 @@ Decision boundaries on the mean, by N and SD (normal approximation):
 
 ### 4.3 Exam rule
 
-If more than one test in the family is SUPPORTED, **GMW-1 goes to the sealed
-exam.** The sealed exam still needs team ruling T1 and real venue costs.
+**[PROPOSED 2026-11-16 for signature]** If exactly one cell is SUPPORTED,
+that cell goes to the sealed exam. If both B1 and B2 are SUPPORTED (opposite
+bets on the same days with the same stop distance both paying after costs),
+that is treated as a defect in the test, not an edge: neither goes to the exam
+and the run is reviewed. The sealed exam still needs team ruling T1 and real
+venue costs.
 
 ## 5. Expected trades
 
@@ -264,14 +280,14 @@ missing windows, zero moves, floor and cap skips. Not counted before freezing.
 N needed for +0.15R at 80% power: 501 (SD 1.2), 1,390 (SD 2.0), 3,128 (SD 3.0).
 With d floored at 0.15 ATR, single trades can reach +5R or more, so SD 2–3 is
 the realistic range. At SD 3.0 this test can confirm only edges of about
-+0.25R.
++0.19R (N 1,900) to +0.22R (N 1,500).
 
 ## 7. Side results (reported; never change a verdict)
 
 1. R before costs; the $1.00 stress spread; the 0.012% spread.
 2. The uncapped result, with the share of trades and of total R the cap
    removes.
-3. Floor A and floor B results side by side.
+3. Floor A (d ≥ 0.15 ATR) results beside the floor-B verdict.
 4. Entry at 8:00 AM PT instead of 7:00 (the fix/release confound).
 5. Exits at 10:00 AM and 12:00 PM PT.
 6. Only days whose window move is at least 0.5 ATR, and only days below it.
@@ -290,6 +306,8 @@ the realistic range. At SD 3.0 this test can confirm only edges of about
 | Within-bar order | a touched stop counts first (§3.5) |
 | Gap through the stop | fill at the bar's open (§3.5) |
 | Pooling | per cell, longs and shorts pooled; sides as side results (§3.6) |
+| Floor | verdict under floor B (d ≥ 0.30 ATR); floor A a side result (§3.4, proposed) |
+| Both cells SUPPORTED | treated as a test defect; neither to the exam (§4.3, proposed) |
 | ATR | simple 14-session mean of completed sessions, by session-day bisect (§3.1) |
 | Missing window bar | skip the day, count it |
 | Missing exit bar | skip the trade, count it |
@@ -304,7 +322,7 @@ the realistic range. At SD 3.0 this test can confirm only edges of about
 3. B2's stop distance different from B1's;
 4. ATR including the day's own session;
 5. a gap through the stop filled at the stop;
-6. the floor-B binding rule ignored;
+6. the verdict computed under floor A instead of floor B;
 7. the verdict using a bound other than the two-test Šidák bound (97.47%);
 8. SUPPORTED and REFUTED allowed together (two thresholds);
 9. FORWARD or sealed-span rows read;
@@ -315,7 +333,7 @@ the realistic range. At SD 3.0 this test can confirm only edges of about
 `tests/test_gold_morning_window.py`, on synthetic H1 bars: the window in
 Pacific time across a daylight-saving change; a missing window bar; B1 and B2
 on a planted up morning with identical d; a stop on the entry hour; a gap
-through the stop; the 1:00 PM exit; floors and cap; the floor-B binding rule;
+through the stop; the 1:00 PM exit; floors and cap; the verdict under floor B only;
 the ATR excluding the current session (a huge-range current session leaves
 ATR unchanged); `held_nights` = 0; the verdict boundaries with m = +0.05R and
 the Šidák bound (α 0.0253); exam-span and wrong-hash refusals; plus every named mutant.

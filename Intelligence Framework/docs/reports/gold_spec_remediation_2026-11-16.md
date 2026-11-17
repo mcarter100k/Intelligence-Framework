@@ -505,3 +505,111 @@ into the branch) do not exist on `main`. The specs index's three citations of
 2a07814 (GMW-1, GNC-1, GTP-1) now cite a5ae1ca, and PRC-1's row gained it. The
 spec-before-code ordering of those branch commits is recorded in this report and
 in validation_log, not in `main`'s history.
+
+
+## Addendum 3: round-3 rulings (2026-11-16)
+
+| Ruling | Done | Label |
+|---|---|---|
+| B1 | PRC-1's top sentence: SUPPORTED only for an effect near +0.44 HRU, roughly ten times anything measured, so in practice REFUTED, INCONCLUSIVE or INSUFFICIENT; family stays at GMW-1's two cells, α 0.0253 | VERIFIED (text) |
+| B2 | PRC-1's unit renamed **HRU (half-range unit)** throughout, with a named note at the top: volatility-normalised, no stop, not comparable to R in any spec with a real stop. One consequence flagged: PRC-1's REFUTED bar "+0.15" came from stop-based R; carried over to HRU it is a convention, and the owner should confirm or set an HRU threshold | VERIFIED (text) |
+| B3 | 90% upper bound of the 2026 same-week effect in HRU (PRC-1 §12; Appendix G). Primary group, Fed at the 2:00 PM PT close, exit 2:00 PM PT next session: N 17, mean +0.044, **upper +0.468 gross, +0.449 after $1**, against the +0.44 floor. At the 1:00 PM PT exit after $1: +0.443. All 28 trades: +0.334. N 17 is below the framework's 20-trade minimum for bootstrap bounds | OBSERVED; decision PENDING (owner) |
+| B4 | Second futility condition proposed (below); not applied | proposal |
+| B5 | GMW-1 needs neither the US policy-rate table nor the 15-minute data (both are GNC-1's; PRC-1 also needs both) | VERIFIED (below) |
+| B6 | GMW-1's document prepared for signature, with two gaps closed by marked [PROPOSED] passages and one stale figure corrected | VERIFIED (text) |
+
+### B4: proposed second futility condition ("reach")
+
+**Wording (proposed):**
+
+> **Futility condition 2: reach.** Before a spec is frozen, if a best
+> available estimate of its effect exists (measured in the spec's own unit,
+> on data not used for its verdict, by the rule or a declared close variant),
+> compute that estimate's one-sided 90% upper confidence bound U by the
+> futility rule's bootstrap. **The spec is FUTILE, and is shelved without
+> running, if its minimum detectable effect (80% power, its own
+> pre-registered α, the estimate's SD) exceeds U.** If the estimate has fewer
+> than 20 observations, the condition is advisory: it is reported and the
+> owner decides. If no estimate exists, the condition does not apply and the
+> spec says so.
+
+**Factor: 1.0, applied to the upper bound rather than the point estimate.**
+- A factor on the point estimate breaks down where it matters: PRC-1's
+  +0.044 against a +0.44 floor is a factor of 10; an estimate of −0.01 makes
+  any factor meaningless.
+- The upper bound already carries the sampling uncertainty that a factor
+  greater than 1 would stand in for. "MDE above U" means even the optimistic
+  end of the current evidence is out of the test's reach.
+- It matches how the project already decides (R37 on a 90% upper bound
+  against a threshold; ruling B3's own test).
+- If a point-estimate form is preferred instead: "MDE greater than 3 × the
+  point estimate, or the estimate ≤ 0". With small estimates this shelves
+  nearly everything, which is why the upper-bound form is proposed.
+
+**What it would shelve if applied now (not applied):**
+
+| Spec or finding | Best available estimate | Reading under the proposal |
+|---|---|---|
+| PRC-1 | 2026 same-week, N 17, U = +0.468 gross / +0.449 after $1 (HRU), against MDE +0.44 | **advisory only** (N < 20); even if binding, not futile by 0.01–0.03. With all 28 trades as the estimate (U +0.334) it would be futile; the spec's primary keeps weekend holds apart |
+| GMW-1 | none measured for this rule | does not apply |
+| GNC-1 | none in its own R (the 2026 counts are directions, not R; an estimate under its 30-minute stop could be computed from the 2026 candles and was not) | does not apply as things stand |
+| GTP-1 | already shelved | — |
+| R37–R46 (committed) | the condition is a pre-run gate; none had a qualifying pre-run estimate (R37's came from one chart) | nothing shelved retroactively |
+
+### B5: what GMW-1 needs before it can run
+
+From the spec text (§2, §3, §8) and checked on disk:
+- the gold H1 and D archive files: present, sha256
+  `eabec665…8e02a4be` and `6202a13d…e3ca`, equal to the pins in the spec;
+- `studies/gold_rule_costs.held_nights`: merged (a5ae1ca), used only to
+  assert 0 financing nights;
+- **not** the US policy-rate table (no position is held over a roll);
+- **not** the 15-minute data or the FOMC time table (no event timing).
+
+GMW-1's remaining steps are its own: signature, the freeze commit, the runner
+and tests with the named mutants caught, the counts stage, then one run.
+GNC-1's prerequisites (P2, the M15 fetch and check) can proceed in parallel
+and do not block it.
+
+### Appendix G: B3 computation (code and output, verbatim)
+
+```python
+"""Ruling B3: 90% one-sided upper bound of the 2026 effect in PRC-1's unit
+(0.5 x the 14-session daily ATR before each event), Fed entry at the 2 PM PT
+four-hour close. Same inputs as a8_effect_in_r.py."""
+import json, sys, math, statistics as st
+from statistics import NormalDist
+sys.path.insert(0, "/Users/quis/Intelligence Framework/foundation/tools")
+from power_check import bootstrap_upper_bound, bootstrap_lower_bound
+ev_json, rr_out = sys.argv[1], sys.argv[2]
+name = {"FOMC decision": "FOMC", "CPI": "CPI", "Jobs report": "NFP"}
+atr = {(name[x["event"]], x["date"]): x["atr"] for x in json.load(open(ev_json)) if "error" not in x}
+rec = []
+for l in open(rr_out):
+    if not l.startswith("| 2026"):
+        continue
+    c = [x.strip() for x in l.strip().strip("|").split("|")]
+    d, e = c[0].split(); unit = 0.5 * atr[(e, d)]
+    p14 = float(c[8]); p13 = None if c[9] == "n/a" else float(c[9])
+    rec.append(dict(wk=c[10] == "yes", r14=p14 / unit, r13=None if p13 is None else p13 / unit, cost=1.0 / unit))
+for lab, key in (("exit 2:00 PM PT next session (the candle origin)", "r14"), ("exit 1:00 PM PT next session", "r13")):
+    for grp, f in (("same-week", lambda r: not r["wk"]), ("all", lambda r: True)):
+        for cl, sub in (("gross", 0), ("after $1 spread", 1)):
+            xs = [r[key] - sub * r["cost"] for r in rec if f(r) and r[key] is not None]
+            n, m, sd = len(xs), st.fmean(xs), st.stdev(xs)
+            ub = bootstrap_upper_bound(xs, conf=0.90, iters=20000, seed=7)
+            lb = bootstrap_lower_bound(xs, conf=0.90, iters=20000, seed=7)
+            tub = m + NormalDist().inv_cdf(0.90) * sd / math.sqrt(n)
+            print(f"{lab} | {grp} | {cl}: N {n} mean {m:+.3f} SD {sd:.3f} | 90% upper: bootstrap {ub:+.3f}, normal {tub:+.3f} | 90% lower {lb:+.3f} | reaches +0.44: {ub >= 0.44}")
+```
+
+```
+exit 2:00 PM PT next session (the candle origin) | same-week | gross: N 17 mean +0.044 SD 1.384 | 90% upper: bootstrap +0.468, normal +0.474 | 90% lower -0.374 | reaches +0.44: True
+exit 2:00 PM PT next session (the candle origin) | same-week | after $1 spread: N 17 mean +0.024 SD 1.387 | 90% upper: bootstrap +0.449, normal +0.455 | 90% lower -0.394 | reaches +0.44: True
+exit 2:00 PM PT next session (the candle origin) | all | gross: N 28 mean +0.002 SD 1.389 | 90% upper: bootstrap +0.334, normal +0.338 | 90% lower -0.332 | reaches +0.44: False
+exit 2:00 PM PT next session (the candle origin) | all | after $1 spread: N 28 mean -0.018 SD 1.391 | 90% upper: bootstrap +0.316, normal +0.319 | 90% lower -0.352 | reaches +0.44: False
+exit 1:00 PM PT next session | same-week | gross: N 16 mean +0.019 SD 1.416 | 90% upper: bootstrap +0.462, normal +0.473 | 90% lower -0.421 | reaches +0.44: True
+exit 1:00 PM PT next session | same-week | after $1 spread: N 16 mean -0.001 SD 1.419 | 90% upper: bootstrap +0.443, normal +0.454 | 90% lower -0.442 | reaches +0.44: True
+exit 1:00 PM PT next session | all | gross: N 25 mean -0.022 SD 1.479 | 90% upper: bootstrap +0.347, normal +0.357 | 90% lower -0.391 | reaches +0.44: False
+exit 1:00 PM PT next session | all | after $1 spread: N 25 mean -0.042 SD 1.481 | 90% upper: bootstrap +0.328, normal +0.338 | 90% lower -0.411 | reaches +0.44: False
+```
