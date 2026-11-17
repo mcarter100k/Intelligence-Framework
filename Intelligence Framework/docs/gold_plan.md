@@ -4,7 +4,7 @@
 detailed plan to implement all of this"). Nothing here is approved. The
 team rulings in §2 come before any phase that needs them. The gaps this plan
 closes are listed in `docs/capability_inventory.md` (Gold section).
-**Progress** is tracked in §0 (last updated 2026-11-15).
+**Progress** is tracked in §0 (last updated 2026-11-16).
 
 **The goal:** find out, honestly, whether there is a way to day or swing
 trade gold (long and short) that pays after costs, and become a trader who
@@ -20,7 +20,7 @@ evidence says no, gold stays a practice chart (§5).
 
 ---
 
-## 0. Progress (updated 2026-11-15)
+## 0. Progress (updated 2026-11-16)
 
 | Item | State | Evidence |
 |---|---|---|
@@ -29,9 +29,10 @@ evidence says no, gold stays a practice chart (§5).
 | A2 idea log takes gold as practice | **DONE** | Same entry; reality run logged, scored and reviewed a gold idea in a temp copy |
 | A3 playbook gold section | Open; waits for O3 (the W47 Friday review) | — |
 | B weekly reps | Starts W47 (2026-11-16) | — |
-| C1 move size in percent of price | Not started | — |
+| **C1 move size in percent of price** | **DONE: R47** (descriptive) | validation_log 2026-11-16 "GOLD C1/C3"; `studies/gold_move_size_report.md` |
 | **C2 breakouts** | **DONE: R45** (descriptive) | validation_log 2026-11-14 "GOLD BREAKOUT STUDY (C2)"; `studies/gold_breakout_report.md`; merge d0f55be |
-| C3–C6 | Not started | — |
+| **C3 pullback depth** | **DONE: R48** (descriptive) | Same entry; `studies/gold_pullback_depth_report.md` |
+| C4–C6 | Not started | — |
 | D, E, F, G | Not started | — |
 
 **Where the build differed from this plan (recorded, not hidden):**
@@ -151,7 +152,7 @@ no entries, no R, no claim that anything pays.** Each uses 2006–2013 and
 
 **Ordering:** C1 first (the others use its unit), then C2 and C3 (they feed the
 markup straight away), then C4, C5, C6. **Actual:** C2 ran first at the owner's
-request (§0); C1 and C3 are next.
+request (§0); C1 and C3 ran on 2026-11-16 (R47, R48); C4, C5, C6 are next.
 
 **Watch for:**
 - 2021–2026 gold was mostly rising, and so were 2006–2011. The falls are mainly 2011–2013 and a few shorter drops. Report how many falls each era holds; the downside cells may be INSUFFICIENT.
