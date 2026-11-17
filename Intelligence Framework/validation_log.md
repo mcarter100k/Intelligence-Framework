@@ -7720,3 +7720,8 @@ approximate and somewhat too narrow (spec §5.5). Shares are lower bounds for
 - **A9:** PRC-1 states that the rule as specified (1:00 PM PT Fed entry) has never been measured.
 
 **Suite (2026-11-16, branch):** 1245 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+
+## 2026-11-16 — GOLD RULE SPECS MERGED (squash, owner ruling A6)
+
+The `feat/gold-rule-specs` branch was squash-merged to `main` as a5ae1ca (tree identical to the branch tip; the branch had first taken `main`'s alert-mute change, resolving `validation_log.md` by keeping both appended blocks in time order). Specs-index citations moved from 2a07814 to a5ae1ca: GMW-1, GNC-1, GTP-1; PRC-1's row now cites a5ae1ca. The branch commits 2a07814, 5b76c96, 76a11c8, c87b678, b1867c5 and 6b4e861 are not on `main`. No spec has been run.

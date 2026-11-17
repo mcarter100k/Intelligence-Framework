@@ -352,7 +352,7 @@ hour 23 PT: n 540 median 0.460
 | R6 family | GMW-1 §4.1, GNC-1 §5, PRC-1 §6: six tests named; α = 1 − 0.95^(1/6) = 0.0085 (z 2.386) | B at N 1,900, SD 1.2: SUPPORTED above +0.116R, REFUTED below +0.015R; power and boundary tables recomputed | VERIFIED (text; `power_check` arithmetic) |
 | R7 B only | GNC-1 and PRC-1: no SUPPORTED verdict; REFUTED by the futility standard (90% upper bound < +0.15R); the required sentence at the top | see conflict (a) | VERIFIED (text) |
 | R8 | no change | — | — |
-| R9 | 2a07814 kept; the branch is to be squashed on merge | not merged yet | PENDING (owner's go to merge) |
+| R9 | 2a07814 kept; the branch is to be squashed on merge | merged (see the note below) | done |
 | R10 | candidate question recorded in the sweep and `docs/gold_plan.md` §0; not specced | see conflict (b) | VERIFIED (text) |
 
 **Distance from threshold (R1):**
@@ -497,3 +497,11 @@ withdrawn pricing, exit 14:00 PT | all: N 28 mean +0.254R after $1 +0.235R SD 1.
 Sidak 3: alpha 0.01695; d needed at N 87 for 80% power 0.318; power at d 0.032 0.034, at 0.18 0.33, at 0.30 0.75
 Sidak 2: alpha 0.02532; d needed at N 87 for 80% power 0.300; power at d 0.032 0.049, at 0.18 0.39, at 0.30 0.80
 ```
+
+**Merge note (owner ruling A6, 2026-11-16):** the branch was squash-merged to
+`main` as **a5ae1ca**. The branch commits (2a07814, 5b76c96, 76a11c8, c87b678,
+b1867c5, and the merge 6b4e861 that brought the alert-mute change from `main`
+into the branch) do not exist on `main`. The specs index's three citations of
+2a07814 (GMW-1, GNC-1, GTP-1) now cite a5ae1ca, and PRC-1's row gained it. The
+spec-before-code ordering of those branch commits is recorded in this report and
+in validation_log, not in `main`'s history.
