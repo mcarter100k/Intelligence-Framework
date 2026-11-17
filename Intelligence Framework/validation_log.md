@@ -7641,3 +7641,27 @@ approximate and somewhat too narrow (spec §5.5). Shares are lower bounds for
 - **C3 (R48):** 23.6% and 38.2% "most reach it" in every cell; 50% "about even" in rallies, "most reach it" in falls; 61.8% "about even" everywhere; all readings stable across eras. Rallies vs falls: 1 of 12 comparisons clear (STUDY 38.2%), uncorrected: a hint, not a finding. Monotonic check ok; cut-off 0 in every cell.
 
 **Not claimed:** no entry rule or edge (R37, R38: touching is not holding); no interval for C1 (bars cluster); C3 intervals approximate (legs overlap). The installed `trading-foundation` skill is not rebuilt on the branch (`foundation/build_skill.sh` after merge).
+
+---
+
+## 2026-11-16 — ALERTS MUTED: a one-file switch silences every notification; the scheduled jobs keep running (free zone, owner request; branch `feat/mute-alerts`)
+
+**Owner, 2026-11-16:** hold off on GBP/AUD and GBP/JPY, "cut all alerts off", focus on gold. Spec first: `docs/specs/alert_mute_spec.md` (586cd80); build 00bde88.
+
+**What changed:** `scripts/notify.sh` sends nothing while `ALERTS_MUTED` exists in the project folder (gitignored local state). Each muted alert is appended to its record log as `MUTED (not sent; ALERTS_MUTED present) <CATEGORY>: <text>` and gets no `notification_log.csv` row. Every category is muted, the live-checkout guard and the heartbeat included. The brief, grader, calendar and heartbeat jobs are untouched and keep writing the ledgers. **Cost:** while muted, a broken job reaches nobody; the evidence stays in the day logs.
+
+**Gate 1 (controlled input):**
+- `tests/test_notify_helper.py`: 11 passed (5 new: muted sends nothing and logs the alert; muted without terminal-notifier skips osascript; the muted line goes to the record log; unmuted still sends and records; `notify.sh` is the only sender under `scripts/`).
+- Mutants, each confirmed applied (`git diff --numstat` 1 line), each reverted (`grep -c MUTANT` 0), with bytecode off:
+  - M1, mute check disabled: 3 failed;
+  - M2, muted line written to the click target instead of the record log: 1 failed;
+  - M3, a direct `osascript` call planted in `scripts/crash.sh`: 1 failed.
+  - Clean after clearing `__pycache__`: 11 passed.
+- Full suite on the branch: **1244 passed, 10 skipped, 3 deselected, 16 xfailed**.
+
+**Gate 2 (reality):** the real `scripts/notify.sh` under `/bin/bash` 3.2.57 with the real terminal-notifier (`~/Applications/terminal-notifier.app`, executable), against a throwaway project folder:
+- muted: exit 0; the log got `MUTED (not sent; ALERTS_MUTED present) ALERT: TEST muted: you should NOT see this → logs/check.log`; no `notification_log.csv` was created;
+- control, unmuted: exit 0; `notification_log.csv` got `2026-11-17T05:44:46Z,ALERT,,,"TEST unmuted: mute-switch check, safe to dismiss → logs/check.log"`. That row is written only when the send exits 0, so the real notifier did send, and the muted run did not.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+- With `ALERTS_MUTED` present in the live project, the next scheduled brief that would have notified writes a `MUTED` line in its day log and adds no `notification_log.csv` row. The first chance is the 07:30 PT DIGEST on 2026-11-17 (sent whenever a pair is open); the Sunday 12:30 heartbeat always notifies.
