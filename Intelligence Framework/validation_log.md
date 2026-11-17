@@ -7442,3 +7442,202 @@ The BCS-3 RESULT entry (and its commit message 5bbc037) says "Recorded as R45".
 - [ ] The next weekday 07:30 run sends a DIGEST, with a shadow clause if the ledger has fires since the previous DIGEST.
 - [ ] The first real open-market LONG/SHORT sends one DECISION, an unchanged repeat sends none, and its withdrawal sends one.
 - [ ] The first launchd catch-up pair after a sleep logs its second run starting after the first ends, with one set of notifications.
+
+
+## 2026-11-16 — GOLD C1/C3 RESULTS (descriptive, free zone; branch `feat/gold-c1-c3`): gold moves about 1.4–1.6% of its price a day (R47); most first pullbacks reach 38.2%, 50% and 61.8% are about even (R48)
+
+**What:** `docs/gold_plan.md` Phase C, studies C1 (how far gold moves, in percent of price) and C3 (how deep gold's first pullback goes), at the owner's request ("go on C1 and C3"). **Descriptive: no entries, no R, no costs.**
+
+**Ordering:**
+- Specs `docs/specs/gold_move_size_study_spec.md` + `docs/specs/gold_pullback_depth_study_spec.md`: commit 4e0957f at **19:29:18 PST**, before either runner existed. sha256 `b0a688c5…5f8b4a` / `f474601f…5ba1e`.
+- Runners `studies/gold_move_size_study.py` + `studies/gold_pullback_depth_study.py` and their tests: commit d0151a1 at **19:35:35 PST**. sha256 `ce8465ec…e7e02` / `91a261e5…85473`.
+- **First computation: 19:35:42 PST (C1), 19:35:43 PST (C3).** One run each: `reality_run.py --no-env script <worktree absolute path> ~/intel_study_archives/research_archive_legs`. Exit 0, stderr 0 bytes, project UNCHANGED (verified by hash).
+
+**Data:**
+- `research_archive_legs/XAU_USD_D.csv` (6202a13d…e3ca), `XAU_USD_H4.csv` (e101117d…011c), `XAU_USD_H1.csv` (eabec665…8e02a4be, C1 only): equal to the archive manifest's `files` entries.
+- Spans STUDY and USED; FORWARD not used (the live shadow ledger's span). Gold from the 2006-03-21 session (T2).
+- No row dated 2014-01-01 → 2021-04-25 exists in the files; both runners refuse any such row (mutant M4 shows the refusal is tested in both test files).
+- C3 reuses R39's detector unchanged (`first_pullback_study.find_entries`, `bar_context`, `session_table`, `mirrored`), with `use_trend=False`.
+
+**Tests:**
+- `tests/test_gold_move_size_study.py`, 12 tests: TR% by hand including gaps both ways; last-bar ATR % = `markup_swings.atr` ÷ close; warm-up excluded; eras share no close; percentiles; H4/D and H1/D ratios; year grouping and small years; era split, FORWARD and pre-start skipped; exam row and wrong hash refused; spec hashes = runner hashes.
+- `tests/test_gold_pullback_depth_study.py`, 10 tests: the owner-leg replica reaches 23.6% and 38.2%, expires at 50% and deeper; the reflected leg counts the same as a fall; a window past the end is cut off, not expired; qualified-leg years; each era builds its own context from warm-up; the monotonic check and its loud failure (planted); Wilson and Newcombe against published values; reading rules; loader refusals; spec hashes.
+- Mutation run, **9 mutants, 9 caught** (each source change confirmed applied; sources restored and checked by sha256; `__pycache__` cleared; clean re-run 22 passed): TR% over the bar's own close; a true range across eras; ATR warm-up kept; exam refusal removed (caught by both files); hash refusal removed (both); cut-off counted as expired; falls not mirrored; context carried across eras; monotonic check disabled.
+- Full suite before the runner commit: **1239 passed**, 10 skipped, 3 deselected, 16 xfailed.
+
+**Spot checks against the raw data (independent of the runners):**
+- C1: the STUDY daily median TR% recomputed from the CSV by a separate script: N 2,023, **1.614** (runner: 1.614). The USED last daily bar's `markup_swings.atr` = 103.45 on a close of 4,402.115 = **2.350%** (runner: 2.350).
+- C3: the last USED fall leg at 38.2% traced bar by bar from the raw H4 prices: anchor 2026-08-24 21:00Z high 4,697.105 (a strict 120-bar high), qualified at the 2026-08-28 13:00Z bar, extreme 4,282.625 (drop 414.48 = 3.8 daily ATR of 108.934), level 4,440.956, touched by the 2026-09-03 05:00Z bar (high 4,443.715). No earlier qualified bar reached its level. A first version of this hand check printed a false "False" because of a bug in the check itself; the bar-by-bar trace replaced it.
+
+**Output C1 (verbatim):**
+
+```
+# Gold move-size study (C1): output
+
+## D
+### STUDY: 2024 bars, 2006-03-20T22:00 -> 2013-12-29T22:00; true range on 2023 (first bar excluded), ATR % on 2010 (warm-up excluded)
+- true range % of price: p10 0.844 / p25 1.127 / p50 1.614 / p75 2.320 / p90 3.233; mean 1.893
+- ATR(14) % of price: p25 1.384 / p50 1.688 / p75 2.211; last bar 1.728
+- dollars: median true range $17.83; median close $1123.05
+### USED: 1388 bars, 2021-04-26T21:00 -> 2026-09-08T21:00; true range on 1387 (first bar excluded), ATR % on 1374 (warm-up excluded)
+- true range % of price: p10 0.765 / p25 0.982 / p50 1.353 / p75 1.880 / p90 2.582; mean 1.585
+- ATR(14) % of price: p25 1.214 / p50 1.381 / p75 1.652; last bar 2.350
+- dollars: median true range $29.81; median close $2029.01
+
+## H4
+### STUDY: 12105 bars, 2006-03-20T22:00 -> 2013-12-30T18:00; true range on 12104 (first bar excluded), ATR % on 12091 (warm-up excluded)
+- true range % of price: p10 0.239 / p25 0.344 / p50 0.549 / p75 0.882 / p90 1.347; mean 0.709
+- ATR(14) % of price: p25 0.495 / p50 0.626 / p75 0.815; last bar 0.504
+- dollars: median true range $6.03; median close $1124.38
+### USED: 8321 bars, 2021-04-26T21:00 -> 2026-09-09T17:00; true range on 8320 (first bar excluded), ATR % on 8307 (warm-up excluded)
+- true range % of price: p10 0.210 / p25 0.310 / p50 0.482 / p75 0.732 / p90 1.093; mean 0.598
+- ATR(14) % of price: p25 0.435 / p50 0.513 / p75 0.658; last bar 0.827
+- dollars: median true range $10.90; median close $2029.56
+
+## H1
+### STUDY: 47967 bars, 2006-03-20T22:00 -> 2013-12-30T21:00; true range on 47966 (first bar excluded), ATR % on 47953 (warm-up excluded)
+- true range % of price: p10 0.099 / p25 0.154 / p50 0.252 / p75 0.422 / p90 0.667; mean 0.338
+- ATR(14) % of price: p25 0.230 / p50 0.299 / p75 0.395; last bar 0.251
+- dollars: median true range $2.79; median close $1125.12
+### USED: 31816 bars, 2021-04-26T22:00 -> 2026-09-09T20:00; true range on 31815 (first bar excluded), ATR % on 31802 (warm-up excluded)
+- true range % of price: p10 0.102 / p25 0.147 / p50 0.225 / p75 0.355 / p90 0.547; mean 0.294
+- ATR(14) % of price: p25 0.207 / p50 0.252 / p75 0.331; last bar 0.415
+- dollars: median true range $5.13; median close $2029.40
+
+## A 4-hour bar and an hour compared with a day (median true range % / daily median)
+- STUDY: H4 / D 0.340; H1 / D 0.156
+- USED: H4 / D 0.356; H1 / D 0.166
+
+## USED compared with STUDY (median true range %)
+- D: USED / STUDY 0.838; p25-p75 STUDY [1.127, 2.320] USED [0.982, 1.880] -> overlapping
+- H4: USED / STUDY 0.878; p25-p75 STUDY [0.344, 0.882] USED [0.310, 0.732] -> overlapping
+- H1: USED / STUDY 0.891; p25-p75 STUDY [0.154, 0.422] USED [0.147, 0.355] -> overlapping
+
+## By calendar year, daily bars
+- STUDY 2006: N 203; median true range 1.972%; median ATR 2.235%; median close $622.70
+- STUDY 2007: N 261; median true range 1.414%; median ATR 1.427%; median close $671.35
+- STUDY 2008: N 261; median true range 2.512%; median ATR 2.470%; median close $882.65
+- STUDY 2009: N 261; median true range 1.726%; median ATR 1.735%; median close $948.46
+- STUDY 2010: N 260; median true range 1.447%; median ATR 1.598%; median close $1214.25
+- STUDY 2011: N 260; median true range 1.535%; median ATR 1.412%; median close $1544.45
+- STUDY 2012: N 259; median true range 1.218%; median ATR 1.408%; median close $1664.03
+- STUDY 2013: N 258; median true range 1.570%; median ATR 1.889%; median close $1370.74
+- USED 2021: N 177; median true range 1.098%; median ATR 1.243%; median close $1794.42
+- USED 2022: N 258; median true range 1.282%; median ATR 1.401%; median close $1804.60
+- USED 2023: N 257; median true range 1.079%; median ATR 1.234%; median close $1943.60
+- USED 2024: N 259; median true range 1.239%; median ATR 1.345%; median close $2382.91
+- USED 2025: N 258; median true range 1.487%; median ATR 1.464%; median close $3345.74
+- USED 2026: N 178; median true range 2.262%; median ATR 2.606%; median close $4542.03
+
+Bars are not independent (volatility clusters), so no interval is given (spec §5.1).
+Descriptive only: no entries, no R, no costs. Not evidence of an edge (spec §5.4).
+```
+
+**Output C3 (verbatim):**
+
+```
+# Gold pullback-depth study (C3): output
+
+## STUDY: 12105 H4 bars, 2006-03-20T22:00 -> 2013-12-30T18:00
+### rallies (pullbacks in a rally)
+- legs: anchors 299, warm-up 18, replaced 252, expired before qualifying 1
+- 23.6%: qualified 45; reached 42, expired 3, cut off 0 -> reached 93.3% [82.1, 97.7] most reach it
+- 38.2%: qualified 45; reached 32, expired 13, cut off 0 -> reached 71.1% [56.6, 82.3] most reach it
+- 50.0%: qualified 45; reached 28, expired 17, cut off 0 -> reached 62.2% [47.6, 74.9] about even
+- 61.8%: qualified 45; reached 25, expired 20, cut off 0 -> reached 55.6% [41.2, 69.1] about even
+- 78.6%: qualified 45; reached 13, expired 32, cut off 0 -> reached 28.9% [17.7, 43.4] most don't  (secondary)
+- 100.0%: qualified 45; reached 9, expired 36, cut off 0 -> reached 20.0% [10.9, 33.8] most don't  (secondary)
+- qualified legs by anchor year: {2006: 3, 2007: 5, 2008: 6, 2009: 6, 2010: 4, 2011: 6, 2012: 6, 2013: 9}
+### falls (bounces in a fall)
+- legs: anchors 693, warm-up 35, replaced 635, expired before qualifying 1
+- 23.6%: qualified 57; reached 57, expired 0, cut off 0 -> reached 100.0% [93.7, 100.0] most reach it
+- 38.2%: qualified 57; reached 51, expired 6, cut off 0 -> reached 89.5% [78.9, 95.1] most reach it
+- 50.0%: qualified 57; reached 43, expired 14, cut off 0 -> reached 75.4% [62.9, 84.8] most reach it
+- 61.8%: qualified 57; reached 34, expired 23, cut off 0 -> reached 59.6% [46.7, 71.4] about even
+- 78.6%: qualified 57; reached 24, expired 33, cut off 0 -> reached 42.1% [30.2, 55.0] about even  (secondary)
+- 100.0%: qualified 57; reached 14, expired 43, cut off 0 -> reached 24.6% [15.2, 37.1] most don't  (secondary)
+- qualified legs by anchor year: {2006: 2, 2007: 6, 2008: 11, 2009: 8, 2010: 11, 2011: 9, 2012: 7, 2013: 3}
+### both
+- 23.6%: qualified 102; reached 99, expired 3, cut off 0 -> reached 97.1% [91.7, 99.0] most reach it
+- 38.2%: qualified 102; reached 83, expired 19, cut off 0 -> reached 81.4% [72.7, 87.7] most reach it
+- 50.0%: qualified 102; reached 71, expired 31, cut off 0 -> reached 69.6% [60.1, 77.7] most reach it
+- 61.8%: qualified 102; reached 59, expired 43, cut off 0 -> reached 57.8% [48.1, 67.0] about even
+- 78.6%: qualified 102; reached 37, expired 65, cut off 0 -> reached 36.3% [27.6, 45.9] most don't
+- 100.0%: qualified 102; reached 23, expired 79, cut off 0 -> reached 22.5% [15.5, 31.6] most don't
+
+## USED: 8321 H4 bars, 2021-04-26T21:00 -> 2026-09-09T17:00
+### rallies (pullbacks in a rally)
+- legs: anchors 221, warm-up 6, replaced 189, expired before qualifying 0
+- 23.6%: qualified 32; reached 32, expired 0, cut off 0 -> reached 100.0% [89.3, 100.0] most reach it
+- 38.2%: qualified 32; reached 25, expired 7, cut off 0 -> reached 78.1% [61.2, 89.0] most reach it
+- 50.0%: qualified 32; reached 19, expired 13, cut off 0 -> reached 59.4% [42.3, 74.5] about even
+- 61.8%: qualified 32; reached 14, expired 18, cut off 0 -> reached 43.8% [28.2, 60.7] about even
+- 78.6%: qualified 32; reached 9, expired 23, cut off 0 -> reached 28.1% [15.6, 45.4] most don't  (secondary)
+- 100.0%: qualified 32; reached 6, expired 26, cut off 0 -> reached 18.8% [8.9, 35.3] most don't  (secondary)
+- qualified legs by anchor year: {2021: 4, 2022: 9, 2023: 5, 2024: 6, 2025: 3, 2026: 5}
+### falls (bounces in a fall)
+- legs: anchors 523, warm-up 8, replaced 478, expired before qualifying 1
+- 23.6%: qualified 44; reached 44, expired 0, cut off 0 -> reached 100.0% [92.0, 100.0] most reach it
+- 38.2%: qualified 44; reached 36, expired 8, cut off 0 -> reached 81.8% [68.0, 90.5] most reach it
+- 50.0%: qualified 44; reached 30, expired 14, cut off 0 -> reached 68.2% [53.4, 80.0] most reach it
+- 61.8%: qualified 44; reached 22, expired 22, cut off 0 -> reached 50.0% [35.8, 64.2] about even
+- 78.6%: qualified 44; reached 15, expired 29, cut off 0 -> reached 34.1% [21.9, 48.9] most don't  (secondary)
+- 100.0%: qualified 44; reached 11, expired 33, cut off 0 -> reached 25.0% [14.6, 39.4] most don't  (secondary)
+- qualified legs by anchor year: {2021: 3, 2022: 10, 2023: 9, 2024: 9, 2025: 9, 2026: 4}
+### both
+- 23.6%: qualified 76; reached 76, expired 0, cut off 0 -> reached 100.0% [95.2, 100.0] most reach it
+- 38.2%: qualified 76; reached 61, expired 15, cut off 0 -> reached 80.3% [70.0, 87.7] most reach it
+- 50.0%: qualified 76; reached 49, expired 27, cut off 0 -> reached 64.5% [53.3, 74.3] most reach it
+- 61.8%: qualified 76; reached 36, expired 40, cut off 0 -> reached 47.4% [36.5, 58.4] about even
+- 78.6%: qualified 76; reached 24, expired 52, cut off 0 -> reached 31.6% [22.2, 42.7] most don't
+- 100.0%: qualified 76; reached 17, expired 59, cut off 0 -> reached 22.4% [14.5, 32.9] most don't
+
+## Rallies minus falls (reached share; 95% Newcombe interval)
+- STUDY 23.6%: -6.7 points [-17.9, +1.0]  no clear difference
+- STUDY 38.2%: -18.4 points [-33.9, -3.0]  differ
+- STUDY 50.0%: -13.2 points [-30.5, +4.6]  no clear difference
+- STUDY 61.8%: -4.1 points [-22.7, +14.6]  no clear difference
+- STUDY 78.6%: -13.2 points [-30.3, +5.5]  no clear difference
+- STUDY 100.0%: -4.6 points [-20.1, +12.1]  no clear difference
+- USED 23.6%: +0.0 points [-10.7, +8.0]  no clear difference
+- USED 38.2%: -3.7 points [-22.7, +13.8]  no clear difference
+- USED 50.0%: -8.8 points [-29.6, +12.3]  no clear difference
+- USED 61.8%: -6.2 points [-27.3, +15.8]  no clear difference
+- USED 78.6%: -6.0 points [-25.4, +15.2]  no clear difference
+- USED 100.0%: -6.2 points [-23.7, +13.3]  no clear difference
+
+## Stable across eras (rule-2 readings, STUDY / USED)
+- rallies 23.6%: most reach it / most reach it -> stable across eras
+- rallies 38.2%: most reach it / most reach it -> stable across eras
+- rallies 50.0%: about even / about even -> stable across eras
+- rallies 61.8%: about even / about even -> stable across eras
+- falls 23.6%: most reach it / most reach it -> stable across eras
+- falls 38.2%: most reach it / most reach it -> stable across eras
+- falls 50.0%: most reach it / most reach it -> stable across eras
+- falls 61.8%: about even / about even -> stable across eras
+- both 23.6%: most reach it / most reach it -> stable across eras
+- both 38.2%: most reach it / most reach it -> stable across eras
+- both 50.0%: most reach it / most reach it -> stable across eras
+- both 61.8%: about even / about even -> stable across eras
+
+## Check: shares never rise with depth
+- STUDY rallies: ok
+- STUDY falls: ok
+- USED rallies: ok
+- USED falls: ok
+- overall: ok
+
+## Context, not a test: R39's GBP figures (2005-2013, quoted from research_findings)
+- GBP/JPY: 38.2% 89.6% (121/135); 50% 74.1% (100/135)
+- GBP/AUD: 38.2% 81.0% (98/121); 50% 66.1% (80/121)
+
+Legs overlap (a rally leg and a fall leg can run at once), so the intervals are
+approximate and somewhat too narrow (spec §5.5). Shares are lower bounds for
+'eventually' (spec §5.6). Descriptive only: no entries, no R, no costs (spec §5.7).
+```
+
+**Reading (spec rules):**
+- **C1 (R47):** typical gold day 1.61% (2006–13) / 1.35% (2021–26) of price; ATR 1.69% / 1.38%; a 4-hour bar ≈ a third of a day and an hour ≈ a sixth, in both eras. Eras "overlapping" on every timeframe (rule 2). 2026 to 09-08 is the busiest year in either era (median ATR 2.61%). Live context (markup tool, 2026-11-16 16:06 PST): daily ATR $87.05 at $3,859.58 = 2.26% of price.
+- **C3 (R48):** 23.6% and 38.2% "most reach it" in every cell; 50% "about even" in rallies, "most reach it" in falls; 61.8% "about even" everywhere; all readings stable across eras. Rallies vs falls: 1 of 12 comparisons clear (STUDY 38.2%), uncorrected: a hint, not a finding. Monotonic check ok; cut-off 0 in every cell.
+
+**Not claimed:** no entry rule or edge (R37, R38: touching is not holding); no interval for C1 (bars cluster); C3 intervals approximate (legs overlap). The installed `trading-foundation` skill is not rebuilt on the branch (`foundation/build_skill.sh` after merge).

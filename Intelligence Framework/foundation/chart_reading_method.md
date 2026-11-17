@@ -99,6 +99,27 @@ GBP/JPY. **Reaching a level is not holding it:** buying the first touch of
 38.2% or 50% showed no edge on either pair (R37, R38). Nothing tested yet says
 which pullbacks stop shallow and which go deep.
 
+**On gold (R48, descriptive):** the same detector on gold, rallies and falls
+apart, 2006–2013 / 2021–2026:
+
+| Pullback reached | Gold rallies | Gold falls (bounce) |
+|---|---|---|
+| 23.6% | 93.3% / 100% | 100% / 100% |
+| 38.2% | 71.1% / 78.1% | 89.5% / 81.8% |
+| 50% | 62.2% / 59.4% | 75.4% / 68.2% |
+| 61.8% | 55.6% / 43.8% | 59.6% / 50.0% |
+| Whole move given back | 20.0% / 18.8% | 24.6% / 25.0% |
+
+Most gold pullbacks reach 38.2%; 50% and 61.8% are about even (50% is reached
+by most fall bounces); about 1 move in 5 is wholly given back within 10
+sessions. A stop at 61.8% is reached by the first pullback alone about half
+the time. Gold is about like the GBP pairs. Legs: 32–57 per cell.
+
+**Gold's sizes in percent (R47):** a typical day is 1.4–1.6% of price, a
+4-hour bar about a third of a day, an hour about a sixth. Keep gold thresholds
+in daily ranges, not dollars: the dollar size of "half a day" changes with
+gold's price and mood (2.26% of price on 2026-11-16, 1.63× the 2021–26 median).
+
 ## 4. Zones
 
 - **Build a zone where several reasons overlap** (**UNTESTED** that overlap
