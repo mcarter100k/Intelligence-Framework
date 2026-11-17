@@ -124,7 +124,7 @@ its team rulings are open).
 | Hand markup tools | HAVE (2026-11-14) | `studies/markup_swings.py` prints gold in US dollars (unit table; an unknown metal is refused). Reality run 2026-11-14: daily average range $89.6, 4-hour $33.6, hourly $15.4 (validation_log 2026-11-14, Phase A). Its 150 monthly candles reach back into 2014–2021: open item for ruling T1 |
 | Idea log | HAVE (2026-11-14) | `scripts/trader_review.py` takes XAU_USD as a practice instrument: scored on paper with OANDA's quoted $0.47 spread (median, Oct–Nov 2026; not a venue's), framework read "not covered", its own line in the weekly review. Not yet used for a real idea |
 | Weekly markup and Friday scoring | MANUAL (first week W47, 2026-11-16) | `markups/README.md`; its widths and examples are GBP/AUD's. The gold equivalents (zones ≤ ≈ $45, "held" = ≈ $45 away) live in the owner's notes only |
-| A proven gold edge | MISSING | No rule has been tested on gold, in either direction |
+| A proven gold edge | MISSING | First gold rule tested 2026-11-17: GMW-1 (the 4–7 AM PT window, continuation and fade), **REFUTED in both directions** (R49). GTP-1 and PRC-1 shelved; GNC-1 drafted, not run |
 
 ## What would sharpen us most, in order
 

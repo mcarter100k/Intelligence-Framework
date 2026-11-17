@@ -33,6 +33,7 @@ evidence says no, gold stays a practice chart (§5).
 | **C2 breakouts** | **DONE: R45** (descriptive) | validation_log 2026-11-14 "GOLD BREAKOUT STUDY (C2)"; `studies/gold_breakout_report.md`; merge d0f55be |
 | **C3 pullback depth** | **DONE: R48** (descriptive) | Same entry; `studies/gold_pullback_depth_report.md` |
 | C4–C6 | Not started | — |
+| **F: one rule tested (GMW-1, the 4–7 AM PT window)** | **DONE: R49, REFUTED both cells** (2026-11-17), run ahead of Phases C4–C6 and E with owner sign-off and placeholder costs | validation_log 2026-11-17 "GMW-1 RESULT"; `studies/gold_morning_window_result.md` |
 | D, E, F, G | Not started | — |
 
 **Where the build differed from this plan (recorded, not hidden):**

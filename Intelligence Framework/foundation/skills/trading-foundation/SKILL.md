@@ -1,6 +1,6 @@
 ---
 name: trading-foundation
-description: A solo FX trader's proven research discipline and knowledge base, distilled from the Intelligence Framework (GBP/AUD, GBP/JPY on OANDA). It covers honest evidence rules (non-overlapping N, INFORMED PRIOR vs VALIDATED, pre-registration, statistical power, costs and swap), 48 already-tested hypotheses (most refuted: don't re-test them), exact risk and trade-management rules, a top-down chart-reading method (structure, Fibonacci, zones; untested), a trader review loop, and a catalogue of silent failures to avoid. Use this skill whenever the user evaluates a trade idea, setup, indicator or strategy; asks "does this work" or "is this an edge"; designs a backtest, study or forward test; reads a win rate or sample size; grades or journals trades; does a weekly or monthly trading review; sizes a position or sets stops and targets; marks up a chart or asks where to draw a Fibonacci or a level; or changes code that produces or grades trading evidence, even if they don't mention the framework by name.
+description: A solo FX trader's proven research discipline and knowledge base, distilled from the Intelligence Framework (GBP/AUD, GBP/JPY on OANDA). It covers honest evidence rules (non-overlapping N, INFORMED PRIOR vs VALIDATED, pre-registration, statistical power, costs and swap), 49 already-tested hypotheses (most refuted: don't re-test them), exact risk and trade-management rules, a top-down chart-reading method (structure, Fibonacci, zones; untested), a trader review loop, and a catalogue of silent failures to avoid. Use this skill whenever the user evaluates a trade idea, setup, indicator or strategy; asks "does this work" or "is this an edge"; designs a backtest, study or forward test; reads a win rate or sample size; grades or journals trades; does a weekly or monthly trading review; sizes a position or sets stops and targets; marks up a chart or asks where to draw a Fibonacci or a level; or changes code that produces or grades trading evidence, even if they don't mention the framework by name.
 ---
 
 # Trading Foundation
@@ -39,7 +39,7 @@ When reviewing, critiquing or suggesting changes to anything the owner made
 
 | File | Read when |
 |---|---|
-| `references/research_findings.md` | **Any new idea, before testing it.** 48 prior tests with honest N. Refuted premises include compression-precedes-moves, fakeout-then-go, hourly breakout confirmation, filtered daily/weekly level breaks, 15-minute retest entries, structural precursors, level fades and first-bounce entries |
+| `references/research_findings.md` | **Any new idea, before testing it.** 49 prior tests with honest N. Refuted premises include compression-precedes-moves, fakeout-then-go, hourly breakout confirmation, filtered daily/weekly level breaks, 15-minute retest entries, structural precursors, level fades and first-bounce entries |
 | `references/methodology.md` | Designing any study or backtest, judging any result, writing a verdict. 41 principles, each with the incident that produced it |
 | `references/risk_and_execution.md` | Sizing, stops, targets, daily limits, in-trade management |
 | `references/trader_review.md` | Journaling, grading trades, weekly or monthly review, "how am I doing" |
