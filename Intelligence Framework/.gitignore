@@ -21,3 +21,4 @@ studies/data_cache/
 backups/
 .*.lock
 .*.tmp
+ALERTS_MUTED
