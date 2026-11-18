@@ -244,3 +244,21 @@ def test_n7_a_crashing_check_fails_the_run(monkeypatch, capsys):
     assert af.main(["x", "check"]) == 0
     out = capsys.readouterr().out
     assert out.startswith("STALE: artifact_freshness — the check itself failed (RuntimeError: disk gone)")
+
+
+
+# ── Stopped writers (owner ruling M1, 2026-11-17; AGENTS rule 8) ──────────────
+def test_a_ledger_whose_writer_is_stopped_reads_stopped_never_stale(tmp_path):
+    now = time.time()
+    lines = af.check(now=now, proj=str(tmp_path),
+                     stopped={"brief": ["com.quis.intelligence.brief-asia"]})
+    for rel in ("regime_classification_log.csv", "session_context_log.csv", "shadow_signal_log.csv"):
+        assert any(ln.startswith(f"stopped: {rel}") for ln in lines), lines
+        assert not any(ln.startswith(f"STALE: {rel}") for ln in lines), lines
+    assert any(ln.startswith("STALE: calendar.csv") for ln in lines), lines   # not a brief ledger
+
+
+def test_control_the_same_missing_ledgers_are_stale_when_the_writer_runs(tmp_path):
+    lines = af.check(now=time.time(), proj=str(tmp_path), stopped={})
+    for rel in ("regime_classification_log.csv", "session_context_log.csv", "shadow_signal_log.csv"):
+        assert any(ln.startswith(f"STALE: {rel}") for ln in lines), lines

@@ -69,6 +69,28 @@ CADENCES = [
     # (docs/specs/alert_importance_spec.md N7).
 ]
 
+# The live job whose runs write each cadence ledger (scripts/run_count.py
+# wrapper kinds). While launchd has every job of that kind disabled, the
+# ledger has no live writer and so no cadence (AGENTS rule 8): it renders
+# "stopped:", never STALE. Re-enabling the job restores the cadence with no
+# code change. Added 2026-11-17 when owner ruling M1 stopped the GBP brief
+# and grader jobs.
+WRITERS = {"regime_classification_log.csv": "brief",
+           "session_context_log.csv":       "brief",
+           "shadow_signal_log.csv":         "brief"}
+
+
+def _stopped_kinds() -> dict:
+    """launchd's stopped wrapper kinds. A failed lookup returns {} so every
+    cadence applies: a loud STALE, never a silent pass."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import run_count
+        return run_count.stopped_kinds(disabled=run_count.disabled_labels())
+    except Exception:
+        return {}
+
+
 # Read-side artifacts with NO expected cadence. (relative path, reason)
 # These are reported for visibility and can never render a STALE line —
 # a cadence here would alarm on normal operation.
@@ -229,13 +251,24 @@ def _age_hours(path: str, rel: str, now: float) -> tuple[float, str]:
     return (now - mtime) / 3600.0, "file time"
 
 
-def check(now: float | None = None, proj: str | None = None) -> list[str]:
-    """Return the per-artifact report lines."""
+def check(now: float | None = None, proj: str | None = None,
+          stopped: dict | None = None) -> list[str]:
+    """Return the per-artifact report lines. `stopped` ({wrapper kind:
+    [labels]}) defaults to launchd's own state for the live project and to
+    none for an explicit project (a test fixture)."""
     now = time.time() if now is None else now
+    if stopped is None:
+        stopped = _stopped_kinds() if proj is None else {}
     proj = PROJ if proj is None else proj
     lines = []
     for rel, cadence_h in CADENCES:
         path = os.path.join(proj, rel)
+        kind = WRITERS.get(rel)
+        if kind in stopped:
+            lines.append(f"stopped: {rel} — its writer ({kind}: "
+                         f"{', '.join(stopped[kind])}) is disabled in launchd; "
+                         f"no cadence while stopped (AGENTS rule 8)")
+            continue
         human = rel in HUMAN_WRITTEN
         try:
             age_h, basis = _age_hours(path, rel, now)

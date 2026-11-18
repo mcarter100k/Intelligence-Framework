@@ -1,4 +1,4 @@
-# Spec: the breadth go/no-go gate (bands RULED 2026-11-06; definitions 1–2 RULED 2026-11-17, definition 3 awaiting ruling)
+# Spec: the breadth go/no-go gate (bands RULED 2026-11-06; definitions 1–3 RULED 2026-11-17)
 
 **Owner rulings, 2026-11-17 (recorded verbatim in substance):**
 - **L5:** ruling C3 (§3) governs, not the 2026-11-17 brief's "> 0.20
@@ -112,9 +112,21 @@ Break-even ρ̄:
    7. **The correlations.** Pearson correlation of the weekly returns for
       each pair of instruments, per era. ρ̄ = the mean of |ρ| (definition
       1), and the verdict uses the larger era (definition 2).
-   - **Open choices within it, for the ruling:**
-     - (a) keep the gap-spanning returns of step 3, or drop them;
-     - (b) whether the 3-day minimum of step 6 stands.
+   - **RULED 2026-11-17 (owner, N1):**
+     - **(a) Gap-spanning returns are DROPPED.**
+       - Reason: the correlation is between contemporaneous returns, and a
+         multi-day return set against a one-day return is not
+         contemporaneous.
+       - Mismatched windows correlate less. Keeping them would bias ρ̄
+         downward, and an artificially low ρ̄ is the error that would
+         wrongly green-light pooling. Dropping is the conservative side.
+     - **(b) The 3-return minimum STANDS.**
+       - The report states how many weeks it drops, per era, so the
+         attrition is visible.
+   - **This departs from `leg_decomposition_study.py`,** which keeps the
+     gap-spanning returns. The ρ̄ measurement code must drop them: a return
+     whose previous common date is not the previous trading day of every
+     instrument is excluded. A test pins it.
 
 ## 5. Sequence (ruled, C4)
 

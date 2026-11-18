@@ -122,3 +122,44 @@ def test_catch_up_runs_at_wake_do_not_repay_missed_slots(tmp_path):
     out = run_count.report(proj, now=now, directory=str(_schedule(tmp_path)), tz=LA)
     assert out[0].startswith("runs (last 7d, launchd schedule): brief 21 expected / 14 on time / ")
     assert "brief 7 of 21 scheduled runs missing or over 60 min late" in out[1]
+
+
+
+# ── Stopped jobs (owner ruling M1, 2026-11-17) ────────────────────────────────
+GBP = {"com.quis.intelligence.brief-asia", "com.quis.intelligence.brief-london",
+       "com.quis.intelligence.brief-ny", "com.quis.intelligence.outcomes"}
+
+
+def test_disabled_jobs_are_not_expected_and_read_stopped(tmp_path):
+    proj = _logs(tmp_path, "brief", [])
+    out = run_count.report(proj, now=NOW, directory=str(_schedule(tmp_path)), tz=LA, disabled=GBP)
+    assert "brief stopped (launchd job(s) disabled" in out[0] and "outcomes stopped" in out[0], out
+    assert len(out) == 1 and "SHORTFALL" not in " ".join(out), out
+
+
+def test_control_enabled_jobs_with_no_runs_are_a_shortfall(tmp_path):
+    proj = _logs(tmp_path, "brief", [])
+    out = run_count.report(proj, now=NOW, directory=str(_schedule(tmp_path)), tz=LA, disabled=set())
+    assert "runs: SHORTFALL" in out[-1], out
+
+
+def test_one_disabled_brief_job_drops_only_its_slots(tmp_path):
+    proj = _logs(tmp_path, "brief", [])
+    out = run_count.report(proj, now=NOW, directory=str(_schedule(tmp_path)), tz=LA,
+                           disabled={"com.quis.intelligence.brief-london"})
+    assert "brief 14 expected" in out[0], out              # 2 of 3 daily slots x 7 days
+    assert "brief stopped" not in out[0], out
+
+
+def test_parse_disabled_reads_launchctl_output():
+    text = ('disabled services = {\n\t\t"com.quis.intelligence.heartbeat" => enabled\n'
+            '\t\t"com.quis.intelligence.outcomes" => disabled\n'
+            '\t\t"com.other.job" => true\n\t\t"com.x.y" => false\n}')
+    assert run_count.parse_disabled(text) == {"com.quis.intelligence.outcomes", "com.other.job"}
+
+
+def test_env_override_replaces_the_launchd_lookup(monkeypatch):
+    monkeypatch.setenv("INTEL_LAUNCHD_DISABLED", "a.b, c.d")
+    assert run_count.disabled_labels() == {"a.b", "c.d"}
+    monkeypatch.setenv("INTEL_LAUNCHD_DISABLED", "")
+    assert run_count.disabled_labels() == set()

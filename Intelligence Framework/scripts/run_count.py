@@ -13,6 +13,16 @@ window. ACTUAL is the number of those slots met by a run header within
 ON_TIME after the slot (each run meets one slot at most); the total number
 of runs is reported beside it. ACTUAL < EXPECTED is a SHORTFALL.
 
+STOPPED JOBS (2026-11-17, owner ruling M1; AGENTS rule 8). A job launchd
+marks disabled (`launchctl unload -w`) is not expected to run: its slots are
+not counted, and a wrapper whose every installed job is disabled reports
+"stopped", never a shortfall. The disabled set is read from launchd itself
+(`launchctl print-disabled`), so re-enabling a job restores its count with
+no code change. INTEL_LAUNCHD_DISABLED (comma-separated labels), when set,
+replaces that lookup; the behavioural tests set it so they never read this
+machine's real launchd state. A failed lookup is loud (RUN COUNT
+UNAVAILABLE), never an empty set.
+
 Limits: a manual run that happens to land inside a missed slot's window
 meets it; a time-zone change inside the window (travel) shifts the slots
 and reads as a shortfall.
@@ -26,6 +36,7 @@ import glob
 import os
 import plistlib
 import re
+import subprocess
 from datetime import datetime, timedelta, timezone
 
 # wrapper -> day-log prefix written by that wrapper
@@ -54,18 +65,53 @@ def local_zone():
     return datetime.now().astimezone().tzinfo
 
 
-def schedule(directory: str | None = None) -> dict:
-    """{log prefix: [(plist name, interval dict), ...]} for the counted jobs."""
-    out: dict = {}
+def parse_disabled(text: str) -> set:
+    """Labels marked disabled in `launchctl print-disabled` output."""
+    return set(re.findall(r'"([^"]+)" => (?:disabled|true)\b', text))
+
+
+def disabled_labels() -> set:
+    """Labels launchd marks disabled for this user. Raises on a failed lookup."""
+    env = os.environ.get("INTEL_LAUNCHD_DISABLED")
+    if env is not None:
+        return {x.strip() for x in env.split(",") if x.strip()}
+    r = subprocess.run(["launchctl", "print-disabled", f"gui/{os.getuid()}"],
+                       capture_output=True, text=True, timeout=10)
+    if r.returncode != 0:
+        raise RuntimeError(f"launchctl print-disabled exited {r.returncode}")
+    return parse_disabled(r.stdout)
+
+
+def _jobs(directory: str | None):
+    """(plist name, label, wrapper kind, plist dict) for each counted job."""
     for p in sorted(glob.glob(os.path.join(directory or agents_dir(), PLIST_GLOB))):
         with open(p, "rb") as f:
             d = plistlib.load(f)
         # any argument, not the last: the 07:30 job passes "digest" after it
         kinds = [JOBS[b] for b in (os.path.basename(str(a))
                                    for a in d.get("ProgramArguments", [])) if b in JOBS]
-        kind = kinds[0] if kinds else None
-        if not kind:
+        if kinds:
+            name = os.path.basename(p)
+            yield name, d.get("Label") or name[:-len(".plist")], kinds[0], d
+
+
+def stopped_kinds(directory: str | None = None, disabled=frozenset()) -> dict:
+    """{wrapper kind: [labels]} for each wrapper whose every installed job is
+    disabled. A kind with any enabled job is not stopped."""
+    by_kind: dict = {}
+    for _, label, kind, _ in _jobs(directory):
+        by_kind.setdefault(kind, []).append(label)
+    return {k: sorted(v) for k, v in by_kind.items() if all(x in disabled for x in v)}
+
+
+def schedule(directory: str | None = None, disabled=frozenset()) -> dict:
+    """{log prefix: [(plist name, interval dict), ...]} for the counted jobs
+    that launchd has not disabled."""
+    out: dict = {}
+    for name, label, kind, d in _jobs(directory):
+        if label in disabled:
             continue
+        p = name
         sci = d.get("StartCalendarInterval")
         if sci is None:
             raise ValueError(f"{os.path.basename(p)}: no StartCalendarInterval")
@@ -130,15 +176,24 @@ def run_times(logs: str, kind: str) -> list[datetime]:
 
 
 def report(project: str = ".", now: datetime | None = None, days: int = 7,
-           directory: str | None = None, tz=None) -> list[str]:
-    """Heartbeat lines. Never raises: a failure is a loud line."""
+           directory: str | None = None, tz=None, disabled=None) -> list[str]:
+    """Heartbeat lines. Never raises: a failure is a loud line. `disabled`
+    defaults to launchd's own set for the installed jobs (directory None),
+    and to none for an explicit directory (a test fixture)."""
     try:
         now = now or datetime.now(timezone.utc)
         tz = tz or local_zone()
         start = now - timedelta(days=days)
-        sched = schedule(directory)
+        if disabled is None:
+            disabled = disabled_labels() if directory is None else set()
+        sched = schedule(directory, disabled)
+        stopped = stopped_kinds(directory, disabled)
         parts, short = [], []
         for kind in sorted(set(JOBS.values())):
+            if kind in stopped:
+                parts.append(f"{kind} stopped (launchd job(s) disabled: "
+                             f"{', '.join(stopped[kind])}); no runs expected")
+                continue
             if kind not in sched:
                 short.append(f"{kind} schedule MISSING (no installed launchd job "
                              f"runs its wrapper)")

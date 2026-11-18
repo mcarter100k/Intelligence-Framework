@@ -18,9 +18,9 @@
   - The 68-pair spread table of §1 was never stored. Only the pairs that
     mattered were recorded.
   - Re-selection therefore needs a fresh read-only spread probe.
-  - It waits on the L8 ruling on the weekly construction
-    (`breadth_gate_spec.md` §4 item 3), the last open item before
-    measurement.
+  - The weekly construction was ruled 2026-11-17 (N1;
+    `breadth_gate_spec.md` §4 item 3). Nothing ruled now stands between
+    the probe and the measurement.
 - **Ruling M1 (2026-11-17)** stops the GBP pairs' live jobs and alerts. It
   does not remove GBP/AUD or GBP/JPY from this research universe.
 

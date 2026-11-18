@@ -78,11 +78,15 @@ def _project(tmp_path, brief=STAND_ASIDE, outcome="print('graded 0')",
     return proj
 
 
-def _run(tmp_path, proj, wrapper, *args):
+def _run(tmp_path, proj, wrapper, *args, disabled=""):
     home = tmp_path / "home"
     home.mkdir(exist_ok=True)
+    # INTEL_LAUNCHD_DISABLED stands in for launchd's disabled list (run_count),
+    # so a wrapper under test never reads this machine's real launchd state
+    # (2026-11-17: the real GBP jobs are disabled by owner ruling M1).
     env = {"HOME": str(home), "PATH": f"{tmp_path / 'bin'}:/usr/bin:/bin",
-           "INTEL_NO_ENV_FILE": "1", "INTEL_PROJ": str(proj)}
+           "INTEL_NO_ENV_FILE": "1", "INTEL_PROJ": str(proj),
+           "INTEL_LAUNCHD_DISABLED": disabled}
     r = subprocess.run(["/bin/bash", str(proj / "scripts" / wrapper), *args],
                        env=env, capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, r.stderr           # exit-0 discipline, always
@@ -1065,3 +1069,53 @@ def test_n4_a_failing_gate_check_is_logged_not_silent(tmp_path):
     (proj / "regime_detection.py").write_text("def _market_status():\n    return {'open': True}\n")
     _run(tmp_path, proj, "scheduled_outcome_check.sh")
     assert "ALERT STATE FAILED — review gates not checked" in _log(proj, "outcomes")
+
+
+
+# ── Stopped jobs (owner ruling M1, 2026-11-17; AGENTS rule 8) ─────────────────
+_GBP_JOBS = ("com.quis.intelligence.brief-asia,com.quis.intelligence.brief-london,"
+             "com.quis.intelligence.brief-ny,com.quis.intelligence.outcomes")
+
+
+def _stopped_project(tmp_path):
+    """Installed schedule, no runs for a week, ledgers last written long ago:
+    what the live project looks like after the GBP jobs were stopped."""
+    proj = _project(tmp_path)
+    _install_schedule(tmp_path)
+    old = time.time() - 30 * 86400
+    for rel in ("regime_classification_log.csv", "session_context_log.csv", "shadow_signal_log.csv"):
+        p = proj / rel
+        if p.exists():
+            os.utime(p, (old, old))
+    return proj
+
+
+def test_m1_stopped_jobs_read_stopped_not_missing_or_short(tmp_path):
+    proj = _stopped_project(tmp_path)
+    _run(tmp_path, proj, "weekly_heartbeat.sh", disabled=_GBP_JOBS)
+    log = _log(proj, "heartbeat")
+    assert re.search(r"brief \d{4}-\d{2}-\d{2}: stopped", log), log
+    assert re.search(r"outcomes \d{4}-\d{2}-\d{2}: stopped", log), log
+    assert "brief stopped (launchd job(s) disabled" in log and "outcomes stopped" in log, log
+    assert "NO LOG" not in log and "SHORTFALL" not in log, log
+    for rel in ("regime_classification_log.csv", "session_context_log.csv", "shadow_signal_log.csv"):
+        assert f"STALE: {rel}" not in log, log
+    assert "NEEDS ATTENTION" not in _notes(tmp_path), _notes(tmp_path)
+
+
+def test_m1_control_the_same_project_with_jobs_enabled_needs_attention(tmp_path):
+    """Positive control: no runs for a week with the jobs enabled is still an alarm."""
+    proj = _stopped_project(tmp_path)
+    _run(tmp_path, proj, "weekly_heartbeat.sh")          # nothing disabled
+    log = _log(proj, "heartbeat")
+    assert "NO LOG" in log and "runs: SHORTFALL" in log, log
+    assert "NEEDS ATTENTION" in _notes(tmp_path)
+
+
+def test_m1_one_brief_job_disabled_still_counts_the_others(tmp_path):
+    """Partial stop: the remaining brief slots are still expected, so missing
+    runs on them are still a shortfall, and brief is not reported stopped."""
+    proj = _stopped_project(tmp_path)
+    _run(tmp_path, proj, "weekly_heartbeat.sh", disabled="com.quis.intelligence.brief-london")
+    log = _log(proj, "heartbeat")
+    assert "brief stopped" not in log and "runs: SHORTFALL" in log, log

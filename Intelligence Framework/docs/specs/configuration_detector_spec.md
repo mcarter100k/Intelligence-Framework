@@ -415,6 +415,16 @@ written before any arrival or heads-up count was made.
 **Why "intact":** a level that price has already closed through no longer
 bounds price.
 
+**Live note (2026-11-17, found by the seven-day replay, N4):**
+- OANDA's live daily series omits the session in progress.
+- "Prior session" must therefore be the last daily bar in the list once the
+  hour is past that bar's 24-hour span, not the one before it. The same
+  applies to the simple ATR's last 14 completed days.
+- The prototype had this wrong for live hours. It is fixed in
+  `ccd1_arrival_calibration.session_index`, with a test and a mutant. The
+  archive counts were re-run and are byte-identical.
+- The live build uses the same rule.
+
 ### 13.2 ATR
 
 **The simple 14-day ATR:** the mean of the last 14 completed daily true
@@ -492,11 +502,13 @@ budget.**
 - 30 minutes before each High-impact US release on the live calendar (gold
   only, ruling M1).
 - Same-time releases share one warning.
-- A release timed inside 04:00–08:00 PT is listed in the BRIEFING instead.
-  Its 30-minute warning is therefore not sent, and the budget estimate in
-  §15 assumes that.
-- *Open for the owner:* whether a warning should also go out before a
-  release inside the window (about 1 a week more).
+- **A release inside 04:00–08:00 PT also gets its 30-minute warning**
+  (ruling N2, 2026-11-17).
+  - It is listed in the BRIEFING as well.
+  - The BRIEFING is the planning read. The warning fires at the decision
+    moment.
+  - These are gold's most important scheduled events, landing in the one
+    window whose range concentration survived the chance sweep.
 
 **What it states:**
 - Gold's price and the time of that price, which flags a stale price
@@ -554,6 +566,14 @@ ARRIVAL, RELEASE warnings and BREAK. The BRIEFING is not counted.
 | **no 4-hour swings** | **5.2** | **5** | **8** | **14** | **7.2** | **10** | **6%** |
 | no prior session | 6.5 | 6 | 10 | 18 | 8.5 | 12 | 20% |
 | daily swings + prior week | 2.5 | 2 | 5 | 9 | 4.5 | 7 | 1% |
+
+**After ruling N2** (a warning before every US release, inside the window
+too), the release estimate becomes 3 a week (the same live week).
+- The chosen list then runs at about 8.2 a week, with a busy week of about
+  11.
+- **The owner accepted that** (N2): "the band constrains noise, not value".
+- **N3 (2026-11-17)** confirmed the choice below and the split: all five
+  types in the BRIEFING and in the two-sided distances.
 
 **Chosen (ruling M3: the richest list that keeps ALERTS in 5–10 on gold):
 "no 4-hour swings" at tolerance 0.10.** That is daily swings, range

@@ -46,3 +46,10 @@ def test_bar_far_on_the_other_side_does_not_fire():
 
 def test_arrival_from_below_fires():
     assert run([90, 95, 99.5]) == [2]
+
+
+def test_session_index_treats_an_hour_past_the_last_daily_bar_as_a_new_session():
+    d = [T0 + timedelta(days=k) for k in range(3)]          # three complete daily bars
+    assert A.session_index(d, d[2] + timedelta(hours=5)) == 2      # inside the last bar's span
+    assert A.session_index(d, d[2] + timedelta(hours=25)) == 3     # live session, not in the list
+    assert A.session_index(d, d[1] + timedelta(hours=1)) == 1

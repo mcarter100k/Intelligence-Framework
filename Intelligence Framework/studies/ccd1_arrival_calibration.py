@@ -64,6 +64,19 @@ def load(path, sha):
     return out
 
 
+def session_index(d1_times, tt):
+    """Index of the daily bar whose 24-hour span holds tt. A live feed leaves
+    out the session in progress, so an hour past the last bar's span belongs
+    to a session that is not in the list yet: its index is len(d1_times),
+    and every bar in the list is then complete. (Found 2026-11-17 by the
+    seven-day replay: taking the last bar as "containing" made the prior
+    session one day stale for every hour of the live session.)"""
+    k = bisect.bisect_right(d1_times, tt) - 1
+    if k == len(d1_times) - 1 and tt >= d1_times[-1] + timedelta(hours=24):
+        return len(d1_times)
+    return k
+
+
 def trading_week(t):
     d = (t.astimezone(NY) + timedelta(hours=7)).date()
     return d.isocalendar()[:2]
@@ -113,7 +126,7 @@ def level_sets(ins, s):
     watr_all = compute_atr_series(d1["H"], d1["L"], d1["C"])   # watr_all[m] uses bars 0..m+14
     for t in range(len(h1["t"])):
         tt = h1["t"][t]
-        kd = bisect.bisect_right(d1["t"], tt) - 1          # daily bar containing this hour
+        kd = session_index(d1["t"], tt)                    # daily bar containing this hour
         if kd < 15:
             sets.append(None); continue
         atr = statistics.fmean(trs[kd - 14:kd])             # simple 14-day ATR, completed days (§13.2)
@@ -126,7 +139,8 @@ def level_sets(ins, s):
                 lv.append(("H4", f"H4{i}", p))
         lv.append(("PDAY", f"PDH{kd - 1}", d1["H"][kd - 1]))
         lv.append(("PDAY", f"PDL{kd - 1}", d1["L"][kd - 1]))
-        pw = [i for i in range(max(0, kd - 12), kd) if wk[i] < wk[kd]]
+        cur_wk = wk[kd] if kd < len(wk) else trading_week(tt)   # live session not in the list
+        pw = [i for i in range(max(0, kd - 12), kd) if wk[i] < cur_wk]
         if pw:
             last_wk = wk[pw[-1]]
             idx = [i for i in pw if wk[i] == last_wk]

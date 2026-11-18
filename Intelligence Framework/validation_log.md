@@ -8334,3 +8334,66 @@ That is a permanent alarm on artifacts that no longer have a live writer. The he
 - **The calendar job** still runs Sun 2026-11-22 12:00 PT.
 
 **Suite (2026-11-17, branch):** 1310 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-17 — RULINGS N1–N5: weekly construction ruled; in-window release warnings added; seven-day ARRIVAL replay; heartbeat made stop-aware (branch `feat/gold-alert-checks`)
+
+**N1 (L8):** gap-spanning returns are DROPPED, and the 3-return minimum STANDS, with drops reported per era. Recorded in `breadth_gate_spec.md` §4 item 3, which notes the departure from `leg_decomposition_study.py` (which keeps them). Every ρ̄ definition is now ruled. The universe re-selection needs a fresh read-only spread probe; it has not been run.
+
+**N2:** a 30-minute warning before every US release, inside 4–8 AM PT too.
+- The release estimate is now 3 a week (one live week).
+- The chosen list runs at about 8.2 a week, busy week about 11. Accepted by the owner.
+- Spec §14 and §15.
+
+**N3:** the M3 choice and the five-type briefing and distances are confirmed.
+
+**N4 — the chosen ARRIVAL list replayed on the last seven days of live gold** (`studies/ccd1_arrival_lastweek.py`, `studies/ccd1_arrival_lastweek_result.md`). Through `reality_run.py`, project unchanged; run 2026-11-17 23:12 PT. **5 alerts** (sent at the close of the hourly bar):
+
+| Sent (PT) | Level | Type | Bar close |
+|---|---|---|---|
+| Thu 11-12 06:00 | $3,891.26 | prior week (low of week 45) | $3,890.28 |
+| Thu 11-12 07:00 | $3,870.32 | daily swing (session of Thu 10-29) | $3,870.03 |
+| Fri 11-13 06:00 | $3,870.32 | daily swing | $3,881.11 |
+| Sun 11-15 18:00 | $3,852.58 | hourly range edge | $3,869.45 |
+| Tue 11-17 06:00 | $3,832.46 | prior session (low of the session that opened Sun 11-15) **and** hourly range edge | $3,851.36 |
+
+- **$3,832.46: an ARRIVAL was sent at Tue 06:00 PT,** about 10 hours before the break. That hour's low ($3,836.96) came within the $9.64 tolerance.
+- **No ARRIVAL at the break (Tue 16:00 PT bar),** and that is the cooldown working as specified:
+  - after the 05:00 PT arrival, the level needed an hourly close at least 0.5 × ATR ($48.20) away to re-arm;
+  - the highest close before the break was $3,875.80, $43.34 away;
+  - BREAK (CCD-1, signed as written) did not fire either (worked example, earlier entry).
+- **Premise check:** at the break, $3,832.46 was a range edge, but no longer the prior-session low. The break bar sat in the session that opened Tue 15:00 PT, whose prior session's low was $3,836.96.
+- **Defect found and fixed:**
+  - The first run showed the same 5 alerts, but listed the two-day-old prior-session low for every hour after Tue 15:00 PT, because OANDA's live daily series omits the session in progress.
+  - Fixed: `ccd1_arrival_calibration.session_index`, plus a prior-week index that would otherwise have raised.
+  - Test added. Mutant (the fix reverted): 1 failed. Clean after clearing caches: 7 passed.
+  - **The archive budget run, re-run after the fix, is byte-identical** to the earlier output (`diff`: no difference). The calibration figures stand.
+  - Recorded in spec §13.1 as a live-build rule.
+
+**N5 — the heartbeat is stop-aware** (AGENTS rule 8; free zone).
+- **What changed:**
+  - `scripts/run_count.py` reads launchd's own disabled set (`launchctl print-disabled`). A disabled job's slots are not expected. A wrapper whose every job is disabled reads "stopped", never SHORTFALL.
+  - `scripts/artifact_freshness.py` gives each cadence ledger its writer (the brief). While that writer is stopped the ledger reads "stopped:", never STALE.
+  - `scripts/weekly_heartbeat.sh` reads "stopped" instead of "NO LOG" for a stopped wrapper.
+- **Safeguards:**
+  - Re-enabling a job restores every check with no code change.
+  - A failed launchd lookup is loud: RUN COUNT UNAVAILABLE, and the cadences apply.
+  - `INTEL_LAUNCHD_DISABLED` replaces the lookup for tests only. The behavioural test runner sets it so tests never read this machine's real launchd state.
+- **Tests:**
+  - New: run_count 5, freshness 2, wrapper behaviour 3. Covered: stopped reads stopped; **positive control:** the same project with jobs enabled and no runs is NEEDS ATTENTION; a partial stop counts only the remaining slots (14 a week); the launchctl output parse; the env override.
+  - Mutants, applied and reverted with bytecode off:
+    - MH1, the stopped branch removed from the report: 1 failed;
+    - MH2, disabled jobs scheduled anyway: 1 failed;
+    - MH3, "any" instead of "all" disabled: 2 failed;
+    - MH4, the freshness stopped branch removed: 1 failed;
+    - MH5, the heartbeat stopped skip removed: 1 failed.
+  - The first MH3/MH5 runs selected no tests and were not counted; they were re-run with explicit selection.
+  - Clean after clearing caches.
+- **Reality (Gate 2), through `reality_run.py`, project unchanged:** the new code against this machine's real launchd state, real plists and the live project's logs and ledgers.
+  - Disabled = exactly the four stopped labels.
+  - Brief and outcomes read "stopped; no runs expected".
+  - The three GBP ledgers read "stopped:".
+  - calendar.csv read "fresh" (29h).
+  - storylines.md read DUE (1636h, the owner's own item).
+- **Gate 3 — PENDING LIVE CONFIRMATION:** the Sunday 2026-11-22 12:30 PT heartbeat reports the stopped jobs as "stopped" in `logs/heartbeat_2026-11-22.log`, with no NO LOG, SHORTFALL or STALE line for them. It stays muted (HEARTBEAT is not one of the four exempt alert types).
+
+**Suite (2026-11-17, branch):** 1321 passed, 10 skipped, 3 deselected, 16 xfailed.

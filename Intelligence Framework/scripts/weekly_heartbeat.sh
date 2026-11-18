@@ -37,8 +37,21 @@ st = subprocess.run(["python3", "scripts/health_state.py", "status"],
                     capture_output=True, text=True).stdout.strip()
 lines.append(f"health: {st or 'state unavailable'}")
 
-# 2. scheduled runs from yesterday: present? error content?
+# 2. scheduled runs from yesterday: present? error content? A wrapper whose
+# every launchd job is disabled (owner ruling M1, 2026-11-17) runs nothing by
+# design: it reads "stopped", never NO LOG (AGENTS rule 8). A failed launchd
+# lookup leaves `stopped` empty, so the old NO LOG check applies (loud).
+sys.path.insert(0, "scripts")
+try:
+    import run_count
+    stopped = run_count.stopped_kinds(disabled=run_count.disabled_labels())
+except Exception:
+    stopped = {}
 for kind in ("brief", "outcomes"):
+    if kind in stopped:
+        lines.append(f"{kind} {yday}: stopped (launchd job(s) disabled: "
+                     f"{', '.join(stopped[kind])}); no runs expected")
+        continue
     p = f"logs/{kind}_{yday}.log"
     if not os.path.exists(p):
         lines.append(f"{kind} {yday}: NO LOG — runs missing")
