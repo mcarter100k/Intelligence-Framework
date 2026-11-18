@@ -78,22 +78,35 @@ def origin(lid, kind, s, t):
     return "the current hourly range (spec §4)"
 
 
-def history(s, p, start, t, tol_px, below):
-    """Visits within tolerance of p on hourly bars from `start` to t-1; held =
-    no hourly close beyond p (below it if the level is under price)."""
-    h1 = s["H1"]
-    i0 = bisect.bisect_left(h1["t"], start)
-    visits, inside = [], False
-    for i in range(i0, t):
-        near = h1["L"][i] <= p + tol_px and h1["H"][i] >= p - tol_px
-        if near and not inside:
-            visits.append([i, True])
-        if near:
-            beyond = h1["C"][i] < p if below else h1["C"][i] > p
-            if beyond:
-                visits[-1][1] = False
-        inside = near
-    return len(visits), sum(1 for v in visits if v[1]), (h1["t"][visits[-1][0]] if visits else None)
+def history(s, sets, p, start, t, tol=TOL, margin=None):
+    """Visits to p on hourly bars from `start` to t-1, by owner rulings R1-R3
+    (spec §14.1, 2026-11-18). R1: a visit is one continuous stay of bars whose
+    range overlaps p +/- tol x that hour's ATR. R2: it broke if any close in it
+    went `margin` x ATR or more beyond p, the LEVEL BREAK rule (A.level_breaks,
+    same side and distance expressions); otherwise it held. R3: "beyond" is
+    judged from the close before the visit's first bar, and nothing after the
+    visit can change it.
+    Returns [(first bar, last bar, side, broke bar or None)]; side +1 means
+    price approached from above."""
+    margin = A.BREAK_MARGIN if margin is None else margin
+    C = s["H1"]["C"]
+    out, cur = [], None
+    for i in range(bisect.bisect_left(s["H1"]["t"], start), t):
+        if sets[i] is None:
+            cur = None
+            continue
+        atr = sets[i][0]
+        if not (s["H1"]["L"][i] <= p + tol * atr and s["H1"]["H"][i] >= p - tol * atr):
+            cur = None
+            continue
+        if cur is None:
+            cur = [i, i, 1 if C[max(i - 1, 0)] >= p else -1, None]
+            out.append(cur)
+        cur[1] = i
+        beyond = (p - C[i]) if cur[2] == 1 else (C[i] - p)
+        if cur[3] is None and beyond > 0 and beyond >= margin * atr:
+            cur[3] = i
+    return [tuple(v) for v in out]
 
 
 def start_of(lid, kind, s, t):
@@ -174,7 +187,9 @@ def main():
         others = [(k, l, p) for k, l, p in lv if k in ALL5]
         for kind, lid, p in fired:
             below = p < c if abs(p - c) > 1e-9 else h1["C"][t - 1] > p
-            n, held, last = history(s, p, start_of(lid, kind, s, t), t, TOL * atr, below)
+            vis = history(s, sets, p, start_of(lid, kind, s, t), t)
+            n, broke = len(vis), sum(1 for v in vis if v[3] is not None)
+            last = h1["t"][vis[-1][0]] if vis else None
             side = [x for x in others if abs(x[2] - p) > TOL * atr]
             if below:
                 far = sorted((x for x in side if x[2] > c), key=lambda x: x[2])
@@ -186,7 +201,8 @@ def main():
                              if x else "none among the qualifying levels")
             print(f"  Price has arrived at ${p:,.2f}, {'an' if NAMES[kind][0] in 'aeiouh' else 'a'} {NAMES[kind]} level ({origin(lid, kind, s, t)}).")
             print(f"    It is {'below' if below else 'above'} the close. Since it formed: {n} earlier visits within ${TOL * atr:,.2f}, "
-                  f"{held} held (no hourly close through it), last {pt(last) if last else 'never'}.")
+                  f"{n - broke} held, {broke} broke (an hourly close {A.BREAK_MARGIN:.2f} ATR or more through it from the "
+                  f"side price came from), last {pt(last) if last else 'never'}.")
             print(f"    Nearest level the other way: {fmt(far[0] if far else None)}")
             print(f"    Next level beyond this one:  {fmt(beyond[0] if beyond else None)}")
             br = ("A wick beyond a gold daily swing failed 66% of the time and a daily close beyond came back inside 45% "
