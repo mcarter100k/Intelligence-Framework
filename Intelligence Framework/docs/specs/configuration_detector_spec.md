@@ -455,8 +455,10 @@ in.
      Pacific.
 2. **Its history.**
    - Touches: separate visits within the tolerance since it formed.
-   - How many held: no close beyond.
+   - How many held, and how many broke.
    - When it was last tested.
+   - A touch, a hold and a break are as ruled 2026-11-18 (§14.1, rulings
+     R1–R3).
 3. **Both sides, never one** (accepted, ruling M5).
    - The distance to the nearest qualifying level on the other side of
      price.
@@ -585,7 +587,41 @@ before the BRIEFING's own time):**
 **Times.** Every time in this section is 12-hour Pacific with the "PT"
 label (display_timezone_spec addendum 2026-11-18).
 
-**OPEN ITEM FOR RULING: what "held" means.** Found while checking the
+**Touches and holds: RULED 2026-11-18 (owner rulings R1–R3).** These
+replace the open item below them, which is kept as the record of what was
+asked.
+
+- **R1. A touch is a visit, not an ARRIVAL** (option (a)).
+  - A visit is one continuous stay inside the tolerance band (0.10 × the
+    simple ATR either side of the level). Price enters the band, stays any
+    number of hourly bars, and leaves: one visit. It returns later: a second
+    visit.
+  - An hourly bar is inside the band when its range overlaps it.
+  - *Why:* the count must match what the owner sees on the chart. The
+    ARRIVAL cooldown exists to limit alert volume, and an alert budget must
+    not distort a descriptive count.
+- **R2. Held versus broke uses the LEVEL BREAK rule** (§17, ruling Q1).
+  - A visit BROKE if any hourly close during it went 0.10 × the simple ATR
+    or more beyond the level. Otherwise it HELD.
+  - The ATR is the one in force at that close, the same as LEVEL BREAK uses.
+  - *Why:* "held" and "broke" must never disagree about the same close. Price
+    sitting on a level by cents is not that level breaking.
+- **R3. Each visit's outcome is fixed at the time of the visit and never
+  revised.**
+  - "Beyond" is judged from the side price approached from: the side of the
+    close before the visit's first bar (that bar is outside the band, so its
+    close is clearly on one side).
+  - Nothing after a visit ends can change its outcome. A visit still under
+    way at the BRIEFING's time reads "under way" until it ends or breaks.
+  - *Why:* a count that changes retroactively tells the owner nothing they can
+    rely on.
+- **What this settles for $3,870.32:** Thursday's closes, $0.29 and $0.19
+  through, are under the margin, so Thursday held. The counts under these
+  rulings are in the 2026-11-18 validation_log entry, from a read-only run.
+- **The BRIEFING prints the counts under R1–R3.** The "until ruled" line
+  below no longer applies.
+
+**OPEN ITEM (ruled 2026-11-18 above; kept as the record): what "held" means.** Found while checking the
 $3,870.32 case. The run was read-only, through `reality_run`, and the
 project was unchanged by hash.
 
