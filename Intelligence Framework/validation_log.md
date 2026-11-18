@@ -8555,3 +8555,56 @@ That is a permanent alarm on artifacts that no longer have a live writer. The he
 
 ### Gate 3 — PENDING LIVE CONFIRMATION
 - **The first scheduled heartbeat after merge** (Sunday 12:30 PM PT) shows its stamp and calendar line in 12-hour PT.
+
+## 2026-11-18 — Clock merged; RULINGS R1–R3: a touch is every visit, a hold uses the LEVEL BREAK margin, and each outcome is fixed from the approach side (branch `feat/touch-hold-ruling`)
+
+**1. The 12-hour PT clock is merged.** The owner said "merge" on 2026-11-18, which signed off the `display_time.py` change.
+- **Before the merge:** the full suite ran on `feat/owner-clock`: 1371 passed, 10 skipped, 3 deselected, 16 xfailed.
+- **The merge:** `main` was fast-forwarded 140972a → 7e0e6f5 and pushed. The worktree and branch were removed.
+- **REALITY GATE on `main` itself (about 11:02 AM PT):** the live checkout's heartbeat wrapper, under `/bin/bash`, on a copy of the live project with `ALERTS_MUTED` present. It ran through `reality_run`, and the project was unchanged by hash.
+  - The header read `===== heartbeat Wed 18 Nov 2026 11:02 AM PT =====`.
+  - The calendar line read `newest Wed 18 Nov 2026 4:30 PM PT`.
+  - A scan found no time on a 24-hour clock.
+- **Gate 3 stays PENDING:** the Sunday 12:30 PM PT scheduled heartbeat.
+
+**2. Owner rulings R1–R3 on touch and hold**, recorded in `configuration_detector_spec.md` §14.1. The open item is kept below the rulings as the record of what was asked.
+- **R1:** a touch is each continuous visit inside the 0.10 ATR band, not each ARRIVAL.
+- **R2:** a visit broke on any hourly close 0.10 ATR or more beyond the level (the LEVEL BREAK rule, Q1); otherwise it held.
+- **R3:** "beyond" is judged from the side price approached from, and an outcome is never revised.
+
+**The build** is `studies/ccd1_arrival_lastweek.history`, the prototype the BRIEFING will reuse.
+- It returns each visit with its first and last bar, its approach side, and its break bar.
+- Its side and distance expressions are those of `ccd1_arrival_calibration.level_breaks`.
+- The ATR is the one in force at each close.
+
+**Tests:** `tests/test_visit_history.py`, 5 tests.
+- **R1:** one ARRIVAL against three visits.
+- **R2:** a close $0.29 through (0.029 ATR) holds; exactly 0.10 ATR breaks; 0.099 ATR holds.
+- **R3, the approach side:** from below, a close under the level is not through, and a close 0.12 ATR above breaks.
+- **R3, never revised:** every prefix of the series gives the same outcome for each visit that has ended, and later bars on either side change nothing.
+- **Cross-check against `level_breaks`:** 4,000 random hourly bars give 264 visits, 175 held and 89 broke. Each visit's break bar and side equal what `level_breaks` reports when that visit is watched.
+
+**Mutants:** 5 of 5 killed. Each was confirmed applied (the substitution matched exactly once). The file was restored by hash and caches were cleared; afterwards the tests passed 5 of 5.
+- VM1, the side taken from the current close: 2 failed.
+- VM2, no margin: 2 failed.
+- VM3, a strict margin: 1 failed.
+- VM4, visits not split on leaving the band: 5 failed.
+- VM5, the side re-judged from the latest close: 4 failed.
+
+**Suite:** 1376 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+**REALITY GATE (2026-11-18, about 11:05 AM PT):** branch code on live gold bars, read-only, through `reality_run --code`. The project was unchanged by hash on each run.
+- **$3,870.32, every visit from formation (Thu 29 Oct 2:00 PM PT) to the latest bar (Wed 18 Nov 10:00 AM PT).** Times are the hourly bar's start.
+  - Fri 30 Oct 11:00 AM–1:00 PM PT, from above: held. It never closed through.
+  - Thu 12 Nov 6:00 AM–4:00 PM PT, from above: held. The largest close through was 0.003 ATR.
+  - Fri 13 Nov 5:00 AM PT, from above: held.
+  - Fri 13 Nov 7:00 AM–Sun 15 Nov 3:00 PM PT, from above: held.
+  - Sun 15 Nov 5:00 PM PT–Mon 16 Nov 9:00 AM PT, from above: BROKE. The bar starting Sun 15 Nov 9:00 PM PT closed $3,837.22, 0.341 ATR through. This is the close the LEVEL BREAK alert reports as sent Sun 15 Nov 10:00 PM PT.
+  - Mon 16 Nov 11:00 AM–12:00 PM PT, from below: held.
+  - Mon 16 Nov 3:00 PM PT–Tue 17 Nov 10:00 AM PT, from below: BROKE. The bar starting Mon 16 Nov 9:00 PM PT closed $3,881.34, 0.114 ATR through, upward.
+- **The visits that had ended by each alert were unchanged** in histories cut at Thursday's ARRIVAL, at Friday's ARRIVAL and at the latest bar. This is R3 on real bars.
+- **The replay** showed the same 5 ARRIVAL and 3 LEVEL BREAK alerts as before. The Friday 13 Nov 6:00 AM PT alert for $3,870.32 now reads "2 earlier visits, 2 held, 0 broke"; it read "1 held" under the old rule.
+
+**Observed, for the BRIEFING build:**
+- **The Monday upward break has no LEVEL BREAK alert.** The §17 watch on $3,870.32 ended at Sunday's break, and no new ARRIVAL at that price restarted it. The history therefore records a break that no alert covered. This follows from R1 (the count is independent of the alert budget) and is not a defect. The BRIEFING shows it as a visit that broke, not as an alert.
+- **The visit list gives bar starts; alerts give send times,** one hour later. The BRIEFING must state one of them consistently. The build will use the hour's close (the send time) so the two read alike, with a test.
