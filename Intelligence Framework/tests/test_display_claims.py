@@ -467,6 +467,17 @@ PARITY_FIELDS = ("regime_d1", "regime_h4", "regime_d1_subtype", "regime_h4_subty
                  "filter_allowed", "filter_block", "override_fired")
 
 
+def test_no_24_hour_clock_in_any_render(grid):
+    """Owner directive 2026-11-18 (display_timezone_spec addendum): no
+    24-hour time in anything the owner reads. These sentences show no time
+    at all today (0 of 80,442 texts in the default sample, 2026-11-18), so
+    this guards the future only; the surfaces that do show a time are swept
+    hour by hour in tests/test_owner_clock.py."""
+    from test_owner_clock import clock_24
+    bad = [(surface, t) for surface, t in _all_texts(grid) if clock_24(t)]
+    assert not bad, bad[:3]
+
+
 def test_builder_matches_get_regime():
     """The builder mirrors get_regime's assembly. Drive the real get_regime on
     synthetic bars, record each classifier call's inputs, rebuild from them,

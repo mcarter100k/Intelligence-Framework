@@ -80,6 +80,21 @@ WRITERS = {"regime_classification_log.csv": "brief",
            "shadow_signal_log.csv":         "brief"}
 
 
+def _shown(epoch: float) -> str:
+    """An epoch as the owner reads it: display_time's 12-hour PT clock
+    (display_timezone_spec addendum 2026-11-18). ISO-UTC only if the helper
+    cannot load."""
+    try:
+        if PROJ not in sys.path:
+            sys.path.insert(0, PROJ)
+        from datetime import datetime, timezone
+        from display_time import to_display
+        s = to_display(datetime.fromtimestamp(epoch, timezone.utc))
+    except Exception:
+        s = ""
+    return s or time.strftime("%Y-%m-%dT%H:%MZ", time.gmtime(epoch))
+
+
 def _stopped_kinds() -> dict:
     """launchd's stopped wrapper kinds. A failed lookup returns {} so every
     cadence applies: a loud STALE, never a silent pass."""
@@ -182,7 +197,7 @@ def agreement_lines(now: float | None = None, proj: str | None = None) -> list[s
                           for u, j in logged)]
     if missing:
         t, i = min(missing)
-        first = time.strftime("%Y-%m-%dT%H:%MZ", time.gmtime(t))
+        first = _shown(t)
         return [f"STALE: trade_signal_log.csv — {len(missing)} of {len(calls)} trade calls "
                 f"in the regime log have no trade row (first: {i} {first}); the "
                 f"trade-signal writer may be dead"]

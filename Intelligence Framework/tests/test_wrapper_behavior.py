@@ -18,6 +18,7 @@ import re
 import os
 import shutil
 import subprocess
+import sys
 import textwrap
 import time
 
@@ -51,6 +52,7 @@ def _project(tmp_path, brief=STAND_ASIDE, outcome="print('graded 0')",
     # scripts/health_state.py and backup_ledgers.py import the root-level
     # ledger_io (docs/specs/safe_ledger_writes_spec.md)
     shutil.copy(os.path.join(_ROOT, "ledger_io.py"), proj / "ledger_io.py")
+    shutil.copy(os.path.join(_ROOT, "display_time.py"), proj / "display_time.py")
     now = time.time()
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 3600))
     for name in _LEDGERS:
@@ -503,7 +505,13 @@ def test_a_fresh_view_is_what_the_digest_opens(tmp_path):
     _run(tmp_path, proj, "scheduled_brief.sh", "digest")
     assert _digest_pointer(tmp_path) == "logs/latest_brief.log"
     first = (proj / "logs" / "latest_brief.log").read_text().splitlines()[0]
-    assert first.startswith("LATEST RUN — ") and first[len("LATEST RUN — "):] in _log(proj, "brief")
+    # Old -> new 2026-11-18 (display_timezone_spec addendum): the view showed
+    # the day log's raw stamp; it now shows that stamp on the owner's 12-hour
+    # PT clock, so the run is matched through the view's own renderer.
+    hdr = [ln for ln in _log(proj, "brief").splitlines() if ln.startswith("=====")][-1]
+    out = subprocess.run([sys.executable, str(proj / "scripts" / "latest_view.py"), "--shown", hdr],
+                         capture_output=True, text=True, cwd=proj).stdout.strip()
+    assert first == f"LATEST RUN — {out}" and out.endswith(("AM PT", "PM PT")), (first, out)
 
 
 def test_a_stale_view_is_never_what_the_digest_opens(tmp_path):
@@ -511,8 +519,10 @@ def test_a_stale_view_is_never_what_the_digest_opens(tmp_path):
     review 2026-11-05, defect 5): the digest must then open the day log."""
     proj = _project(tmp_path)
     (proj / "scripts" / "latest_view.py").write_text("import sys\nsys.exit(0)\n")   # fails silently
+    # Old -> new 2026-11-18: the stale view is in the 12-hour form the view now
+    # writes, so a mismatch of format cannot be what rejects it.
     (proj / "logs" / "latest_brief.log").write_text(
-        "LATEST RUN — 2026-11-04 07:33:53 PST\n  GBP/AUD  |  old\n  DECISION     LONG\n")
+        "LATEST RUN — Wed 04 Nov 2026 7:33 AM PT\n  GBP/AUD  |  old\n  DECISION     LONG\n")
     _run(tmp_path, proj, "scheduled_brief.sh", "digest")
     assert _digest_pointer(tmp_path).startswith("logs/brief_")
 

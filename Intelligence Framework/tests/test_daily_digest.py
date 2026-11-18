@@ -175,8 +175,9 @@ def test_feed_text_never_marks_a_latest_view_run_as_error():
                "  GBP/AUD  |  x\n  DECISION     STAND DOWN\n"
                "  REASON       Framework error — do not trade: x\n", "f")]
     v = lv.build_view(blocks + blocks[1:2], ["f"], "2026-11-03")
-    assert "2026-11-03 02:30:00 PST  GBP/AUD STAND ASIDE" in v       # feed text: not an error
-    assert "2026-11-03 18:00:00 PST  error" in v                     # control: a real error page is
+    # Old -> new 2026-11-18 (display_timezone_spec addendum): Pacific shows as PT, 12-hour.
+    assert "2:30 AM PT  GBP/AUD STAND ASIDE" in v                    # feed text: not an error
+    assert "6:00 PM PT  error" in v                     # control: a real error page is
 
 
 
@@ -209,11 +210,12 @@ def test_display_day_groups_across_two_files(tmp_path):
     ]
     assert sources == ["brief_2026-09-09.log", "brief_2026-09-10.log"]
     v = lv.build_view(blocks, sources, "2026-09-09", fb)
-    assert v.startswith("LATEST RUN — 2026-09-09 21:31:03 PDT")
-    assert "2026-09-09 05:32:52 PDT  GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE" in v
+    # Old -> new 2026-11-18 (display_timezone_spec addendum): Pacific shows as PT, 12-hour.
+    assert v.startswith("LATEST RUN — Wed 09 Sep 2026 9:31 PM PT")
+    assert "\n5:32 AM PT  GBP/AUD STAND ASIDE · GBP/JPY STAND ASIDE" in v
     # other display days excluded from TODAY SO FAR
-    assert "2026-09-08 23:59:00" not in v
-    assert "2026-09-10 02:00:00" not in v
+    assert "11:59 PM PT" not in v and "2026-09-08 23:59:00" not in v
+    assert "2:00 AM PT" not in v and "2026-09-10 02:00:00" not in v
     # signals follow their blocks; sources named
     assert "##ALERT## GBP/AUD: the market regime changed since the last run." in v
     assert v.rstrip().endswith(
@@ -224,7 +226,8 @@ def test_empty_display_day_falls_back_to_newest(tmp_path):
     assert blocks == []
     v = lv.build_view(blocks, sources, "2026-09-11", fb)
     assert "No runs yet for 2026-09-11 (display day)." in v
-    assert "LATEST RUN — 2026-09-10 02:00:00 PDT" in v
+    # Old -> new 2026-11-18 (display_timezone_spec addendum): Pacific shows as PT, 12-hour.
+    assert "LATEST RUN — Thu 10 Sep 2026 2:00 AM PT" in v
 
 def test_no_files_at_all_graceful(tmp_path):
     d = tmp_path / "logs"; d.mkdir()
@@ -255,8 +258,9 @@ def test_the_latest_view_names_an_earlier_directional_run():
     blocks = [("===== 2026-10-12 07:38:40 PDT =====", real, "brief_2026-10-12.log"),
               ("===== 2026-10-12 18:05:33 PDT =====", _BRIEF, "brief_2026-10-12.log")]
     view = lv.build_view(blocks, ["brief_2026-10-12.log"], "2026-10-12")
-    line = next(l for l in view.splitlines() if l.startswith("2026-10-12 07:38:40 PDT"))
-    assert line == "2026-10-12 07:38:40 PDT  GBP/AUD STAND ASIDE · GBP/JPY SHORT", line
+    # Old -> new 2026-11-18 (display_timezone_spec addendum): Pacific shows as PT, 12-hour.
+    line = next(l for l in view.splitlines() if l.startswith("7:38 AM PT"))
+    assert line == "7:38 AM PT  GBP/AUD STAND ASIDE · GBP/JPY SHORT", line
 
 
 def test_the_digest_and_the_view_share_one_parser():

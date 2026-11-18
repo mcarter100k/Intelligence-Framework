@@ -1,7 +1,8 @@
 """
 test_display_time.py
 ────────────────────
-Pins docs/specs/display_timezone_spec.md: PST/PDT by date, env override,
+Pins docs/specs/display_timezone_spec.md: Pacific labelled PT all year
+(addendum 2026-11-18; was PST/PDT by date), other zones by date, env override,
 identical UTC gating across display zones, byte-identical decisions, and
 no bare "UTC" in rendered prose.
 
@@ -20,21 +21,23 @@ def _default_zone(monkeypatch):
     monkeypatch.delenv("DISPLAY_TZ", raising=False)
 
 
-# ── the helper: abbreviation by date, never hardcoded ──────────────────────────
+# ── the helper: Pacific is "PT" on both sides of a DST change ──────────────────
+# Old -> new 2026-11-18 (owner directive, spec addendum): "PST"/"PDT" -> "PT".
+# The DST-correct hour is still pinned on each side.
 
-def test_winter_date_renders_pst():
+def test_winter_date_renders_pt():
     assert to_display(datetime(2026, 1, 15, 17, 7, tzinfo=timezone.utc)) == \
-        "Thu 15 Jan 2026 9:07 AM PST"
+        "Thu 15 Jan 2026 9:07 AM PT"
 
-def test_summer_date_renders_pdt():
+def test_summer_date_renders_pt():
     assert to_display(datetime(2026, 7, 15, 4, 7, tzinfo=timezone.utc)) == \
-        "Tue 14 Jul 2026 9:07 PM PDT"
+        "Tue 14 Jul 2026 9:07 PM PT"
 
 def test_styles_pinned():
     dt = datetime(2026, 9, 11, 6, 0, tzinfo=timezone.utc)   # UK GDP instant
-    assert to_display(dt, style="time") == "11:00 PM PDT"
+    assert to_display(dt, style="time") == "11:00 PM PT"
     assert to_display(datetime(2026, 9, 13, 21, 0), style="day_time") == \
-        "Sun 2:00 PM PDT"                                    # naive = UTC
+        "Sun 2:00 PM PT"                                    # naive = UTC
 
 def test_env_override(monkeypatch):
     monkeypatch.setenv("DISPLAY_TZ", "America/New_York")
@@ -42,7 +45,7 @@ def test_env_override(monkeypatch):
                                tzinfo=timezone.utc)).endswith("12:07 PM EST")
 
 def test_iso_string_and_garbage():
-    assert to_display("2026-09-11T06:00:00Z", style="time") == "11:00 PM PDT"
+    assert to_display("2026-09-11T06:00:00Z", style="time") == "11:00 PM PT"
     assert to_display("not a time") == ""
     assert to_display(None) == ""
 
@@ -102,7 +105,7 @@ def test_market_closed_note_in_display_zone():
                                       tzinfo=timezone.utc))   # Saturday
     assert st["open"] is False
     assert st["note"] == ("Market closed — analysis based on last close. "
-                          "Next open Sun 2:00 PM PDT.")
+                          "Next open Sun 2:00 PM PT.")
     assert st["next_open_utc"] == "2026-09-13T21:00:00Z"      # machine field
 
 def test_filter_reason_carries_local_time(monkeypatch):
@@ -122,14 +125,14 @@ def test_filter_reason_carries_local_time(monkeypatch):
                             "note": ""}}
     fr = apply_filter(regime)
     assert fr.allowed is False
-    assert "UK GDP in 90 minutes (at 11:00 PM PDT)." in fr.reason
+    assert "UK GDP in 90 minutes (at 11:00 PM PT)." in fr.reason
 
 def test_setup_clock_carries_local_time():
     from test_setup_check import _stack, _regime
     s = _stack(regime=_regime(news_gate={
         "active": True, "gating": True, "event": "UK GDP",
         "minutes_until": 100, "event_time_utc": "2026-09-11T06:00:00Z"}))
-    assert s["clock"] == ("UK GDP in 1h 40m (at 11:00 PM PDT) — "
+    assert s["clock"] == ("UK GDP in 1h 40m (at 11:00 PM PT) — "
                           "stand aside until after.")
 
 def test_no_bare_utc_in_rendered_prose():

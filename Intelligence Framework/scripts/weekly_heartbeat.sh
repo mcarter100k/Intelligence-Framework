@@ -95,8 +95,13 @@ try:
              - os.path.getmtime("calendar.csv")) / 3600
     rows = list(csv.DictReader(open("calendar.csv")))
     newest = max((r["time"] for r in rows), default="none")
+    try:                                      # stored naive UTC; shown 12-hour PT
+        from display_time import to_display
+        shown = to_display(newest) or newest
+    except Exception:
+        shown = newest
     lines.append(f"calendar: {age_h:.0f}h old, {len(rows)} event(s), "
-                 f"newest {newest}")
+                 f"newest {shown}")
 except Exception:
     lines.append("calendar: MISSING or unreadable")
 
@@ -126,7 +131,11 @@ print("\n".join(lines))
 PY
 )"
 
-{ echo "===== heartbeat $(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z') ====="
+# The heartbeat is read by the owner: its stamp goes through display_time
+# (12-hour, PT). The shell form is only the fallback if Python fails.
+HB_STAMP="$(python3 -c 'from datetime import datetime, timezone; from display_time import to_display; print(to_display(datetime.now(timezone.utc)))' 2>/dev/null)"
+[ -n "$HB_STAMP" ] || HB_STAMP="$(TZ="${DISPLAY_TZ:-America/Los_Angeles}" date '+%Y-%m-%d %H:%M:%S %Z')"
+{ echo "===== heartbeat $HB_STAMP ====="
   echo "$REPORT"; echo; } >> "$LOG"
 
 # One-line summary for the notification: worst signal first.

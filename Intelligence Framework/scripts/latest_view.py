@@ -42,6 +42,28 @@ def _display_today() -> str:
         return datetime.now().strftime("%Y-%m-%d")
 
 
+def _shown(hdr: str, style: str = "full") -> str:
+    """A run header's stamp as the owner reads it: display_time's 12-hour PT
+    clock (display_timezone_spec addendum 2026-11-18). The day-log headers
+    themselves stay as written; they are records. Stamps are in the display
+    zone, so they are read in it. The raw stamp is kept if anything fails."""
+    raw = hdr.strip("= ").strip()
+    try:
+        m = _HDR.match(hdr.strip())
+        from display_time import display_zone, to_display
+        loc = datetime.strptime(f"{m.group(1)} {m.group(2)}", "%Y-%m-%d %H:%M:%S") \
+            .replace(tzinfo=display_zone())
+        return to_display(loc, style=style) or raw
+    except Exception:
+        return raw
+
+
+def _body(block: str) -> str:
+    """The block without its ===== header line, which LATEST RUN restates."""
+    first, _, rest = block.partition("\n")
+    return rest if _HDR.match(first.strip()) else block
+
+
 def collect(logs_dir: str, today: str):
     """Blocks whose header date == today, across the candidate day files.
     Returns (blocks, sources, fallback_block):
@@ -80,8 +102,8 @@ def build_view(blocks, sources, today: str, fallback=None) -> str:
             hdr, block, src = fallback
             out.append(f"No runs yet for {today} (display day). "
                        f"Most recent run:")
-            out.append(f"LATEST RUN — {hdr.strip('= ').strip()}")
-            out.append(block.rstrip())
+            out.append(f"LATEST RUN — {_shown(hdr)}")
+            out.append(_body(block).rstrip())
             out.append("")
             out.append(f"Full record: {src}")
             return "\n".join(out) + "\n"
@@ -89,13 +111,13 @@ def build_view(blocks, sources, today: str, fallback=None) -> str:
                 f"Full record: (no day files found)\n")
 
     latest_hdr, latest_block, _ = blocks[-1]
-    out.append(f"LATEST RUN — {latest_hdr.strip('= ').strip()}")
-    out.append(latest_block.rstrip())
+    out.append(f"LATEST RUN — {_shown(latest_hdr)}")
+    out.append(_body(latest_block).rstrip())
     out.append("")
     if len(blocks) > 1:
         out.append("── TODAY SO FAR " + "─" * 30)
         for hdr, block, _src in blocks[:-1]:
-            ts = hdr.strip("= ").strip()
+            ts = _shown(hdr, style="time")
             if _ERROR.search(block):           # a label line, never feed text (spec §1.5)
                 out.append(f"{ts}  error")
                 continue
@@ -114,6 +136,12 @@ def build_view(blocks, sources, today: str, fallback=None) -> str:
 
 
 def main(argv) -> int:
+    if argv[1:2] == ["--shown"]:
+        # The wrapper's "is the view THIS run?" check compares the view's first
+        # line with this, so both come from _shown (display_timezone_spec
+        # addendum 2026-11-18).
+        print(_shown(argv[2] if len(argv) > 2 else ""))
+        return 0
     try:
         logs_dir, out_file = argv[1], argv[2]
         if logs_dir.endswith(".log"):

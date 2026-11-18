@@ -244,9 +244,12 @@ elif [ "${1:-}" = "digest" ]; then
     # latest_view.py always exits 0 and keeps the old file on failure, so the
     # view is used only when its first line is THIS run (team review
     # 2026-11-05, defect 5); otherwise the click opens the day log. Ledger
-    # failures always go to the day log (notify's 6th argument).
+    # failures always go to the day log (notify's 6th argument). The view
+    # shows the stamp on the owner's 12-hour clock, to the minute, so the
+    # expected line comes from the view's own renderer.
+    VIEW_HEAD="LATEST RUN — $(python3 scripts/latest_view.py --shown "===== $RUN_STAMP =====")"
     if [ -f "logs/latest_brief.log" ] \
-       && [ "$(head -n 1 logs/latest_brief.log)" = "LATEST RUN — $RUN_STAMP" ]; then
+       && [ "$(head -n 1 logs/latest_brief.log)" = "$VIEW_HEAD" ]; then
         notify "DIGEST" "$DIGEST" "logs/latest_brief.log" "$PAIRS" "$DSTATE" "$LOG"
     else
         notify "DIGEST" "$DIGEST" "$LOG" "$PAIRS" "$DSTATE"

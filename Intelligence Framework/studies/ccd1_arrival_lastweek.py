@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(W))
 import ccd1_arrival_calibration as A
 import ccd1_prototype as P
 import oanda_feed as F
+from display_time import to_display
 
 PT = ZoneInfo("America/Los_Angeles")
 TOL = 0.10
@@ -30,7 +31,8 @@ WATCH = 3832.46
 
 
 def pt(t):
-    return t.astimezone(PT).strftime("%a %m-%d %H:%M PT")
+    """12-hour Pacific through the one helper (display_timezone_spec addendum 2026-11-18)."""
+    return to_display(t, style="day_date")
 
 
 def series(df):

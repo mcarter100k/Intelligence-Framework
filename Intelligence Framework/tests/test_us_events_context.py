@@ -226,7 +226,8 @@ def test_line_with_events_is_plain_and_says_information_only(tmp_path, pacific):
     p = _write(tmp_path / "c.csv", [(datetime(2026, 11, 4, 9, 30), "GBP", "UK CPI", "High"),
                                     (datetime(2026, 11, 4, 19, 0), "USD", "FOMC Statement", "High")])
     line = db._us_events_line(now=NOW, calendar_path=p)
-    assert line == ("FOMC Statement Wed 11:00 AM PST — for information; "
+    # Old -> new 2026-11-18 (display_timezone_spec addendum): Pacific shows as PT, 12-hour.
+    assert line == ("FOMC Statement Wed 11:00 AM PT — for information; "
                     "the framework does not stand aside for US releases.")
     _assert_clean(line)
 
@@ -252,7 +253,7 @@ def test_none_names_the_coverage_end_when_the_week_ends_within_24h(tmp_path, pac
     p = _write(tmp_path / "c.csv", [(datetime(2026, 11, 6, 13, 30), "USD", "NFP", "High"),
                                     (datetime(2026, 11, 6, 9, 30), "GBP", "UK GDP", "High")])
     line = db._us_events_line(now=sat, calendar_path=p)
-    assert line == ("none before Sat 8:59 PM PST; later days are not in this "
+    assert line == ("none before Sat 8:59 PM PT; later days are not in this "
                     "week's calendar yet.")
 
 
@@ -266,8 +267,8 @@ def test_every_time_slot_keeps_its_time_and_extras_are_counted(tmp_path, pacific
     rows += [(datetime(2026, 11, 4, 20 + k, 0), "USD", f"Speech {k}", "High") for k in range(4)]
     line = db._us_events_line(now=NOW, calendar_path=_write(tmp_path / "c.csv", rows))
     # Rev 1 hid the 11:00 FOMC behind "+N more"; every slot now shows its time
-    assert line == ("CPI m/m, CPI y/y, Core CPI m/m +1 more Wed 5:30 AM PST · FOMC Statement "
-                    "Wed 11:00 AM PST · Speech 0 Wed 12:00 PM PST · Speech 1 Wed 1:00 PM PST · "
+    assert line == ("CPI m/m, CPI y/y, Core CPI m/m +1 more Wed 5:30 AM PT · FOMC Statement "
+                    "Wed 11:00 AM PT · Speech 0 Wed 12:00 PM PT · Speech 1 Wed 1:00 PM PT · "
                     "+2 later — for information; the framework does not stand aside for US releases.")
     _assert_clean(line)
 
@@ -278,7 +279,7 @@ def test_the_jobs_report_trio_shows_in_full(tmp_path, pacific):
                + [(nfp, "USD", n, "High") for n in ("Average Hourly Earnings m/m",
                   "Non-Farm Employment Change", "Unemployment Rate")])
     assert db._us_events_line(now=NOW, calendar_path=p).startswith(
-        "Average Hourly Earnings m/m, Non-Farm Employment Change, Unemployment Rate Wed 5:30 AM PST — ")
+        "Average Hourly Earnings m/m, Non-Farm Employment Change, Unemployment Rate Wed 5:30 AM PT — ")
 
 
 # ── I3b: the title allow-list (the wrapper layer is I3a, test_wrapper_behavior) ──

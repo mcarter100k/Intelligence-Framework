@@ -205,7 +205,8 @@ def example():
     h1 = _series(F.get_hourly_bars("XAU_USD", count=500))
     h4 = _series(F.get_h4_bars("XAU_USD", count=400))
     d1 = _series(F.get_daily_bars("XAU_USD", count=260))
-    pt = lambda x: x.astimezone(PT).strftime("%a %m-%d %H:%M PT")
+    from display_time import to_display                      # 12-hour PT (spec addendum 2026-11-18)
+    pt = lambda x: to_display(x, style="day_date")
     print(f"bars: hourly {len(h1['t'])} (last {pt(h1['t'][-1])}), 4-hour {len(h4['t'])}, daily {len(d1['t'])}")
     start = datetime(2026, 11, 16, 23, 0, tzinfo=timezone.utc)   # Mon 15:00 PT
     hits = []
