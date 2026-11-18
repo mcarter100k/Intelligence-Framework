@@ -6,6 +6,30 @@ Exact definitions of the pre-registered candidates and what the ledger shows.
 
 > Citations: `VL:n` = `validation_log.md` line n; `AUDIT §n` = `docs/audit_2026-09-29.md`; other paths are repo files. Line numbers are as of the 2026-09-29 audit (commit efd293e) — search by content if they have drifted.
 
+## RETIRED BY OWNER DECISION, 2026-11-17 (ruling M1)
+
+**All three candidates are retired by owner decision, not by verdict:**
+EARLY_MOMENTUM_v2, THRUST_PULLBACK and MOMENTUM_JOIN.
+- On 2026-11-17 the owner moved the framework to gold only. Every GBP/AUD
+  and GBP/JPY job, alert and candidate logging was stopped (validation_log
+  2026-11-17, M1).
+- None of them reached the N=20 futility checkpoint.
+- This closes R40–R42's open retirement question by owner ruling.
+- **No edge or lack of edge is claimed by this retirement.**
+
+**Episode counts frozen where they stand.** Counted with
+`shadow_signals.graded_episodes` and `get_shadow_tally` on the live ledger,
+read-only, after the last grader run (2026-11-17 15:15 PT):
+
+| Candidate | Independent episodes | Graded / logged rows | Per episode (diagnostic, not evidence) |
+|---|---|---|---|
+| EARLY_MOMENTUM_v2 | 6 (GBP/JPY) | 27 / 28 (1 open, never to be graded) | avg +0.17R, median −0.02R, without the best −0.17R |
+| THRUST_PULLBACK | 2 (GBP/JPY) | 2 / 2 | avg +0.80R, median +0.80R, without the best −0.33R |
+| MOMENTUM_JOIN | 2 (1 GBP/AUD, 1 GBP/JPY) | 7 / 11 (4 open, never to be graded) | avg −1.00R |
+
+**The ledgers, the shadow logs and the candidate history are kept intact,
+as evidence.**
+
 ## 5a. Common rules for all candidates (`shadow_signals.py`)
 
 - Frozen 2026-07-29. `FLAG_N=30`, `REVIEW_N=60` graded episodes. `HORIZON=30` H4 bars.

@@ -1,5 +1,29 @@
 # Ruling request: the breadth universe and its partition (2026-11-06)
 
+**Rulings received 2026-11-17 (owner):**
+- **Universe:**
+  - amendment (a), pegs count as their anchor, ACCEPTED;
+  - **L6:** same-anchor pairs dropped (EUR_DKK, USD_HKD);
+  - **EUR_CHF dropped.** The SNB floor distorts STUDY, and the January 2015
+    break lies inside the sealed exam;
+  - **SGD capped at two pairs;**
+  - **gold added,** with any non-FX instrument the owner could reach.
+    - On this account there are none: all 68 instruments are currencies
+      (broker probe, 2026-11-17).
+    - Gold itself is not tradeable on the account (404
+      `INSTRUMENT_NOT_TRADEABLE`).
+- **Partition, L7:** new pairs take the existing partition boundaries
+  exactly (§4's proposed text).
+- **Not yet done:** the universe re-selection under these rules.
+  - The 68-pair spread table of §1 was never stored. Only the pairs that
+    mattered were recorded.
+  - Re-selection therefore needs a fresh read-only spread probe.
+  - It waits on the L8 ruling on the weekly construction
+    (`breadth_gate_spec.md` §4 item 3), the last open item before
+    measurement.
+- **Ruling M1 (2026-11-17)** stops the GBP pairs' live jobs and alerts. It
+  does not remove GBP/AUD or GBP/JPY from this research universe.
+
 **For the team.** These are steps 1 and 2 of the gate sequence
 (`docs/specs/breadth_gate_spec.md` §5). Nothing for the new pairs has been
 fetched beyond the spread measurement below, and nothing has been measured.

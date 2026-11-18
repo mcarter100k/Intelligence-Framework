@@ -20,6 +20,27 @@ evidence says no, gold stays a practice chart (§5).
 
 ---
 
+## 0b. Gold only: GBP pairs stopped (owner ruling M1, 2026-11-17)
+
+**Every GBP/AUD and GBP/JPY job, alert and candidate logging is stopped.**
+The jobs are unloaded, not deleted.
+
+**The three shadow candidates are retired by this decision, not by a
+verdict.** Their episode counts are frozen where they stand
+(`foundation/candidates.md`):
+- EARLY_MOMENTUM_v2: 6;
+- THRUST_PULLBACK: 2;
+- MOMENTUM_JOIN: 2.
+
+**R40–R42's open retirement question is closed by owner ruling.**
+
+**Kept intact:** R37–R46, the ledgers and the candidate history. The cost
+of keeping them is zero.
+
+**Live gold work now goes through CCD-1**
+(`docs/specs/configuration_detector_spec.md`), in this order (M6):
+BRIEFING, then ARRIVAL, then BREAK.
+
 ## 0a. BLOCKING: there is no venue (team ruling J5, 2026-11-17)
 
 **Above every remaining Tier 1–4 item.** Phase E (venue and costs) was

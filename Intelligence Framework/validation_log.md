@@ -8267,3 +8267,70 @@ data sha256: XAU_USD_M15_USED.csv ccc62418068d6f80fde399643b756638750fdd33c05a78
 **Premise check (AGENTS rule 5):** the addendum says the 2026-11-16 mute was "for exactly this reason" (fire rate). The record (`validation_log.md` 2026-11-16) gives the owner's reason as "hold off on GBP/AUD and GBP/JPY, 'cut all alerts off', focus on gold". The noise reduction was the separate 2026-11-15 change. Reported; not material to the calibration.
 
 **Suite (2026-11-17, branch):** 1310 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-17 — OWNER RULINGS M1–M6, L1, L5–L8: GBP jobs stopped and candidates retired by decision; alert budget split; gold-only ARRIVAL list chosen (branch `feat/catch-configuration`)
+
+**M1 — gold only.** Every GBP/AUD and GBP/JPY job, alert and candidate logging is stopped. Stopped, not deleted.
+- **Done 2026-11-17 at 22:56 PT** with the project's own command (`launchctl unload -w`, as in `scripts/launchd/uninstall.sh`), without its `rm` step.
+  - Stopped: `com.quis.intelligence.brief-asia`, `brief-london`, `brief-ny` (all three ran `decision_brief.py GBP_AUD GBP_JPY`, which also logs the shadow candidates) and `outcomes` (grades GBP ledgers only).
+- **OBSERVED:**
+  - Before: `launchctl list` showed all six framework jobs, none mid-run.
+  - After: the four are gone from `launchctl list`, and `launchctl print-disabled` marks each disabled.
+  - Control: `calendar` and `heartbeat` are not marked disabled and are still listed. All six plists remain in `~/Library/LaunchAgents`.
+- **Kept running:** `calendar` (gold needs the US rows) and `heartbeat`.
+- **Retired by owner decision, not by verdict:** EARLY_MOMENTUM_v2, THRUST_PULLBACK and MOMENTUM_JOIN. This closes R40–R42's open question by owner ruling.
+- **Episode counts frozen** (`shadow_signals.graded_episodes` and `get_shadow_tally`, read-only through `reality_run.py`, project unchanged):
+  - EM_v2: 6 episodes (27 graded of 28 rows, 1 open);
+  - THRUST_PULLBACK: 2 (2 of 2);
+  - MOMENTUM_JOIN: 2 (7 of 11, 4 open).
+  - The open rows will not be graded.
+- **Kept intact:** the ledgers, the shadow logs, R37–R46 and the candidate history.
+- **Recorded in:** `foundation/candidates.md`, `docs/gold_plan.md` §0b and `AGENTS.md` (live entry points).
+
+**Consequence not yet handled (AGENTS rule 8):** with the brief and grader stopped, the weekly heartbeat would report every Sunday:
+- "NO LOG — runs missing";
+- a run-count shortfall;
+- the regime and session ledgers STALE (`artifact_freshness.py` cadences of 72h).
+
+That is a permanent alarm on artifacts that no longer have a live writer. The heartbeat is muted (ALERTS_MUTED; ruling M4 exempts only the four new gold alert types), so nothing reaches the owner. The fix is a free-zone change to the heartbeat, run count and freshness inventory (moving the stopped ledgers to `READ_SIDE_NO_CADENCE`). **Due before the next heartbeat, Sun 2026-11-22 12:30 PT.**
+
+**M2 — the alert budget is split.** BRIEFING (03:45 PT, daily) is not counted. ALERTS (ARRIVAL, RELEASE warnings, BREAK) carry the 5–10 a week band. Spec §14.
+
+**M3 — gold-only rates at tolerance 0.10** (`studies/ccd1_gold_alert_budget.py`, `studies/ccd1_gold_alert_budget_result.md`). Measured on 281 trading weeks, 2021–2026, through `reality_run.py --no-env`, project unchanged. ARRIVAL plus BREAK (47 detections, 0.17 a week):
+
+| Level list | Measured a week | 90th-pct week | + 2 release warnings (estimate, one live week) | 90th-pct + 2 | Weeks over 10 |
+|---|---|---|---|---|---|
+| all five | 7.1 | 11 | 9.1 | 13 | 26% |
+| **no 4-hour swings (chosen)** | 5.2 | 8 | 7.2 | 10 | 6% |
+| no prior session | 6.5 | 10 | 8.5 | 12 | 20% |
+| daily swings + prior week | 2.5 | 5 | 4.5 | 7 | 1% |
+
+- **Chosen: "no 4-hour swings".** It is the richest list whose average is in the band and whose 90th-percentile week stays at 10.
+- "All five" is in the band on average only.
+- The release estimate is from one week (2026-11-16: 3 US releases, 1 inside the morning window). It is not a calibration.
+
+**M4:** the four alert types (BRIEFING, ARRIVAL, RELEASE, BREAK) are exempt from ALERTS_MUTED; there is no global unmute. The mute-reason correction is recorded in spec §12.
+
+**M5:** the two-sided distances are accepted.
+
+**M6:** build order is BRIEFING, then ARRIVAL, then BREAK.
+
+**L1:** BREAK is signed as written. No recency variant was declared.
+
+**L5:** C3 governs; the weekly ρ̄ is a screen.
+
+**L6:** EUR_DKK and USD_HKD dropped.
+
+**L7:** the existing partition boundaries.
+
+**L8:**
+- |ρ| and the larger era are ACCEPTED.
+- The weekly construction is stated in `breadth_gate_spec.md` §4 item 3 for the owner's ruling, with two open choices: the gap-spanning returns and the 3-day minimum.
+- The universe re-selection needs a fresh spread probe (the 68-pair table was never stored) and waits on that ruling.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+- **No GBP brief runs** at 2026-11-18 02:30, 07:30 or 18:00 PT. Evidence will be the absence of new run headers in `logs/brief_2026-11-18.log`.
+- **No grader run** at 15:15 PT. Evidence will be no `logs/outcomes_2026-11-18.log`, and `shadow_signal_log.csv` unchanged.
+- **The calendar job** still runs Sun 2026-11-22 12:00 PT.
+
+**Suite (2026-11-17, branch):** 1310 passed, 10 skipped, 3 deselected, 16 xfailed.

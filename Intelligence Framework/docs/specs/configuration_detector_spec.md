@@ -1,10 +1,16 @@
 # Spec: the configuration detector (proposed id CCD-1), Track A of "catch the configuration"
 
-**Status: PROPOSED, for the owner's signature.** Nothing is built. Three alert
-types since the 2026-11-17 addendum (§13–§16): HEADS-UP, ARRIVAL, BREAK.
-- This file fixes every threshold before the detector is run on any bar.
-- After signature the thresholds are frozen. A change means a new id
-  (CCD-2) and is never edited in place.
+**Status (owner rulings 2026-11-17, M1–M6 and L1):**
+- **BREAK (§1–§11) is SIGNED as written** (ruling L1).
+  - Its thresholds are frozen. Any change is a new id (CCD-2), never edited
+    in place.
+  - No recency variant was declared; the window for declaring one closed
+    with ruling L1.
+- **The ARRIVAL, BRIEFING and RELEASE parts (§13–§16) are ruled** (M2–M6).
+  The level list was chosen by ruling M3's rule (§15).
+- **Gold only** (ruling M1).
+- **Nothing is built yet.** Build order (M6): BRIEFING, then ARRIVAL, then
+  BREAK.
 
 **What this is:**
 - A detector that states, while it is happening, that one chart
@@ -32,7 +38,7 @@ types since the 2026-11-17 addendum (§13–§16): HEADS-UP, ARRIVAL, BREAK.
 
 | Item | Value | Why |
 |---|---|---|
-| Instruments | gold (XAU_USD), GBP/AUD, GBP/JPY | Owner brief A4: gold, plus the two pairs the owner can trade today, kept even while their candidates are paused |
+| Instruments | **gold (XAU_USD) only** | Ruling M1, 2026-11-17: every GBP/AUD and GBP/JPY job, alert and candidate logging is stopped. This supersedes brief A4's "keep the GBP pairs in the detector" |
 | Bars | OANDA mid candles, closed bars only, through `oanda_feed` | The feed the live brief already uses; Part 0 showed it serves gold unchanged |
 | Hourly bars fetched | the last 200 closed | 72 for the hourly trend + up to 120 for the range + 3 for swing confirmation, with room to spare |
 | 4-hour bars fetched | the last 120 closed | The window `regime_detection.get_regime` already uses for the 4-hour structure |
@@ -250,16 +256,15 @@ never phrased as an expected win rate.
 |---|---|---|
 | `config_detector.py` | **New** module: §2–§7 as pure functions, plus a `main` that reads the bars and writes one ledger row per detection | Added to the protected list: it alerts and writes a ledger |
 | `configuration_log.csv` | **New** append-only ledger, one row per detection, written through `ledger_io.append_row`. The columns are the §7 fields | Evidence ledger rules apply. It is never graded under this spec |
-| `scripts/scheduled_detector.sh` | **New** wrapper: runs the detector for the three instruments and sends one notification per new detection through `scripts/notify.sh` | Free zone |
+| `scripts/scheduled_detector.sh` | **New** wrapper: runs the detector on gold and sends one notification per new detection through `scripts/notify.sh` | Free zone |
 | `scripts/launchd/com.quis.intelligence.detector.plist` | **New**: every hour at minute 2, Pacific time | Free zone |
-| `scripts/notify.sh` | One new subtitle, `BREAK`. Nothing else changes | Free zone |
+| `scripts/notify.sh` | New subtitles `BRIEFING`, `ARRIVAL`, `RELEASE` and `BREAK`. **Exempt from `ALERTS_MUTED`** (ruling M4, owner ruling L2): every other category stays muted, and the switch is not removed. Each exempt send is still logged and recorded in `notification_log.csv`. A test pins that exactly these four are exempt | Free zone |
 | `decision_brief.py` | **Not changed by this spec.** Showing the latest detection inside the gold brief belongs to GDB-1's spec | Protected; untouched |
 
 **When a detection may reach the owner.** All of these must hold, each with
 its own should-it-reach-the-owner test (AGENTS rule 12):
-1. **The mute switch is off.** `notify.sh` already enforces this:
-   `ALERTS_MUTED` present means nothing is sent and a `MUTED` line is
-   logged.
+1. **The mute switch does not apply to this alert** (ruling M4). Every
+   other category stays muted while `ALERTS_MUTED` exists.
 2. **The instrument's market is open.**
    - Pairs: `regime_detection._market_status`.
    - Gold: the same weekend rule, plus closed during its daily break,
@@ -300,7 +305,7 @@ reverted, and re-run clean with bytecode caches cleared:
 | Gates | the gold daily break ignored |
 | Gates | the freshness limit removed |
 | Gates | the duplicate check removed |
-| Gates | the mute ignored |
+| Gates | the exemption widened to another category, or BREAK muted |
 
 **Render sweep.** Every sentence the alert prints changes when its input
 changes, across a grid of inputs: each price, count, time, ATR, direction,
@@ -321,7 +326,23 @@ instrument, and next level present or absent.
 - the first live detection;
 - the first delivered (or muted) BREAK notification.
 
-## 12. Open for the owner before signature
+## 12. Open for the owner before signature — all resolved 2026-11-17
+
+**Resolutions:**
+- Item 1, the mute: ruling M4. These four alert types are exempt; there is
+  no global unmute.
+  - The mute's reason was the owner's switch to gold and the GBP hold
+    ("hold off on GBP/AUD and GBP/JPY, cut all alerts off, focus on gold",
+    validation_log 2026-11-16).
+  - It was not the fire rate, which the addendum had stated. Correction
+    accepted by the owner (M4).
+- Item 2, GBP alerts: ruling M1, gold only.
+- Item 3, thresholds: ruling L1, signed as written.
+- Item 4, the stop ATR: the simple 14-day ATR (§13.2; addendum A7).
+- Item 5, tonight's miss: ruling L1, signed as written. It does not catch
+  tonight.
+
+The text below is kept as it was raised.
 
 1. **Mute.** `ALERTS_MUTED` has been present in the live project since
    2026-11-16 21:45 PT (owner, 2026-11-16: "cut all alerts off").
@@ -409,7 +430,8 @@ in.
 
 | Term | Definition |
 |---|---|
-| Tolerance | **0.10 × simple ATR** (starting value; §15 calibrates it) |
+| Tolerance | **0.10 × simple ATR** (ruling M3) |
+| Level types that fire | daily swings, range boundaries, prior session, prior week: §13.1 types 1, 3, 4 and 5. **4-hour swings do not fire an ARRIVAL** (ruling M3, §15), but they still count as levels for the distances in §13.4 item 3 |
 | Arrival | a closed hourly bar whose range comes within the tolerance of an armed level (its low ≤ level + tolerance and its high ≥ level − tolerance) |
 | Armed | a level is armed once an hourly close has been at least 0.50 × ATR from it, counted from when the level formed or from its last arrival. This is the per-level cooldown: one approach fires once, and the level re-arms only after price has clearly left it |
 | Grouping | at most one ARRIVAL alert per instrument per hourly bar. Every level arrived at in that bar is listed in the one alert |
@@ -425,7 +447,7 @@ in.
    - Touches: separate visits within the tolerance since it formed.
    - How many held: no close beyond.
    - When it was last tested.
-3. **Both sides, never one.**
+3. **Both sides, never one** (accepted, ruling M5).
    - The distance to the nearest qualifying level on the other side of
      price.
    - The distance to the next qualifying level beyond this one.
@@ -459,29 +481,36 @@ in.
      "not measured for this pair".
 9. **The two fixed sentences of §7.10.**
 
-## 14. HEADS-UP alert (A8)
+## 14. BRIEFING and RELEASE warnings (A8, split by ruling M2)
 
-**When it fires:**
-1. **Morning:** 03:45 PT on each trading day, before gold's 4–8 AM PT
-   window. One alert covering every instrument.
-2. **Release:** 30 minutes before each High-impact release on the live
-   calendar that concerns a covered instrument. Same-time releases share one
-   alert.
-3. **No separate release alert inside the morning window:** a release
-   timed inside 04:00–08:00 PT is announced in the morning alert instead.
+**BRIEFING: a daily read, not an interruption. Not counted in any alert
+budget.**
+- 03:45 PT on each trading day, before gold's 4–8 AM PT window.
+- Contents as listed under "What it states".
+
+**RELEASE warning: an ALERT, counted in the 5–10 a week budget.**
+- 30 minutes before each High-impact US release on the live calendar (gold
+  only, ruling M1).
+- Same-time releases share one warning.
+- A release timed inside 04:00–08:00 PT is listed in the BRIEFING instead.
+  Its 30-minute warning is therefore not sent, and the budget estimate in
+  §15 assumes that.
+- *Open for the owner:* whether a warning should also go out before a
+  release inside the window (about 1 a week more).
 
 **What it states:**
-- For each instrument: the price and the time of that price, which flags a
-  stale price (Part 0).
-- The nearest qualifying level above and below, by the §13.1 list, in
-  dollars and ATR.
+- Gold's price and the time of that price, which flags a stale price
+  (Part 0).
+- The nearest qualifying level above and below, in dollars and ATR. It uses
+  all five §13.1 types: the BRIEFING has no budget, so it uses the richest
+  list.
 - The releases scheduled before the next morning alert, in Pacific.
 - Volatility as in §13.4 item 8.
 - The §16 window sentence.
 - The two fixed sentences.
 
-**When it stays silent:** whenever the market is closed (§10 gate 2), and
-whenever the mute switch is on.
+**When it stays silent:** whenever gold's market is closed (§10 gate 2).
+The mute switch does not apply (ruling M4).
 
 ## 15. Fire-rate calibration (A10)
 
@@ -505,11 +534,39 @@ whenever the mute switch is on.
   They are estimated from the live calendar's observed weeks and labelled
   as an estimate.
 
-**Target:** 5 to 10 alerts a week across all covered instruments and all
-three types (owner).
+**Target (ruling M2):** 5 to 10 ALERTS a week on gold. ALERTS means
+ARRIVAL, RELEASE warnings and BREAK. The BRIEFING is not counted.
 
-**Owner's choice:** the final tolerance and list are the owner's choice from
-the reported grid, recorded here before signature.
+**Measured** (`studies/ccd1_gold_alert_budget.py`; gold, 2021-04-26 →
+2026-09-09, 281 trading weeks; tolerance 0.10):
+- "Measured" is ARRIVAL plus BREAK, week by week. BREAK is CCD-1 as signed,
+  47 detections, 0.17 a week.
+- "Total" adds an **estimate** of 2 RELEASE warnings a week: the live
+  calendar's week of 2026-11-16 had 3 US releases, 1 of them inside the
+  window.
+- That estimate comes from one week. Weeks with more releases (a jobs-report
+  week, for example) will run higher, and the busy-week column does not
+  capture that.
+
+| Level list | Measured a week | Median week | 90th-pct week | Busiest week | Total a week (estimate) | 90th-pct week + 2 | Weeks over 10 |
+|---|---|---|---|---|---|---|---|
+| all five | 7.1 | 7 | 11 | 19 | 9.1 | 13 | 26% |
+| **no 4-hour swings** | **5.2** | **5** | **8** | **14** | **7.2** | **10** | **6%** |
+| no prior session | 6.5 | 6 | 10 | 18 | 8.5 | 12 | 20% |
+| daily swings + prior week | 2.5 | 2 | 5 | 9 | 4.5 | 7 | 1% |
+
+**Chosen (ruling M3: the richest list that keeps ALERTS in 5–10 on gold):
+"no 4-hour swings" at tolerance 0.10.** That is daily swings, range
+boundaries, prior session and prior week.
+- **The rule applied:** the average must be in the band, AND the
+  90th-percentile week must stay at 10 or below.
+- "All five" fits on average (9.1), but its busy week reaches 13, and a
+  quarter of weeks exceed 10. That is the bunching the old budget tolerated
+  and the new one does not.
+- "No prior session" has the same number of level types and more alerts,
+  but its busy week reaches 12.
+- If the owner reads "in the band" as the average only, "all five" is the
+  richest list.
 
 ## 16. Language (A9), enforced by test
 

@@ -250,6 +250,18 @@ restoring either requires team review and a concrete evidence path.
 
 ## Live entry points (what "reachable" means)
 
+**GBP STOPPED 2026-11-17 (owner ruling M1; gold only).**
+- The launchd jobs `brief-asia`, `brief-london`, `brief-ny` and `outcomes`
+  are unloaded with `launchctl unload -w`. Their plists stay in place, and
+  nothing is deleted.
+- `calendar` and `heartbeat` still run.
+- The three shadow candidates are retired by owner decision, with their
+  counts frozen (`foundation/candidates.md`). Their ledgers are evidence:
+  untouched.
+- Reverse a stop with `launchctl load -w` on the same plist, and only by
+  owner ruling.
+- The entry points below are what those jobs ran.
+
 Daily brief: `python3 decision_brief.py GBP_AUD GBP_JPY`
 Nightly grader: `python3 run_outcome_check.py`
 Automation: `scripts/scheduled_brief.sh`, `scripts/scheduled_outcome_check.sh`,
