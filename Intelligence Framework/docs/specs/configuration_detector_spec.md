@@ -617,3 +617,78 @@ the 4–8 AM PST block, the median share of the day's range was 67%, against
   UTC hours are 5–9 AM PDT.
 - Whether the busy block follows the clock in New York (and so stays at 4–8
   AM Pacific all year) has not been measured.
+
+## 17. LEVEL BREAK alert (owner ruling P1, 2026-11-17)
+
+**A fourth alert type**, distinct from CCD-1's configuration BREAK and much
+simpler.
+- It says only that the level the owner was told about has given way.
+- It has no trend filter, no configuration and no claim.
+- It is written before any LEVEL BREAK count.
+
+**Watched level:**
+- A price that produced an ARRIVAL alert becomes watched from that alert's
+  bar.
+- **Which side:** the side of the level that price was on is the close of
+  the bar *before* the arrival bar (above or below the level).
+
+**Still qualifies (ruling P4):**
+- A level's qualification can change during the day. At the 2026-11-17
+  break bar, $3,832.46 was still a range edge but no longer the
+  prior-session low: the session that opened at 15:00 PT had its own low
+  of $3,836.96.
+- **A watched price stays watched while any qualification holds:** while
+  any level of a firing type (§13.3: daily swing, range boundary, prior
+  session, prior week) in the current hour's set has that price, to the
+  cent.
+- It does not matter under which qualification it was first alerted.
+
+**Invalidated (no longer watched)** in either of these cases:
+- (a) no firing-type level at that price remains in the set;
+- (b) its LEVEL BREAK has fired. One break per arrival. A later ARRIVAL at
+  the same price watches it afresh.
+
+**The event:**
+- An hourly bar closes beyond a watched price, on the opposite side from
+  where price was before the arrival. Any distance counts, and the distance
+  is printed.
+- The check starts with the arrival bar itself. If the bar that arrived also
+  closed beyond, one alert is sent, the LEVEL BREAK, stating that price
+  arrived and closed through in the same hour.
+
+**The cooldown does not apply to it (P1):**
+- The §13.3 cooldown governs repeated *approaches* to a level, and it stays.
+- It never suppresses a break of a watched level.
+- On 2026-11-17 the cooldown, applied to the one event type that existed,
+  is what cost the notification at the break.
+
+**Grouping:** at most one LEVEL BREAK alert per instrument per hourly bar,
+listing every watched price closed through in that bar.
+
+**What it states:**
+- The level to the cent, with its qualification at the arrival and its
+  qualifications now.
+- The time of the ARRIVAL that watched it.
+- The bar (Pacific), its close, and the distance beyond the level in
+  dollars and ATR.
+- The same items as every ARRIVAL alert (§13.4, items 3–9):
+  - the two-sided distances (ruling M5);
+  - the stop figures;
+  - the measured base rate, where one exists (R45, for a daily swing), else
+    the "not measured" sentence;
+  - the next release;
+  - the clock and the window sentence;
+  - volatility;
+  - the two fixed sentences.
+- **Language:** §16 applies. "Closed through" and "given way" are
+  descriptions; nothing about what happens next.
+
+**The mute switch does not apply** (ruling M4 extended): `LEVEL` is added to
+the exempt subtitles.
+
+**Budget (ruling P2):**
+- LEVEL BREAK is counted on 2021–2026 before it ships, and reported with
+  ARRIVAL, BREAK and the release warnings.
+- If it pushes the busy week past 11, that is reported with a
+  recommendation, never tightened silently. "The level you were just told
+  about broke" is high-value by construction (the N2 reasoning).
