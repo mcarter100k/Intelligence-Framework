@@ -91,3 +91,67 @@ Pins: a display day spanning two files groups both; other-date blocks
 excluded; the sources line lists exactly the files drawn from; signals
 follow their blocks; empty state graceful. Gate 2: real regeneration at a
 moment when the display day spans two files.
+
+## Addendum (2026-11-18): 12-hour clock with the "PT" label (owner directive)
+
+Owner directive, 2026-11-18: "All times printed to the owner use 12-hour
+format with AM/PM and the Pacific label: '3:45 AM PT', '6:00 PM PT',
+'11:30 PM PT'. Never 24-hour." It covers every alert type (BRIEFING,
+ARRIVAL, LEVEL BREAK, BREAK, release warnings), the decision brief, the
+heartbeat, the digest, and every report written for the owner. Log files,
+timestamps inside code, filenames and ISO datetimes in data are unaffected.
+
+**What changes in `display_time.py`:**
+- The helper already printed 12-hour AM/PM. What changes is the label: the
+  Pacific zone now prints **"PT"** all year, not "PST"/"PDT". This amends
+  §1's "abbreviation from zoneinfo by date". §1 existed so the label would
+  never be wrong across a DST change. "PT" is correct on both sides of it.
+- Any other `DISPLAY_TZ` keeps zoneinfo's abbreviation by date (for
+  example "EST"). Only Pacific has an owner-chosen label.
+- A new style, `day_date`, gives "Thu 12 Nov 6:00 AM PT" for the alert and
+  report lines that need the date without the year.
+
+**Paths that built a time string of their own, now routed through the
+helper:**
+
+| Path | Before | After |
+|---|---|---|
+| Heartbeat header (`weekly_heartbeat.sh`) | `===== heartbeat 2026-11-15 12:30:06 PST =====` | `===== heartbeat Sun 15 Nov 2026 12:30 PM PT =====` |
+| Heartbeat calendar line | `newest 2026-11-19 00:30` (UTC, unlabelled) | `newest Wed 18 Nov 2026 4:30 PM PT` |
+| Heartbeat freshness STALE line (`artifact_freshness.py`) | `first: GBP_AUD 2026-11-17T15:30Z` | `first: GBP_AUD Tue 17 Nov 2026 7:30 AM PT` |
+| Latest-run view (`latest_view.py`) | `LATEST RUN — 2026-11-17 07:30:05 PST`; today's runs as `2026-11-17 02:33:55 PST …`; the copied block began with its `=====` log header | `LATEST RUN — Tue 17 Nov 2026 7:30 AM PT`; today's runs as `2:33 AM PT …`; the log header line is not repeated under LATEST RUN |
+| Gold alert prototypes (`studies/ccd1_arrival_lastweek.py`, `studies/ccd1_prototype.py`) | `Sun 11-15 18:00 PT` | `Sun 15 Nov 6:00 PM PT` |
+
+**Already routed through the helper (they change label only):** the decision
+brief header, the market-closed note, the news-gate stand-down reason,
+setup_check's CLOCK line, the US-events lines, and the heartbeat health line.
+
+**Unchanged, by the directive's own exclusion:**
+- the `=====` run headers inside the brief, outcomes and calendar day logs.
+  They are log records, and `run_count.py`, `latest_view.py` and two
+  studies parse them in their 24-hour form;
+- the log filenames;
+- every CSV and JSON timestamp.
+
+**Not converted in this change (reported, not hidden):** older report-only
+studies print hour-of-day tables with 24-hour labels. Examples are
+`session_movement_study.py`, `session_movement_compare.py`,
+`gbpaud_personality_profile.py`, `gbpaud_scouting_verify.py`,
+`markup_swings.py`, `gold_spread_windows.py`, `gold_2026_release_reactions.py`
+and `history_monday_open_check.py`. Their committed results are methodology
+records and are not rewritten. Any of them that is run again for the owner
+is converted first.
+
+**Gates:**
+- **Gate 1.** `tests/test_owner_clock.py` checks every owner-facing producer
+  above against a 24-hour-clock pattern. The pattern itself is tested both
+  ways: it catches "07:30", "18:00 PT" and "12:30:06 PST", and it passes
+  "6:00 AM PT".
+  - The helper is swept over every hour of a winter day and a summer day,
+    in every style. The 24 renders of each day must all differ, and the
+    hours must map as 00 → 12 AM, 12 → 12 PM and 13 → 1 PM.
+  - The display-claims render sweep gains the same clock check.
+  - Mutation tests: put the helper back on a 24-hour clock and drop each
+    route. Each one must fail a test.
+- **Gate 2.** Real runs through `scripts/reality_run.py`: the decision
+  brief, the heartbeat and the gold replay. Their actual output is shown.

@@ -524,6 +524,120 @@ budget.**
 **When it stays silent:** whenever gold's market is closed (§10 gate 2).
 The mute switch does not apply (ruling M4).
 
+### 14.1 Alert history in the BRIEFING (owner directive, 2026-11-18)
+
+**Why.** The owner is asleep for most alerts. Last week's fired at
+6:00 AM, 7:00 AM and 6:00 PM PT. The BRIEFING is where the owner catches up.
+
+**The case that shows it, $3,870.32:**
+- It produced ARRIVALs at Thu 12 Nov 7:00 AM PT and Fri 13 Nov 6:00 AM PT.
+- It broke at Sun 15 Nov 10:00 PM PT.
+- Read as three separate alerts, that is noise. Read as a sequence, it is a
+  level tested twice and then given way.
+
+**What the history section states, for the trailing 7 days (the 168 hours
+before the BRIEFING's own time):**
+
+1. **Every ARRIVAL and LEVEL BREAK sent, oldest first.**
+   - The level to the cent, and its type in plain words.
+   - The time sent, in 12-hour Pacific.
+   - Where that level stands now, as one of:
+     - "broke at <time>";
+     - "still watched";
+     - "no longer watched: it stopped qualifying at <time>". A level stays
+       watched only while a firing-type qualification exists at its price
+       (§17, ruling P4), and a prior-session low, for example, rolls off.
+2. **Every level currently watched** (the §17 watch set): the price, its
+   type, the side price approached from, and its touch and hold counts (see
+   the open item below).
+
+**Where "sent" comes from:**
+- `notification_log.csv` is the existing ledger of every notification
+  actually sent: one row per send, written by `notify()` through
+  `ledger_io` after the send command exits 0.
+- An alert counts as sent only if its row is there. A recomputation from
+  bars would list alerts that never reached the owner.
+- The ARRIVAL build makes each row's level prices recoverable exactly. That
+  is either a fixed form in the summary or a column added with
+  `migrate_header`; the build decides which, with a test.
+
+**Where "now" comes from:**
+- The status of each level is computed at BRIEFING time by the same §17
+  watch code the live LEVEL BREAK uses.
+- If that code says a level broke but no LEVEL BREAK row exists (the sender
+  was down, or the alert was muted), the line says both: "broke at <time>;
+  no LEVEL BREAK alert was sent". A silent gap never reads as "still
+  watched".
+
+**Before ARRIVAL is live (AGENTS rule 9):**
+- The section prints "ARRIVAL and LEVEL BREAK alerts are not live yet, so
+  there is no alert history to show."
+- It never prints "no alerts in the last 7 days" until the sender has been
+  shown able to write a row.
+
+**No interpretation.**
+- Just the history, in order.
+- Nothing says that repeated tests make a level stronger, weaker, likelier
+  to hold or likelier to break. The owner's directive cites R50: the
+  appearance of a pattern carries no information.
+- The §16 language test covers this section like any other.
+
+**Times.** Every time in this section is 12-hour Pacific with the "PT"
+label (display_timezone_spec addendum 2026-11-18).
+
+**OPEN ITEM FOR RULING: what "held" means.** Found while checking the
+$3,870.32 case. The run was read-only, through `reality_run`, and the
+project was unchanged by hash.
+
+- **§13.4 item 2 as built** (`ccd1_arrival_lastweek.history`): a visit
+  "held" if no hourly close in it was beyond the level.
+- **Under that rule, the Friday alert reads "2 earlier visits, 1 held".**
+  Thursday's visit is the one counted as not held: its hourly closes were
+  $3,870.03 and $3,870.13, which are $0.29 and $0.19 through (0.003 and
+  0.002 ATR).
+- **Ruling Q1 calls a close by cents "price sitting ON the level", not a
+  break.** That is the owner's own reading: "held both times".
+- **The rule as built also judges "beyond" against the current close's
+  side, not the side price approached from.** So the Fri 30 Oct visit was
+  counted as not held at Thursday's alert and as held at Friday's.
+- **Two questions need a ruling.** The read-only checks below were run
+  through `reality_run`, and the project was unchanged by hash each time.
+  Times are the hourly bar's start, in Pacific.
+
+  **Question 1: what is one touch?**
+  - **(a) A visit:** a run of consecutive hourly bars within the tolerance
+    (§13.4 as written). A single hour away splits it. $3,870.32 then has
+    four visits:
+    - Fri 30 Oct 11:00 AM–1:00 PM PT;
+    - Thu 12 Nov 6:00 AM–4:00 PM PT;
+    - Fri 13 Nov 5:00 AM PT;
+    - Fri 13 Nov 7:00 AM–Sun 15 Nov 3:00 PM PT.
+  - **(b) An armed approach:** one ARRIVAL by §13.3, where the level re-arms
+    only after a close at least 0.50 ATR away. Between Thursday's and
+    Friday's ARRIVALs the farthest close was 0.52 ATR away (Thu 12 Nov
+    7:00 PM PT), so Friday is a second touch. After Friday's ARRIVAL the
+    farthest close before the break was the break itself, 0.34 ATR, so the
+    level never re-armed. Thursday and Friday are two touches, matching the
+    owner's "tested twice".
+
+  **Question 2: when did a touch hold?**
+  - **Proposed:** a touch held if it ended without an hourly close at least
+    0.10 × the simple ATR beyond the level. "Beyond" is measured from the
+    side price approached from, which is the close before the touch began.
+    This is the LEVEL BREAK rule (§17, Q1), so "held" and "broke" can never
+    disagree about one close.
+  - **Under (a) with the proposed rule:** all four visits held; the largest
+    close beyond was 0.003 ATR, on Thursday. The break followed on Sun
+    15 Nov 10:00 PM PT.
+  - **Under (b) with the proposed rule:** Thursday's touch held. Friday's
+    touch never re-armed and ended in the Sun 15 Nov 10:00 PM PT break. That
+    is the same break the LEVEL BREAK alert reports, once per arrival.
+  - **The owner's "held both times, then broke on Sunday"** fits (a), and
+    fits (b) if "held" means "no break in the hours around the touch".
+    These data cannot choose between them; it is a definition.
+- **Until ruled:** the BRIEFING build leaves the counts out, and does not
+  print them under the rule as built.
+
 ## 15. Fire-rate calibration (A10)
 
 **This calibration is not a hypothesis test, and M41 does not apply.**
