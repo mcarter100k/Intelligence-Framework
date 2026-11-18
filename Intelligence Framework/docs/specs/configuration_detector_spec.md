@@ -123,6 +123,16 @@ where price was turned back against the trend.
 | Held | a touch with no hourly close above the range high. Every touch inside the range holds, by construction of §4 |
 | Required | **3 or more touches** |
 
+**Where touches are counted:**
+- Touches of either boundary count only from the range's **first confirmed
+  swing** (high or low) onward.
+- Bars of the run before that swing are the leg into the range, and are not
+  touches.
+- *Amendment 1, 2026-11-17, before any data run:* the first text counted
+  every bar of the run. The prototype's synthetic control showed this
+  scoring the bar that falls into the range from above as a "touch" of the
+  range high, which is not price being turned back.
+
 **Why 3:** two touches define a level; the third is the first test of a
 level that already exists. The owner's example describes four, which
 qualifies. Three was not chosen to fit it.
