@@ -8220,3 +8220,50 @@ data sha256: XAU_USD_M15_USED.csv ccc62418068d6f80fde399643b756638750fdd33c05a78
 **Suite (2026-11-17, branch):** 1304 passed, 10 skipped, 3 deselected, 16 xfailed.
 
 **Not run here:** any outcome, any R, any sealed-exam bar.
+
+## 2026-11-17 — CCD-1 ADDENDUM (A7–A11): HEADS-UP and ARRIVAL alerts specified; ARRIVAL fire rate calibrated on 2021–2026; HEADS-UP estimated (branch `feat/catch-configuration`; nothing built on the live path)
+
+**Spec:** `docs/specs/configuration_detector_spec.md` §13–§16. Commit 3f83bcc, before any count.
+- **Three alert types:** HEADS-UP (scheduled), ARRIVAL (price), BREAK (CCD-1).
+- **Five qualifying level types, fixed first:** intact daily swings; intact 4-hour swings; range boundaries; prior session; prior week.
+- **ATR:** the simple 14-day ATR (R50's definition). This settles the earlier stop-ATR open item for printed figures.
+- **Both sides:** both distances are printed, the other side and the level beyond, because either one alone implies a direction.
+- **Language:** banned direction words, and the verbatim window sentence with its source.
+- **The window's caveat:** the window is UTC-fixed in the study (4–8 AM PST, 5–9 AM PDT). Whether it follows New York's clock has not been measured.
+- **Process slip:** that commit was made after running only the prototype tests (a doc-only change), not the full suite. The full suite was run before this entry's commit (below).
+
+**Arrival logic tests:** `tests/test_ccd1_arrival.py`, 6 tests.
+- Covered: one approach fires once and re-arms after leaving; never armed, never fires; outside tolerance; level type not in the list; far on the other side; arrival from below.
+- Mutants, applied (1 line each, the source confirmed to parse) and reverted (`diff -q` clean), with bytecode off:
+  - R1, the re-arm distance set to 0: 2 failed.
+  - R2, the upper half of the tolerance check removed: **survived the first 4 tests**. The two other-side tests were added; then 2 failed.
+  - R3, the lower half removed: 2 failed.
+- The first R2 attempt raised a syntax error (the marker comment broke the line). That was not counted as a kill.
+
+**ARRIVAL calibration** (`studies/ccd1_arrival_calibration.py`, `studies/ccd1_arrival_calibration_result.md`). Run through `reality_run.py --no-env`, project unchanged. Span 2021-04-26 → 2026-09-09, 281 trading weeks, no FORWARD or sealed bar. Counts only. Fires per week:
+
+| Level list | Tolerance 0.05 | 0.10 | 0.15 | 0.20 |
+|---|---|---|---|---|
+| all five | 18.9 | 21.4 | 24.2 | 27.5 |
+| no 4-hour swings | 14.2 | 16.0 | 18.1 | 20.7 |
+| no prior session | 17.3 | 19.4 | 21.9 | 24.8 |
+| daily swings + prior week | **6.8** | **7.5** | **8.4** | **9.4** |
+
+- Per instrument, at "daily swings + prior week" and 0.10: gold 2.4, GBP/AUD 2.5, GBP/JPY 2.6 a week. The 90th-percentile week is 12.
+- **Tolerance barely moves the rate.** The 0.50-ATR re-arm rule dominates. The level list is the lever.
+- **Spot-check:** gold fires 100–102 (2022-02-24, a $42 hourly bar) matched the raw bars and the re-arm rule. Volatile days give bursts of fires.
+
+**HEADS-UP** (estimate; no 2021–2026 calendar history exists). From the live calendar's week of 2026-11-16, read-only:
+- **All three instruments:** 7 distinct High-impact times. 2 fall inside 04:00–08:00 PT and go into the morning alert. 5 separate + 5 morning = **10 a week**.
+- **Gold only:** **7 a week**.
+
+**The owner's 5–10 target (all three types together) is not reachable with every instrument.**
+- HEADS-UP alone is about 10 a week.
+- The smallest ARRIVAL list adds about 7.5.
+- BREAK adds about 0.2 for gold (47 detections over 281 weeks, 2021–2026).
+- **Gold only:** HEADS-UP 7 + ARRIVAL 2.4 (daily swings + prior week, 0.10) + BREAK about 0.2 ≈ **9.6 a week**, inside the band.
+- These are reported, not chosen. The final list, tolerance and instrument set are the owner's (§15).
+
+**Premise check (AGENTS rule 5):** the addendum says the 2026-11-16 mute was "for exactly this reason" (fire rate). The record (`validation_log.md` 2026-11-16) gives the owner's reason as "hold off on GBP/AUD and GBP/JPY, 'cut all alerts off', focus on gold". The noise reduction was the separate 2026-11-15 change. Reported; not material to the calibration.
+
+**Suite (2026-11-17, branch):** 1310 passed, 10 skipped, 3 deselected, 16 xfailed.
