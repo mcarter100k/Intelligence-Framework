@@ -8488,3 +8488,70 @@ That is a permanent alarm on artifacts that no longer have a live writer. The he
 - **Still pending today:** the 15:15 PT grader and the 18:00 PT brief.
 
 **Suite (2026-11-18, branch):** 1339 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-18 — BRIEFING ADDITIONS: 12-hour PT clock for everything the owner reads; alert history specified for the BRIEFING (branch `feat/owner-clock`; merge held for review of `display_time.py`, a protected module)
+
+**1. The clock.**
+- **Spec:** `docs/specs/display_timezone_spec.md`, addendum 2026-11-18.
+- **The helper:** `display_time.py` was already 12-hour with AM/PM; it now labels Pacific "PT" all year, and other zones keep zoneinfo's label by date. It gains a `day_date` style ("Thu 12 Nov 6:00 AM PT").
+- **Routed through the helper:**
+  - the heartbeat's stamp and its calendar line (the calendar line was naive UTC, unlabelled and 24-hour);
+  - the freshness STALE line;
+  - the latest-run view;
+  - the gold alert replay and prototype.
+- **Unchanged:** the day logs' `=====` headers (records, parsed in that form), filenames and data timestamps.
+- **Defect found and fixed:**
+  - **Found by:** the full suite.
+  - **The problem:** the digest's "is the view this run?" check compared the view's first line with the raw stamp. Once the view showed 12-hour time, every digest would have opened the day log instead of the view.
+  - **The fix:** the wrapper now asks the view's own renderer for the expected line.
+  - **The cost:** the match is now to the minute, not the second. Scheduled runs are hours apart.
+- **Tests:**
+  - `tests/test_owner_clock.py` has 31 tests:
+    - the pattern is tested both ways;
+    - the helper is swept over every hour of a winter and a summer day, in every style;
+    - a clock sweep (24 hours, 24 distinct renders, none 24-hour) covers the news-gate reason, the setup CLOCK line, the US-events line, the freshness line, the view and the replay renderer;
+    - the heartbeat is run end to end through the real wrapper.
+  - The display-claims sweep gains the same check. The sentences it renders show no time at all (0 of 80,442 texts in the default sample), so it guards the future only. That premise of the directive did not hold as stated, and the clock sweep is where the check can actually fail.
+  - Old pins in four test files (`test_display_time`, `test_daily_digest`, `test_us_events_context`, `test_wrapper_behavior`) were changed old → new, each with a dated comment.
+- **Mutants:** 10 of 10 killed, and each revert was confirmed clean, with caches cleared:
+  - CM1, the helper on a 24-hour clock: 21 failed;
+  - CM2, the label taken from zoneinfo: 19;
+  - CM3, the heartbeat stamp not routed: 1;
+  - CM4, the calendar line raw: 1;
+  - CM5, the freshness time raw: 1;
+  - CM6, the view stamp raw: 6;
+  - CM7, the view repeating the log header: 2;
+  - CM8, the replay renderer on 24-hour time: 1;
+  - CM9, the digest check on the raw stamp: 2;
+  - CM10, the pattern blind without seconds: 7.
+- **REALITY GATE (2026-11-18, about 9:22 AM PT):** each run went through `scripts/reality_run.py`, and the project was unchanged by hash every time.
+  - **The heartbeat:** the branch's wrapper, under `/bin/bash`, on a copy of the live project with the real launchd state and `ALERTS_MUTED` present.
+    - The header read `===== heartbeat Wed 18 Nov 2026 9:22 AM PT =====`.
+    - The calendar line read `newest Wed 18 Nov 2026 4:30 PM PT`.
+    - The health line was in PT.
+    - The shadow line matched the frozen counts.
+    - A scan found 0 times on a 24-hour clock and 4 in 12-hour PT.
+    - A first attempt left `venv/` out of the copy, so its shadow line failed on a missing module. It was re-run with the real venv, and that first attempt is not counted.
+  - **The decision brief:** both headers read `Wed 18 Nov 2026 9:22 AM PT`. It had 107 lines, 0 times on a 24-hour clock and no error markers.
+  - **The gold replay:** 0 times on a 24-hour clock and 54 in 12-hour PT. It showed the same 5 ARRIVAL and 3 LEVEL BREAK alerts, now read as, for example, "sent Sun 15 Nov 10:00 PM PT".
+- **Not converted:** older report-only studies with 24-hour hour-of-day tables (listed in the addendum). Their results are records, and each is converted before it is run again for the owner.
+
+**2. Alert history in the BRIEFING:** specified in `configuration_detector_spec.md` §14.1, not yet built (the BRIEFING is next by M6).
+- **Window:** the trailing 7 days of ARRIVAL and LEVEL BREAK alerts actually sent, read from `notification_log.csv`.
+- **Status of each level:**
+  - computed by the §17 watch code, as one of broke, still watched, or no longer watched;
+  - a break with no alert sent is said as such.
+- **Before ARRIVAL is live (AGENTS rule 9):** the section says the alerts are not live yet.
+- **No interpretation.**
+- **The $3,870.32 case was checked against live bars** (read-only, through `reality_run`):
+  - It produced ARRIVALs at Thu 12 Nov 7:00 AM PT and Fri 13 Nov 6:00 AM PT, and broke at Sun 15 Nov 10:00 PM PT.
+  - Between the ARRIVALs, the farthest close was 0.52 ATR away, so the level re-armed.
+  - After Friday's ARRIVAL it never re-armed before the break.
+- **OPEN FOR RULING: what a touch and a hold are.**
+  - The replay's history count marks Thursday's visit "not held", because its closes were $0.29 and $0.19 through. Under ruling Q1 that is price on the level.
+  - The count also judges "through" by the current close's side, so the same 30 Oct visit was counted as not held on Thursday and held on Friday.
+  - Two definitions of a touch (a visit, or an armed approach) and one proposed hold rule (the Q1 margin, measured from the approach side) are set out with these numbers in §14.1.
+  - The BRIEFING leaves the counts out until this is ruled.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+- **The first scheduled heartbeat after merge** (Sunday 12:30 PM PT) shows its stamp and calendar line in 12-hour PT.
