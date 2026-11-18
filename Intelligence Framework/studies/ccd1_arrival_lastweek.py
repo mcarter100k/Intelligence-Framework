@@ -202,7 +202,7 @@ def main():
         print("  This configuration being present is not evidence that it pays. Whether it does is an open question (Track B).")
         print("  No direction is recommended.")
     # LEVEL BREAK (spec §17, ruling P1): a close through a price that produced an ARRIVAL, while it still qualifies
-    brk = A.level_breaks(s, sets, det, KINDS)
+    brk = A.level_breaks(s, sets, det, KINDS, margin=A.BREAK_MARGIN)
     shown_b = [(t, b) for t, b in brk if h1["t"][t] + timedelta(hours=1) >= cut]
     print("\n" + "=" * 78)
     print(f"LEVEL BREAK alerts in the window: {len(shown_b)}")

@@ -8455,3 +8455,36 @@ That is a permanent alarm on artifacts that no longer have a live writer. The he
   - The protected modules (levels_context, intraday_context, oanda_feed) were mutated only in this worktree and were confirmed reverted (`git status` clean for them). They are not changed by this branch.
 
 **Suite (2026-11-17, branch):** 1335 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-18 — RULINGS Q1–Q2: LEVEL BREAK needs a close at least 0.10 ATR beyond; volume accepted; M1 stop partly confirmed (branch `feat/break-margin`)
+
+**Q1 — the owner overruled the recommendation on accuracy, not volume.** A close $0.29–$0.98 beyond a level (0.003–0.010 ATR) is price on the level, not through it.
+- **Spec §17 amended:** a LEVEL BREAK needs a close at least 0.10 × the simple 14-day ATR beyond. A smaller close leaves the level watched, and in the arrival's own hour the bar is reported as an ARRIVAL.
+- **Code:** `BREAK_MARGIN = 0.10` in `studies/ccd1_arrival_calibration.py`.
+- **Defect caught by the new test before anything was kept:** the comparison was strict (beyond by *more than* the margin). The ruling is "at least". It was fixed, and the exact-margin test now passes.
+- **Tests:** 4 new (cents is not a break and the level stays watched; exactly the margin breaks; a same-hour close by cents stays an ARRIVAL; the constant is the ruled value). 19 pass in the arrival tests.
+- **Mutants:**
+  - QM1, the margin ignored: 2 failed;
+  - QM2, strict instead of at-least: 1 failed;
+  - QM3, margin 0.05: 1 failed;
+  - QM4', the absolute distance (moving away counts): 7 failed.
+  - A first QM4 was an equivalent mutant (it left the margin test in place) and was not counted.
+  - Clean after clearing caches.
+- **2021–2026 re-count after the at-least fix:** byte-identical to the P2 output (no close landed exactly on the margin). The ruled figures: **LEVEL BREAK 2.59 a week; total 10.3 a week with the 3-release estimate; busy week 15; 35% of weeks over 11.**
+- **Seven-day replay under the margin** (`studies/ccd1_arrival_lastweek_margin_result.md`; live, read-only, 2026-11-18 07:52 PT):
+  - the three by-cents closes are now ARRIVALs (Thu 06:00, Thu 07:00, and the Sun 18:00 hour's $3,870.32);
+  - two of those levels broke properly later: $3,891.26 at Thu 07:00 PT by $21.23 (0.24 ATR), and $3,870.32 at Sun 22:00 PT by $33.11 (0.34 ATR);
+  - **the 2026-11-17 break still fires at Tue 17:00 PT ($17.48, 0.18 ATR);**
+  - the week totals 5 ARRIVAL + 3 LEVEL BREAK, the same 8 alerts as before.
+
+**Q2 — volume accepted** (about 10.3 a week, busy week about 15). The ARRIVAL list is not shrunk now.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+- **The four-week review of live alert volume** against these estimates. It starts when ARRIVAL and LEVEL BREAK go live. If the volume is too much, the ARRIVAL list is the lever (Q2).
+
+### Gate 3 — M1 stop, partly cleared 2026-11-18 07:51 PT
+- **Evidence:** no `logs/brief_2026-11-18.log` exists after the 02:30 and 07:30 PT slots, and `launchctl list` shows only `calendar` and `heartbeat`.
+- **Control:** `logs/brief_2026-11-17.log` has its 07:30 and 18:00 PT run headers from before the stop, so the log is written whenever the job runs.
+- **Still pending today:** the 15:15 PT grader and the 18:00 PT brief.
+
+**Suite (2026-11-18, branch):** 1339 passed, 10 skipped, 3 deselected, 16 xfailed.

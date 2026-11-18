@@ -110,3 +110,32 @@ def test_a_level_type_outside_the_firing_list_does_not_keep_the_watch():
     sets = [L100] * 4 + [[("H4", "H4x", 100.0)]] * 2      # only a 4-hour swing remains
     arr, brk = _lb([110, 108, 100.5, 101.0, 99.0, 98.0], sets)
     assert brk == []
+
+
+# ── LEVEL BREAK margin (owner ruling Q1: 0.10 x ATR) ──────────────────────────
+def _lbm(closes, sets, margin=A.BREAK_MARGIN):
+    s = series(closes)
+    ss = [(10.0, lv) for lv in sets]
+    arr = A.fires_detail(s, ss, 0.10, {"PDAY"})
+    return [t for t, _ in arr], [t for t, _ in A.level_breaks(s, ss, arr, {"PDAY"}, margin=margin)]
+
+
+def test_a_close_by_cents_is_not_a_break_and_the_level_stays_watched():
+    # ATR 10: the margin is 1.00. 99.7 is 0.3 beyond (sitting on the level); 98.8 is 1.2 beyond
+    arr, brk = _lbm([110, 108, 100.5, 99.7, 100.2, 98.8], [L100] * 6)
+    assert arr == [2] and brk == [5]
+
+
+def test_exactly_the_margin_breaks():
+    arr, brk = _lbm([110, 108, 100.5, 99.0], [L100] * 4)
+    assert brk == [3]
+
+
+def test_a_same_hour_close_by_cents_stays_an_arrival():
+    # arrives and closes 0.4 beyond in the same hour: an ARRIVAL, not a LEVEL BREAK
+    arr, brk = _lbm([110, 108, 99.6], [L100] * 3)
+    assert arr == [2] and brk == []
+
+
+def test_the_margin_constant_is_the_ruled_value():
+    assert A.BREAK_MARGIN == 0.10

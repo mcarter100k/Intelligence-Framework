@@ -648,10 +648,17 @@ simpler.
 - (b) its LEVEL BREAK has fired. One break per arrival. A later ARRIVAL at
   the same price watches it afresh.
 
-**The event:**
-- An hourly bar closes beyond a watched price, on the opposite side from
-  where price was before the arrival. Any distance counts, and the distance
-  is printed.
+**The event (amended by owner ruling Q1, 2026-11-18):**
+- An hourly bar closes **at least 0.10 × the simple 14-day ATR** beyond a
+  watched price, on the opposite side from where price was before the
+  arrival. The distance is printed.
+- **A close beyond by less is not a break.** The level stays watched.
+  - That is price sitting on the level, not through it, and calling it a
+    break would mislabel the state for an owner learning to read structure
+    (Q1).
+  - In the arrival's own hour, such a bar is reported as the ARRIVAL it is.
+- Constant: `BREAK_MARGIN = 0.10` in `studies/ccd1_arrival_calibration.py`.
+  The live module uses the same value.
 - The check starts with the arrival bar itself. If the bar that arrived also
   closed beyond, one alert is sent, the LEVEL BREAK, stating that price
   arrived and closed through in the same hour.
@@ -720,7 +727,16 @@ weeks; the chosen ARRIVAL list at 0.10; counts only.
 | ≥ 2 hours after the arrival | 2.97 | 11.2 | 16 | 48% |
 | ARRIVAL list "daily swings + prior week", break as written | 1.68 | 6.7 | 10 | 6% |
 
-**Recommendation: ship LEVEL BREAK as written.**
+**Ruled (Q1, Q2, 2026-11-18):** ship LEVEL BREAK with the 0.10 ATR margin,
+overruling the recommendation below on accuracy, not volume.
+- **Accepted volume:** about 10.3 a week, with a busy week of about 15
+  (figures re-confirmed after the at-least fix; see the validation_log
+  2026-11-18 entry).
+- **The ARRIVAL list is not to be shrunk now.**
+- **Review at four weeks of live alerts.** If the volume is too much then,
+  the ARRIVAL list is the lever.
+
+**Recommendation (as made, then overruled by Q1): ship LEVEL BREAK as written.**
 1. **Tightening the break barely moves the total.** A break that is filtered
    out in its arrival's hour is sent as an ARRIVAL instead, so the alert is
    not saved. A wait after the arrival makes it worse, because it splits

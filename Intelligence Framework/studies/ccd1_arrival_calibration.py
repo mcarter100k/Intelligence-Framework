@@ -25,6 +25,7 @@ NY = ZoneInfo("America/New_York")
 START, END = "2021-04-26T21:00", "2026-09-09T21:00"      # USED sessions 2021-04-27 .. 2026-09-09
 D1_WIN, H4_WIN = 220, 120
 REARM = 0.50                                               # spec §13.3
+BREAK_MARGIN = 0.10                                        # spec §17, owner ruling Q1: a LEVEL BREAK closes >= 0.10 x simple ATR beyond
 TOLS = (0.05, 0.10, 0.15, 0.20)
 LISTS = {"all five": {"D1", "H4", "RANGE", "PDAY", "PWEEK"},
          "no 4-hour swings": {"D1", "RANGE", "PDAY", "PWEEK"},
@@ -199,9 +200,11 @@ def level_breaks(s, sets, arrivals, kinds, margin=0.0, min_gap=0):
     has that price (to the cent) in the current hour's set (P4); it breaks on
     the first hourly close beyond it on the other side (the arrival bar
     included), once. The approach cooldown plays no part (P1).
-    `margin` (daily ATR beyond the level) and `min_gap` (hours after the
-    arrival) exist only to report options to the owner (ruling P2); the
-    spec's rule is margin 0, min_gap 0."""
+    `margin` is the distance beyond the level, in simple daily ATR, that a
+    close needs. The spec's rule is BREAK_MARGIN (0.10, ruling Q1); a close
+    beyond by less leaves the level watched. `min_gap` (hours after the
+    arrival) exists only for the P2 options table. The defaults (0, 0)
+    reproduce the P2 "as written" figures."""
     C = s["H1"]["C"]
     by_t = dict(arrivals)
     watched, out = {}, []
@@ -220,8 +223,8 @@ def level_breaks(s, sets, arrivals, kinds, margin=0.0, min_gap=0):
             if key not in present:
                 del watched[key]                          # no qualification holds
                 continue
-            if t - t0 >= min_gap and ((side == 1 and C[t] < p - margin * atr) or
-                                      (side == -1 and C[t] > p + margin * atr)):
+            beyond = (p - C[t]) if side == 1 else (C[t] - p)     # distance closed through, in price
+            if t - t0 >= min_gap and beyond > 0 and beyond >= margin * atr:
                 broke.append((p, side, t0))
                 del watched[key]
         if broke:
