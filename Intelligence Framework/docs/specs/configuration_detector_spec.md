@@ -1,6 +1,7 @@
 # Spec: the configuration detector (proposed id CCD-1), Track A of "catch the configuration"
 
-**Status: PROPOSED, for the owner's signature.** Nothing is built.
+**Status: PROPOSED, for the owner's signature.** Nothing is built. Three alert
+types since the 2026-11-17 addendum (§13–§16): HEADS-UP, ARRIVAL, BREAK.
 - This file fixes every threshold before the detector is run on any bar.
 - After signature the thresholds are frozen. A change means a new id
   (CCD-2) and is never edited in place.
@@ -358,3 +359,184 @@ instrument, and next level present or absent.
    - Changing a threshold so that it does is CCD-2, and is a definition
      tuned to one chart (§9).
 
+
+---
+
+# Addendum (owner, 2026-11-17): three alert types, A7–A11
+
+**What this adds.** The owner wants to be told when price arrives somewhere
+worth looking, and when a session or a release is coming. Track A therefore
+has three alert types:
+- **HEADS-UP** (§14, A8): fires on a schedule.
+- **ARRIVAL** (§13, A7): fires on price.
+- **BREAK** (§1–§10, CCD-1): fires on the configuration.
+
+**Build order (A11):**
+1. HEADS-UP;
+2. ARRIVAL;
+3. BREAK.
+
+**Status:** this addendum is PROPOSED with the rest of the file. It was
+written before any arrival or heads-up count was made.
+
+## 13. ARRIVAL alert (A7)
+
+### 13.1 Qualifying levels, fixed before any count
+
+| # | Level type | Definition |
+|---|---|---|
+| 1 | Daily swing | a confirmed daily swing (§2 rule) among the last 220 closed daily bars, **still intact**: no daily close beyond it since it formed |
+| 2 | 4-hour swing | a confirmed 4-hour swing among the last 120 closed 4-hour bars, still intact (no 4-hour close beyond it since it formed) |
+| 3 | Range boundary | the current hourly range's high and low, by §4, when a range exists |
+| 4 | Prior session | the high and low of the last completed daily bar |
+| 5 | Prior week | the high and low of the last completed trading week (Monday–Friday by trading date, the New York 17:00 day used by `_market_status`) |
+
+**Why "intact":** a level that price has already closed through no longer
+bounds price.
+
+### 13.2 ATR
+
+**The simple 14-day ATR:** the mean of the last 14 completed daily true
+ranges. This is R50's own definition (`first_pullback_study.bar_context`),
+so the 0.30 / 0.60 / 0.84 multipliers apply to the ATR they were measured
+in.
+- It is used for the arrival tolerance and for every figure in an ARRIVAL
+  or HEADS-UP alert.
+- This also settles §12 item 4 for the BREAK alert's printed stops.
+- BREAK detection itself keeps the Wilder ATR it was run with.
+
+### 13.3 Arrival, cooldown, grouping
+
+| Term | Definition |
+|---|---|
+| Tolerance | **0.10 × simple ATR** (starting value; §15 calibrates it) |
+| Arrival | a closed hourly bar whose range comes within the tolerance of an armed level (its low ≤ level + tolerance and its high ≥ level − tolerance) |
+| Armed | a level is armed once an hourly close has been at least 0.50 × ATR from it, counted from when the level formed or from its last arrival. This is the per-level cooldown: one approach fires once, and the level re-arms only after price has clearly left it |
+| Grouping | at most one ARRIVAL alert per instrument per hourly bar. Every level arrived at in that bar is listed in the one alert |
+
+### 13.4 What every ARRIVAL alert states
+
+1. **The level.**
+   - Gold to the cent; pairs to 5 decimals (GBP/AUD) and 3 decimals
+     (GBP/JPY).
+   - Its type, and the bar or session that set it, with the time in
+     Pacific.
+2. **Its history.**
+   - Touches: separate visits within the tolerance since it formed.
+   - How many held: no close beyond.
+   - When it was last tested.
+3. **Both sides, never one.**
+   - The distance to the nearest qualifying level on the other side of
+     price.
+   - The distance to the next qualifying level beyond this one.
+   - Both in dollars (or pips) and in ATR.
+   - *Why both:* printing only the far side implies the level will hold;
+     printing only the level beyond implies it will break. Either one alone
+     is a direction (A9).
+4. **The minimum stop, at the simple ATR:**
+   - 0.30 × ATR for the same session;
+   - 0.60 and 0.84 × ATR for a 10-session hold (R50);
+   - with the §7.6 "floors, not recommendations" sentence.
+5. **The base rate, only where one was measured:**
+   - **Gold daily swing (R45, 2021–2026):** a wick beyond failed 66% of the
+     time; a daily close beyond came back inside 45% of the time.
+   - **GBP/AUD daily swing (R45 benchmark, 2021–2026):** wick 69%, close
+     46%.
+   - **Every other type:** *"No break base rate has been measured for this
+     kind of level."*
+6. **The next scheduled release.**
+   - Taken from `calendar.csv` (High impact, any of the instrument's
+     currencies; US for gold).
+   - Its time in Pacific and the time until it.
+   - If the calendar is stale or missing, it says so (rule 9).
+7. **The clock against gold's 4–8 AM PT window.** Before, inside (with the
+   minutes left), or after. Then the §16 window sentence.
+8. **Volatility.**
+   - The simple ATR as a share of price, and its percentile against the
+     trailing 250 days.
+   - The tercile by R50's cut points, 1.206% and 1.480%.
+   - Gold only. The cut points were measured on gold, and the pairs print
+     "not measured for this pair".
+9. **The two fixed sentences of §7.10.**
+
+## 14. HEADS-UP alert (A8)
+
+**When it fires:**
+1. **Morning:** 03:45 PT on each trading day, before gold's 4–8 AM PT
+   window. One alert covering every instrument.
+2. **Release:** 30 minutes before each High-impact release on the live
+   calendar that concerns a covered instrument. Same-time releases share one
+   alert.
+3. **No separate release alert inside the morning window:** a release
+   timed inside 04:00–08:00 PT is announced in the morning alert instead.
+
+**What it states:**
+- For each instrument: the price and the time of that price, which flags a
+  stale price (Part 0).
+- The nearest qualifying level above and below, by the §13.1 list, in
+  dollars and ATR.
+- The releases scheduled before the next morning alert, in Pacific.
+- Volatility as in §13.4 item 8.
+- The §16 window sentence.
+- The two fixed sentences.
+
+**When it stays silent:** whenever the market is closed (§10 gate 2), and
+whenever the mute switch is on.
+
+## 15. Fire-rate calibration (A10)
+
+**This calibration is not a hypothesis test, and M41 does not apply.**
+- These alerts make no claim about outcomes, so there is no edge to
+  overfit.
+- Tuning the tolerance and the level list to a fire rate is legitimate.
+- Nothing after an arrival bar is read, except the bars needed to re-arm a
+  level.
+- Nobody may screen this tuning as if it were a candidate. Nobody may cite
+  a fire count as evidence that a level matters.
+
+**Method:**
+- Count ARRIVAL fires per week, per instrument and in total, on 2021-04-27
+  → 2026-09-09 (the USED span; no FORWARD bar, no sealed bar).
+- Count across a grid of tolerance (0.05, 0.10, 0.15, 0.20 ATR) and level
+  list (all five types; without 4-hour swings; without prior session;
+  daily swings and prior week only).
+- **HEADS-UP fires** cannot be counted on 2021–2026: no calendar history
+  exists for that span. The archive holds US releases for 2005–2013 only.
+  They are estimated from the live calendar's observed weeks and labelled
+  as an estimate.
+
+**Target:** 5 to 10 alerts a week across all covered instruments and all
+three types (owner).
+
+**Owner's choice:** the final tolerance and list are the owner's choice from
+the reported grid, recorded here before signature.
+
+## 16. Language (A9), enforced by test
+
+**An alert may say that price has arrived at a level.** It may never call a
+level any of these:
+- a buy area or a sell area;
+- support or resistance "to trade";
+- a zone of interest, an opportunity or a setup.
+
+It may never use any other wording that implies direction. Added to the §8
+banned list:
+- buy area, sell area, zone of interest, opportunity, setup;
+- look for, bounce, reject, rejection, fade.
+
+**The window sentence, printed verbatim in every ARRIVAL and HEADS-UP
+alert:**
+- *"Gold's 4–8 AM PT hours usually carry most of the day's range. That
+  says movement is likely available, not which way it goes."*
+- *"A trade on this window was tested and REFUTED (R49). Volatility
+  clusters; direction does not."*
+
+**Source for the first sentence:** the gold session study, 2021–2026. In
+the 4–8 AM PST block, the median share of the day's range was 67%, against
+59% for a volatility-shaped random walk, +10.6 SE (timing claims sweep,
+2026-11-16).
+- **Caveat:** the study's block is fixed in UTC (12:00–16:00).
+- That matches 4–8 AM in Pacific standard time. In daylight time the same
+  UTC hours are 5–9 AM PDT.
+- Whether the busy block follows the clock in New York (and so stays at 4–8
+  AM Pacific all year) has not been measured.
