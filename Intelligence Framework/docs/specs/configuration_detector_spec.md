@@ -341,3 +341,20 @@ instrument, and next level present or absent.
    - the 0.05-ATR buffer.
 
    Change any of them now; after signature they are frozen.
+4. **Which ATR prints the stops (found after the data runs, not applied).**
+   - R50's stop multipliers (0.30, 0.60, 0.84) were measured against a simple
+     average of the last 14 completed daily true ranges
+     (`first_pullback_study.bar_context`).
+   - §1 takes ATR from `compute_atr_series`, which is Wilder's smoothing.
+     Tonight the two differ: about $88.09 Wilder against $96.11 simple.
+   - Proposed: keep Wilder for detection (§4–§5, as already run), and use
+     R50's simple 14-session ATR for the §7.6 stop figures, so that each
+     multiplier is applied to the ATR it was measured in.
+   - This changes printed stops only, not what is detected or counted.
+5. **The worked example did not detect tonight** (validation_log
+   2026-11-17, CCD-1 entry).
+   - Signing as written means the detector would not have caught tonight's
+     chart.
+   - Changing a threshold so that it does is CCD-2, and is a definition
+     tuned to one chart (§9).
+

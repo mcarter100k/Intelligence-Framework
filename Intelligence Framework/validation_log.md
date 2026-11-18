@@ -8157,3 +8157,66 @@ data sha256: XAU_USD_M15_USED.csv ccc62418068d6f80fde399643b756638750fdd33c05a78
 - **Pullbacks:** continued once reached, 4-hour swing legs: 38.2% 56.2% [50.3, 62.0], 50% 43.1% [36.6, 49.9], 61.8% 31.6% [25.2, 38.9]. Speed and 15-minute structure separate nothing in any cell.
 
 **Suite (2026-11-17, branch):** 1298 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-17 — CATCH THE CONFIGURATION: CCD-1 detector spec PROPOSED (Track A), worked example, B1 counts; B2 not started (branch `feat/catch-configuration`; nothing built on the live path)
+
+**Owner brief (2026-11-17):** Track A detects and alerts on a trend-aligned break of a tested range, with no claims. Track B screens whether that configuration is worth trading.
+
+**Track A, spec first (AGENTS 1b; protected-path work):**
+- `docs/specs/configuration_detector_spec.md` (CCD-1). Committed bcc444a, before any data run.
+- Amendment 1 (ada22bd), also before any data run: touches count from the range's first swing. The prototype's synthetic control showed the first text scoring the leg into the range as a touch.
+- **Status: PROPOSED, for the owner's signature.** No live module, wrapper, launchd job, ledger or notification has been built.
+- **Disclosure:** tonight's gold hourly bars were printed in this session before the thresholds were written. No study (2006–2013) or 2021–2026 bar was.
+- Two open items were added after the data runs, and neither was applied:
+  - the stop figures should use R50's simple 14-session ATR, not Wilder's (it changes printed stops only);
+  - the worked example's result (below).
+
+**Prototype:** `studies/ccd1_prototype.py` (219ca97), report-only, with the spec's thresholds copied unchanged.
+- `tests/test_ccd1_prototype.py`: positive control detected; four near misses fail on their own condition (no close beyond, two touches, a 2.0-ATR range, an opposing 4-hour trend); stop arithmetic checked.
+- Mutants, each confirmed applied (1 line) and reverted (`grep -c MUTANT` 0), with bytecode off: touches ≥ 2; zone 0.20 ATR; 4-hour check removed; larger-of becomes smaller-of. **4 of 4 killed;** clean after clearing caches, 6 passed.
+- **Found while building, not fixed:** `regime_detection._detect_structure` counts ties. Two adjacent bars with an equal high make two equal swings, which read as neither higher nor lower (TRANSITIONAL). The synthetic bars had to be untied. On real prices exact ties are rarer; how often it happens has not been measured. The module is protected and untouched.
+
+**Worked example (spec §9; run once; no threshold changed):** live gold bars from Mon 15:00 PT to Tue 20:00 PT. **The frozen definition did not detect tonight's breakdown.**
+- At the 16:00 PT bar (close $3,814.98):
+  - the range found was $3,832.46–$3,923.09: 1.03 ATR, 79 hourly bars, from Thu 11-12 05:00 PT;
+  - the close below it held;
+  - the 4-hour trend was down: highs $3,923.09 → $3,888.95, lows $3,852.58 → $3,832.46.
+- **Failed:**
+  1. **The hourly trend was mixed:** a higher high ($3,886.89 → $3,891.07) with a lower low ($3,843.68 → $3,836.96).
+  2. **The tested boundary ($3,923.09, the range's highest swing) was touched 1 time, not 3.** The owner's $3,872–$3,891 zone lies inside this range, not at its edge.
+- The broken level ($3,832.46, from the Sun 11-15 22:00 PT swing) was touched 3 times: Sun 22:00, Mon 10:00 and Tue 05:00 PT.
+- Daily ATR (Wilder) was $88.09.
+- The owner's "downtrend from $4,150": the latest daily swing high before the leg was $4,148.71, in the session that opened Sun 2026-11-08. The larger decline runs from $4,697.10 (session opened 2026-08-24). OBSERVED.
+
+**B1 counts (no outcome).** Gold archives with pinned hashes, through `reality_run.py --no-env`, project unchanged. Episodes are non-overlapping 60-bar 4-hour horizons on the real index (M34).
+
+| Era | Detections (up / down) | Episodes: pooled | Episodes: up / down | MDE at SD 1.25 | MDE at SD 1.896 |
+|---|---|---|---|---|---|
+| STUDY 2006-03-20 → 2013-12-30 | 44 (32 / 12) | **31** | 24 / 10 | +0.558R | +0.847R |
+| USED 2021-04-26 → 2026-09-09 | 47 (23 / 24) | **30** | 16 / 14 | +0.567R | +0.861R |
+
+- The owner's estimate was 60 to 150. The real STUDY number is 31: above the N < 20 INSUFFICIENT floor, and far below what any believable edge needs.
+- Spot-check: the third USED detection (2022-03-04 14:00 UTC, upside) matched the raw rows on every condition. Closes in the run were 1,924.645–1,947.325 inside $1,922.11–$1,951.02; the close was 1,952.025; all 5 touches were inside the zone.
+
+**M41 on gold alone: FUTILE** (INFERRED, from arithmetic).
+- **R44** is the closest pre-registered estimate (trend-aligned level breaks with fixed R targets, GBP/AUD). Every 90% upper bound is below zero (best −0.096R), so no sample size can clear it.
+- **R43 cell C** has upper bounds −0.020R, +0.053R (5.1 pips) and +0.100R (3.0 pips). Each is below the +0.558R detectable at N = 31.
+- Gold alone cannot test this configuration.
+
+**Track B, B2 (ρ̄): not started. Blocked on rulings and on a contradiction with committed work (AGENTS rule 5):**
+1. **The universe.** The owner's rulings of 2026-11-17 (peg-to-anchor amendment accepted, EUR/CHF dropped, SGD capped at two pairs) are new. The record still showed them as proposed (2026-11-06). It needs confirming whether amendment (b), dropping same-anchor pairs, is included.
+2. **The partition ruling** (`breadth_universe_request.md` §4, decision 3) is still open. The gate's own sequence (`breadth_gate_spec.md` §5) forbids fetching any new pair before it.
+3. **The three §4 definitions** (mean of |ρ|, the larger of STUDY and USED, the weekly construction) are still PROPOSED.
+4. **Contradiction:** the brief says "> 0.20 NO-GO … say so plainly and stop". The ruled C3 (`breadth_gate_spec.md` §3) says a proxy ρ̄ above 0.11 "does not settle it … a figure such as 0.25 is not a refutation". Not resolved; for the owner.
+5. **Gold and non-FX instruments.**
+   - Gold is not tradeable on this account (instruments endpoint 404 `INSTRUMENT_NOT_TRADEABLE`, 2026-11-17), and there is no venue (gold plan §0a).
+   - All 68 instruments on the account are currencies (broker probe, 2026-11-17).
+   - So "any non-FX instrument the owner could actually reach" is none on this account.
+
+**B3 arithmetic, for the record** (INFERRED; it assumes the other instruments match gold's frequency):
+- +0.15R at SD 1.25 needs about 430 independent episodes.
+- 10 instruments × 31 STUDY episodes is 310 before any correlation discount.
+
+**Suite (2026-11-17, branch):** 1304 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+**Not run here:** any outcome, any R, any sealed-exam bar.
