@@ -8397,3 +8397,61 @@ That is a permanent alarm on artifacts that no longer have a live writer. The he
 - **Gate 3 — PENDING LIVE CONFIRMATION:** the Sunday 2026-11-22 12:30 PT heartbeat reports the stopped jobs as "stopped" in `logs/heartbeat_2026-11-22.log`, with no NO LOG, SHORTFALL or STALE line for them. It stays muted (HEARTBEAT is not one of the four exempt alert types).
 
 **Suite (2026-11-17, branch):** 1321 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+## 2026-11-17 — RULINGS P1–P4: LEVEL BREAK alert specified and counted; seven-day replay catches the 2026-11-17 break; completed-period standing check (branch `feat/level-break`)
+
+**P1 / P4 — spec first.** CCD-1 spec §17 was committed (c59b794) before any LEVEL BREAK count.
+- **The rule:** a close through a price that produced an ARRIVAL, while any firing-type qualification at that price holds, to the cent. It fires once per arrival, and an arrive-and-close-through in the same hour is one alert.
+- **The cooldown** governs approaches only, never a break.
+- **A level's qualification can change during the day** (P4).
+- **Process slip:** c59b794 was a spec-only commit made without a full-suite run. The suite was run before this entry's commit.
+
+**Logic** (`studies/ccd1_arrival_calibration.py`: `fires_detail`, `level_breaks`). `fires` now wraps `fires_detail`, and the ARRIVAL rate is unchanged: 5.0 a week, as the M3 run printed.
+- **Tests:** 8 new in `tests/test_ccd1_arrival.py`. Covered: a break inside the approach cooldown; a qualification lapse ends the watch; a change of qualification at the same price keeps it; a same-hour arrive-and-close-through; a level breaks once; moving away is not a break; a break from below; a 4-hour swing alone does not keep the watch.
+- **Mutants, 6 of 6 killed:**
+  - LB1, the lapse ignored: 2 failed;
+  - LB2, the watch keyed on the level id: 1;
+  - LB3, the break limited by the cooldown: 3;
+  - LB4, any type keeps the watch: 1;
+  - LB5, not removed after the break: 1;
+  - LB6, the side taken from the arrival bar's close: 1.
+  - Clean after clearing caches.
+
+**P2 — LEVEL BREAK counted on 2021–2026 gold** (`studies/ccd1_level_break_budget.py`, `_result.md`). Through `reality_run.py --no-env`, project unchanged.
+- **LEVEL BREAK: 3.31 a week.** 67% of watched prices were closed through while qualifying. The median gap from arrival to break is 1 hour.
+- **The total** (ARRIVAL sent 4.13, LEVEL BREAK 3.31, BREAK 0.17, and 3 release warnings as an estimate) is **10.6 a week**. The busy week is **15**, and 39% of weeks exceed 11, against 8.2 / 11 / 6% before.
+- **Options measured, none applied:**
+  - a break margin of 0.05 / 0.10 / 0.20 ATR gives totals of 10.5 / 10.3 / 10.1, with busy weeks of 15 / 15 / 14;
+  - waiting 2 or more hours after the arrival gives 11.2 / 16;
+  - the "daily swings + prior week" ARRIVAL list gives 6.7 / 10.
+- **Recommendation (spec §17): ship as written.**
+  - Tightening the break does not save alerts: a filtered same-hour break is sent as an ARRIVAL instead.
+  - The only list that holds the busy week at 10 drops the range-edge and prior-session levels, and so drops the 2026-11-17 event entirely.
+  - Re-check after 4 weeks of live alerts.
+
+**Replay of the last seven days with LEVEL BREAK** (`studies/ccd1_arrival_lastweek_level_break_result.md`; live bars, read-only; run 23:28 PT). 5 LEVEL BREAKs, including **Tue 11-17 17:00 PT: $3,832.46 closed through by $17.48 (0.18 ATR), qualifying as a range edge after its prior-session qualification lapsed at 15:00 PT.**
+- Three of the five breaks were by cents: $0.98, $0.29, $0.88.
+- A render defect was fixed before the result was kept: same-hour breaks first read "told about at 06:00 has given way" at 06:00 itself.
+
+**P3 — the standing check for completed-period fields** (`tests/test_completed_periods.py`; methodology **M42**; incident **I33**).
+- **A REGISTRY** lists each such field in the live modules and the gold alert path with the test proving its in-progress period is handled:
+  - the feed drops the forming candle;
+  - prev_day;
+  - prev_week and current_week (existing tests);
+  - the Asian range;
+  - session high/low, structure swings and closed-bar age (resting on the feed);
+  - prior_close (existing);
+  - the gold level builder and `session_index`.
+- **The gold level builder** is compared hour by hour on live-shaped data (the forming day and 4-hour bar removed) and archive-shaped data. The two must be identical.
+- **A scan** of nine files fails the suite on any new `prev_*`, `prior_*`, `current_week_*`, session high/low or similar key without an entry. `prior_timestamp` is listed as not a market period.
+- **Mutants, each confirmed applied and reverted:**
+  - PC1, the session_index fix reverted: failed;
+  - PC2, a 4-hour bar counted closed after 3 hours: failed (the test hour was moved to 3 hours into its bar so it could);
+  - PC3, the feed keeps the forming candle: failed;
+  - PC4, prev_day taken from the bar before: failed;
+  - PC5, the Asian range run to now: failed;
+  - PC6, a new unregistered `prev_month_high` in levels_context: **survived the first scanner** (known names only). The scanner was widened, then it failed.
+  - Clean after clearing caches.
+  - The protected modules (levels_context, intraday_context, oanda_feed) were mutated only in this worktree and were confirmed reverted (`git status` clean for them). They are not changed by this branch.
+
+**Suite (2026-11-17, branch):** 1335 passed, 10 skipped, 3 deselected, 16 xfailed.

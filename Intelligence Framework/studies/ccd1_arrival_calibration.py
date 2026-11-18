@@ -161,7 +161,9 @@ def level_sets(ins, s):
     return sets
 
 
-def fires(s, sets, tol, kinds):
+def fires_detail(s, sets, tol, kinds):
+    """[(bar index, [(kind, lid, price), ...]), ...]: every ARRIVAL with the
+    levels it arrived at (spec §13.3)."""
     h1 = s["H1"]
     armed = {}
     out = []
@@ -169,20 +171,61 @@ def fires(s, sets, tol, kinds):
         if row is None:
             continue
         atr, lv = row
-        hit = False
-        fired = set()
+        fired = []
         for kind, lid, p in lv:
             if kind not in kinds:
                 continue
             if armed.get(lid) and h1["L"][t] <= p + tol * atr and h1["H"][t] >= p - tol * atr:
-                hit = True
                 armed[lid] = False
-                fired.add(lid)
+                fired.append((kind, lid, p))
+        done = {f[1] for f in fired}
         for kind, lid, p in lv:
-            if kind in kinds and lid not in fired and abs(h1["C"][t] - p) >= REARM * atr:
+            if kind in kinds and lid not in done and abs(h1["C"][t] - p) >= REARM * atr:
                 armed[lid] = True
-        if hit:
-            out.append(h1["t"][t])
+        if fired:
+            out.append((t, fired))
+    return out
+
+
+def fires(s, sets, tol, kinds):
+    h1 = s["H1"]
+    return [h1["t"][t] for t, _ in fires_detail(s, sets, tol, kinds)]
+
+
+def level_breaks(s, sets, arrivals, kinds, margin=0.0, min_gap=0):
+    """LEVEL BREAK (spec §17): [(bar index, [(price, side, arrival bar), ...])].
+    A price that produced an ARRIVAL is watched from that bar, on the side the
+    previous close was on; it stays watched while any level of a firing type
+    has that price (to the cent) in the current hour's set (P4); it breaks on
+    the first hourly close beyond it on the other side (the arrival bar
+    included), once. The approach cooldown plays no part (P1).
+    `margin` (daily ATR beyond the level) and `min_gap` (hours after the
+    arrival) exist only to report options to the owner (ruling P2); the
+    spec's rule is margin 0, min_gap 0."""
+    C = s["H1"]["C"]
+    by_t = dict(arrivals)
+    watched, out = {}, []
+    for t, row in enumerate(sets):
+        if row is None:
+            continue
+        atr, lv = row
+        for kind, lid, p in by_t.get(t, []):
+            key = round(p, 2)
+            side = 1 if C[t - 1] >= p else -1            # +1: price was above the level
+            watched[key] = (p, side, t)
+        present = {round(p, 2) for kind, lid, p in lv if kind in kinds}
+        broke = []
+        for key in list(watched):
+            p, side, t0 = watched[key]
+            if key not in present:
+                del watched[key]                          # no qualification holds
+                continue
+            if t - t0 >= min_gap and ((side == 1 and C[t] < p - margin * atr) or
+                                      (side == -1 and C[t] > p + margin * atr)):
+                broke.append((p, side, t0))
+                del watched[key]
+        if broke:
+            out.append((t, broke))
     return out
 
 

@@ -28,13 +28,13 @@ The biggest gap is that nothing grades the trader. The best next evidence source
 
 | File | What it holds |
 |---|---|
-| `methodology.md` | 41 evidence-discipline principles, each with the incident that forced it |
+| `methodology.md` | 42 evidence-discipline principles, each with the incident that forced it |
 | `research_findings.md` | 50 tested hypotheses with honest N. **Check here before testing any idea** |
 | `chart_reading_method.md` | How to mark up a chart: top-down order, swings, Fibonacci anchors, pullback depth (R39), zones. A method, not a tested edge |
 | `market_data_facts.md` | OANDA candle conventions, sessions and DST, pip scales, feed overlap, spreads |
 | `risk_and_execution.md` | Exact risk, stop, target and management rules, and where they live in code |
 | `candidates.md` | The frozen shadow candidates: exact specs and current evidence |
-| `incident_catalogue.md` | 32 silent failures and contamination events, with the control each produced |
+| `incident_catalogue.md` | 33 silent failures and contamination events, with the control each produced |
 | `trader_review.md` | **The missing half:** the loop that grades the trader, not only the model |
 | `tools/power_check.py` | Is this N enough? Power, required N, false-pass rate, bootstrap bound |
 | `tools/episodes.py` | Honest non-overlapping episode counting on the real bar index |

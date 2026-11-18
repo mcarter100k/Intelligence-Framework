@@ -692,3 +692,59 @@ the exempt subtitles.
 - If it pushes the busy week past 11, that is reported with a
   recommendation, never tightened silently. "The level you were just told
   about broke" is high-value by construction (the N2 reasoning).
+
+**Measured (ruling P2):** `studies/ccd1_level_break_budget.py` and
+`studies/ccd1_level_break_budget_result.md`. Gold, 2021–2026, 281 trading
+weeks; the chosen ARRIVAL list at 0.10; counts only.
+- **LEVEL BREAK: 3.31 a week.**
+  - Of 1,623 watched prices, 1,084 (67%) were closed through while still
+    qualifying. The rest stopped qualifying first.
+  - 370 of the breaks came in the arrival's own hour, and were sent as one
+    alert. The median gap from arrival to break is 1 hour; the 90th
+    percentile is 8.
+- **ALERT total** (ARRIVAL sent separately 4.13, LEVEL BREAK 3.31, BREAK
+  0.17, release warnings 3 as an estimate): **10.6 a week**.
+  - The median week is 10 and the 90th-percentile week is **15**.
+  - 39% of weeks exceed 11, against 8.2 / 11 / 6% before P1.
+- **It pushes the busy week past 11, so it is reported here, not
+  tightened.**
+
+**Options measured, not applied:**
+
+| Option | LEVEL BREAK a week | Total a week | 90th-pct week | Weeks over 11 |
+|---|---|---|---|---|
+| as written | 3.31 | 10.6 | 15 | 39% |
+| close ≥ 0.05 ATR beyond | 2.93 | 10.5 | 15 | 38% |
+| close ≥ 0.10 ATR beyond | 2.59 | 10.3 | 15 | 35% |
+| close ≥ 0.20 ATR beyond | 2.12 | 10.1 | 14 | 32% |
+| ≥ 2 hours after the arrival | 2.97 | 11.2 | 16 | 48% |
+| ARRIVAL list "daily swings + prior week", break as written | 1.68 | 6.7 | 10 | 6% |
+
+**Recommendation: ship LEVEL BREAK as written.**
+1. **Tightening the break barely moves the total.** A break that is filtered
+   out in its arrival's hour is sent as an ARRIVAL instead, so the alert is
+   not saved. A wait after the arrival makes it worse, because it splits
+   one alert into two.
+2. **The only option that holds the busy week at 10 is the smaller ARRIVAL
+   list,** and that list drops range edges and prior sessions.
+   - $3,832.46 was both, so under that list the 2026-11-17 break produces no
+     alert at all.
+   - It removes exactly the event P1 exists for.
+3. **Watch it live.** After 4 weeks of live alerts, compare the real weekly
+   count with this estimate (Gate 3).
+   - If the volume proves noisy, the measured lever with real effect is the
+     ARRIVAL list, not the break rule.
+   - A margin of 0.10 ATR is the next-best option. It would drop
+     closes-through-by-cents like three of last week's five ($0.29, $0.88,
+     $0.98), at a cost of about 0.3 alerts a week.
+
+**Replay of the last seven days** (`studies/ccd1_arrival_lastweek_level_break_result.md`):
+- 5 LEVEL BREAKs, including **Tue 11-17 17:00 PT: $3,832.46 closed through
+  by $17.48 (0.18 ATR)**. The break was caught, qualifying as a range edge
+  after its prior-session qualification lapsed at 15:00 PT (P4).
+- With same-hour merges, the week's alerts were 3 ARRIVAL and 5 LEVEL
+  BREAK, plus release warnings.
+
+**Completed-period fields (ruling P3):** every field this alert path takes
+from a completed period is covered by `tests/test_completed_periods.py`
+(methodology M42, incident I33).

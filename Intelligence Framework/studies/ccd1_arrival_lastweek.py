@@ -201,6 +201,38 @@ def main():
               f"{terc} third by R50's cut points.")
         print("  This configuration being present is not evidence that it pays. Whether it does is an open question (Track B).")
         print("  No direction is recommended.")
+    # LEVEL BREAK (spec §17, ruling P1): a close through a price that produced an ARRIVAL, while it still qualifies
+    brk = A.level_breaks(s, sets, det, KINDS)
+    shown_b = [(t, b) for t, b in brk if h1["t"][t] + timedelta(hours=1) >= cut]
+    print("\n" + "=" * 78)
+    print(f"LEVEL BREAK alerts in the window: {len(shown_b)}")
+    for t, broke in shown_b:
+        atr, lv = sets[t]
+        c, sent = h1["C"][t], h1["t"][t] + timedelta(hours=1)
+        print("=" * 78)
+        print(f"LEVEL BREAK — gold — sent {pt(sent)} (hourly bar {pt(h1['t'][t])} to {pt(sent)}, close ${c:,.2f})")
+        for p, side, t0 in broke:
+            quals = sorted({NAMES[k] for k, l, q in lv if k in KINDS and round(q, 2) == round(p, 2)})
+            at_arrival = sorted({NAMES[k] for k, l, q in dict(det)[t0] if round(q, 2) == round(p, 2)})
+            told = ("Price arrived at this level and closed through it in the same hour" if t0 == t else
+                    f"The level you were told about at {pt(h1['t'][t0] + timedelta(hours=1))} has given way")
+            print(f"  {told}: the hour closed at ${c:,.2f}, ${abs(c - p):,.2f} ({abs(c - p) / atr:.2f} ATR) "
+                  f"{'below' if side == 1 else 'above'} ${p:,.2f}.")
+            print(f"    Qualified then as: {', '.join(at_arrival)}. Qualifies now as: {', '.join(quals)}.")
+            others = [x for x in lv if x[0] in ALL5 and abs(x[2] - p) > TOL * atr]
+            nxt = sorted((x for x in others if (x[2] < c if side == 1 else x[2] > c)), key=lambda x: abs(x[2] - c))
+            back = sorted((x for x in others if (x[2] > p if side == 1 else x[2] < p)), key=lambda x: abs(x[2] - c))
+            fmt = lambda x: (f"${x[2]:,.2f} ({NAMES[x[0]]}), ${abs(x[2] - c):,.2f} = {abs(x[2] - c) / atr:.2f} ATR from the close"
+                             if x else "none among the qualifying levels")
+            print(f"    Next level beyond: {fmt(nxt[0] if nxt else None)}")
+            print(f"    Nearest level the other way (back through ${p:,.2f}): {fmt(back[0] if back else None)}")
+            print("    No break base rate has been measured for this kind of level." if not any(k == "D1" for k, l, q in lv if round(q, 2) == round(p, 2))
+                  else "    A daily close beyond a gold daily swing came back inside 45% of the time, 2021-2026 (R45).")
+        print(f"  Minimum stop at the 14-day average range (${atr:,.2f}): same session ${0.30 * atr:,.2f}; 10-session hold "
+              f"${0.60 * atr:,.2f} to ${0.84 * atr:,.2f}. Floors, not recommendations.")
+        print(f"  Next scheduled release: {calendar_lines(sent)}. Clock: {window_line(sent)}.")
+        print("  This configuration being present is not evidence that it pays. Whether it does is an open question (Track B).")
+        print("  No direction is recommended.")
     print("\n" + "=" * 78)
     print(f"TRACE of ${WATCH:,.2f} (level ids {sorted(watch_ids)}), last 7 days:")
     for t, lid, ev in log:

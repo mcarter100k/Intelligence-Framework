@@ -40,7 +40,7 @@ When reviewing, critiquing or suggesting changes to anything the owner made
 | File | Read when |
 |---|---|
 | `references/research_findings.md` | **Any new idea, before testing it.** 50 prior tests with honest N. Refuted premises include compression-precedes-moves, fakeout-then-go, hourly breakout confirmation, filtered daily/weekly level breaks, 15-minute retest entries, structural precursors, level fades and first-bounce entries |
-| `references/methodology.md` | Designing any study or backtest, judging any result, writing a verdict. 41 principles, each with the incident that produced it |
+| `references/methodology.md` | Designing any study or backtest, judging any result, writing a verdict. 42 principles, each with the incident that produced it |
 | `references/risk_and_execution.md` | Sizing, stops, targets, daily limits, in-trade management |
 | `references/trader_review.md` | Journaling, grading trades, weekly or monthly review, "how am I doing" |
 | `references/market_data_facts.md` | Touching OANDA data, bar times, sessions and DST, pip scale, spreads, data feeds |
