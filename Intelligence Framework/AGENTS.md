@@ -14,7 +14,7 @@ Idle agents are correct behavior when the queue is empty.
 
 ## PROTECTED — team review required before any merge
 
-**The 21 live core modules** (the tradeable path and its evidence loop):
+**The 23 live core modules** (the tradeable path, its evidence loop, and the gold alerts):
 
 ```
 decision_brief.py        run_outcome_check.py     regime_detection.py
@@ -24,6 +24,7 @@ entry_confirmation.py    levels_context.py        intraday_context.py
 oanda_feed.py            news_gate.py             calendar_fetch.py
 setup_check.py           session_guard.py         risk_config.py
 display_time.py          exclusions.py            ledger_io.py
+gold_levels.py           gold_briefing.py
 ```
 
 (`news_gate.py` added 2026-07-30 per the team-approved spec in
@@ -38,7 +39,10 @@ promoted out of `shadow/` 2026-09-09 per
 the live `trades.csv` two-row ledger and carries the shared-currency-leg
 standing rule; where it GATES the live path is a separate pending spec.
 `display_time.py` added 2026-09-10 per docs/specs/display_timezone_spec.md —
-the single point where times become human-readable.)
+the single point where times become human-readable. `gold_levels.py` and
+`gold_briefing.py` added 2026-11-19 per configuration_detector_spec.md
+§14.2: the BRIEFING reaches the owner on a schedule, and ARRIVAL and LEVEL
+BREAK will fire from the level code.)
 
 **Frozen candidate specs** — `shadow_signals.py` candidates (EARLY_MOMENTUM,
 THRUST_PULLBACK, MOMENTUM_JOIN) are FROZEN. Parameter changes are NEVER edited

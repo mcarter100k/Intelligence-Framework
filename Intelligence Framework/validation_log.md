@@ -8608,3 +8608,78 @@ That is a permanent alarm on artifacts that no longer have a live writer. The he
 **Observed, for the BRIEFING build:**
 - **The Monday upward break has no LEVEL BREAK alert.** The §17 watch on $3,870.32 ended at Sunday's break, and no new ARRIVAL at that price restarted it. The history therefore records a break that no alert covered. This follows from R1 (the count is independent of the alert budget) and is not a defect. The BRIEFING shows it as a visit that broke, not as an alert.
 - **The visit list gives bar starts; alerts give send times,** one hour later. The BRIEFING must state one of them consistently. The build will use the hour's close (the send time) so the two read alike, with a test.
+
+## 2026-11-19 — The gold BRIEFING built (branch `feat/briefing`; merge held for team review: two new protected modules)
+
+**Spec first:** `configuration_detector_spec.md` §14.2, the build plan, committed before any code.
+- **Corrected the same day, before code:** the plan first said four categories are exempt from the mute. §17 adds a fifth, `LEVEL`, so there are five, matched on the subtitle's first word.
+
+**Built:**
+- **`gold_levels.py`:** the §13.1 levels, the simple ATR, the live session index and the R1–R3 visit history, ported from the studies, because the live path never imports `studies/`.
+- **`gold_briefing.py`:** a pure render plus a `main` that fetches the inputs and applies the market gate.
+- **`scripts/scheduled_briefing.sh`:** writes the full text to the day log and sends one BRIEFING notification whose click opens it. A closed market sends nothing. A failed input or a crash is sent as "BRIEFING FAILED".
+- **`scripts/notify.sh`:** BRIEFING, ARRIVAL, RELEASE, BREAK and LEVEL are exempt from `ALERTS_MUTED` by first word. Each exempt send while muted is noted in the log.
+- **`scripts/launchd/com.quis.intelligence.briefing.plist`:** 3:45 AM local time (America/Los_Angeles). **Not loaded:** that is a live change, made after the merge and on the owner's word.
+- **AGENTS.md:** the protected list goes from 21 modules to 23.
+
+**Design facts:**
+- **The price:** the close of the latest complete 15-minute bar, with that bar's end time. `get_live_price` returns no time, and `oanda_feed.py` is not changed.
+- **A stale price:** over 30 minutes old, it is said as such.
+- **The release list:** runs from now to the next BRIEFING. A calendar that ends sooner is said as such in both the text and the summary. It is never a zero (AGENTS rule 9).
+- **The history section:** the §14.1 not-live sentence while the ledger holds no ARRIVAL or LEVEL BREAK row. If such a row appears before the ARRIVAL build, the section prints a loud "ALERT HISTORY NOT BUILT".
+
+**Tests:** `tests/test_gold_levels.py` (6) and `tests/test_gold_briefing.py` (53).
+- **The port matches the studies exactly** on 2,600 synthetic hours:
+  - every hourly level set, with all five types exercised;
+  - "levels now" for 43 cut points;
+  - the visit history at every level price.
+- **The briefing tests cover:**
+  - the gate (weekend, Sunday before the open, Friday after the close, gold's daily break, Christmas);
+  - the next-briefing time (Friday to Monday, and over Christmas);
+  - each render line, and each level type in plain words;
+  - the language sweep (§8, §16, the display floor, raw identifiers) and no 24-hour clock;
+  - a render sweep in which each changing line follows its input;
+  - `main`'s exit codes;
+  - should it reach the owner, through the real wrapper under `/bin/bash`: muted and not muted, closed, a failed fetch, a crash;
+  - the mute exemption: exactly five, plus nine categories that stay muted.
+- **One existing pin changed old → new, with a dated comment:** `test_live_guard`'s wrapper count, 4 → 5.
+
+**Mutants:** 19 of 19 killed. Each substitution matched exactly once. Afterwards the files were restored by hash and caches were cleared, and 59 of 59 passed. The mutants were:
+- the daily break ignored; the weekend ignored;
+- the stale check removed;
+- the calendar-ends note dropped;
+- the release window including the next briefing;
+- the 4–8 AM mark dropped;
+- the history always "not live"; the history matched by prefix;
+- an unknown calendar summarised as zero;
+- a fixed sentence missing;
+- the farthest level picked instead of the nearest;
+- the exemption widened to ALERT; the exemption matched on the whole subtitle;
+- a closed market notifying; a failure staying silent;
+- a crash not caught;
+- in the port: the live session index fix reverted, the hold margin dropped, and "levels now" one hour stale.
+
+**Suite:** 1436 passed, 10 skipped, 3 deselected, 16 xfailed.
+
+**REALITY GATE (2026-11-19, 8:04–8:16 PM PT).** Each run went through `reality_run --code`, and the project was unchanged by hash every time.
+- **Parity on real OANDA gold bars:** across 1,000 hours, every hourly level set from `gold_levels` equals the studies' (`rows equal: True`). The visit history matched at the lowest level.
+- **"Below: none" is true on the raw bars:**
+  - The price was $3,550.22. The lowest daily low in the last 220 sessions is $3,619.91, the prior session's low.
+  - The day's $3,517.39 low is inside the unfinished session, which is not a qualifying level.
+- **The wrapper under `/bin/bash`:** on a copy of the live project with `ALERTS_MUTED` present, a fake home and a recording `osascript`, so nothing reached the owner.
+  - The day log held the full BRIEFING ("GOLD BRIEFING — Thu 19 Nov 2026 8:15 PM PT", price $3,543.16, above $3,619.91 at 0.77 ATR, below none, the volatility line, the not-live history sentence, both fixed sentences) and "SENT WHILE MUTED (exempt category) BRIEFING".
+  - One notification was recorded under BRIEFING.
+  - The copy's notification ledger went from 68 rows to 69.
+  - No temporary file was left behind.
+- **First real render:** it showed "0 US releases" in the summary while the stored calendar ended Wed 18 Nov 4:30 PM PT. That was a zero from a source that did not cover the window (AGENTS rule 9). It was fixed before commit: the summary now says the calendar ends early.
+- **Not checked:** whether this week's source feed really has no High-impact US release after Wednesday. The BRIEFING says only what the stored file holds.
+
+**Found, not changed:** `scripts/launchd/install.sh` loads every plist in the folder with `launchctl load -w`. Run today, it would reverse the M1 stop of the four GBP jobs. It has not been run. The BRIEFING plist is to be loaded on its own.
+
+### Gate 3 — M1 stop: CLEARED 2026-11-19 8:16 PM PT
+- **Evidence:** no `brief_` or `outcomes_` day log exists for 2026-11-18 or 2026-11-19. That covers the 3:15 PM PT grader and the 6:00 PM PT brief on 2026-11-18 (pending in the entry of that day) and every slot since.
+- **launchd's state:** `launchctl print-disabled` shows outcomes, brief-ny, brief-asia and brief-london disabled, and calendar and heartbeat enabled.
+- **Control:** `brief_2026-11-17.log` and `outcomes_2026-11-17.log` exist from before the stop, so these jobs write their day log whenever they run.
+
+### Gate 3 — PENDING LIVE CONFIRMATION
+- After the merge and the plist load on the owner's word: the first scheduled 3:45 AM PT BRIEFING on a trading day, and the first silent weekend morning.
