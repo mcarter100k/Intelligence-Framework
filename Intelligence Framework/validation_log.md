@@ -8683,3 +8683,11 @@ That is a permanent alarm on artifacts that no longer have a live writer. The he
 
 ### Gate 3 — PENDING LIVE CONFIRMATION
 - After the merge and the plist load on the owner's word: the first scheduled 3:45 AM PT BRIEFING on a trading day, and the first silent weekend morning.
+
+## 2026-11-19 — BRIEFING sign-off and merge (branch `feat/briefing`)
+- **Owner instruction, 2026-11-19:** "is everything in the code? main branch? if not do so." This is taken as the sign-off for the two new protected modules, `gold_levels.py` and `gold_briefing.py`. The fast-forward of `main` follows this commit.
+- **The plist is not loaded.** Loading it is a separate live change, made on the owner's word.
+- **Not merged, reported to the owner instead:** three older branches held for review in earlier sessions.
+  - `feat/decision-reasoning`: 13 commits from 2026-10-15 that change protected GBP modules. It conflicts with `main`, and the GBP jobs are stopped (M1).
+  - `chore/protected-hygiene`: 6 commits from 2026-10-17, protected-path cleanup awaiting review.
+  - `feat/latest-view-spec`: 1 spec commit from 2026-09-09; `latest_view.py` has since been built on `main`.
