@@ -497,7 +497,7 @@ in.
 
 **BRIEFING: a daily read, not an interruption. Not counted in any alert
 budget.**
-- 03:45 PT on each trading day, before gold's 4–8 AM PT window.
+- 3:45 AM PT on each trading day, before gold's 4–8 AM PT window.
 - Contents as listed under "What it states".
 
 **RELEASE warning: an ALERT, counted in the 5–10 a week budget.**
@@ -673,6 +673,88 @@ project was unchanged by hash.
     These data cannot choose between them; it is a definition.
 - **Until ruled:** the BRIEFING build leaves the counts out, and does not
   print them under the rule as built.
+
+### 14.2 What gets built for the BRIEFING (build plan, 2026-11-19)
+
+Written before any BRIEFING code. The BRIEFING is first in the build order
+(ruling M6); ARRIVAL with LEVEL BREAK, then BREAK, follow and reuse its
+level code.
+
+| Item | What | Protected? |
+|---|---|---|
+| `gold_levels.py` | **New** live module: the §13.1 level sets, the §13.2 simple ATR, the live session index (§13.1 live note), and the touch and hold history of rulings R1–R3. Ported from `studies/ccd1_prototype.py` and `studies/ccd1_arrival_calibration.py`, because the live path never imports `studies/`. A parity test runs the port and the studies on the same bars and requires identical output, and Gate 2 repeats that on real OANDA bars | Added to the protected list: the BRIEFING reads it, and ARRIVAL and LEVEL BREAK will fire from it |
+| `gold_briefing.py` | **New** live module: renders the BRIEFING from bars, the price, the calendar and `notification_log.csv` as a pure function, plus a `main` that fetches the inputs and applies the market gate | Added to the protected list: it reaches the owner on a schedule |
+| `scripts/scheduled_briefing.sh` | **New** wrapper: runs `gold_briefing.py`, appends the full text to `logs/briefing_<date>.log`, and sends one `BRIEFING` notification whose click opens that log | Free zone |
+| `scripts/launchd/com.quis.intelligence.briefing.plist` | **New**: every day at 3:45 AM local time (this Mac's zone is America/Los_Angeles). The market gate makes non-trading days silent | Free zone. **Loading it is a live change, made only after the merge and on the owner's word** |
+| `scripts/notify.sh` | `BRIEFING`, `ARRIVAL`, `RELEASE` and `BREAK` become exempt from `ALERTS_MUTED` (the §10 table, rulings M4 and L2). Every other category stays muted. A test pins exactly these four | Free zone |
+
+**The price and its time.** The close of the latest complete 15-minute bar,
+and the time that bar ended. `oanda_feed.get_live_price` returns no time,
+and `oanda_feed.py` is protected, so it is not changed for this. If that bar
+ended more than 30 minutes before the run, the line says how old the price
+is and that gold may not be trading (a holiday the weekend rule does not
+know). It never prints an old price as current.
+
+**The market gate (§10 gate 2).** `regime_detection._market_status` (the
+weekend and Dec 25 / Jan 1), plus gold's daily break, 5:00–6:00 PM New York
+time. At 3:45 AM PT the break never applies; it is implemented and tested so
+that a manual run inside it stays silent too. A closed market writes one log
+line and sends nothing.
+
+**The levels.** All five §13.1 types at the latest closed hour (§14). The
+nearest above and the nearest below the price, each to the cent, with its
+type and origin in plain words, and its distance in dollars and in ATR.
+A side with none reads "none among the qualifying levels". The ATR is
+defined once in the text as the 14-day average daily range, in dollars.
+
+**The releases.** High-impact US releases from `calendar.csv` from now to the
+next BRIEFING (the next trading day, 3:45 AM PT), oldest first, each with
+its time in 12-hour PT. A release inside 4:00–8:00 AM PT is marked as
+inside gold's 4–8 AM PT window (ruling N2). If the stored calendar ends
+before the next BRIEFING, the text says when it ends. A missing or
+unreadable calendar is said as such (AGENTS rule 9), never as "no releases".
+
+**Volatility, the window and the fixed sentences:** §13.4 items 7 and 8, the
+§16 window sentence and the two §7.10 sentences, verbatim.
+
+**The alert history (§14.1).**
+- While `notification_log.csv` holds no ARRIVAL or LEVEL BREAK row, the
+  section is the §14.1 sentence: "ARRIVAL and LEVEL BREAK alerts are not
+  live yet, so there is no alert history to show."
+- The full history (the alerts, each level's status, the R1–R3 counts) is
+  built with ARRIVAL, which defines how a row records its level prices.
+- **Until then, if such a row appears, the section prints a loud marker**
+  ("ALERT HISTORY NOT BUILT") rather than a silent or empty history. A test
+  pins both cases.
+
+**The notification.** One line, at most the notify cap: the price and its
+time, the nearest level above and below with their distances, and the
+number of releases before the next BRIEFING with the first one's time. The
+full text is in the log the click opens.
+
+**Tests (Gate 1), each with a named mutant:**
+- parity of `gold_levels` with the studies, on synthetic bars covering every
+  level type;
+- the gate: weekend, Dec 25, gold's daily break, open hours;
+- the stale price line;
+- the releases window, the 4–8 AM mark, a calendar that ends early, and a
+  missing calendar;
+- the history: the not-live sentence with no rows, and the marker with one;
+- the mute exemption: exactly the four categories;
+- a render sweep: every sentence that carries a number or time changes with
+  its input; the fixed sentences are always present; no 24-hour clock;
+- the language sweep: §8, §16 and the display floor tokens;
+- should it reach the owner (AGENTS rule 12): market open and closed, muted
+  and not, a failed fetch (which notifies as an error, never as a quiet
+  morning).
+
+**Gate 2:** the real module on real OANDA bars through `reality_run`, with
+the project unchanged by hash; the level parity repeated on those bars; and
+the wrapper under `/bin/bash` with the notification sender stubbed, so the
+gate sends nothing to the owner.
+
+**Gate 3, PENDING after the plist is loaded:** the first scheduled 3:45 AM PT
+BRIEFING on a trading day, and the first silent weekend morning.
 
 ## 15. Fire-rate calibration (A10)
 
