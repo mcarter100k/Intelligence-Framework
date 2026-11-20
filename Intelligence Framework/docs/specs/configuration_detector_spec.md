@@ -686,7 +686,7 @@ level code.
 | `gold_briefing.py` | **New** live module: renders the BRIEFING from bars, the price, the calendar and `notification_log.csv` as a pure function, plus a `main` that fetches the inputs and applies the market gate | Added to the protected list: it reaches the owner on a schedule |
 | `scripts/scheduled_briefing.sh` | **New** wrapper: runs `gold_briefing.py`, appends the full text to `logs/briefing_<date>.log`, and sends one `BRIEFING` notification whose click opens that log | Free zone |
 | `scripts/launchd/com.quis.intelligence.briefing.plist` | **New**: every day at 3:45 AM local time (this Mac's zone is America/Los_Angeles). The market gate makes non-trading days silent | Free zone. **Loading it is a live change, made only after the merge and on the owner's word** |
-| `scripts/notify.sh` | `BRIEFING`, `ARRIVAL`, `RELEASE` and `BREAK` become exempt from `ALERTS_MUTED` (the §10 table, rulings M4 and L2). Every other category stays muted. A test pins exactly these four | Free zone |
+| `scripts/notify.sh` | `BRIEFING`, `ARRIVAL`, `RELEASE`, `BREAK` (the §10 table, rulings M4 and L2) and `LEVEL` (§17) become exempt from `ALERTS_MUTED`, matched on the subtitle's first word, so a `LEVEL BREAK` subtitle is exempt. Every other category stays muted. A test pins exactly these five. (Corrected the same day: the first draft of this plan said four and missed §17's `LEVEL`) | Free zone |
 
 **The price and its time.** The close of the latest complete 15-minute bar,
 and the time that bar ended. `oanda_feed.get_live_price` returns no time,
@@ -718,7 +718,8 @@ unreadable calendar is said as such (AGENTS rule 9), never as "no releases".
 §16 window sentence and the two §7.10 sentences, verbatim.
 
 **The alert history (§14.1).**
-- While `notification_log.csv` holds no ARRIVAL or LEVEL BREAK row, the
+- While `notification_log.csv` holds no ARRIVAL or LEVEL BREAK row (a
+  category whose first word is `ARRIVAL` or `LEVEL`), the
   section is the §14.1 sentence: "ARRIVAL and LEVEL BREAK alerts are not
   live yet, so there is no alert history to show."
 - The full history (the alerts, each level's status, the R1–R3 counts) is
@@ -740,7 +741,7 @@ full text is in the log the click opens.
 - the releases window, the 4–8 AM mark, a calendar that ends early, and a
   missing calendar;
 - the history: the not-live sentence with no rows, and the marker with one;
-- the mute exemption: exactly the four categories;
+- the mute exemption: exactly the five, by first word;
 - a render sweep: every sentence that carries a number or time changes with
   its input; the fixed sentences are always present; no 24-hour clock;
 - the language sweep: §8, §16 and the display floor tokens;
