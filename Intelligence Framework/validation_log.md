@@ -8691,3 +8691,9 @@ That is a permanent alarm on artifacts that no longer have a live writer. The he
   - `feat/decision-reasoning`: 13 commits from 2026-10-15 that change protected GBP modules. It conflicts with `main`, and the GBP jobs are stopped (M1).
   - `chore/protected-hygiene`: 6 commits from 2026-10-17, protected-path cleanup awaiting review.
   - `feat/latest-view-spec`: 1 spec commit from 2026-09-09; `latest_view.py` has since been built on `main`.
+- **CORRECTION, same entry, before merge:** the AGENTS.md commit 80e5f8b was made without re-running the full suite, on the assumption that a docs change could not fail a test. It failed `test_live_core_is_exactly_the_agents_md_protected_list`, which ties the protected list to the modules the live-path guards scan. That broke standing rule 2 for that commit.
+  - **The fix:** `gold_levels.py` and `gold_briefing.py` were added to `LIVE_CORE`. That put them under the guards, which then caught three real gaps:
+    - `notification_log.csv` was read by a live module but had no inventory entry. It is now in `READ_SIDE_NO_CADENCE`, as event-driven with a live writer (`notify()`), and the pinned list was changed old → new.
+    - `level_sets()` and `visit_history()` have no live caller yet. They are now in `ORPHAN_ALLOWLIST`, with reasons: the parity tests call the first, and the ARRIVAL build wires the second.
+  - **The suite after the fix:** 1436 passed, 10 skipped, 3 deselected, 16 xfailed.
+  - **What the owner sees is unchanged:** the heartbeat calls `artifact_freshness.check()` only, which never prints no-cadence lines.

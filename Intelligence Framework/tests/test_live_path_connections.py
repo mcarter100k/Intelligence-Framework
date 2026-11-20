@@ -46,6 +46,7 @@ LIVE_CORE = [
     "session_guard.py", "risk_config.py", "display_time.py",
     "exclusions.py",          # added 2026-09-16, exclusion_registry_spec.md
     "ledger_io.py",           # protected 2026-09-30; missing here until 2026-10-18
+    "gold_levels.py", "gold_briefing.py",   # protected 2026-11-19, configuration_detector_spec.md §14.2
 ]
 
 # Artifacts a live module only ever WRITES — nothing on the live path
@@ -224,6 +225,7 @@ def test_read_side_inventory_pinned():
     assert [rel for rel, _ in af.READ_SIDE_NO_CADENCE] == [
         "trades.csv", ".env", "excluded_rows.csv", "trade_log.csv",
         "trade_signal_log.csv",     # 2026-11-15, alert_importance_spec N7
+        "notification_log.csv",     # 2026-11-19, configuration_detector_spec §14.2 (gold_briefing reads it)
     ]
 
 
@@ -267,6 +269,13 @@ ORPHAN_ALLOWLIST = {
                         "Deliberately NOT called by any grader — a grader "
                         "that could write its own exclusions is the whole "
                         "failure mode this registry exists to prevent.",
+    "level_sets": "gold_levels: every hour's level set, the form the studies "
+                  "compute; the parity tests call it so the port is checked "
+                  "on every hour. The BRIEFING uses levels_now; ARRIVAL and "
+                  "LEVEL BREAK will use this (configuration_detector_spec §14.2)",
+    "visit_history": "gold_levels: the R1-R3 touch and hold counts; wired "
+                     "when ARRIVAL ships, which builds the BRIEFING's alert "
+                     "history (configuration_detector_spec §14.1, §14.2)",
 }
 
 ARTIFACT_ALLOWLIST = {

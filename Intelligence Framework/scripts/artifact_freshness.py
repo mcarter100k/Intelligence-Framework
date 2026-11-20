@@ -139,6 +139,14 @@ READ_SIDE_NO_CADENCE = [
                    "by agreement_lines(): every regime_classification_log row "
                    "with stand_down False must have its trade row "
                    "(docs/specs/alert_importance_spec.md N7)."),
+    ("notification_log.csv",
+                   "event-driven — one row per notification actually sent, "
+                   "written by notify() (scripts/notification_ledger.py), and "
+                   "none while ALERTS_MUTED holds back a category, so quiet "
+                   "days are normal. gold_briefing.py reads it for ARRIVAL and "
+                   "LEVEL BREAK rows; with none it says those alerts are not "
+                   "live yet, never that none were sent "
+                   "(configuration_detector_spec.md §14.1, §14.2)."),
 ]
 
 # N7: a trade call recorded in the regime log must have its trade-signal row.
