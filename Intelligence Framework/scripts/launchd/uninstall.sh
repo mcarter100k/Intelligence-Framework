@@ -8,7 +8,8 @@ for name in \
     com.quis.intelligence.brief-asia \
     com.quis.intelligence.outcomes \
     com.quis.intelligence.calendar \
-    com.quis.intelligence.heartbeat; do
+    com.quis.intelligence.heartbeat \
+    com.quis.intelligence.briefing; do
     plist="$DEST/${name}.plist"
     if [ -f "$plist" ]; then
         launchctl unload -w "$plist" 2>/dev/null || true

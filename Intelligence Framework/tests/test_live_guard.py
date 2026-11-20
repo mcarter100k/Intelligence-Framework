@@ -64,7 +64,7 @@ def test_off_main_alerts_in_log_and_notification(tmp_path, branch):
 def test_every_scheduled_wrapper_runs_the_guard():
     wrappers = glob.glob(os.path.join(ROOT, "scripts", "scheduled_*.sh")) + [
         os.path.join(ROOT, "scripts", "weekly_heartbeat.sh")]
-    assert len(wrappers) == 4
+    assert len(wrappers) == 5      # 4 -> 5 on 2026-11-19: scheduled_briefing.sh (configuration_detector_spec §14.2)
     for w in wrappers:
         body = open(w).read()
         assert '. "$PROJ/scripts/live_guard.sh"' in body, w

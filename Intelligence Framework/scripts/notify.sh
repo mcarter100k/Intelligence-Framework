@@ -21,7 +21,8 @@
 # authorizes notifications for terminal-notifier — a scheduled run must never
 # hang on that dialog. A hung or failing post falls back to osascript, so a
 # notification is never silently lost. Always returns 0 (exit-0 discipline).
-# Muted while $PROJ/ALERTS_MUTED exists (docs/specs/alert_mute_spec.md).
+# Muted while $PROJ/ALERTS_MUTED exists (docs/specs/alert_mute_spec.md),
+# except the five gold alert categories below.
 
 TN_BIN="$HOME/Applications/terminal-notifier.app/Contents/MacOS/terminal-notifier"
 NOTIFY_WATCHDOG_SECS="${NOTIFY_WATCHDOG_SECS:-15}"
@@ -41,10 +42,19 @@ notify() {
     # Mute switch (docs/specs/alert_mute_spec.md): while $PROJ/ALERTS_MUTED
     # exists nothing is sent and no ledger row is written; the alert goes to
     # the log instead, so it is never lost.
+    # Exempt (configuration_detector_spec.md §10, §14.2, §17; rulings M4,
+    # L2): the gold BRIEFING, ARRIVAL, RELEASE, BREAK and LEVEL BREAK alerts,
+    # matched on the subtitle's first word. They are sent while muted, and
+    # each such send is noted in the log and recorded in the ledger as usual.
     if [ -e "$PROJ/ALERTS_MUTED" ]; then
-        printf 'MUTED (not sent; ALERTS_MUTED present) %s: %s\n' "$_nt_sub" "$_nt_text" \
-            >> "$PROJ/$_nt_rec"
-        return 0
+        case "${_nt_sub%% *}" in
+            BRIEFING|ARRIVAL|RELEASE|BREAK|LEVEL)
+                printf 'SENT WHILE MUTED (exempt category) %s\n' "$_nt_sub" >> "$PROJ/$_nt_rec" ;;
+            *)
+                printf 'MUTED (not sent; ALERTS_MUTED present) %s: %s\n' "$_nt_sub" "$_nt_text" \
+                    >> "$PROJ/$_nt_rec"
+                return 0 ;;
+        esac
     fi
 
     if [ -x "$TN_BIN" ]; then
